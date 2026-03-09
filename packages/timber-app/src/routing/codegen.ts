@@ -182,6 +182,19 @@ function formatDeclarationFile(routes: RouteEntry[]): string {
   lines.push('}');
   lines.push('');
 
+  // Generate useParams overloads for routes with dynamic segments
+  const dynamicRoutes = routes.filter((r) => r.params.length > 0);
+  if (dynamicRoutes.length > 0) {
+    lines.push("declare module '@timber/app/client' {");
+    for (const route of dynamicRoutes) {
+      const paramsType = formatParamsType(route.params);
+      lines.push(`  export function useParams(route: '${route.urlPath}'): ${paramsType}`);
+    }
+    lines.push('  export function useParams(): Record<string, string | string[]>');
+    lines.push('}');
+    lines.push('');
+  }
+
   return lines.join('\n');
 }
 

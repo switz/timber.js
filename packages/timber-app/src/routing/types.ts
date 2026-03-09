@@ -45,6 +45,8 @@ export interface SegmentNode {
   statusFiles?: Map<string, RouteFile>
   /** denied.tsx — slot-only denial rendering */
   denied?: RouteFile
+  /** Legacy compat: not-found.tsx (maps to 404), forbidden.tsx (403), unauthorized.tsx (401) */
+  legacyStatusFiles?: Map<string, RouteFile>
 
   // --- Children ---
   children: SegmentNode[]

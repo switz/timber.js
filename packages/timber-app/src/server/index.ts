@@ -46,6 +46,10 @@ export type {
   ErrorBoundaryProps,
 } from './tree-builder'
 
+// Status-Code Resolver
+export { resolveStatusFile, resolveSlotDenied } from './status-code-resolver'
+export type { StatusFileResolution, StatusFileKind, SlotDeniedResolution, SlotDeniedKind } from './status-code-resolver'
+
 // Flush Controller
 export { flushResponse } from './flush'
 export type {

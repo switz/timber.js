@@ -46,6 +46,9 @@ export type {
   ErrorBoundaryProps,
 } from './tree-builder'
 
+// Access Gates
+export { AccessGate, SlotAccessGate } from './access-gate'
+
 // Status-Code Resolver
 export { resolveStatusFile, resolveSlotDenied } from './status-code-resolver'
 export type { StatusFileResolution, StatusFileKind, SlotDeniedResolution, SlotDeniedKind } from './status-code-resolver'

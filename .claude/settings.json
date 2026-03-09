@@ -26,11 +26,19 @@
       "Bash(grep -v '^\\\\s*$\\\\|^\\\\s*//' tests/integration/phase2.test.ts)",
       "Bash(wc -l tests/integration/phase2-*.test.ts tests/e2e/navigation.test.ts tests/e2e/forms.test.ts)",
       "Bash(git stash pop)",
-      "Bash(git stash drop)"
+      "Bash(git stash drop)",
+      "Bash(jq '[.[] | select\\(.issue_type == \"\"task\"\" and .owner == null\\)] | sort_by\\(.priority\\) | .[0:10] | .[] | {id, title, priority, owner, parent}')",
+      "Bash(jq '[.[] | select\\(.issue_type == \"\"task\"\"\\)] | sort_by\\(.priority\\) | .[0:10] | .[] | {id, title, priority, owner, parent}')",
+      "Bash(jq '[.[] | select\\(.issue_type == \"\"task\"\" and .owner == null\\)] | length')",
+      "Bash(jq '[.[] | select\\(.issue_type == \"\"task\"\"\\)] | .[].id')",
+      "Bash(jq '[.[] | select\\(.issue_type == \"\"task\"\"\\)] | .[] | {id, title, priority}')",
+      "Bash(grep -l \"Phase 3\\\\|phase 3\\\\|search-params\\\\|typed.*link\\\\|type.*safe\" /Users/dsaewitz/y/timber-js-fresh/design/*.md)"
     ],
     "additionalDirectories": [
       "/Users/dsaewitz/y/timber-js-fresh/tests/e2e",
-      "/Users/dsaewitz/y/timber-js-fresh/tests"
+      "/Users/dsaewitz/y/timber-js-fresh/tests",
+      "/Users/dsaewitz/y/timber-js-fresh/tests/fixtures",
+      "/Users/dsaewitz/y/timber-js-fresh/tests/fixtures/phase2-app/app/dashboard"
     ]
   }
 }

@@ -1,8 +1,50 @@
+/**
+ * Smoke tests for the Phase 2 E2E fixture app.
+ *
+ * Verifies the dev server starts and serves routes correctly.
+ * These tests run before the navigation/forms suites to catch
+ * basic infrastructure issues early.
+ */
 import { test, expect } from '@playwright/test';
 
-test('placeholder: Playwright E2E suite runs', () => {
-  // Minimal smoke test so the E2E CI job doesn't fail with
-  // "no tests found". Replace with real app tests once a dev
-  // server fixture is wired up.
-  expect(1 + 1).toBe(2);
+test('fixture app serves the home page', async ({ page }) => {
+  const response = await page.goto('/');
+  expect(response?.status()).toBe(200);
+  await expect(page.locator('[data-testid="home-content"]')).toBeVisible();
+});
+
+test('fixture app serves the dashboard page', async ({ page }) => {
+  const response = await page.goto('/dashboard');
+  expect(response?.status()).toBe(200);
+  await expect(page.locator('[data-testid="dashboard-content"]')).toBeVisible();
+});
+
+test('fixture app serves the dashboard settings page', async ({ page }) => {
+  const response = await page.goto('/dashboard/settings');
+  expect(response?.status()).toBe(200);
+  await expect(page.locator('[data-testid="settings-content"]')).toBeVisible();
+});
+
+test('fixture app serves the todos page', async ({ page }) => {
+  const response = await page.goto('/todos');
+  expect(response?.status()).toBe(200);
+  await expect(page.locator('[data-testid="todos-content"]')).toBeVisible();
+});
+
+test('fixture app serves the slow page', async ({ page }) => {
+  const response = await page.goto('/slow-page');
+  expect(response?.status()).toBe(200);
+  await expect(page.locator('[data-testid="slow-page-content"]')).toBeVisible();
+});
+
+test('root layout is present on all pages', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('[data-testid="root-layout"]')).toBeVisible();
+  await expect(page.locator('[data-testid="layout-input"]')).toBeVisible();
+  await expect(page.locator('[data-testid="layout-button"]')).toBeVisible();
+});
+
+test('dashboard layout is present on dashboard pages', async ({ page }) => {
+  await page.goto('/dashboard');
+  await expect(page.locator('[data-testid="dashboard-layout"]')).toBeVisible();
 });

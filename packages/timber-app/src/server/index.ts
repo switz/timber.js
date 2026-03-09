@@ -5,3 +5,15 @@ export type { AccessContext } from './types'
 export type { MiddlewareContext } from './types'
 export type { RouteContext } from './types'
 export type { Metadata, MetadataRoute } from './types'
+
+// Runtime primitives
+export {
+  deny,
+  redirect,
+  redirectExternal,
+  RenderError,
+  waitUntil,
+  DenySignal,
+  RedirectSignal,
+} from './primitives'
+export type { RenderErrorDigest, WaitUntilAdapter } from './primitives'

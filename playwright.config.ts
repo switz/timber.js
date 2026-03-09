@@ -13,4 +13,10 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
     },
   ],
+  webServer: {
+    command: 'pnpm exec vite --config tests/fixtures/phase2-app/vite.config.ts',
+    port: 3000,
+    reuseExistingServer: !process.env.CI,
+    timeout: 30_000,
+  },
 });

@@ -30,8 +30,6 @@ export function setCurrentParams(params: Record<string, string | string[]>): voi
  * per-route overloads so that `useParams('/products/[id]')` returns
  * `{ id: string }` at the type level.
  */
-export function useParams(
-  _route?: string
-): Record<string, string | string[]> {
+export function useParams(_route?: string): Record<string, string | string[]> {
   return currentParams;
 }

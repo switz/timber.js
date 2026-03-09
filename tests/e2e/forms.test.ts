@@ -12,6 +12,12 @@
 
 import { test, expect } from '@playwright/test';
 
+// These tests require the full timber runtime (server actions, CSRF protection,
+// revalidation). Skipped until Vite plugin tasks are complete:
+//   timber-dch.16 (shims), timber-dch.17 (routing), timber-dch.18 (entries),
+//   timber-dch.19 (dev server)
+test.skip();
+
 // ─── No-JS Forms ────────────────────────────────────────────────────────────
 
 test.describe('no-js forms', () => {

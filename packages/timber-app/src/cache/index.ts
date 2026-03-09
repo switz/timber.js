@@ -46,6 +46,8 @@ export class MemoryCacheHandler implements CacheHandler {
 }
 
 export { createCache } from './timber-cache';
+export { registerCachedFunction } from './register-cached-function';
+export type { RegisterCachedFunctionOptions } from './register-cached-function';
 export { stableStringify } from './stable-stringify';
 export { createSingleflight } from './singleflight';
 export type { Singleflight } from './singleflight';

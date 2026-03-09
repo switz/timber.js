@@ -16,3 +16,7 @@ export type { SegmentNode, StateTree } from './segment-cache';
 // History (internal, but exported for advanced use)
 export { HistoryStack } from './history';
 export type { HistoryEntry } from './history';
+
+// Forms
+export { useActionState, useFormAction } from './form';
+export type { UseActionStateFn, UseActionStateReturn } from './form';

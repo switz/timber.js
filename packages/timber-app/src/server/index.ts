@@ -75,3 +75,11 @@ export type { CsrfConfig, CsrfResult } from './csrf';
 // Body Limits
 export { parseBodySize, enforceBodyLimits, DEFAULT_LIMITS } from './body-limits';
 export type { BodyLimitsConfig, BodyLimitResult, BodyKind } from './body-limits';
+
+// Metadata
+export { resolveMetadata, resolveTitle, resolveMetadataUrls, renderMetadataToElements } from './metadata';
+export type { SegmentMetadataEntry, ResolveMetadataOptions, HeadElement } from './metadata';
+
+// Metadata Routes
+export { classifyMetadataRoute, getMetadataRouteServePath, getMetadataRouteAutoLink, METADATA_ROUTE_CONVENTIONS } from './metadata-routes';
+export type { MetadataRouteInfo, MetadataRouteType } from './metadata-routes';

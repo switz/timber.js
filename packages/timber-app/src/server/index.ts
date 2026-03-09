@@ -106,3 +106,31 @@ export type { RevalidateRenderer, RevalidationState, ActionHandlerConfig, Action
 // Also exported from '@timber/app' for user-facing imports per design doc.
 export { DeferredSuspense } from './deferred-suspense';
 export type { DeferredSuspenseProps } from './deferred-suspense';
+
+// Tracing — per-request trace ID via ALS
+// Design doc: design/17-logging.md §"trace_id is Always Set"
+export { traceId, spanId, generateTraceId, runWithTraceId, replaceTraceId, withSpan, addSpanEvent } from './tracing';
+export type { TraceStore } from './tracing';
+
+// Logger — structured logging
+// Design doc: design/17-logging.md §"Production Logging"
+export { setLogger, getLogger } from './logger';
+export {
+  logRequestCompleted,
+  logRequestReceived,
+  logSlowRequest,
+  logMiddlewareShortCircuit,
+  logMiddlewareError,
+  logRenderError,
+  logProxyError,
+  logWaitUntilUnsupported,
+  logWaitUntilRejected,
+  logSwrRefetchFailed,
+  logCacheMiss,
+} from './logger';
+export type { TimberLogger } from './logger';
+
+// Instrumentation — instrumentation.ts file convention
+// Design doc: design/17-logging.md §"instrumentation.ts"
+export { loadInstrumentation, callOnRequestError, hasOnRequestError } from './instrumentation';
+export { Instrumentation } from './instrumentation';

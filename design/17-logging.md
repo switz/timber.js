@@ -468,16 +468,19 @@ The dev logger is implemented as a Vite plugin and stripped entirely from produc
 
 **Implemented (Phase 2d):**
 - `traceId()` — per-request 32-char hex ID, ALS-backed, exported from `@timber/app/server`
-- `runWithTraceId()` / `replaceTraceId()` — framework-internal ALS scope management
-- `instrumentation.ts` support — `register()`, `onRequestError()`, `logger` export
-- `TimberLogger` interface, `getLogger()` for framework event emission
+- `spanId()` — current OTEL span ID when available
+- `runWithTraceId()` / `replaceTraceId()` / `updateSpanId()` — framework-internal ALS scope management
+- `instrumentation.ts` support — `register()`, `onRequestError()`, `logger` export via `loadInstrumentation()`
+- `TimberLogger` interface, `getLogger()` / `setLogger()` for framework event emission
 - `Instrumentation` namespace types (`RequestInfo`, `ErrorContext`)
-- Wired into the RSC entry handler as the outermost ALS scope
+- All framework log event emitters: `logRequestCompleted`, `logRequestReceived`, `logSlowRequest`, `logMiddlewareShortCircuit`, `logMiddlewareError`, `logRenderError`, `logProxyError`, `logWaitUntilUnsupported`, `logWaitUntilRejected`, `logSwrRefetchFailed`, `logCacheMiss`
+- Log–trace correlation: `trace_id` + `span_id` automatically injected into all log event data
+- OTEL span helpers: `withSpan()`, `addSpanEvent()`, `getOtelTraceId()`, `getTracer()`
+- `@opentelemetry/api` dependency (no-op by default, active when SDK initialized in `register()`)
 
 **Not yet implemented:**
-- OTEL SDK auto-detection and `replaceTraceId()` wiring (requires span creation hook)
-- Framework-emitted spans (`timber.proxy`, `timber.render`, etc.)
-- Production logger integration (calling `getLogger()` at framework event points)
-- Dev logging (grouped indented tree output)
+- OTEL SDK auto-detection and `replaceTraceId()` wiring in pipeline (hook span creation to replace fallback ID)
+- Framework-emitted spans wired into pipeline stages (`timber.proxy`, `timber.render`, etc. — helpers exist, need pipeline integration)
+- Production logger calls wired into pipeline (`logRequestCompleted`, etc. — emitters exist, need pipeline integration)
+- Dev logging (grouped indented tree output to stderr)
 - `slowRequestMs` / `slowPhaseMs` threshold warnings
-- Log–trace correlation (`trace_id` + `span_id` injection)

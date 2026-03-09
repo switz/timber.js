@@ -2,6 +2,7 @@ import type { Plugin } from 'vite';
 import { join } from 'node:path';
 import { cacheTransformPlugin } from './plugins/cache-transform';
 import { timberRouting } from './plugins/routing';
+import { timberShims } from './plugins/shims';
 import type { RouteTree } from './routing/types';
 
 export interface TimberUserConfig {
@@ -46,12 +47,6 @@ function createPluginContext(config?: TimberUserConfig, root?: string): PluginCo
     routeTree: null,
     appDir: join(projectRoot, 'app'),
     root: projectRoot,
-  };
-}
-
-function timberShims(_ctx: PluginContext): Plugin {
-  return {
-    name: 'timber-shims',
   };
 }
 

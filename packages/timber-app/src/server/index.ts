@@ -33,3 +33,24 @@ export type { ProxyFn, ProxyExport } from './proxy'
 // Middleware
 export { runMiddleware } from './middleware-runner'
 export type { MiddlewareFn } from './middleware-runner'
+
+// Tree Builder
+export { buildElementTree } from './tree-builder'
+export type {
+  TreeBuilderConfig,
+  TreeBuildResult,
+  LoadedModule,
+  ModuleLoader,
+  AccessGateProps,
+  SlotAccessGateProps,
+  ErrorBoundaryProps,
+} from './tree-builder'
+
+// Flush Controller
+export { flushResponse } from './flush'
+export type {
+  FlushOptions,
+  FlushResult,
+  RenderFn,
+  RenderResult,
+} from './flush'

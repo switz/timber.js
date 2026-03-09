@@ -8,3 +8,7 @@ dist/
 .dev.vars
 test-results/
 playwright-report/
+
+# Dolt database files (added by bd init)
+.dolt/
+*.db

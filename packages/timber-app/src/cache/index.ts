@@ -44,3 +44,8 @@ export class MemoryCacheHandler implements CacheHandler {
     }
   }
 }
+
+export { createCache } from './timber-cache'
+export { stableStringify } from './stable-stringify'
+export { createSingleflight } from './singleflight'
+export type { Singleflight } from './singleflight'

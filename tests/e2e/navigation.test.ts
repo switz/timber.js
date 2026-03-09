@@ -143,8 +143,8 @@ test.describe('segment diff', () => {
     await page.goto('/dashboard');
 
     // Intercept the RSC request on next navigation
-    const rscRequest = page.waitForRequest((req) =>
-      req.headers()['accept']?.includes('text/x-component') ?? false
+    const rscRequest = page.waitForRequest(
+      (req) => req.headers()['accept']?.includes('text/x-component') ?? false
     );
 
     await page.click('[data-testid="link-settings"]');
@@ -175,7 +175,10 @@ test.describe('segment diff', () => {
 
     // The layout element should still have the same mounted-id
     // (proving it was NOT re-rendered / re-mounted)
-    const mountedId = await page.getAttribute('[data-testid="dashboard-layout"]', 'data-mounted-id');
+    const mountedId = await page.getAttribute(
+      '[data-testid="dashboard-layout"]',
+      'data-mounted-id'
+    );
     expect(mountedId).toBe('original');
   });
 
@@ -183,8 +186,8 @@ test.describe('segment diff', () => {
     await page.goto('/dashboard');
 
     // Intercept the refresh request
-    const rscRequest = page.waitForRequest((req) =>
-      req.headers()['accept']?.includes('text/x-component') ?? false
+    const rscRequest = page.waitForRequest(
+      (req) => req.headers()['accept']?.includes('text/x-component') ?? false
     );
 
     // Trigger refresh via exposed API (e.g., button wired to router.refresh())
@@ -202,8 +205,8 @@ test.describe('prefetch', () => {
   test('hovering a prefetch Link triggers RSC fetch', async ({ page }) => {
     await page.goto('/');
 
-    const rscRequest = page.waitForRequest((req) =>
-      req.headers()['accept']?.includes('text/x-component') ?? false
+    const rscRequest = page.waitForRequest(
+      (req) => req.headers()['accept']?.includes('text/x-component') ?? false
     );
 
     // Hover over a prefetch-enabled link
@@ -220,8 +223,8 @@ test.describe('prefetch', () => {
     await page.hover('[data-testid="link-prefetch-dashboard"]');
 
     // Wait for prefetch to complete
-    await page.waitForResponse((res) =>
-      res.headers()['content-type']?.includes('text/x-component') ?? false
+    await page.waitForResponse(
+      (res) => res.headers()['content-type']?.includes('text/x-component') ?? false
     );
 
     // Track subsequent requests

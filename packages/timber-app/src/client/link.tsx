@@ -4,13 +4,23 @@
 // Without JavaScript, <Link> renders as a plain <a> tag — standard browser
 // navigation. With JavaScript, the client runtime intercepts clicks on links
 // marked with data-timber-link, fetches RSC payloads, and reconciles the DOM.
+//
+// Typed Link: design/09-typescript.md §"Typed Link"
+// - href validated against known routes (via codegen overloads, not runtime)
+// - params prop typed per-route, URL interpolated at runtime
+// - searchParams prop serialized via SearchParamsDefinition
+// - params and fully-resolved string href are mutually exclusive
+// - searchParams and inline query string are mutually exclusive
 
 import type { AnchorHTMLAttributes, ReactNode } from 'react';
+import type { SearchParamsDefinition } from '../search-params/create.js';
 
 // ─── Types ───────────────────────────────────────────────────────
 
-export interface LinkProps extends Omit<AnchorHTMLAttributes<HTMLAnchorElement>, 'href'> {
-  href: string;
+/**
+ * Base props shared by all Link variants.
+ */
+interface LinkBaseProps extends Omit<AnchorHTMLAttributes<HTMLAnchorElement>, 'href'> {
   /** Prefetch the RSC payload on hover */
   prefetch?: boolean;
   /**
@@ -20,6 +30,38 @@ export interface LinkProps extends Omit<AnchorHTMLAttributes<HTMLAnchorElement>,
   scroll?: boolean;
   children?: ReactNode;
 }
+
+/**
+ * Link with a fully-resolved string href.
+ * When using a string href with params already interpolated,
+ * the params prop is not available.
+ */
+export interface LinkPropsWithHref extends LinkBaseProps {
+  href: string;
+  params?: never;
+  /**
+   * Typed search params — serialized via the route's SearchParamsDefinition.
+   * Mutually exclusive with an inline query string in href.
+   */
+  searchParams?: { definition: SearchParamsDefinition<Record<string, unknown>>; values: Record<string, unknown> };
+}
+
+/**
+ * Link with a route pattern + params for interpolation.
+ * e.g. <Link href="/products/[id]" params={{ id: "123" }}>
+ */
+export interface LinkPropsWithParams extends LinkBaseProps {
+  /** Route pattern with dynamic segments (e.g. "/products/[id]") */
+  href: string;
+  /** Dynamic segment values to interpolate into the href */
+  params: Record<string, string | string[]>;
+  /**
+   * Typed search params — serialized via the route's SearchParamsDefinition.
+   */
+  searchParams?: { definition: SearchParamsDefinition<Record<string, unknown>>; values: Record<string, unknown> };
+}
+
+export type LinkProps = LinkPropsWithHref | LinkPropsWithParams;
 
 // ─── Dangerous URL Scheme Detection ──────────────────────────────
 
@@ -54,6 +96,109 @@ function isInternalHref(href: string): boolean {
   return true;
 }
 
+// ─── URL Interpolation ──────────────────────────────────────────
+
+/**
+ * Interpolate dynamic segments in a route pattern with actual values.
+ * e.g. interpolateParams("/products/[id]", { id: "123" }) → "/products/123"
+ *
+ * Supports:
+ * - [param]          → single segment
+ * - [...param]       → catch-all (joined with /)
+ * - [[...param]]     → optional catch-all (omitted if undefined/empty)
+ */
+export function interpolateParams(
+  pattern: string,
+  params: Record<string, string | string[]>
+): string {
+  return pattern.replace(
+    /\[\[\.\.\.(\w+)\]\]|\[\.\.\.(\w+)\]|\[(\w+)\]/g,
+    (_match, optionalCatchAll, catchAll, single) => {
+      if (optionalCatchAll) {
+        const value = params[optionalCatchAll];
+        if (value === undefined || (Array.isArray(value) && value.length === 0)) {
+          return '';
+        }
+        const segments = Array.isArray(value) ? value : [value];
+        return segments.map(encodeURIComponent).join('/');
+      }
+
+      if (catchAll) {
+        const value = params[catchAll];
+        if (value === undefined) {
+          throw new Error(
+            `<Link> missing required catch-all param "${catchAll}" for pattern "${pattern}".`
+          );
+        }
+        const segments = Array.isArray(value) ? value : [value];
+        if (segments.length === 0) {
+          throw new Error(
+            `<Link> catch-all param "${catchAll}" must have at least one segment for pattern "${pattern}".`
+          );
+        }
+        return segments.map(encodeURIComponent).join('/');
+      }
+
+      // single dynamic segment
+      const value = params[single];
+      if (value === undefined) {
+        throw new Error(
+          `<Link> missing required param "${single}" for pattern "${pattern}".`
+        );
+      }
+      if (Array.isArray(value)) {
+        throw new Error(
+          `<Link> param "${single}" expected a string but received an array for pattern "${pattern}".`
+        );
+      }
+      return encodeURIComponent(value);
+    }
+  )
+    // Clean up trailing slash from empty optional catch-all
+    .replace(/\/+$/, '') || '/';
+}
+
+// ─── Resolve Href ───────────────────────────────────────────────
+
+/**
+ * Resolve the final href string from Link props.
+ *
+ * Handles:
+ * - params interpolation into route patterns
+ * - searchParams serialization via SearchParamsDefinition
+ * - Validation that searchParams and inline query strings are exclusive
+ */
+export function resolveHref(
+  href: string,
+  params?: Record<string, string | string[]>,
+  searchParams?: { definition: SearchParamsDefinition<Record<string, unknown>>; values: Record<string, unknown> }
+): string {
+  let resolvedPath = href;
+
+  // Interpolate params if provided
+  if (params) {
+    resolvedPath = interpolateParams(href, params);
+  }
+
+  // Serialize searchParams if provided
+  if (searchParams) {
+    // Validate: searchParams prop and inline query string are mutually exclusive
+    if (resolvedPath.includes('?')) {
+      throw new Error(
+        '<Link> received both a searchParams prop and a query string in href. ' +
+          'These are mutually exclusive — use one or the other.'
+      );
+    }
+
+    const qs = searchParams.definition.serialize(searchParams.values);
+    if (qs) {
+      resolvedPath = `${resolvedPath}?${qs}`;
+    }
+  }
+
+  return resolvedPath;
+}
+
 // ─── Build Props ─────────────────────────────────────────────────
 
 interface LinkOutputProps {
@@ -68,12 +213,17 @@ interface LinkOutputProps {
  * for testability — the component just spreads these onto an <a>.
  */
 export function buildLinkProps(
-  props: Pick<LinkProps, 'href' | 'prefetch' | 'scroll'>
+  props: Pick<LinkPropsWithHref, 'href' | 'prefetch' | 'scroll'> & {
+    params?: Record<string, string | string[]>;
+    searchParams?: { definition: SearchParamsDefinition<Record<string, unknown>>; values: Record<string, unknown> };
+  }
 ): LinkOutputProps {
-  validateLinkHref(props.href);
+  const resolvedHref = resolveHref(props.href, props.params, props.searchParams);
 
-  const output: LinkOutputProps = { href: props.href };
-  const internal = isInternalHref(props.href);
+  validateLinkHref(resolvedHref);
+
+  const output: LinkOutputProps = { href: resolvedHref };
+  const internal = isInternalHref(resolvedHref);
 
   if (internal) {
     output['data-timber-link'] = true;
@@ -98,9 +248,13 @@ export function buildLinkProps(
  * Renders as a plain `<a>` tag — works without JavaScript. When the client
  * runtime is active, it intercepts clicks on links marked with
  * `data-timber-link` to perform RSC-based client navigation.
+ *
+ * Supports typed routes via codegen overloads. At runtime:
+ * - `params` prop interpolates dynamic segments in the href pattern
+ * - `searchParams` prop serializes query parameters via a SearchParamsDefinition
  */
-export function Link({ href, prefetch, scroll, children, ...rest }: LinkProps) {
-  const linkProps = buildLinkProps({ href, prefetch, scroll });
+export function Link({ href, prefetch, scroll, params, searchParams, children, ...rest }: LinkProps) {
+  const linkProps = buildLinkProps({ href, prefetch, scroll, params, searchParams });
 
   return (
     <a {...rest} {...linkProps}>

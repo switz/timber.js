@@ -182,15 +182,31 @@ function formatDeclarationFile(routes: RouteEntry[]): string {
   lines.push('}');
   lines.push('');
 
-  // Generate useParams overloads for routes with dynamic segments
+  // Generate overloads for @timber/app/client
   const dynamicRoutes = routes.filter((r) => r.params.length > 0);
-  if (dynamicRoutes.length > 0) {
+  const pageRoutes = routes.filter((r) => !r.isApiRoute);
+
+  if (dynamicRoutes.length > 0 || pageRoutes.length > 0) {
     lines.push("declare module '@timber/app/client' {");
-    for (const route of dynamicRoutes) {
-      const paramsType = formatParamsType(route.params);
-      lines.push(`  export function useParams(route: '${route.urlPath}'): ${paramsType}`);
+    lines.push("  import type { SearchParamsDefinition } from '@timber/app/search-params'");
+    lines.push('');
+
+    // useParams overloads
+    if (dynamicRoutes.length > 0) {
+      for (const route of dynamicRoutes) {
+        const paramsType = formatParamsType(route.params);
+        lines.push(`  export function useParams(route: '${route.urlPath}'): ${paramsType}`);
+      }
+      lines.push('  export function useParams(): Record<string, string | string[]>');
+      lines.push('');
     }
-    lines.push('  export function useParams(): Record<string, string | string[]>');
+
+    // Typed Link overloads
+    if (pageRoutes.length > 0) {
+      lines.push('  // Typed Link props per route');
+      lines.push(...formatTypedLinkOverloads(pageRoutes));
+    }
+
     lines.push('}');
     lines.push('');
   }
@@ -226,4 +242,54 @@ function formatSearchParamsType(route: RouteEntry): string {
     return `import('${importPath}').default extends import('@timber/app/search-params').SearchParamsDefinition<infer T> ? T : never`;
   }
   return '{}';
+}
+
+/**
+ * Generate typed Link overloads.
+ *
+ * For each page route, we generate a Link function overload that:
+ * - Constrains href to the route pattern
+ * - Types the params prop based on dynamic segments
+ * - Types the searchParams prop based on search-params.ts (if present)
+ *
+ * Routes without dynamic segments accept href as a literal string with no params.
+ * Routes with dynamic segments require a params prop.
+ */
+function formatTypedLinkOverloads(routes: RouteEntry[]): string[] {
+  const lines: string[] = [];
+
+  for (const route of routes) {
+    const hasDynamicParams = route.params.length > 0;
+    const paramsType = formatParamsType(route.params);
+    const searchParamsType = route.hasSearchParams ? formatSearchParamsType(route) : null;
+
+    if (hasDynamicParams) {
+      // Route with dynamic segments — params prop required
+      const spProp = searchParamsType
+        ? `searchParams?: { definition: SearchParamsDefinition<${searchParamsType}>; values: Partial<${searchParamsType}> }`
+        : `searchParams?: never`;
+      lines.push(`  export function Link(props: Omit<import('react').AnchorHTMLAttributes<HTMLAnchorElement>, 'href'> & {`);
+      lines.push(`    href: '${route.urlPath}'`);
+      lines.push(`    params: ${paramsType}`);
+      lines.push(`    ${spProp}`);
+      lines.push(`    prefetch?: boolean; scroll?: boolean; children?: import('react').ReactNode`);
+      lines.push(`  }): import('react').JSX.Element`);
+    } else {
+      // Static route — no params needed
+      const spProp = searchParamsType
+        ? `searchParams?: { definition: SearchParamsDefinition<${searchParamsType}>; values: Partial<${searchParamsType}> }`
+        : `searchParams?: never`;
+      lines.push(`  export function Link(props: Omit<import('react').AnchorHTMLAttributes<HTMLAnchorElement>, 'href'> & {`);
+      lines.push(`    href: '${route.urlPath}'`);
+      lines.push(`    params?: never`);
+      lines.push(`    ${spProp}`);
+      lines.push(`    prefetch?: boolean; scroll?: boolean; children?: import('react').ReactNode`);
+      lines.push(`  }): import('react').JSX.Element`);
+    }
+  }
+
+  // Fallback overload for arbitrary string hrefs (escape hatch)
+  lines.push(`  export function Link(props: import('./client/link.js').LinkProps): import('react').JSX.Element`);
+
+  return lines;
 }

@@ -4,8 +4,8 @@
 export type { RenderErrorDigest } from './types';
 
 // Navigation
-export { Link } from './link';
-export type { LinkProps } from './link';
+export { Link, interpolateParams, resolveHref, validateLinkHref, buildLinkProps } from './link';
+export type { LinkProps, LinkPropsWithHref, LinkPropsWithParams } from './link';
 export { createRouter } from './router';
 export type { RouterInstance, NavigationOptions, RouterDeps } from './router';
 
@@ -23,3 +23,7 @@ export type { UseActionStateFn, UseActionStateReturn } from './form';
 
 // Params
 export { useParams, setCurrentParams } from './use-params';
+
+// Query states (URL-synced search params)
+export { useQueryStates, setQueryStatesDeps, bindUseQueryStates } from './use-query-states';
+export type { UseQueryStatesDeps } from './use-query-states';

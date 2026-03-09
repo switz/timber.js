@@ -83,3 +83,20 @@ export type { SegmentMetadataEntry, ResolveMetadataOptions, HeadElement } from '
 // Metadata Routes
 export { classifyMetadataRoute, getMetadataRouteServePath, getMetadataRouteAutoLink, METADATA_ROUTE_CONVENTIONS } from './metadata-routes';
 export type { MetadataRouteInfo, MetadataRouteType } from './metadata-routes';
+
+// Server Actions
+export { createActionClient, ActionError } from './action-client';
+export type {
+  ActionResult,
+  ActionFn,
+  ActionBuilder,
+  ActionBuilderWithSchema,
+  ActionContext,
+  ActionMiddleware,
+  ActionSchema,
+  ValidationErrors,
+} from './action-client';
+
+// Revalidation
+export { revalidatePath, revalidateTag, executeAction, buildNoJsResponse, isRscActionRequest } from './actions';
+export type { RevalidateRenderer, RevalidationState, ActionHandlerConfig, ActionHandlerResult } from './actions';

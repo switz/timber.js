@@ -10,14 +10,14 @@
  * the correct HTTP status code (segment context) or graceful degradation (slot context).
  */
 export class DenySignal extends Error {
-  readonly status: number
-  readonly data: unknown
+  readonly status: number;
+  readonly data: unknown;
 
   constructor(status: number, data?: unknown) {
-    super(`Access denied with status ${status}`)
-    this.name = 'DenySignal'
-    this.status = status
-    this.data = data
+    super(`Access denied with status ${status}`);
+    this.name = 'DenySignal';
+    this.status = status;
+    this.data = data;
   }
 }
 
@@ -37,9 +37,9 @@ export function deny(status: number = 403, data?: unknown): never {
     throw new Error(
       `deny() requires a 4xx status code, got ${status}. ` +
         'For 5xx errors, throw a RenderError instead.'
-    )
+    );
   }
-  throw new DenySignal(status, data)
+  throw new DenySignal(status, data);
 }
 
 // ─── RedirectSignal ─────────────────────────────────────────────────────────
@@ -49,19 +49,19 @@ export function deny(status: number = 403, data?: unknown): never {
  * Caught by the framework to produce a 3xx response or client-side navigation.
  */
 export class RedirectSignal extends Error {
-  readonly location: string
-  readonly status: number
+  readonly location: string;
+  readonly status: number;
 
   constructor(location: string, status: number) {
-    super(`Redirect to ${location}`)
-    this.name = 'RedirectSignal'
-    this.location = location
-    this.status = status
+    super(`Redirect to ${location}`);
+    this.name = 'RedirectSignal';
+    this.location = location;
+    this.status = status;
   }
 }
 
 /** Pattern matching absolute URLs: http(s):// or protocol-relative // */
-const ABSOLUTE_URL_RE = /^(?:[a-zA-Z][a-zA-Z\d+\-.]*:|\/\/)/
+const ABSOLUTE_URL_RE = /^(?:[a-zA-Z][a-zA-Z\d+\-.]*:|\/\/)/;
 
 /**
  * Redirect to a relative path. Rejects absolute and protocol-relative URLs.
@@ -72,17 +72,15 @@ const ABSOLUTE_URL_RE = /^(?:[a-zA-Z][a-zA-Z\d+\-.]*:|\/\/)/
  */
 export function redirect(path: string, status: number = 302): never {
   if (status < 300 || status > 399) {
-    throw new Error(
-      `redirect() requires a 3xx status code, got ${status}.`
-    )
+    throw new Error(`redirect() requires a 3xx status code, got ${status}.`);
   }
   if (ABSOLUTE_URL_RE.test(path)) {
     throw new Error(
       `redirect() only accepts relative URLs. Got absolute URL: "${path}". ` +
         'Use redirectExternal(url, allowList) for external redirects.'
-    )
+    );
   }
-  throw new RedirectSignal(path, status)
+  throw new RedirectSignal(path, status);
 }
 
 /**
@@ -92,32 +90,26 @@ export function redirect(path: string, status: number = 302): never {
  * @param allowList - Array of allowed hostnames (e.g. ['example.com', 'auth.example.com']).
  * @param status - HTTP redirect status code (3xx). Defaults to 302.
  */
-export function redirectExternal(
-  url: string,
-  allowList: string[],
-  status: number = 302
-): never {
+export function redirectExternal(url: string, allowList: string[], status: number = 302): never {
   if (status < 300 || status > 399) {
-    throw new Error(
-      `redirectExternal() requires a 3xx status code, got ${status}.`
-    )
+    throw new Error(`redirectExternal() requires a 3xx status code, got ${status}.`);
   }
 
-  let hostname: string
+  let hostname: string;
   try {
-    hostname = new URL(url).hostname
+    hostname = new URL(url).hostname;
   } catch {
-    throw new Error(`redirectExternal() received an invalid URL: "${url}"`)
+    throw new Error(`redirectExternal() received an invalid URL: "${url}"`);
   }
 
   if (!allowList.includes(hostname)) {
     throw new Error(
       `redirectExternal() target "${hostname}" is not in the allow-list. ` +
         `Allowed: [${allowList.join(', ')}]`
-    )
+    );
   }
 
-  throw new RedirectSignal(url, status)
+  throw new RedirectSignal(url, status);
 }
 
 // ─── RenderError ────────────────────────────────────────────────────────────
@@ -126,12 +118,9 @@ export function redirectExternal(
  * Typed digest that crosses the RSC → client boundary.
  * The `code` identifies the error class; `data` carries JSON-serializable context.
  */
-export interface RenderErrorDigest<
-  TCode extends string = string,
-  TData = unknown,
-> {
-  code: TCode
-  data: TData
+export interface RenderErrorDigest<TCode extends string = string, TData = unknown> {
+  code: TCode;
+  data: TData;
 }
 
 /**
@@ -148,31 +137,22 @@ export interface RenderErrorDigest<
  * })
  * ```
  */
-export class RenderError<
-  TCode extends string = string,
-  TData = unknown,
-> extends Error {
-  readonly code: TCode
-  readonly digest: RenderErrorDigest<TCode, TData>
-  readonly status: number
+export class RenderError<TCode extends string = string, TData = unknown> extends Error {
+  readonly code: TCode;
+  readonly digest: RenderErrorDigest<TCode, TData>;
+  readonly status: number;
 
-  constructor(
-    code: TCode,
-    data: TData,
-    options?: { status?: number }
-  ) {
-    super(`RenderError: ${code}`)
-    this.name = 'RenderError'
-    this.code = code
-    this.digest = { code, data }
+  constructor(code: TCode, data: TData, options?: { status?: number }) {
+    super(`RenderError: ${code}`);
+    this.name = 'RenderError';
+    this.code = code;
+    this.digest = { code, data };
 
-    const status = options?.status ?? 500
+    const status = options?.status ?? 500;
     if (status < 400 || status > 599) {
-      throw new Error(
-        `RenderError status must be 4xx or 5xx, got ${status}.`
-      )
+      throw new Error(`RenderError status must be 4xx or 5xx, got ${status}.`);
     }
-    this.status = status
+    this.status = status;
   }
 }
 
@@ -180,10 +160,10 @@ export class RenderError<
 
 /** Minimal interface for adapters that support background work. */
 export interface WaitUntilAdapter {
-  waitUntil?(promise: Promise<unknown>): void
+  waitUntil?(promise: Promise<unknown>): void;
 }
 
-let _waitUntilWarned = false
+let _waitUntilWarned = false;
 
 /**
  * Register a promise to be kept alive after the response is sent.
@@ -195,21 +175,18 @@ let _waitUntilWarned = false
  * @param promise - The background work to keep alive.
  * @param adapter - The platform adapter (injected by the framework at runtime).
  */
-export function waitUntil(
-  promise: Promise<unknown>,
-  adapter: WaitUntilAdapter
-): void {
+export function waitUntil(promise: Promise<unknown>, adapter: WaitUntilAdapter): void {
   if (typeof adapter.waitUntil === 'function') {
-    adapter.waitUntil(promise)
-    return
+    adapter.waitUntil(promise);
+    return;
   }
 
   if (!_waitUntilWarned) {
-    _waitUntilWarned = true
+    _waitUntilWarned = true;
     console.warn(
       '[timber] waitUntil() is not supported by the current adapter. ' +
         'Background work will not be tracked. This warning is shown once.'
-    )
+    );
   }
 }
 
@@ -218,5 +195,5 @@ export function waitUntil(
  * @internal
  */
 export function _resetWaitUntilWarning(): void {
-  _waitUntilWarned = false
+  _waitUntilWarned = false;
 }

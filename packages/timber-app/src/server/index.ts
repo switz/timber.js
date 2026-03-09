@@ -134,3 +134,15 @@ export type { TimberLogger } from './logger';
 // Design doc: design/17-logging.md §"instrumentation.ts"
 export { loadInstrumentation, callOnRequestError, hasOnRequestError } from './instrumentation';
 export { Instrumentation } from './instrumentation';
+
+// Dev Warnings — dev-mode misuse detection
+// Design doc: design/02-rendering-pipeline.md §"Dev Warnings", design/06-caching.md §"Dev Warnings"
+export {
+  warnSuspenseWrappingChildren,
+  warnDeferredSuspenseWrappingChildren,
+  warnDynamicApiInStaticBuild,
+  warnRedirectInSlotAccess,
+  warnDenyAfterFlush,
+  warnSlowSlotWithoutSuspense,
+} from './dev-warnings';
+export type { DevWarningConfig } from './dev-warnings';

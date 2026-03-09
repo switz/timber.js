@@ -4,7 +4,13 @@
       "Bash(bd:*)",
       "Bash(bd create:*)",
       "Bash(pnpm test:*)",
-      "Bash(pnpm run:*)"
+      "Bash(pnpm run:*)",
+      "Bash(git push -u origin *)",
+      "Bash(git add *)",
+      "Bash(pnpm exec playwright test)"
+    ],
+    "additionalDirectories": [
+      "/Users/dsaewitz/y/timber-js-fresh/tests/e2e"
     ]
   }
 }

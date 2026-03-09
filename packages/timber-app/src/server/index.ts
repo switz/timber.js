@@ -175,3 +175,8 @@ export {
   warnSlowSlotWithoutSuspense,
 } from './dev-warnings';
 export type { DevWarningConfig } from './dev-warnings';
+
+// Route Handler — route.ts API endpoints
+// Design doc: design/07-routing.md §"route.ts — API Endpoints"
+export { handleRouteRequest, resolveAllowedMethods } from './route-handler';
+export type { RouteModule, RouteHandler, HttpMethod } from './route-handler';

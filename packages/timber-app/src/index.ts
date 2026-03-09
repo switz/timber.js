@@ -1,4 +1,5 @@
 import type { Plugin } from 'vite';
+import { cacheTransformPlugin } from './plugins/cache-transform';
 
 export interface TimberUserConfig {
   output?: 'server' | 'static';
@@ -47,9 +48,7 @@ function timberEntries(_ctx: PluginContext): Plugin {
 }
 
 function timberCache(_ctx: PluginContext): Plugin {
-  return {
-    name: 'timber-cache',
-  };
+  return cacheTransformPlugin();
 }
 
 function timberFonts(_ctx: PluginContext): Plugin {

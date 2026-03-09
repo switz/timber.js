@@ -1,0 +1,216 @@
+/**
+ * Route map codegen.
+ *
+ * Walks the scanned RouteTree and generates a TypeScript declaration file
+ * mapping every route to its params and searchParams shapes.
+ *
+ * This runs at build time and in dev (regenerated on file changes).
+ * No runtime overhead — purely static type generation.
+ */
+
+import { existsSync } from 'node:fs';
+import { join, relative, posix } from 'node:path';
+import type { RouteTree, SegmentNode } from './types.js';
+
+/** A single route entry extracted from the segment tree. */
+interface RouteEntry {
+  /** URL path pattern (e.g. "/products/[id]") */
+  urlPath: string;
+  /** Accumulated params from all ancestor dynamic segments */
+  params: ParamEntry[];
+  /** Whether this route has a co-located search-params.ts */
+  hasSearchParams: boolean;
+  /** Relative path to search-params.ts from appDir (for import reference) */
+  searchParamsPath?: string;
+  /** Whether this is an API route (route.ts) vs page route */
+  isApiRoute: boolean;
+}
+
+interface ParamEntry {
+  name: string;
+  type: 'string' | 'string[]' | 'string[] | undefined';
+}
+
+/** Options for route map generation. */
+export interface CodegenOptions {
+  /** Absolute path to the app/ directory. Required for search-params.ts detection. */
+  appDir?: string;
+}
+
+/**
+ * Generate a TypeScript declaration file string from a scanned route tree.
+ *
+ * The output is a `declare module '@timber/app'` block containing the Routes
+ * interface that maps every route path to its params and searchParams shape.
+ */
+export function generateRouteMap(tree: RouteTree, options: CodegenOptions = {}): string {
+  const routes: RouteEntry[] = [];
+  collectRoutes(tree.root, [], options.appDir, routes);
+
+  // Sort routes alphabetically for deterministic output
+  routes.sort((a, b) => a.urlPath.localeCompare(b.urlPath));
+
+  return formatDeclarationFile(routes);
+}
+
+/**
+ * Recursively walk the segment tree and collect route entries.
+ *
+ * A route entry is created for any segment that has a `page` or `route` file.
+ * Params accumulate from ancestor dynamic segments.
+ */
+function collectRoutes(
+  node: SegmentNode,
+  ancestorParams: ParamEntry[],
+  appDir: string | undefined,
+  routes: RouteEntry[]
+): void {
+  // Accumulate params from this segment
+  const params = [...ancestorParams];
+  if (node.paramName) {
+    params.push({
+      name: node.paramName,
+      type: paramTypeForSegment(node.segmentType),
+    });
+  }
+
+  // Check if this segment is a leaf route (has page or route file)
+  const isPage = !!node.page;
+  const isApiRoute = !!node.route;
+
+  if (isPage || isApiRoute) {
+    const entry: RouteEntry = {
+      urlPath: node.urlPath,
+      params: [...params],
+      hasSearchParams: false,
+      isApiRoute,
+    };
+
+    // Detect co-located search-params.ts
+    if (appDir && isPage) {
+      const segmentDir = resolveSegmentDir(appDir, node);
+      const searchParamsFile = findSearchParamsFile(segmentDir);
+      if (searchParamsFile) {
+        entry.hasSearchParams = true;
+        entry.searchParamsPath = relative(appDir, searchParamsFile);
+      }
+    }
+
+    routes.push(entry);
+  }
+
+  // Recurse into children
+  for (const child of node.children) {
+    collectRoutes(child, params, appDir, routes);
+  }
+
+  // Recurse into slots (they share the parent's URL path, but may have their own pages)
+  for (const [, slot] of node.slots) {
+    collectRoutes(slot, params, appDir, routes);
+  }
+}
+
+/**
+ * Determine the TypeScript type for a segment's param.
+ */
+function paramTypeForSegment(segmentType: string): ParamEntry['type'] {
+  switch (segmentType) {
+    case 'catch-all':
+      return 'string[]';
+    case 'optional-catch-all':
+      return 'string[] | undefined';
+    default:
+      return 'string';
+  }
+}
+
+/**
+ * Resolve the absolute directory path for a segment node.
+ *
+ * Reconstructs the filesystem path by walking from appDir through
+ * the segment names encoded in the urlPath, accounting for groups and slots.
+ */
+function resolveSegmentDir(appDir: string, node: SegmentNode): string {
+  // The node's page/route file path gives us the actual directory
+  const file = node.page ?? node.route;
+  if (file) {
+    // The file is in the segment directory — go up one level
+    const parts = file.filePath.split('/');
+    parts.pop(); // remove filename
+    return parts.join('/');
+  }
+  // Fallback: construct from urlPath (imprecise for groups, but acceptable)
+  return appDir;
+}
+
+/**
+ * Find a search-params.ts file in a directory.
+ */
+function findSearchParamsFile(dirPath: string): string | undefined {
+  for (const ext of ['ts', 'tsx']) {
+    const candidate = join(dirPath, `search-params.${ext}`);
+    if (existsSync(candidate)) {
+      return candidate;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Format the collected routes into a TypeScript declaration file.
+ */
+function formatDeclarationFile(routes: RouteEntry[]): string {
+  const lines: string[] = [];
+
+  lines.push('// This file is auto-generated by timber.js route map codegen.');
+  lines.push('// Do not edit manually. Regenerated on build and in dev mode.');
+  lines.push('');
+  lines.push("declare module '@timber/app' {");
+  lines.push('  interface Routes {');
+
+  for (const route of routes) {
+    const paramsType = formatParamsType(route.params);
+    const searchParamsType = formatSearchParamsType(route);
+
+    lines.push(`    '${route.urlPath}': {`);
+    lines.push(`      params: ${paramsType}`);
+    lines.push(`      searchParams: ${searchParamsType}`);
+    lines.push(`    }`);
+  }
+
+  lines.push('  }');
+  lines.push('}');
+  lines.push('');
+
+  return lines.join('\n');
+}
+
+/**
+ * Format the params type for a route entry.
+ */
+function formatParamsType(params: ParamEntry[]): string {
+  if (params.length === 0) {
+    return '{}';
+  }
+
+  const fields = params.map((p) => `${p.name}: ${p.type}`);
+  return `{ ${fields.join('; ')} }`;
+}
+
+/**
+ * Format the searchParams type for a route entry.
+ *
+ * When a search-params.ts exists, we reference its inferred type
+ * via an import type. Otherwise, it's an empty object (no typed search params).
+ */
+function formatSearchParamsType(route: RouteEntry): string {
+  if (route.hasSearchParams && route.searchParamsPath) {
+    // Convert filesystem path to a posix-style import path without extension
+    const importPath = posix.join(
+      './',
+      route.searchParamsPath.replace(/\\/g, '/').replace(/\.(ts|tsx)$/, '')
+    );
+    return `import('${importPath}').default extends import('@timber/app/search-params').SearchParamsDefinition<infer T> ? T : never`;
+  }
+  return '{}';
+}

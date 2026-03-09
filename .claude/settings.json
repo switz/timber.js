@@ -24,7 +24,9 @@
       "Bash(pnpm add @opentelemetry/api)",
       "Bash(pnpm -w test)",
       "Bash(grep -v '^\\\\s*$\\\\|^\\\\s*//' tests/integration/phase2.test.ts)",
-      "Bash(wc -l tests/integration/phase2-*.test.ts tests/e2e/navigation.test.ts tests/e2e/forms.test.ts)"
+      "Bash(wc -l tests/integration/phase2-*.test.ts tests/e2e/navigation.test.ts tests/e2e/forms.test.ts)",
+      "Bash(git stash pop)",
+      "Bash(git stash drop)"
     ],
     "additionalDirectories": [
       "/Users/dsaewitz/y/timber-js-fresh/tests/e2e",

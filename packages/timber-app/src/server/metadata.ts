@@ -311,16 +311,16 @@ export function renderMetadataToElements(metadata: Metadata): HeadElement[] {
 
   // Robots
   if (metadata.robots) {
-    const content = typeof metadata.robots === 'string'
-      ? metadata.robots
-      : renderRobotsObject(metadata.robots);
+    const content =
+      typeof metadata.robots === 'string' ? metadata.robots : renderRobotsObject(metadata.robots);
     elements.push({ tag: 'meta', attrs: { name: 'robots', content } });
 
     // googleBot as separate tag
     if (typeof metadata.robots === 'object' && metadata.robots.googleBot) {
-      const gbContent = typeof metadata.robots.googleBot === 'string'
-        ? metadata.robots.googleBot
-        : renderRobotsObject(metadata.robots.googleBot);
+      const gbContent =
+        typeof metadata.robots.googleBot === 'string'
+          ? metadata.robots.googleBot
+          : renderRobotsObject(metadata.robots.googleBot);
       elements.push({ tag: 'meta', attrs: { name: 'googlebot', content: gbContent } });
     }
   }
@@ -391,10 +391,7 @@ function renderRobotsObject(robots: Record<string, unknown>): string {
   return parts.join(', ');
 }
 
-function renderOpenGraph(
-  og: NonNullable<Metadata['openGraph']>,
-  elements: HeadElement[]
-): void {
+function renderOpenGraph(og: NonNullable<Metadata['openGraph']>, elements: HeadElement[]): void {
   const simpleProps: Array<[string, string | undefined]> = [
     ['og:title', og.title],
     ['og:description', og.description],
@@ -463,10 +460,7 @@ function renderOpenGraph(
   }
 }
 
-function renderTwitter(
-  tw: NonNullable<Metadata['twitter']>,
-  elements: HeadElement[]
-): void {
+function renderTwitter(tw: NonNullable<Metadata['twitter']>, elements: HeadElement[]): void {
   const simpleProps: Array<[string, string | undefined]> = [
     ['twitter:card', tw.card],
     ['twitter:site', tw.site],
@@ -496,10 +490,7 @@ function renderTwitter(
   }
 }
 
-function renderIcons(
-  icons: NonNullable<Metadata['icons']>,
-  elements: HeadElement[]
-): void {
+function renderIcons(icons: NonNullable<Metadata['icons']>, elements: HeadElement[]): void {
   // Icon
   if (icons.icon) {
     if (typeof icons.icon === 'string') {

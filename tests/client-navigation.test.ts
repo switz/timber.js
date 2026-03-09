@@ -2,10 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // ─── Segment Cache ───────────────────────────────────────────────
 
-import {
-  SegmentCache,
-  type SegmentNode,
-} from '../packages/timber-app/src/client/segment-cache';
+import { SegmentCache, type SegmentNode } from '../packages/timber-app/src/client/segment-cache';
 
 describe('SegmentCache', () => {
   let cache: SegmentCache;
@@ -156,10 +153,7 @@ describe('PrefetchCache', () => {
 
 // ─── History Stack ───────────────────────────────────────────────
 
-import {
-  HistoryStack,
-  type HistoryEntry,
-} from '../packages/timber-app/src/client/history';
+import { HistoryStack, type HistoryEntry } from '../packages/timber-app/src/client/history';
 
 describe('HistoryStack', () => {
   let stack: HistoryStack;
@@ -198,10 +192,7 @@ describe('HistoryStack', () => {
 
 // ─── Router ──────────────────────────────────────────────────────
 
-import {
-  createRouter,
-  type RouterInstance,
-} from '../packages/timber-app/src/client/router';
+import { createRouter, type RouterInstance } from '../packages/timber-app/src/client/router';
 
 describe('Router', () => {
   let router: RouterInstance;
@@ -235,7 +226,7 @@ describe('Router', () => {
       mockFetch.mockResolvedValueOnce(
         new Response(rscPayload, {
           headers: { 'content-type': 'text/x-component' },
-        }),
+        })
       );
 
       await router.navigate('/projects');
@@ -246,7 +237,7 @@ describe('Router', () => {
           headers: expect.objectContaining({
             Accept: 'text/x-component',
           }),
-        }),
+        })
       );
     });
 
@@ -254,7 +245,7 @@ describe('Router', () => {
       mockFetch.mockResolvedValueOnce(
         new Response('payload', {
           headers: { 'content-type': 'text/x-component' },
-        }),
+        })
       );
 
       await router.navigate('/projects');
@@ -270,23 +261,19 @@ describe('Router', () => {
       mockFetch.mockResolvedValueOnce(
         new Response('payload', {
           headers: { 'content-type': 'text/x-component' },
-        }),
+        })
       );
 
       await router.navigate('/projects');
 
-      expect(mockPushState).toHaveBeenCalledWith(
-        expect.anything(),
-        '',
-        '/projects',
-      );
+      expect(mockPushState).toHaveBeenCalledWith(expect.anything(), '', '/projects');
     });
 
     it('scrolls to top on forward navigation', async () => {
       mockFetch.mockResolvedValueOnce(
         new Response('payload', {
           headers: { 'content-type': 'text/x-component' },
-        }),
+        })
       );
 
       await router.navigate('/projects');
@@ -297,7 +284,7 @@ describe('Router', () => {
       mockFetch.mockResolvedValueOnce(
         new Response('payload', {
           headers: { 'content-type': 'text/x-component' },
-        }),
+        })
       );
 
       await router.navigate('/projects', { scroll: false });
@@ -320,7 +307,7 @@ describe('Router', () => {
       mockFetch.mockResolvedValueOnce(
         new Response('full-payload', {
           headers: { 'content-type': 'text/x-component' },
-        }),
+        })
       );
 
       await router.refresh();
@@ -334,15 +321,12 @@ describe('Router', () => {
       mockFetch.mockResolvedValueOnce(
         new Response('full-payload', {
           headers: { 'content-type': 'text/x-component' },
-        }),
+        })
       );
 
       await router.refresh();
 
-      expect(mockFetch).toHaveBeenCalledWith(
-        '/dashboard',
-        expect.anything(),
-      );
+      expect(mockFetch).toHaveBeenCalledWith('/dashboard', expect.anything());
     });
   });
 
@@ -376,15 +360,12 @@ describe('Router', () => {
       mockFetch.mockResolvedValueOnce(
         new Response('payload', {
           headers: { 'content-type': 'text/x-component' },
-        }),
+        })
       );
 
       await router.handlePopState('/unknown-page');
 
-      expect(mockFetch).toHaveBeenCalledWith(
-        '/unknown-page',
-        expect.anything(),
-      );
+      expect(mockFetch).toHaveBeenCalledWith('/unknown-page', expect.anything());
     });
   });
 
@@ -395,7 +376,7 @@ describe('Router', () => {
       mockFetch.mockReturnValueOnce(
         new Promise<Response>((resolve) => {
           resolveFetch = resolve;
-        }),
+        })
       );
 
       expect(router.isPending()).toBe(false);
@@ -406,7 +387,7 @@ describe('Router', () => {
       resolveFetch(
         new Response('payload', {
           headers: { 'content-type': 'text/x-component' },
-        }),
+        })
       );
       await navPromise;
 
@@ -417,10 +398,7 @@ describe('Router', () => {
 
 // ─── Link Component ──────────────────────────────────────────────
 
-import {
-  validateLinkHref,
-  buildLinkProps,
-} from '../packages/timber-app/src/client/link';
+import { validateLinkHref, buildLinkProps } from '../packages/timber-app/src/client/link';
 
 describe('Link', () => {
   describe('link scheme validation', () => {

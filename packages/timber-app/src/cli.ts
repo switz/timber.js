@@ -30,15 +30,13 @@ export interface CommandOptions {
 export function parseArgs(args: string[]): ParsedArgs {
   if (args.length === 0) {
     throw new Error(
-      'No command provided. Usage: timber <dev|build|preview|check> [--config <path>]',
+      'No command provided. Usage: timber <dev|build|preview|check> [--config <path>]'
     );
   }
 
   const command = args[0];
   if (!COMMANDS.includes(command as Command)) {
-    throw new Error(
-      `Unknown command: ${command}. Available commands: ${COMMANDS.join(', ')}`,
-    );
+    throw new Error(`Unknown command: ${command}. Available commands: ${COMMANDS.join(', ')}`);
   }
 
   let config: string | undefined;
@@ -140,9 +138,7 @@ async function main(): Promise<void> {
 
 // Only run main when executed directly (not imported in tests)
 const isDirectExecution =
-  typeof process !== 'undefined' &&
-  process.argv[1] &&
-  import.meta.url.endsWith(process.argv[1]);
+  typeof process !== 'undefined' && process.argv[1] && import.meta.url.endsWith(process.argv[1]);
 
 if (isDirectExecution) {
   main().catch((err) => {

@@ -297,9 +297,7 @@ describe('redirect absolute rejection', () => {
   });
 
   it('redirectExternal() rejects URLs not in allow-list (security #7)', () => {
-    expect(() => redirectExternal('https://evil.com', ['example.com'])).toThrow(
-      /not in the allow/
-    );
+    expect(() => redirectExternal('https://evil.com', ['example.com'])).toThrow(/not in the allow/);
   });
 
   it('redirectExternal() accepts URLs in allow-list', () => {

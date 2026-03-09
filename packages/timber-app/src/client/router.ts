@@ -47,9 +47,7 @@ export interface RouterInstance {
 
 const RSC_CONTENT_TYPE = 'text/x-component';
 
-function buildRscHeaders(
-  stateTree: { segments: string[] } | undefined,
-): Record<string, string> {
+function buildRscHeaders(stateTree: { segments: string[] } | undefined): Record<string, string> {
   const headers: Record<string, string> = {
     Accept: RSC_CONTENT_TYPE,
   };
@@ -62,7 +60,7 @@ function buildRscHeaders(
 async function fetchRscPayload(
   url: string,
   deps: RouterDeps,
-  stateTree?: { segments: string[] },
+  stateTree?: { segments: string[] }
 ): Promise<unknown> {
   const headers = buildRscHeaders(stateTree);
   const response = await deps.fetch(url, { headers });
@@ -94,10 +92,7 @@ export function createRouter(deps: RouterDeps): RouterInstance {
     }
   }
 
-  async function navigate(
-    url: string,
-    options: NavigationOptions = {},
-  ): Promise<void> {
+  async function navigate(url: string, options: NavigationOptions = {}): Promise<void> {
     const scroll = options.scroll !== false;
 
     // Save current page to history stack before navigating away

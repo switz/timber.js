@@ -33,9 +33,7 @@ import {
   resetInstrumentation,
 } from '../../packages/timber-app/src/server/instrumentation';
 import { createPipeline } from '../../packages/timber-app/src/server/pipeline';
-import {
-  createActionClient,
-} from '../../packages/timber-app/src/server/action-client';
+import { createActionClient } from '../../packages/timber-app/src/server/action-client';
 import {
   revalidatePath,
   executeAction,
@@ -114,15 +112,21 @@ describe('trace id', () => {
       logMiddlewareError({ method: 'GET', path: '/dashboard', error: new Error('fail') });
       logRenderError({ method: 'GET', path: '/dashboard', error: new Error('render') });
 
-      expect(logger.debug).toHaveBeenCalledWith('request received', expect.objectContaining({ trace_id: id }));
-      expect(logger.info).toHaveBeenCalledWith('request completed', expect.objectContaining({ trace_id: id }));
+      expect(logger.debug).toHaveBeenCalledWith(
+        'request received',
+        expect.objectContaining({ trace_id: id })
+      );
+      expect(logger.info).toHaveBeenCalledWith(
+        'request completed',
+        expect.objectContaining({ trace_id: id })
+      );
       expect(logger.error).toHaveBeenCalledWith(
         'unhandled error in middleware phase',
-        expect.objectContaining({ trace_id: id }),
+        expect.objectContaining({ trace_id: id })
       );
       expect(logger.error).toHaveBeenCalledWith(
         'unhandled render-phase error',
-        expect.objectContaining({ trace_id: id }),
+        expect.objectContaining({ trace_id: id })
       );
     });
   });
@@ -137,10 +141,13 @@ describe('trace id', () => {
 
       logRequestCompleted({ method: 'GET', path: '/', status: 200, durationMs: 10 });
 
-      expect(logger.info).toHaveBeenCalledWith('request completed', expect.objectContaining({
-        trace_id: otelTraceId,
-        span_id: otelSpanId,
-      }));
+      expect(logger.info).toHaveBeenCalledWith(
+        'request completed',
+        expect.objectContaining({
+          trace_id: otelTraceId,
+          span_id: otelSpanId,
+        })
+      );
     });
   });
 
@@ -181,14 +188,14 @@ describe('trace id', () => {
       await callOnRequestError(
         new Error('test error'),
         { method: 'GET', path: '/test', headers: {} },
-        { phase: 'render', routePath: '/test', routeType: 'page', traceId: id },
+        { phase: 'render', routePath: '/test', routeType: 'page', traceId: id }
       );
     });
 
     expect(onError).toHaveBeenCalledWith(
       expect.any(Error),
       expect.objectContaining({ method: 'GET', path: '/test' }),
-      expect.objectContaining({ traceId: id, phase: 'render' }),
+      expect.objectContaining({ traceId: id, phase: 'render' })
     );
   });
 
@@ -206,11 +213,14 @@ describe('trace id', () => {
       logRequestCompleted({ method: 'POST', path: '/action', status: 200, durationMs: 55 });
     });
 
-    expect(customLogger.info).toHaveBeenCalledWith('request completed', expect.objectContaining({
-      trace_id: id,
-      method: 'POST',
-      path: '/action',
-    }));
+    expect(customLogger.info).toHaveBeenCalledWith(
+      'request completed',
+      expect.objectContaining({
+        trace_id: id,
+        method: 'POST',
+        path: '/action',
+      })
+    );
   });
 
   it('trace ID preserved across action + revalidation', async () => {

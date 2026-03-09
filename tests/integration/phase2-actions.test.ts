@@ -37,7 +37,11 @@ function mockSchema<T>(validator: (data: unknown) => T) {
     parse(data: unknown): T {
       return validator(data);
     },
-    safeParse(data: unknown): { success: true; data: T } | { success: false; error: { flatten(): { fieldErrors: Record<string, string[]> } } } {
+    safeParse(
+      data: unknown
+    ):
+      | { success: true; data: T }
+      | { success: false; error: { flatten(): { fieldErrors: Record<string, string[]> } } } {
       try {
         const result = validator(data);
         return { success: true, data: result };
@@ -87,11 +91,10 @@ describe('action validation', () => {
       return { updated: true, name: input.name };
     });
 
-    const result = await executeAction(
-      async () => updateProduct({ name: 'New Widget' }),
-      [],
-      { cacheHandler, renderer },
-    );
+    const result = await executeAction(async () => updateProduct({ name: 'New Widget' }), [], {
+      cacheHandler,
+      renderer,
+    });
 
     expect(result.actionResult).toEqual({ data: { updated: true, name: 'New Widget' } });
     expect(result.rscPayload).toBeDefined();
@@ -115,11 +118,7 @@ describe('action validation', () => {
       return input;
     });
 
-    const result = await executeAction(
-      async () => createTodo({}),
-      [],
-      { renderer },
-    );
+    const result = await executeAction(async () => createTodo({}), [], { renderer });
 
     expect(actionBody).not.toHaveBeenCalled();
     expect(renderer).not.toHaveBeenCalled();
@@ -173,9 +172,9 @@ describe('action validation', () => {
     const formData = new FormData();
     formData.set('title', 'Integration test todo');
 
-    const result = await (createTodo as (prev: unknown, fd: FormData) => Promise<ActionResult<unknown>>)(
-      null, formData
-    );
+    const result = await (
+      createTodo as (prev: unknown, fd: FormData) => Promise<ActionResult<unknown>>
+    )(null, formData);
     expect(result).toEqual({ data: { userId: 'user-1', title: 'Integration test todo' } });
   });
 

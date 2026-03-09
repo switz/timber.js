@@ -77,11 +77,21 @@ export { parseBodySize, enforceBodyLimits, DEFAULT_LIMITS } from './body-limits'
 export type { BodyLimitsConfig, BodyLimitResult, BodyKind } from './body-limits';
 
 // Metadata
-export { resolveMetadata, resolveTitle, resolveMetadataUrls, renderMetadataToElements } from './metadata';
+export {
+  resolveMetadata,
+  resolveTitle,
+  resolveMetadataUrls,
+  renderMetadataToElements,
+} from './metadata';
 export type { SegmentMetadataEntry, ResolveMetadataOptions, HeadElement } from './metadata';
 
 // Metadata Routes
-export { classifyMetadataRoute, getMetadataRouteServePath, getMetadataRouteAutoLink, METADATA_ROUTE_CONVENTIONS } from './metadata-routes';
+export {
+  classifyMetadataRoute,
+  getMetadataRouteServePath,
+  getMetadataRouteAutoLink,
+  METADATA_ROUTE_CONVENTIONS,
+} from './metadata-routes';
 export type { MetadataRouteInfo, MetadataRouteType } from './metadata-routes';
 
 // Server Actions
@@ -98,8 +108,19 @@ export type {
 } from './action-client';
 
 // Revalidation
-export { revalidatePath, revalidateTag, executeAction, buildNoJsResponse, isRscActionRequest } from './actions';
-export type { RevalidateRenderer, RevalidationState, ActionHandlerConfig, ActionHandlerResult } from './actions';
+export {
+  revalidatePath,
+  revalidateTag,
+  executeAction,
+  buildNoJsResponse,
+  isRscActionRequest,
+} from './actions';
+export type {
+  RevalidateRenderer,
+  RevalidationState,
+  ActionHandlerConfig,
+  ActionHandlerResult,
+} from './actions';
 
 // DeferredSuspense
 // Design doc: design/05-streaming.md §"DeferredSuspense"
@@ -109,7 +130,15 @@ export type { DeferredSuspenseProps } from './deferred-suspense';
 
 // Tracing — per-request trace ID via ALS
 // Design doc: design/17-logging.md §"trace_id is Always Set"
-export { traceId, spanId, generateTraceId, runWithTraceId, replaceTraceId, withSpan, addSpanEvent } from './tracing';
+export {
+  traceId,
+  spanId,
+  generateTraceId,
+  runWithTraceId,
+  replaceTraceId,
+  withSpan,
+  addSpanEvent,
+} from './tracing';
 export type { TraceStore } from './tracing';
 
 // Logger — structured logging

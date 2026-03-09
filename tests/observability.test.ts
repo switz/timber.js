@@ -206,28 +206,52 @@ describe('logger', () => {
     const id = generateTraceId();
     runWithTraceId(id, () => {
       logSlowRequest({ method: 'GET', path: '/', durationMs: 5000, threshold: 3000 });
-      expect(logger.warn).toHaveBeenCalledWith('slow request exceeded threshold', expect.objectContaining({ durationMs: 5000 }));
+      expect(logger.warn).toHaveBeenCalledWith(
+        'slow request exceeded threshold',
+        expect.objectContaining({ durationMs: 5000 })
+      );
 
       logMiddlewareShortCircuit({ method: 'GET', path: '/', status: 302 });
-      expect(logger.debug).toHaveBeenCalledWith('middleware short-circuited', expect.objectContaining({ status: 302 }));
+      expect(logger.debug).toHaveBeenCalledWith(
+        'middleware short-circuited',
+        expect.objectContaining({ status: 302 })
+      );
 
       logMiddlewareError({ method: 'GET', path: '/', error: new Error('fail') });
-      expect(logger.error).toHaveBeenCalledWith('unhandled error in middleware phase', expect.objectContaining({ error: expect.any(Error) }));
+      expect(logger.error).toHaveBeenCalledWith(
+        'unhandled error in middleware phase',
+        expect.objectContaining({ error: expect.any(Error) })
+      );
 
       logRenderError({ method: 'GET', path: '/', error: new Error('render') });
-      expect(logger.error).toHaveBeenCalledWith('unhandled render-phase error', expect.objectContaining({ error: expect.any(Error) }));
+      expect(logger.error).toHaveBeenCalledWith(
+        'unhandled render-phase error',
+        expect.objectContaining({ error: expect.any(Error) })
+      );
 
       logProxyError({ error: new Error('proxy') });
-      expect(logger.error).toHaveBeenCalledWith('proxy.ts threw uncaught error', expect.objectContaining({ error: expect.any(Error) }));
+      expect(logger.error).toHaveBeenCalledWith(
+        'proxy.ts threw uncaught error',
+        expect.objectContaining({ error: expect.any(Error) })
+      );
 
       logWaitUntilRejected({ error: new Error('bg') });
-      expect(logger.warn).toHaveBeenCalledWith('waitUntil() promise rejected', expect.objectContaining({ error: expect.any(Error) }));
+      expect(logger.warn).toHaveBeenCalledWith(
+        'waitUntil() promise rejected',
+        expect.objectContaining({ error: expect.any(Error) })
+      );
 
       logSwrRefetchFailed({ cacheKey: 'k', error: new Error('swr') });
-      expect(logger.warn).toHaveBeenCalledWith('staleWhileRevalidate refetch failed', expect.objectContaining({ cacheKey: 'k' }));
+      expect(logger.warn).toHaveBeenCalledWith(
+        'staleWhileRevalidate refetch failed',
+        expect.objectContaining({ cacheKey: 'k' })
+      );
 
       logCacheMiss({ cacheKey: 'k2' });
-      expect(logger.debug).toHaveBeenCalledWith('timber.cache MISS', expect.objectContaining({ cacheKey: 'k2' }));
+      expect(logger.debug).toHaveBeenCalledWith(
+        'timber.cache MISS',
+        expect.objectContaining({ cacheKey: 'k2' })
+      );
     });
   });
 
@@ -311,11 +335,7 @@ describe('instrumentation', () => {
 
     await callOnRequestError(new Error('boom'), reqInfo, errCtx);
 
-    expect(onError).toHaveBeenCalledWith(
-      expect.any(Error),
-      reqInfo,
-      errCtx,
-    );
+    expect(onError).toHaveBeenCalledWith(expect.any(Error), reqInfo, errCtx);
   });
 
   it('onRequestError does not throw if hook throws', async () => {
@@ -331,11 +351,14 @@ describe('instrumentation', () => {
       callOnRequestError(
         new Error('original'),
         { method: 'GET', path: '/', headers: {} },
-        { phase: 'render', routePath: '/', routeType: 'page', traceId: 'x' },
-      ),
+        { phase: 'render', routePath: '/', routeType: 'page', traceId: 'x' }
+      )
     ).resolves.toBeUndefined();
 
-    expect(consoleSpy).toHaveBeenCalledWith('[timber] onRequestError hook threw:', expect.any(Error));
+    expect(consoleSpy).toHaveBeenCalledWith(
+      '[timber] onRequestError hook threw:',
+      expect.any(Error)
+    );
     consoleSpy.mockRestore();
   });
 
@@ -361,7 +384,7 @@ describe('instrumentation', () => {
         register() {
           throw new Error('init failed');
         },
-      })),
+      }))
     ).rejects.toThrow('init failed');
 
     consoleSpy.mockRestore();
@@ -385,7 +408,7 @@ describe('otel spans', () => {
     await expect(
       withSpan('test.span', {}, () => {
         throw new Error('span error');
-      }),
+      })
     ).rejects.toThrow('span error');
   });
 

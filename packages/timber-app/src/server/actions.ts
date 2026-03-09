@@ -158,9 +158,7 @@ export async function executeAction(
 
   // Process tag invalidation
   if (state.tags.length > 0 && config.cacheHandler) {
-    await Promise.all(
-      state.tags.map((tag) => config.cacheHandler!.invalidate({ tag }))
-    );
+    await Promise.all(state.tags.map((tag) => config.cacheHandler!.invalidate({ tag })));
   }
 
   // Process path revalidation — render RSC payload
@@ -212,8 +210,5 @@ export function buildNoJsResponse(redirectPath: string, status: number = 302): R
 export function isRscActionRequest(req: Request): boolean {
   const accept = req.headers.get('Accept') ?? '';
   const contentType = req.headers.get('Content-Type') ?? '';
-  return (
-    accept.includes('text/x-component') ||
-    contentType.includes('text/x-component')
-  );
+  return accept.includes('text/x-component') || contentType.includes('text/x-component');
 }

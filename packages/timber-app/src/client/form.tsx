@@ -66,7 +66,7 @@ export type UseActionStateReturn<TData> = [
 export function useActionState<TData>(
   action: UseActionStateFn<TData>,
   initialState: ActionResult<TData> | null,
-  permalink?: string,
+  permalink?: string
 ): UseActionStateReturn<TData> {
   return reactUseActionState(action, initialState, permalink);
 }

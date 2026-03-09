@@ -38,7 +38,9 @@ test.describe('no-js forms', () => {
     await context.close();
   });
 
-  test('form action attribute points to same URL (progressive enhancement)', async ({ browser }) => {
+  test('form action attribute points to same URL (progressive enhancement)', async ({
+    browser,
+  }) => {
     const context = await browser.newContext({ javaScriptEnabled: false });
     const page = await context.newPage();
 
@@ -99,8 +101,8 @@ test.describe('csrf protection', () => {
     const response = await request.post('/todos', {
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
-        Origin: 'https://evil.com',
-        Host: 'localhost:3000',
+        'Origin': 'https://evil.com',
+        'Host': 'localhost:3000',
       },
       data: 'title=hacked',
     });
@@ -112,8 +114,8 @@ test.describe('csrf protection', () => {
     const response = await request.post('/todos', {
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
-        Origin: 'http://localhost:3000',
-        Host: 'localhost:3000',
+        'Origin': 'http://localhost:3000',
+        'Host': 'localhost:3000',
       },
       data: 'title=Buy+groceries',
     });

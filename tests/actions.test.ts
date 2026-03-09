@@ -1,8 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import {
-  createActionClient,
-  ActionError,
-} from '../packages/timber-app/src/server/action-client';
+import { createActionClient, ActionError } from '../packages/timber-app/src/server/action-client';
 import type { ActionResult } from '../packages/timber-app/src/server/action-client';
 import {
   revalidatePath,
@@ -26,7 +23,11 @@ function mockSchema<T>(validator: (data: unknown) => T) {
     parse(data: unknown): T {
       return validator(data);
     },
-    safeParse(data: unknown): { success: true; data: T } | { success: false; error: { flatten(): { fieldErrors: Record<string, string[]> } } } {
+    safeParse(
+      data: unknown
+    ):
+      | { success: true; data: T }
+      | { success: false; error: { flatten(): { fieldErrors: Record<string, string[]> } } } {
       try {
         const result = validator(data);
         return { success: true, data: result };
@@ -86,7 +87,10 @@ describe('createActionClient', () => {
     });
 
     const myAction = client.action(async ({ ctx }) => {
-      return { user: (ctx as Record<string, unknown>).user, plan: (ctx as Record<string, unknown>).plan };
+      return {
+        user: (ctx as Record<string, unknown>).user,
+        plan: (ctx as Record<string, unknown>).plan,
+      };
     });
 
     const result = await myAction();
@@ -98,11 +102,9 @@ describe('createActionClient', () => {
   it('schema validation', async () => {
     const client = createActionClient();
 
-    const createTodo = client
-      .schema(todoSchema)
-      .action(async ({ input }) => {
-        return { title: input.title };
-      });
+    const createTodo = client.schema(todoSchema).action(async ({ input }) => {
+      return { title: input.title };
+    });
 
     // Valid input
     const good = await createTodo({ title: 'Buy groceries' });
@@ -118,12 +120,10 @@ describe('createActionClient', () => {
     const actionBodySpy = vi.fn();
     const client = createActionClient();
 
-    const createTodo = client
-      .schema(todoSchema)
-      .action(async ({ input }) => {
-        actionBodySpy();
-        return input;
-      });
+    const createTodo = client.schema(todoSchema).action(async ({ input }) => {
+      actionBodySpy();
+      return input;
+    });
 
     const result = await createTodo({});
     expect(result.validationErrors).toBeDefined();
@@ -210,17 +210,17 @@ describe('createActionClient', () => {
   it('FormData input from useActionState signature', async () => {
     const client = createActionClient();
 
-    const createTodo = client
-      .schema(todoSchema)
-      .action(async ({ input }) => {
-        return { title: input.title };
-      });
+    const createTodo = client.schema(todoSchema).action(async ({ input }) => {
+      return { title: input.title };
+    });
 
     // Simulate React useActionState calling (prevState, formData)
     const formData = new FormData();
     formData.set('title', 'Buy groceries');
 
-    const result = await (createTodo as (prev: unknown, fd: FormData) => Promise<ActionResult<unknown>>)(null, formData);
+    const result = await (
+      createTodo as (prev: unknown, fd: FormData) => Promise<ActionResult<unknown>>
+    )(null, formData);
     expect(result).toEqual({ data: { title: 'Buy groceries' } });
   });
 });

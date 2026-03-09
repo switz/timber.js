@@ -18,9 +18,7 @@ function entry(meta: Metadata, isPage = false): SegmentMetadataEntry {
 
 describe('static metadata', () => {
   it('resolves static metadata export', () => {
-    const result = resolveMetadata([
-      entry({ title: 'My App', description: 'Welcome' }),
-    ]);
+    const result = resolveMetadata([entry({ title: 'My App', description: 'Welcome' })]);
     expect(result.title).toBe('My App');
     expect(result.description).toBe('Welcome');
   });
@@ -52,11 +50,14 @@ describe('generate metadata', () => {
     // The test validates that the resolved output is correctly merged.
     const result = resolveMetadata([
       entry({ title: { default: 'Store', template: '%s | Store' } }),
-      entry({
-        title: 'Running Shoes',
-        description: 'Best running shoes',
-        openGraph: { images: [{ url: '/shoes.jpg', width: 800, height: 600, alt: 'Shoes' }] },
-      }, true),
+      entry(
+        {
+          title: 'Running Shoes',
+          description: 'Best running shoes',
+          openGraph: { images: [{ url: '/shoes.jpg', width: 800, height: 600, alt: 'Shoes' }] },
+        },
+        true
+      ),
     ]);
     expect(result.title).toBe('Running Shoes | Store');
     expect(result.description).toBe('Best running shoes');
@@ -102,9 +103,7 @@ describe('title templates', () => {
   });
 
   it('no title at all resolves to undefined', () => {
-    const result = resolveMetadata([
-      entry({ description: 'No title here' }),
-    ]);
+    const result = resolveMetadata([entry({ description: 'No title here' })]);
     expect(result.title).toBeUndefined();
   });
 });
@@ -143,11 +142,14 @@ describe('shallow merge', () => {
         description: 'Layout description',
         openGraph: { title: 'OG Layout', siteName: 'My Site' },
       }),
-      entry({
-        title: 'Page Title',
-        description: 'Page description',
-        openGraph: { title: 'OG Page' },
-      }, true),
+      entry(
+        {
+          title: 'Page Title',
+          description: 'Page description',
+          openGraph: { title: 'OG Page' },
+        },
+        true
+      ),
     ]);
     expect(result.description).toBe('Page description');
     // openGraph is shallow-replaced, not deep-merged
@@ -178,10 +180,13 @@ describe('shallow merge', () => {
         title: { template: '%s — Blog | App' },
         description: 'Blog section',
       }),
-      entry({
-        title: 'My Post',
-        description: 'Post description',
-      }, true),
+      entry(
+        {
+          title: 'My Post',
+          description: 'Post description',
+        },
+        true
+      ),
     ]);
     expect(result.title).toBe('My Post — Blog | App');
     expect(result.description).toBe('Post description');
@@ -195,9 +200,12 @@ describe('metadata base', () => {
   it('resolves relative URLs in openGraph images', () => {
     const result = resolveMetadata([
       entry({ metadataBase: new URL('https://myapp.com') }),
-      entry({
-        openGraph: { images: '/images/og.jpg' },
-      }, true),
+      entry(
+        {
+          openGraph: { images: '/images/og.jpg' },
+        },
+        true
+      ),
     ]);
     const resolved = resolveMetadataUrls(result);
     expect(resolved.openGraph?.images).toBe('https://myapp.com/images/og.jpg');
@@ -206,9 +214,12 @@ describe('metadata base', () => {
   it('resolves relative URLs in alternates', () => {
     const result = resolveMetadata([
       entry({ metadataBase: new URL('https://myapp.com') }),
-      entry({
-        alternates: { canonical: '/products/123' },
-      }, true),
+      entry(
+        {
+          alternates: { canonical: '/products/123' },
+        },
+        true
+      ),
     ]);
     const resolved = resolveMetadataUrls(result);
     expect(resolved.alternates?.canonical).toBe('https://myapp.com/products/123');
@@ -217,9 +228,12 @@ describe('metadata base', () => {
   it('does not modify absolute URLs', () => {
     const result = resolveMetadata([
       entry({ metadataBase: new URL('https://myapp.com') }),
-      entry({
-        openGraph: { images: 'https://cdn.example.com/og.jpg' },
-      }, true),
+      entry(
+        {
+          openGraph: { images: 'https://cdn.example.com/og.jpg' },
+        },
+        true
+      ),
     ]);
     const resolved = resolveMetadataUrls(result);
     expect(resolved.openGraph?.images).toBe('https://cdn.example.com/og.jpg');
@@ -239,9 +253,12 @@ describe('metadata base', () => {
     const result = resolveMetadata([
       entry({ metadataBase: new URL('https://myapp.com') }),
       entry({}),
-      entry({
-        alternates: { canonical: '/page' },
-      }, true),
+      entry(
+        {
+          alternates: { canonical: '/page' },
+        },
+        true
+      ),
     ]);
     const resolved = resolveMetadataUrls(result);
     expect(resolved.alternates?.canonical).toBe('https://myapp.com/page');
@@ -287,9 +304,8 @@ describe('metadata routes proxy only', () => {
   // Metadata routes run through proxy.ts but NOT middleware or access gates.
   // This is tested at the pipeline level. Here we test the route classification.
   it('metadata route files are recognized', async () => {
-    const { classifyMetadataRoute } = await import(
-      '../packages/timber-app/src/server/metadata-routes'
-    );
+    const { classifyMetadataRoute } =
+      await import('../packages/timber-app/src/server/metadata-routes');
     expect(classifyMetadataRoute('sitemap.xml')).toEqual({
       type: 'sitemap',
       contentType: 'application/xml',
@@ -313,9 +329,8 @@ describe('metadata routes proxy only', () => {
   });
 
   it('dynamic metadata route files are recognized', async () => {
-    const { classifyMetadataRoute } = await import(
-      '../packages/timber-app/src/server/metadata-routes'
-    );
+    const { classifyMetadataRoute } =
+      await import('../packages/timber-app/src/server/metadata-routes');
     expect(classifyMetadataRoute('sitemap.ts')).toEqual({
       type: 'sitemap',
       contentType: 'application/xml',
@@ -339,9 +354,8 @@ describe('metadata routes proxy only', () => {
   });
 
   it('non-metadata files return null', async () => {
-    const { classifyMetadataRoute } = await import(
-      '../packages/timber-app/src/server/metadata-routes'
-    );
+    const { classifyMetadataRoute } =
+      await import('../packages/timber-app/src/server/metadata-routes');
     expect(classifyMetadataRoute('page.tsx')).toBeNull();
     expect(classifyMetadataRoute('layout.tsx')).toBeNull();
     expect(classifyMetadataRoute('random.ts')).toBeNull();

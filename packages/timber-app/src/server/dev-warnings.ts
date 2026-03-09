@@ -91,7 +91,7 @@ export function warnDynamicApiInStaticBuild(api: 'cookies' | 'headers', file: st
     'error',
     `[timber] ${file}: ${api}() is not available in static builds (output: 'static'). ` +
       'There is no per-request context at build time. ' +
-      'Remove this call or switch to output: \'server\'.'
+      "Remove this call or switch to output: 'server'."
   );
 }
 

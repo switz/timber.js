@@ -17,7 +17,7 @@ export namespace Instrumentation {
   export type OnRequestError = (
     error: unknown,
     request: RequestInfo,
-    context: ErrorContext,
+    context: ErrorContext
   ) => void | Promise<void>;
 
   export interface RequestInfo {
@@ -65,7 +65,7 @@ let _onRequestError: Instrumentation.OnRequestError | null = null;
  *                 Returns null if no instrumentation.ts exists.
  */
 export async function loadInstrumentation(
-  loader: () => Promise<InstrumentationModule | null>,
+  loader: () => Promise<InstrumentationModule | null>
 ): Promise<void> {
   if (_initialized) return;
   _initialized = true;
@@ -108,7 +108,7 @@ export async function loadInstrumentation(
 export async function callOnRequestError(
   error: unknown,
   request: Instrumentation.RequestInfo,
-  context: Instrumentation.ErrorContext,
+  context: Instrumentation.ErrorContext
 ): Promise<void> {
   if (!_onRequestError) return;
   try {

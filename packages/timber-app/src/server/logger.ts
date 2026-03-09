@@ -95,20 +95,12 @@ export function logMiddlewareShortCircuit(data: {
 }
 
 /** Log unhandled error in middleware phase. Level: error. */
-export function logMiddlewareError(data: {
-  method: string;
-  path: string;
-  error: unknown;
-}): void {
+export function logMiddlewareError(data: { method: string; path: string; error: unknown }): void {
   _logger?.error('unhandled error in middleware phase', withTraceContext(data));
 }
 
 /** Log unhandled render-phase error. Level: error. */
-export function logRenderError(data: {
-  method: string;
-  path: string;
-  error: unknown;
-}): void {
+export function logRenderError(data: { method: string; path: string; error: unknown }): void {
   _logger?.error('unhandled render-phase error', withTraceContext(data));
 }
 

@@ -121,7 +121,7 @@ describe('cross-feature interactions', () => {
   it('router navigation with prefetch cache + action revalidation clears stale data', async () => {
     const mockFetch = vi.fn<(url: string, init: RequestInit) => Promise<Response>>();
     mockFetch.mockResolvedValue(
-      new Response('fresh-payload', { headers: { 'content-type': 'text/x-component' } }),
+      new Response('fresh-payload', { headers: { 'content-type': 'text/x-component' } })
     );
 
     const router = createRouter({
@@ -146,7 +146,7 @@ describe('cross-feature interactions', () => {
   it('segment cache serialization after multiple navigations', async () => {
     const mockFetch = vi.fn<(url: string, init: RequestInit) => Promise<Response>>();
     mockFetch.mockResolvedValue(
-      new Response('payload', { headers: { 'content-type': 'text/x-component' } }),
+      new Response('payload', { headers: { 'content-type': 'text/x-component' } })
     );
 
     const router = createRouter({
@@ -197,8 +197,16 @@ describe('cross-feature interactions', () => {
 
     const mockFetch = vi.fn<(url: string, init: RequestInit) => Promise<Response>>();
     mockFetch
-      .mockReturnValueOnce(new Promise<Response>((r) => { resolveFirst = r; }))
-      .mockReturnValueOnce(new Promise<Response>((r) => { resolveSecond = r; }));
+      .mockReturnValueOnce(
+        new Promise<Response>((r) => {
+          resolveFirst = r;
+        })
+      )
+      .mockReturnValueOnce(
+        new Promise<Response>((r) => {
+          resolveSecond = r;
+        })
+      );
 
     const router = createRouter({
       fetch: mockFetch,

@@ -43,16 +43,19 @@ export type MetadataRouteType =
  * Static extensions: .xml, .txt, .json, .png, .jpg, .ico, .svg
  * Dynamic extensions: .ts, .tsx
  */
-export const METADATA_ROUTE_CONVENTIONS: Record<string, {
-  type: MetadataRouteType;
-  contentType: string;
-  nestable: boolean;
-  staticExtensions: string[];
-  dynamicExtensions: string[];
-  /** The URL path this file serves at (relative to segment). */
-  servePath: string;
-}> = {
-  sitemap: {
+export const METADATA_ROUTE_CONVENTIONS: Record<
+  string,
+  {
+    type: MetadataRouteType;
+    contentType: string;
+    nestable: boolean;
+    staticExtensions: string[];
+    dynamicExtensions: string[];
+    /** The URL path this file serves at (relative to segment). */
+    servePath: string;
+  }
+> = {
+  'sitemap': {
     type: 'sitemap',
     contentType: 'application/xml',
     nestable: true,
@@ -60,7 +63,7 @@ export const METADATA_ROUTE_CONVENTIONS: Record<string, {
     dynamicExtensions: ['ts'],
     servePath: 'sitemap.xml',
   },
-  robots: {
+  'robots': {
     type: 'robots',
     contentType: 'text/plain',
     nestable: false,
@@ -68,7 +71,7 @@ export const METADATA_ROUTE_CONVENTIONS: Record<string, {
     dynamicExtensions: ['ts'],
     servePath: 'robots.txt',
   },
-  manifest: {
+  'manifest': {
     type: 'manifest',
     contentType: 'application/manifest+json',
     nestable: false,
@@ -76,7 +79,7 @@ export const METADATA_ROUTE_CONVENTIONS: Record<string, {
     dynamicExtensions: ['ts'],
     servePath: 'manifest.webmanifest',
   },
-  favicon: {
+  'favicon': {
     type: 'favicon',
     contentType: 'image/x-icon',
     nestable: false,
@@ -84,7 +87,7 @@ export const METADATA_ROUTE_CONVENTIONS: Record<string, {
     dynamicExtensions: [],
     servePath: 'favicon.ico',
   },
-  icon: {
+  'icon': {
     type: 'icon',
     contentType: 'image/*',
     nestable: true,

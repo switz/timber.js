@@ -31,6 +31,17 @@ const PAGE_EXT_CONVENTIONS = new Set([
 ])
 
 /**
+ * Legacy compat status-code files.
+ * Maps legacy file name → HTTP status code for the fallback chain.
+ * See design/10-error-handling.md §"Fallback Chain".
+ */
+const LEGACY_STATUS_FILES: Record<string, number> = {
+  'not-found': 404,
+  'forbidden': 403,
+  'unauthorized': 401,
+}
+
+/**
  * File convention names that are always .ts/.tsx (never .mdx etc.)
  */
 const FIXED_CONVENTIONS = new Set(['middleware', 'access', 'route'])
@@ -217,6 +228,15 @@ function scanSegmentFiles(
         node.statusFiles = new Map()
       }
       node.statusFiles.set(name, { filePath: fullPath, extension: ext })
+      continue
+    }
+
+    // Legacy compat files (not-found.tsx, forbidden.tsx, unauthorized.tsx)
+    if (name in LEGACY_STATUS_FILES && extSet.has(ext)) {
+      if (!node.legacyStatusFiles) {
+        node.legacyStatusFiles = new Map()
+      }
+      node.legacyStatusFiles.set(name, { filePath: fullPath, extension: ext })
     }
   }
 

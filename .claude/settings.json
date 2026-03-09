@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(bd:*)",
+      "Bash(bd create:*)",
+      "Bash(pnpm test:*)",
+      "Bash(pnpm run:*)"
+    ]
+  }
+}

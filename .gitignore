@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.vite/
+*.tsbuildinfo
+.env
+.env.local
+.wrangler/
+.dev.vars
+test-results/
+playwright-report/

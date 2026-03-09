@@ -1,0 +1,309 @@
+# Forms & Server Actions
+
+## Mutation and Revalidation
+
+After a server action mutates data, there are three tools:
+
+### `redirect()`
+
+Use when the user should land somewhere new. The action calls `redirect('/success')`, which triggers a navigation. The client runs the full waterfall for the new route.
+
+```typescript
+'use server'
+export async function createProject(formData: FormData) {
+  const project = await db.projects.create(formData)
+  redirect(`/projects/${project.id}`)
+}
+```
+
+### `useOptimistic`
+
+Use when the action's return value is sufficient to update the UI. The client updates immediately; the action confirms. Standard React 19 pattern. No framework involvement.
+
+### `revalidatePath(path)`
+
+Use when parts of the current page need to reflect new server state without a URL change. The action calls `revalidatePath(path)` on the server, which re-runs the handler + access checks + render for that path and returns the RSC flight payload as part of the action response. The client receives the action response, detects the RSC payload, and reconciles.
+
+```typescript
+'use server'
+export async function toggleTodo(id: string) {
+  await db.todos.toggle(id)
+  return revalidatePath('/dashboard')  // returns RSC flight for /dashboard
+}
+```
+
+No SSE. No WebSocket. No separate request. The RSC payload piggybacks on the existing action response channel. The client action handler detects the payload type and reconciles.
+
+---
+
+## Middleware for Server Actions
+
+`middleware.ts` does not run for server actions. Actions use an explicit typed middleware API — `createActionClient` — that declares auth, validation, and other cross-cutting concerns before the action body executes. This is a first-party primitive inspired by `next-safe-action`.
+
+```typescript
+// lib/action.ts — define your action clients once, reuse across the app
+import { createActionClient, ActionError } from '@timber/app/server'
+import { getUser } from '@/lib/auth'
+
+export const action = createActionClient({
+  middleware: async () => {
+    const user = await getUser()
+    if (!user) throw new ActionError('UNAUTHORIZED')
+    return { user }  // merged into ctx in the action body
+  },
+})
+
+export const adminAction = createActionClient({
+  middleware: async () => {
+    const user = await getUser()
+    if (!user) throw new ActionError('UNAUTHORIZED')
+    if (!user.isAdmin) throw new ActionError('FORBIDDEN')
+    return { user }
+  },
+})
+```
+
+```typescript
+// app/todos/actions.ts
+'use server'
+import { z } from 'zod'
+import { action } from '@/lib/action'
+
+export const createTodo = action
+  .schema(z.object({ title: z.string().min(1) }))
+  .action(async ({ input, ctx }) => {
+    await db.todos.create({ ...input, userId: ctx.user.id })
+    return revalidatePath('/todos')
+  })
+```
+
+```tsx
+// app/todos/new-todo-form.tsx
+'use client'
+import { useActionState } from '@timber/app/client'
+import { createTodo } from './actions'
+
+export function NewTodoForm() {
+  const [result, action, isPending] = useActionState(createTodo, null)
+
+  return (
+    <form action={action}>
+      <input name="title" />
+      {result?.validationErrors?.title && <p>{result.validationErrors.title}</p>}
+      <button disabled={isPending}>Add</button>
+    </form>
+  )
+}
+```
+
+`@timber/app/client` exports a typed `useActionState` that understands the action builder's result shape. `result` is typed to `{ data: Awaited<ReturnType> } | { validationErrors: SchemaErrors } | { serverError: { code: string; data?: Record<string, unknown> } } | null` — no casting, no `any`. The action builder emits a function that satisfies both the direct call signature and React's `(prevState, formData) => Promise<State>` contract, so it passes to `useActionState` without wrapping.
+
+`createActionClient` creates a typed action builder. `.schema()` declares the input schema (Zod, Valibot, ArkType — anything with a `.parse()` method). `.action()` receives the validated `input` and the middleware `ctx`. If middleware throws an `ActionError`, the action short-circuits and the error is returned to the client as a typed value.
+
+Multiple middleware layers can be composed:
+
+```typescript
+export const billedAction = createActionClient({
+  middleware: [authMiddleware, billingMiddleware],
+})
+```
+
+Each middleware in the array runs sequentially. Their return values are merged and available as `ctx`.
+
+## `ActionError`
+
+`ActionError` is the typed error class for server actions. It carries a string code and optional plain-data context.
+
+```typescript
+import { ActionError } from '@timber/app/server'
+
+// In middleware:
+throw new ActionError('UNAUTHORIZED')
+
+// With data:
+throw new ActionError('RATE_LIMITED', { retryAfter: 60 })
+```
+
+When an `ActionError` is thrown — from middleware or the action body — the action short-circuits and the client receives `result.serverError`:
+
+```typescript
+result.serverError
+// → { code: 'UNAUTHORIZED' }
+// → { code: 'RATE_LIMITED', data: { retryAfter: 60 } }
+```
+
+When an unexpected error is thrown (not an `ActionError`), the framework catches it, logs it server-side with the full stack trace, and returns `{ code: 'INTERNAL_ERROR' }` to the client. No error details leak in production. In dev mode, `data.message` is included for debugging.
+
+## `revalidatePath()` and `revalidateTag()`
+
+Two distinct functions, no overloading:
+
+- **`revalidatePath(path: string)`** — re-runs the handler and re-renders the route at that path. Returns the RSC flight payload for inline reconciliation. Used after mutations to refresh the current page without a navigation.
+- **`revalidateTag(tag: string)`** — invalidates all pre-rendered shells and `'use cache'` entries tagged with that tag. Does not return a payload — the next request for an invalidated route re-renders fresh.
+
+Both are callable from anywhere on the server — actions, API routes, handlers, background jobs, cron triggers. Not restricted to the action context.
+
+**`revalidatePath` and short-circuits:** `revalidatePath(path)` re-runs the full handler and re-renders the route. If a handler short-circuits during revalidation (e.g., a feature flag redirect) or the page's auth check fails (e.g., session expired and `requireUser()` calls `redirect('/login')`), the action response includes the redirect instruction. The client follows it. This is a real scenario: a user's session can expire between page load and action submission. The framework handles it by returning the redirect as part of the action response, not by silently failing.
+
+## The Basic Wire-Up (Without Middleware)
+
+For actions that don't need auth or validation, a raw `'use server'` function works directly. The action client is opt-in, not required. However, `createActionClient` is the **recommended default** — it provides typed validation, middleware, and structured error handling. Raw `'use server'` exports are the escape hatch for simple cases.
+
+```typescript
+// app/todos/actions.ts
+'use server'
+
+export async function deleteTodo(id: string) {
+  await db.todos.delete(id)
+  return revalidatePath('/todos')
+}
+```
+
+## Server Actions in Static Mode
+
+In `static` output mode, there is no server to execute actions at request time. Server actions are extracted by the adapter and deployed as separate API endpoints (serverless functions or a standalone API server). The static site calls these endpoints via fetch.
+
+**Limitations in static mode:**
+- `revalidatePath()` cannot return an inline RSC payload — there is no server-side renderer to produce one. After the action completes, the client performs a separate navigation fetch to get fresh data (two roundtrips).
+- The adapter must support split deployment (static assets + API functions). The Nitro adapter handles this for platforms like Vercel, Netlify, etc.
+- `'use server'` is a build error in `static` + `noJS` mode — that mode ships zero JavaScript and cannot call server functions.
+
+This is a known trade-off. Static mode prioritizes zero-server deployment for content sites. Apps with heavy mutation patterns should use `server` mode.
+
+---
+
+## Progressive Enhancement
+
+Forms wired to server actions work without JavaScript. The `<form action={action}>` renders as a standard HTML form POST. The server action receives the `FormData`, executes, and responds. Navigation and revalidation work via standard HTTP redirects in the no-JS case.
+
+`useActionState`, `useFormStatus`, and `useOptimistic` enhance the experience when JS is present — pending states, optimistic updates, inline validation errors. They gracefully degrade to standard form submission when JS is absent.
+
+## Validation Pattern
+
+`.schema()` accepts any schema library with a `.parse()` / `.safeParse()` interface. Validation errors are returned to the client as `result.validationErrors` — typed to the schema's shape. The action body only runs if validation passes.
+
+---
+
+## Client-Side Form Mechanics
+
+### Form Submission Interception
+
+React 19 wires `<form action={serverAction}>` on the client. The behavior differs based on JavaScript availability:
+
+**With JavaScript (default):**
+1. React intercepts the form `submit` event
+2. `FormData` is serialized from the form fields
+3. React sends a POST request to the RSC action endpoint with the serialized FormData
+4. The server executes the action, serializes the result as an RSC payload
+5. React receives the response and updates the UI via `useActionState` / transitions
+
+**Without JavaScript (progressive enhancement):**
+1. Standard HTML `<form>` submits via POST to the current URL
+2. The server receives the `FormData` as a standard form POST
+3. The server action executes
+4. The server responds with an HTTP redirect (302) to the target page
+5. The browser follows the redirect and renders the new page
+
+### RSC Payload Piggyback
+
+When a server action calls `revalidatePath()`, the server renders the RSC payload for that path and includes it in the action response. The response is a multipart RSC stream containing both the action result and the flight payload:
+
+```
+Action response stream:
+  1. Action result (serialized return value or error)
+  2. RSC flight payload for revalidated path (if revalidatePath was called)
+```
+
+The client action handler detects the piggybacked payload and calls `reactRoot.render()` to reconcile the updated tree. This happens in a single roundtrip — no separate fetch for the updated page.
+
+If `revalidatePath()` is NOT called, the response contains only the action result. The page does not re-render unless the client explicitly navigates or calls `router.refresh()`.
+
+### No-JS Action Flow
+
+Forms must work via standard HTTP without JavaScript. Test with `curl`:
+
+```bash
+curl -X POST http://localhost:3000/todos \
+  -d 'title=Buy+groceries' \
+  -H 'Origin: http://localhost:3000' \
+  -v
+```
+
+Expected: HTTP 302 redirect to the page showing the new state. The server action executes, then the framework issues a redirect response because no RSC client is available to receive the flight payload.
+
+Test with Playwright in JS-disabled mode:
+
+```typescript
+test('form works without JS', async ({ browser }) => {
+  const context = await browser.newContext({ javaScriptEnabled: false })
+  const page = await context.newPage()
+  await page.goto('/todos')
+  await page.fill('input[name=title]', 'Buy groceries')
+  await page.click('button[type=submit]')
+  await expect(page).toHaveURL('/todos')
+  await expect(page.locator('text=Buy groceries')).toBeVisible()
+})
+```
+
+### Action Response Encoding
+
+The action endpoint uses the same RSC wire format as navigation responses. The `Content-Type` is `text/x-component` (React's RSC MIME type). The client's action handler and navigation handler share the same RSC stream parser.
+
+---
+
+## Security
+
+### CSRF Protection
+
+Server actions validate the `Origin` header by default. The allowed origin is **auto-derived from the incoming request's `Host` header** — no configuration required for standard single-origin deployments. Requests whose `Origin` doesn't match the `Host` are rejected with 403. This is framework-level behavior, not opt-in.
+
+For multi-origin deployments (CDN with a different domain, staging environments, OAuth callbacks), explicitly list allowed origins in `timber.config.ts`:
+
+```ts
+// timber.config.ts
+export default {
+  allowedOrigins: [
+    'https://myapp.com',
+    'https://staging.myapp.com',
+  ],
+  // csrf: false  — disable entirely (not recommended)
+}
+```
+
+When `allowedOrigins` is set, the `Host`-based auto-derivation is replaced by the explicit list. The incoming `Origin` must match one of the listed values exactly (no wildcard matching). To disable CSRF protection entirely, set `csrf: false` — not recommended outside of local development.
+
+Session cookies should use `SameSite=Lax` or `SameSite=Strict`. The framework does not set cookies on behalf of the developer, but auth documentation should recommend this.
+
+### `redirect()` Is Relative-Only
+
+`redirect('/path')` accepts relative paths only. Absolute URLs (`https://...`), protocol-relative URLs (`//evil.com`), and backslash-prefixed URLs (`/\evil.com`) are rejected at call time with an error.
+
+For external redirects, use `redirectExternal(url, allowList)`:
+
+```typescript
+import { redirectExternal } from '@timber/app/server'
+
+// Requires an explicit allow-list
+redirectExternal(url, ['https://accounts.google.com', 'https://github.com'])
+```
+
+This prevents open redirect attacks where user-controlled input flows into `redirect()`.
+
+### FormData Limits
+
+The framework enforces configurable limits on incoming request bodies:
+
+- **Max body size:** 1 MB for actions, 10 MB for file uploads (configurable)
+- **Max field count:** 100 fields (configurable)
+
+Requests exceeding these limits receive a 413 response. Configure in `timber.config.ts`:
+
+```ts
+export default {
+  limits: {
+    actionBodySize: '1mb',
+    uploadBodySize: '10mb',
+    maxFields: 100,
+  },
+}
+```

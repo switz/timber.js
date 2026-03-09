@@ -1,0 +1,25 @@
+{
+  "name": "@timber/app",
+  "version": "0.0.1",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./server": "./src/server/index.ts",
+    "./client": "./src/client/index.ts",
+    "./cache": "./src/cache/index.ts",
+    "./search-params": "./src/search-params/index.ts",
+    "./adapters/*": "./src/adapters/*.ts"
+  },
+  "scripts": {
+    "build": "echo 'TODO: build step'",
+    "typecheck": "tsgo --noEmit"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "vite": "^7.0.0"
+  },
+  "dependencies": {
+    "@vitejs/plugin-rsc": "^0.5.19"
+  }
+}

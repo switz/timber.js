@@ -1,6 +1,20 @@
 // @timber/app/search-params — Typed search params
 
-export interface SearchParamCodec<T> {
-  parse(raw: string | null): T;
-  serialize(val: T): string | null;
-}
+// Core types and factory
+export type {
+  SearchParamCodec,
+  InferCodec,
+  SearchParamsDefinition,
+  SetParams,
+  SetParamsOptions,
+  QueryStatesOptions,
+  SearchParamsOptions,
+} from './create.js';
+export { createSearchParams } from './create.js';
+
+// Codec bridges
+export { fromSchema, fromArraySchema } from './codecs.js';
+
+// Static analysis (build-time only)
+export type { AnalyzeResult, AnalyzeError } from './analyze.js';
+export { analyzeSearchParams, formatAnalyzeError } from './analyze.js';

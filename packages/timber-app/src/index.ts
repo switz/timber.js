@@ -1,5 +1,8 @@
 import type { Plugin } from 'vite';
+import { join } from 'node:path';
 import { cacheTransformPlugin } from './plugins/cache-transform';
+import { timberRouting } from './plugins/routing';
+import type { RouteTree } from './routing/types';
 
 export interface TimberUserConfig {
   output?: 'server' | 'static';
@@ -16,28 +19,39 @@ export interface TimberUserConfig {
   pageExtensions?: string[];
 }
 
-interface PluginContext {
+/**
+ * Shared context object passed to all sub-plugins via closure.
+ *
+ * Sub-plugins communicate through this context — not through Vite's
+ * plugin API or global state.
+ * See design/18-build-system.md §"Shared Plugin Context".
+ */
+export interface PluginContext {
   config: TimberUserConfig;
+  /** The scanned route tree (populated by timber-routing, consumed by timber-entries) */
+  routeTree: RouteTree | null;
+  /** Absolute path to the app/ directory */
+  appDir: string;
+  /** Absolute path to the project root */
+  root: string;
 }
 
-function createPluginContext(config?: TimberUserConfig): PluginContext {
+function createPluginContext(config?: TimberUserConfig, root?: string): PluginContext {
+  const projectRoot = root ?? process.cwd();
   return {
     config: {
       output: 'server',
       ...config,
     },
+    routeTree: null,
+    appDir: join(projectRoot, 'app'),
+    root: projectRoot,
   };
 }
 
 function timberShims(_ctx: PluginContext): Plugin {
   return {
     name: 'timber-shims',
-  };
-}
-
-function timberRouting(_ctx: PluginContext): Plugin {
-  return {
-    name: 'timber-routing',
   };
 }
 

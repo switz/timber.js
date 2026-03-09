@@ -14,10 +14,13 @@
       "Bash(ls -1 /Users/dsaewitz/y/timber-js-fresh/tests/*.test.ts)",
       "Bash(npm info @switz/eslint-config)",
       "Bash(pnpm install -D -w eslint @switz/eslint-config)",
-      "Bash(git config user.email)"
+      "Bash(git config user.email)",
+      "Bash(wc -l tests/*.test.ts tests/adapters/*.test.ts tests/e2e/*.test.ts)",
+      "Bash(grep -cvE '^\\\\s*$|^\\\\s*//|^\\\\s*/?\\\\*' /Users/dsaewitz/y/timber-js-fresh/tests/integration/pipeline.test.ts)"
     ],
     "additionalDirectories": [
-      "/Users/dsaewitz/y/timber-js-fresh/tests/e2e"
+      "/Users/dsaewitz/y/timber-js-fresh/tests/e2e",
+      "/Users/dsaewitz/y/timber-js-fresh/tests"
     ]
   }
 }

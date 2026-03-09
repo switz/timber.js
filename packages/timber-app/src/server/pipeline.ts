@@ -9,54 +9,51 @@
  * See design/07-routing.md §"Request Lifecycle" and design/02-rendering-pipeline.md §"Request Flow"
  */
 
-import { canonicalize } from './canonicalize.js'
-import { runProxy, type ProxyExport } from './proxy.js'
-import { runMiddleware, type MiddlewareFn } from './middleware-runner.js'
-import type { MiddlewareContext } from './types.js'
-import type { SegmentNode } from '../routing/types.js'
+import { canonicalize } from './canonicalize.js';
+import { runProxy, type ProxyExport } from './proxy.js';
+import { runMiddleware, type MiddlewareFn } from './middleware-runner.js';
+import type { MiddlewareContext } from './types.js';
+import type { SegmentNode } from '../routing/types.js';
 
 // ─── Route Match Result ────────────────────────────────────────────────────
 
 /** Result of matching a canonical pathname against the route tree. */
 export interface RouteMatch {
   /** The matched segment chain from root to leaf. */
-  segments: SegmentNode[]
+  segments: SegmentNode[];
   /** Extracted route params. */
-  params: Record<string, string>
+  params: Record<string, string>;
   /** The leaf segment's middleware.ts export, if any. */
-  middleware?: MiddlewareFn
+  middleware?: MiddlewareFn;
 }
 
 /** Function that matches a canonical pathname to a route. */
-export type RouteMatcher = (pathname: string) => RouteMatch | null
+export type RouteMatcher = (pathname: string) => RouteMatch | null;
 
 /** Function that renders a matched route into a Response. */
 export type RouteRenderer = (
   req: Request,
   match: RouteMatch,
   responseHeaders: Headers,
-  requestHeaderOverlay: Headers,
-) => Response | Promise<Response>
+  requestHeaderOverlay: Headers
+) => Response | Promise<Response>;
 
 /** Function that sends 103 Early Hints for a matched route. */
-export type EarlyHintsEmitter = (
-  match: RouteMatch,
-  req: Request,
-) => void | Promise<void>
+export type EarlyHintsEmitter = (match: RouteMatch, req: Request) => void | Promise<void>;
 
 // ─── Pipeline Configuration ────────────────────────────────────────────────
 
 export interface PipelineConfig {
   /** The proxy.ts default export (function or array). Undefined if no proxy.ts. */
-  proxy?: ProxyExport
+  proxy?: ProxyExport;
   /** Route matcher — resolves a canonical pathname to a RouteMatch. */
-  matchRoute: RouteMatcher
+  matchRoute: RouteMatcher;
   /** Renderer — produces the final Response for a matched route. */
-  render: RouteRenderer
+  render: RouteRenderer;
   /** Early hints emitter — fires 103 hints after route match, before middleware. */
-  earlyHints?: EarlyHintsEmitter
+  earlyHints?: EarlyHintsEmitter;
   /** Whether to strip trailing slashes during canonicalization. Default: true. */
-  stripTrailingSlash?: boolean
+  stripTrailingSlash?: boolean;
 }
 
 // ─── Pipeline ──────────────────────────────────────────────────────────────
@@ -68,51 +65,51 @@ export interface PipelineConfig {
  * and produces a Response. This is the top-level entry point for the server.
  */
 export function createPipeline(config: PipelineConfig): (req: Request) => Promise<Response> {
-  const { proxy, matchRoute, render, earlyHints, stripTrailingSlash = true } = config
+  const { proxy, matchRoute, render, earlyHints, stripTrailingSlash = true } = config;
 
   return async (req: Request): Promise<Response> => {
     // Wrap everything in proxy.ts if it exists.
     // proxy.ts has next() and can wrap the entire lifecycle.
     if (proxy) {
       try {
-        return await runProxy(proxy, req, () => handleRequest(req))
+        return await runProxy(proxy, req, () => handleRequest(req));
       } catch (error) {
         // Uncaught proxy.ts error → bare HTTP 500
-        logError('proxy.ts', error)
-        return new Response(null, { status: 500 })
+        logError('proxy.ts', error);
+        return new Response(null, { status: 500 });
       }
     }
-    return handleRequest(req)
-  }
+    return handleRequest(req);
+  };
 
   async function handleRequest(req: Request): Promise<Response> {
     // Stage 1: URL canonicalization
-    const url = new URL(req.url)
-    const result = canonicalize(url.pathname, stripTrailingSlash)
+    const url = new URL(req.url);
+    const result = canonicalize(url.pathname, stripTrailingSlash);
     if (!result.ok) {
-      return new Response(null, { status: result.status })
+      return new Response(null, { status: result.status });
     }
-    const canonicalPathname = result.pathname
+    const canonicalPathname = result.pathname;
 
     // Stage 2: Route matching
-    const match = matchRoute(canonicalPathname)
+    const match = matchRoute(canonicalPathname);
     if (!match) {
-      return new Response(null, { status: 404 })
+      return new Response(null, { status: 404 });
     }
 
     // Stage 3: 103 Early Hints (before middleware, after match)
     if (earlyHints) {
       // Fire-and-forget — don't block the pipeline
       try {
-        await earlyHints(match, req)
+        await earlyHints(match, req);
       } catch {
         // Early hints failure is non-fatal
       }
     }
 
     // Stage 4: Leaf middleware.ts (only the leaf route's middleware runs)
-    const responseHeaders = new Headers()
-    const requestHeaderOverlay = new Headers()
+    const responseHeaders = new Headers();
+    const requestHeaderOverlay = new Headers();
 
     if (match.middleware) {
       const ctx: MiddlewareContext = {
@@ -121,26 +118,26 @@ export function createPipeline(config: PipelineConfig): (req: Request) => Promis
         headers: responseHeaders,
         params: match.params,
         searchParams: new URL(req.url).searchParams,
-      }
+      };
 
       try {
-        const middlewareResponse = await runMiddleware(match.middleware, ctx)
+        const middlewareResponse = await runMiddleware(match.middleware, ctx);
         if (middlewareResponse) {
-          return middlewareResponse
+          return middlewareResponse;
         }
       } catch (error) {
         // Middleware throw → HTTP 500 (middleware runs before rendering,
         // no error boundary to catch it)
-        logError('middleware.ts', error)
-        return new Response(null, { status: 500 })
+        logError('middleware.ts', error);
+        return new Response(null, { status: 500 });
       }
     }
 
     // Stage 5: Render (access gates + element tree + renderToReadableStream)
-    return render(req, match, responseHeaders, requestHeaderOverlay)
+    return render(req, match, responseHeaders, requestHeaderOverlay);
   }
 }
 
 function logError(phase: string, error: unknown): void {
-  console.error(`[timber] Uncaught error in ${phase}:`, error)
+  console.error(`[timber] Uncaught error in ${phase}:`, error);
 }

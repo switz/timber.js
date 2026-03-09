@@ -10,50 +10,50 @@
  * See design/02-rendering-pipeline.md §"Element Tree Construction"
  */
 
-import type { SegmentNode, RouteFile } from '../routing/types.js'
+import type { SegmentNode, RouteFile } from '../routing/types.js';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 /** A loaded module for a route file convention. */
 export interface LoadedModule {
   /** The default export (component, access function, etc.) */
-  default?: unknown
+  default?: unknown;
   /** Named exports (for route.ts method handlers, metadata, etc.) */
-  [key: string]: unknown
+  [key: string]: unknown;
 }
 
 /** Function that loads a route file's module. */
-export type ModuleLoader = (file: RouteFile) => LoadedModule | Promise<LoadedModule>
+export type ModuleLoader = (file: RouteFile) => LoadedModule | Promise<LoadedModule>;
 
 /** A React element — kept opaque to avoid a React dependency in this module. */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type ReactElement = any
+export type ReactElement = any;
 
 /** Function that creates a React element. Matches React.createElement signature. */
 export type CreateElement = (
   type: unknown,
   props: Record<string, unknown> | null,
   ...children: unknown[]
-) => ReactElement
+) => ReactElement;
 
 /**
  * Resolved slot content for a layout.
  * Key is slot name (without @), value is the element tree for that slot.
  */
-export type SlotElements = Map<string, ReactElement>
+export type SlotElements = Map<string, ReactElement>;
 
 /** Configuration for the tree builder. */
 export interface TreeBuilderConfig {
   /** The matched segment chain from root to leaf. */
-  segments: SegmentNode[]
+  segments: SegmentNode[];
   /** Route params extracted by the matcher. */
-  params: Record<string, string>
+  params: Record<string, string>;
   /** Parsed search params (typed or URLSearchParams). */
-  searchParams: unknown
+  searchParams: unknown;
   /** Loads a route file's module. */
-  loadModule: ModuleLoader
+  loadModule: ModuleLoader;
   /** React.createElement or equivalent. */
-  createElement: CreateElement
+  createElement: CreateElement;
 }
 
 // ─── Component wrappers ──────────────────────────────────────────────────────
@@ -63,10 +63,10 @@ export interface TreeBuilderConfig {
  * Async server component that calls access.ts before rendering children.
  */
 export interface AccessGateProps {
-  accessFn: (ctx: { params: Record<string, string>; searchParams: unknown }) => unknown
-  params: Record<string, string>
-  searchParams: unknown
-  children: ReactElement
+  accessFn: (ctx: { params: Record<string, string>; searchParams: unknown }) => unknown;
+  params: Record<string, string>;
+  searchParams: unknown;
+  children: ReactElement;
 }
 
 /**
@@ -74,12 +74,12 @@ export interface AccessGateProps {
  * On denial, renders denied.tsx → default.tsx → null instead of failing the page.
  */
 export interface SlotAccessGateProps {
-  accessFn: (ctx: { params: Record<string, string>; searchParams: unknown }) => unknown
-  params: Record<string, string>
-  searchParams: unknown
-  deniedFallback: ReactElement | null
-  defaultFallback: ReactElement | null
-  children: ReactElement
+  accessFn: (ctx: { params: Record<string, string>; searchParams: unknown }) => unknown;
+  params: Record<string, string>;
+  searchParams: unknown;
+  deniedFallback: ReactElement | null;
+  defaultFallback: ReactElement | null;
+  children: ReactElement;
 }
 
 /**
@@ -87,9 +87,9 @@ export interface SlotAccessGateProps {
  * Wraps content with status-code error boundary handling.
  */
 export interface ErrorBoundaryProps {
-  fallbackComponent: ReactElement | null
-  status?: number
-  children: ReactElement
+  fallbackComponent: ReactElement | null;
+  status?: number;
+  children: ReactElement;
 }
 
 // ─── Tree Builder ────────────────────────────────────────────────────────────
@@ -99,9 +99,9 @@ export interface ErrorBoundaryProps {
  */
 export interface TreeBuildResult {
   /** The root React element tree ready for renderToReadableStream. */
-  tree: ReactElement
+  tree: ReactElement;
   /** Whether the leaf segment is a route.ts (API endpoint) rather than a page. */
-  isApiRoute: boolean
+  isApiRoute: boolean;
 }
 
 /**
@@ -117,65 +117,71 @@ export interface TreeBuildResult {
  * Parallel slots are resolved at each layout level and composed as named props.
  */
 export async function buildElementTree(config: TreeBuilderConfig): Promise<TreeBuildResult> {
-  const { segments, params, searchParams, loadModule, createElement } = config
+  const { segments, params, searchParams, loadModule, createElement } = config;
 
   if (segments.length === 0) {
-    throw new Error('[timber] buildElementTree: empty segment chain')
+    throw new Error('[timber] buildElementTree: empty segment chain');
   }
 
-  const leaf = segments[segments.length - 1]
+  const leaf = segments[segments.length - 1];
 
   // API routes (route.ts) don't build a React tree
   if (leaf.route && !leaf.page) {
-    return { tree: null, isApiRoute: true }
+    return { tree: null, isApiRoute: true };
   }
 
   // Start with the page component
-  const pageModule = leaf.page ? await loadModule(leaf.page) : null
-  const PageComponent = pageModule?.default as ((...args: unknown[]) => ReactElement) | undefined
+  const pageModule = leaf.page ? await loadModule(leaf.page) : null;
+  const PageComponent = pageModule?.default as ((...args: unknown[]) => ReactElement) | undefined;
 
   if (!PageComponent) {
     throw new Error(
       `[timber] No page component found for route at ${leaf.urlPath}. ` +
-      'Each route must have a page.tsx or route.ts.'
-    )
+        'Each route must have a page.tsx or route.ts.'
+    );
   }
 
   // Build the page element with params and searchParams props
-  let element: ReactElement = createElement(PageComponent, { params, searchParams })
+  let element: ReactElement = createElement(PageComponent, { params, searchParams });
 
   // Build tree bottom-up: wrap page, then walk segments from leaf to root
   for (let i = segments.length - 1; i >= 0; i--) {
-    const segment = segments[i]
+    const segment = segments[i];
 
     // Wrap in error boundaries (status-code files + error.tsx)
-    element = await wrapWithErrorBoundaries(segment, element, loadModule, createElement)
+    element = await wrapWithErrorBoundaries(segment, element, loadModule, createElement);
 
     // Wrap in AccessGate if segment has access.ts
     if (segment.access) {
-      const accessModule = await loadModule(segment.access)
-      const accessFn = accessModule.default as AccessGateProps['accessFn']
+      const accessModule = await loadModule(segment.access);
+      const accessFn = accessModule.default as AccessGateProps['accessFn'];
       element = createElement('timber:access-gate', {
         accessFn,
         params,
         searchParams,
         children: element,
-      } satisfies AccessGateProps)
+      } satisfies AccessGateProps);
     }
 
     // Wrap in layout (if exists and not the leaf's page-level wrapping)
     if (segment.layout) {
-      const layoutModule = await loadModule(segment.layout)
-      const LayoutComponent = layoutModule.default as ((...args: unknown[]) => ReactElement) | undefined
+      const layoutModule = await loadModule(segment.layout);
+      const LayoutComponent = layoutModule.default as
+        | ((...args: unknown[]) => ReactElement)
+        | undefined;
 
       if (LayoutComponent) {
         // Resolve parallel slots for this layout
-        const slotProps: Record<string, ReactElement> = {}
+        const slotProps: Record<string, ReactElement> = {};
         if (segment.slots.size > 0) {
           for (const [slotName, slotNode] of segment.slots) {
             slotProps[slotName] = await buildSlotElement(
-              slotNode, params, searchParams, loadModule, createElement,
-            )
+              slotNode,
+              params,
+              searchParams,
+              loadModule,
+              createElement
+            );
           }
         }
 
@@ -184,12 +190,12 @@ export async function buildElementTree(config: TreeBuilderConfig): Promise<TreeB
           params,
           searchParams,
           children: element,
-        })
+        });
       }
     }
   }
 
-  return { tree: element, isApiRoute: false }
+  return { tree: element, isApiRoute: false };
 }
 
 // ─── Slot Element Builder ────────────────────────────────────────────────────
@@ -205,43 +211,48 @@ async function buildSlotElement(
   params: Record<string, string>,
   searchParams: unknown,
   loadModule: ModuleLoader,
-  createElement: CreateElement,
+  createElement: CreateElement
 ): Promise<ReactElement> {
   // Load slot page
-  const pageModule = slotNode.page ? await loadModule(slotNode.page) : null
-  const PageComponent = pageModule?.default as ((...args: unknown[]) => ReactElement) | undefined
+  const pageModule = slotNode.page ? await loadModule(slotNode.page) : null;
+  const PageComponent = pageModule?.default as ((...args: unknown[]) => ReactElement) | undefined;
 
   // Load default.tsx fallback
-  const defaultModule = slotNode.default ? await loadModule(slotNode.default) : null
-  const DefaultComponent = defaultModule?.default as ((...args: unknown[]) => ReactElement) | undefined
+  const defaultModule = slotNode.default ? await loadModule(slotNode.default) : null;
+  const DefaultComponent = defaultModule?.default as
+    | ((...args: unknown[]) => ReactElement)
+    | undefined;
 
   // If no page, render default.tsx or null
   if (!PageComponent) {
-    return DefaultComponent
-      ? createElement(DefaultComponent, { params, searchParams })
-      : null
+    return DefaultComponent ? createElement(DefaultComponent, { params, searchParams }) : null;
   }
 
-  let element: ReactElement = createElement(PageComponent, { params, searchParams })
+  let element: ReactElement = createElement(PageComponent, { params, searchParams });
 
   // Wrap in error boundaries
-  element = await wrapWithErrorBoundaries(slotNode, element, loadModule, createElement)
+  element = await wrapWithErrorBoundaries(slotNode, element, loadModule, createElement);
 
   // Wrap in SlotAccessGate if slot has access.ts
   if (slotNode.access) {
-    const accessModule = await loadModule(slotNode.access)
-    const accessFn = accessModule.default as SlotAccessGateProps['accessFn']
+    const accessModule = await loadModule(slotNode.access);
+    const accessFn = accessModule.default as SlotAccessGateProps['accessFn'];
 
     // Load denied.tsx
-    const deniedModule = slotNode.denied ? await loadModule(slotNode.denied) : null
-    const DeniedComponent = deniedModule?.default as ((...args: unknown[]) => ReactElement) | undefined
+    const deniedModule = slotNode.denied ? await loadModule(slotNode.denied) : null;
+    const DeniedComponent = deniedModule?.default as
+      | ((...args: unknown[]) => ReactElement)
+      | undefined;
 
     const deniedFallback = DeniedComponent
-      ? createElement(DeniedComponent, { slot: slotNode.segmentName.replace(/^@/, ''), dangerouslyPassData: undefined })
-      : null
+      ? createElement(DeniedComponent, {
+          slot: slotNode.segmentName.replace(/^@/, ''),
+          dangerouslyPassData: undefined,
+        })
+      : null;
     const defaultFallback = DefaultComponent
       ? createElement(DefaultComponent, { params, searchParams })
-      : null
+      : null;
 
     element = createElement('timber:slot-access-gate', {
       accessFn,
@@ -250,10 +261,10 @@ async function buildSlotElement(
       deniedFallback,
       defaultFallback,
       children: element,
-    } satisfies SlotAccessGateProps)
+    } satisfies SlotAccessGateProps);
   }
 
-  return element
+  return element;
 }
 
 // ─── Error Boundary Wrapping ─────────────────────────────────────────────────
@@ -272,7 +283,7 @@ async function wrapWithErrorBoundaries(
   segment: SegmentNode,
   element: ReactElement,
   loadModule: ModuleLoader,
-  createElement: CreateElement,
+  createElement: CreateElement
 ): Promise<ReactElement> {
   // Wrapping is applied inside-out. The last wrap call produces the outermost boundary.
   // Order: specific status → category → error.tsx (outermost)
@@ -281,16 +292,16 @@ async function wrapWithErrorBoundaries(
     // Wrap with specific status files (innermost — highest priority at runtime)
     for (const [key, file] of segment.statusFiles) {
       if (key !== '4xx' && key !== '5xx') {
-        const status = parseInt(key, 10)
+        const status = parseInt(key, 10);
         if (!isNaN(status)) {
-          const mod = await loadModule(file)
-          const Component = mod.default
+          const mod = await loadModule(file);
+          const Component = mod.default;
           if (Component) {
             element = createElement('timber:error-boundary', {
               fallbackComponent: Component,
               status,
               children: element,
-            } satisfies ErrorBoundaryProps)
+            } satisfies ErrorBoundaryProps);
           }
         }
       }
@@ -299,14 +310,14 @@ async function wrapWithErrorBoundaries(
     // Wrap with category catch-alls (4xx.tsx, 5xx.tsx)
     for (const [key, file] of segment.statusFiles) {
       if (key === '4xx' || key === '5xx') {
-        const mod = await loadModule(file)
-        const Component = mod.default
+        const mod = await loadModule(file);
+        const Component = mod.default;
         if (Component) {
           element = createElement('timber:error-boundary', {
             fallbackComponent: Component,
             status: key === '4xx' ? 400 : 500, // category marker
             children: element,
-          } satisfies ErrorBoundaryProps)
+          } satisfies ErrorBoundaryProps);
         }
       }
     }
@@ -314,15 +325,15 @@ async function wrapWithErrorBoundaries(
 
   // Wrap with error.tsx (outermost — catches anything not matched by status files)
   if (segment.error) {
-    const errorModule = await loadModule(segment.error)
-    const ErrorComponent = errorModule.default
+    const errorModule = await loadModule(segment.error);
+    const ErrorComponent = errorModule.default;
     if (ErrorComponent) {
       element = createElement('timber:error-boundary', {
         fallbackComponent: ErrorComponent,
         children: element,
-      } satisfies ErrorBoundaryProps)
+      } satisfies ErrorBoundaryProps);
     }
   }
 
-  return element
+  return element;
 }

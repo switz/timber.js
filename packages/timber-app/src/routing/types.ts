@@ -12,61 +12,61 @@ export type SegmentType =
   | 'catch-all' // e.g. "[...slug]"
   | 'optional-catch-all' // e.g. "[[...slug]]"
   | 'group' // e.g. "(marketing)"
-  | 'slot' // e.g. "@sidebar"
+  | 'slot'; // e.g. "@sidebar"
 
 /** A single file discovered in a route segment */
 export interface RouteFile {
   /** Absolute path to the file */
-  filePath: string
+  filePath: string;
   /** File extension without leading dot (e.g. "tsx", "ts", "mdx") */
-  extension: string
+  extension: string;
 }
 
 /** A node in the segment tree */
 export interface SegmentNode {
   /** The raw directory name (e.g. "dashboard", "[id]", "(auth)", "@sidebar") */
-  segmentName: string
+  segmentName: string;
   /** Classified segment type */
-  segmentType: SegmentType
+  segmentType: SegmentType;
   /** The dynamic param name, if dynamic (e.g. "id" for "[id]", "slug" for "[...slug]") */
-  paramName?: string
+  paramName?: string;
   /** The URL path prefix at this segment level (e.g. "/dashboard") */
-  urlPath: string
+  urlPath: string;
 
   // --- File conventions ---
-  page?: RouteFile
-  layout?: RouteFile
-  middleware?: RouteFile
-  access?: RouteFile
-  route?: RouteFile
-  error?: RouteFile
-  default?: RouteFile
+  page?: RouteFile;
+  layout?: RouteFile;
+  middleware?: RouteFile;
+  access?: RouteFile;
+  route?: RouteFile;
+  error?: RouteFile;
+  default?: RouteFile;
   /** Status-code files: 4xx.tsx, 5xx.tsx, {status}.tsx */
-  statusFiles?: Map<string, RouteFile>
+  statusFiles?: Map<string, RouteFile>;
   /** denied.tsx — slot-only denial rendering */
-  denied?: RouteFile
+  denied?: RouteFile;
   /** Legacy compat: not-found.tsx (maps to 404), forbidden.tsx (403), unauthorized.tsx (401) */
-  legacyStatusFiles?: Map<string, RouteFile>
+  legacyStatusFiles?: Map<string, RouteFile>;
 
   // --- Children ---
-  children: SegmentNode[]
+  children: SegmentNode[];
   /** Parallel route slots (keyed by slot name without @) */
-  slots: Map<string, SegmentNode>
+  slots: Map<string, SegmentNode>;
 }
 
 /** The full route tree output from the scanner */
 export interface RouteTree {
   /** The root segment node (representing app/) */
-  root: SegmentNode
+  root: SegmentNode;
   /** All discovered proxy.ts files (should be at most one, in app/) */
-  proxy?: RouteFile
+  proxy?: RouteFile;
 }
 
 /** Configuration passed to the scanner */
 export interface ScannerConfig {
   /** Recognized page/layout extensions (without dots). Default: ['tsx', 'ts', 'jsx', 'js'] */
-  pageExtensions?: string[]
+  pageExtensions?: string[];
 }
 
 /** Default page extensions */
-export const DEFAULT_PAGE_EXTENSIONS = ['tsx', 'ts', 'jsx', 'js']
+export const DEFAULT_PAGE_EXTENSIONS = ['tsx', 'ts', 'jsx', 'js'];

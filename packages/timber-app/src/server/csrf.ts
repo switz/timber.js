@@ -13,19 +13,17 @@
 
 export interface CsrfConfig {
   /** Explicit list of allowed origins. Replaces Host-based auto-derivation. */
-  allowedOrigins?: string[]
+  allowedOrigins?: string[];
   /** Set to false to disable CSRF validation entirely. */
-  csrf?: boolean
+  csrf?: boolean;
 }
 
-export type CsrfResult =
-  | { ok: true }
-  | { ok: false; status: 403 }
+export type CsrfResult = { ok: true } | { ok: false; status: 403 };
 
 // ─── Constants ────────────────────────────────────────────────────────────
 
 /** HTTP methods that are considered safe (no mutation). */
-const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS'])
+const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 // ─── Implementation ───────────────────────────────────────────────────────
 
@@ -42,42 +40,40 @@ const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS'])
 export function validateCsrf(req: Request, config: CsrfConfig): CsrfResult {
   // Safe methods don't need CSRF protection
   if (SAFE_METHODS.has(req.method)) {
-    return { ok: true }
+    return { ok: true };
   }
 
   // Explicitly disabled
   if (config.csrf === false) {
-    return { ok: true }
+    return { ok: true };
   }
 
-  const origin = req.headers.get('Origin')
+  const origin = req.headers.get('Origin');
 
   // No Origin header on a mutation → reject
   if (!origin) {
-    return { ok: false, status: 403 }
+    return { ok: false, status: 403 };
   }
 
   // If allowedOrigins is configured, use that instead of Host-based derivation
   if (config.allowedOrigins) {
-    const allowed = config.allowedOrigins.includes(origin)
-    return allowed ? { ok: true } : { ok: false, status: 403 }
+    const allowed = config.allowedOrigins.includes(origin);
+    return allowed ? { ok: true } : { ok: false, status: 403 };
   }
 
   // Auto-derive from Host header
-  const host = req.headers.get('Host')
+  const host = req.headers.get('Host');
   if (!host) {
-    return { ok: false, status: 403 }
+    return { ok: false, status: 403 };
   }
 
   // Extract hostname from Origin URL and compare to Host header
-  let originHost: string
+  let originHost: string;
   try {
-    originHost = new URL(origin).host
+    originHost = new URL(origin).host;
   } catch {
-    return { ok: false, status: 403 }
+    return { ok: false, status: 403 };
   }
 
-  return originHost === host
-    ? { ok: true }
-    : { ok: false, status: 403 }
+  return originHost === host ? { ok: true } : { ok: false, status: 403 };
 }

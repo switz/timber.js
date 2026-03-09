@@ -1,16 +1,16 @@
-import { createHash } from 'node:crypto'
-import type { CacheHandler, CacheOptions } from './index'
-import { stableStringify } from './stable-stringify'
-import { createSingleflight } from './singleflight'
+import { createHash } from 'node:crypto';
+import type { CacheHandler, CacheOptions } from './index';
+import { stableStringify } from './stable-stringify';
+import { createSingleflight } from './singleflight';
 
-const singleflight = createSingleflight()
+const singleflight = createSingleflight();
 
 /**
  * Generate a SHA-256 cache key from function identity and serialized args.
  */
 function defaultKeyGenerator(fnId: string, args: unknown[]): string {
-  const raw = fnId + ':' + stableStringify(args)
-  return createHash('sha256').update(raw).digest('hex')
+  const raw = fnId + ':' + stableStringify(args);
+  return createHash('sha256').update(raw).digest('hex');
 }
 
 /**
@@ -18,15 +18,15 @@ function defaultKeyGenerator(fnId: string, args: unknown[]): string {
  */
 function resolveTags<Fn extends (...args: any[]) => any>(
   opts: CacheOptions<Fn>,
-  args: Parameters<Fn>,
+  args: Parameters<Fn>
 ): string[] {
-  if (!opts.tags) return []
-  if (Array.isArray(opts.tags)) return opts.tags
-  return opts.tags(...args)
+  if (!opts.tags) return [];
+  if (Array.isArray(opts.tags)) return opts.tags;
+  return opts.tags(...args);
 }
 
 // Counter for generating unique function IDs when no explicit key is provided.
-let fnIdCounter = 0
+let fnIdCounter = 0;
 
 /**
  * Creates a cached wrapper around an async function.
@@ -40,19 +40,17 @@ let fnIdCounter = 0
 export function createCache<Fn extends (...args: any[]) => Promise<any>>(
   fn: Fn,
   opts: CacheOptions<Fn>,
-  handler: CacheHandler,
+  handler: CacheHandler
 ): (...args: Parameters<Fn>) => Promise<Awaited<ReturnType<Fn>>> {
-  const fnId = `timber-cache:${fnIdCounter++}`
+  const fnId = `timber-cache:${fnIdCounter++}`;
 
   return async (...args: Parameters<Fn>): Promise<Awaited<ReturnType<Fn>>> => {
-    const key = opts.key
-      ? opts.key(...args)
-      : defaultKeyGenerator(fnId, args)
+    const key = opts.key ? opts.key(...args) : defaultKeyGenerator(fnId, args);
 
-    const cached = await handler.get(key)
+    const cached = await handler.get(key);
 
     if (cached && !cached.stale) {
-      return cached.value as Awaited<ReturnType<Fn>>
+      return cached.value as Awaited<ReturnType<Fn>>;
     }
 
     if (cached && cached.stale && opts.staleWhileRevalidate) {
@@ -60,9 +58,9 @@ export function createCache<Fn extends (...args: any[]) => Promise<any>>(
       singleflight
         .do(`swr:${key}`, async () => {
           try {
-            const fresh = await fn(...args)
-            const tags = resolveTags(opts, args)
-            await handler.set(key, fresh, { ttl: opts.ttl, tags })
+            const fresh = await fn(...args);
+            const tags = resolveTags(opts, args);
+            await handler.set(key, fresh, { ttl: opts.ttl, tags });
           } catch {
             // Failed refetch — stale entry continues to be served.
             // Error is swallowed per design doc: "Error is logged."
@@ -70,16 +68,16 @@ export function createCache<Fn extends (...args: any[]) => Promise<any>>(
         })
         .catch(() => {
           // Singleflight promise rejection handled — stale continues.
-        })
-      return cached.value as Awaited<ReturnType<Fn>>
+        });
+      return cached.value as Awaited<ReturnType<Fn>>;
     }
 
     // Cache miss (or stale without SWR) — execute with singleflight
-    const result = await singleflight.do(key, () => fn(...args))
-    const tags = resolveTags(opts, args)
-    await handler.set(key, result, { ttl: opts.ttl, tags })
-    return result as Awaited<ReturnType<Fn>>
-  }
+    const result = await singleflight.do(key, () => fn(...args));
+    const tags = resolveTags(opts, args);
+    await handler.set(key, result, { ttl: opts.ttl, tags });
+    return result as Awaited<ReturnType<Fn>>;
+  };
 }
 
 /**
@@ -87,7 +85,7 @@ export function createCache<Fn extends (...args: any[]) => Promise<any>>(
  */
 createCache.invalidate = async function invalidate(
   handler: CacheHandler,
-  opts: { key?: string; tag?: string },
+  opts: { key?: string; tag?: string }
 ): Promise<void> {
-  await handler.invalidate(opts)
-}
+  await handler.invalidate(opts);
+};

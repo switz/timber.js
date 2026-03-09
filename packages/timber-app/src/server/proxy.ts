@@ -9,13 +9,10 @@
  */
 
 /** Signature for a single proxy middleware function. */
-export type ProxyFn = (
-  req: Request,
-  next: () => Promise<Response>,
-) => Response | Promise<Response>
+export type ProxyFn = (req: Request, next: () => Promise<Response>) => Response | Promise<Response>;
 
 /** The proxy.ts default export — either a function or an array of functions. */
-export type ProxyExport = ProxyFn | ProxyFn[]
+export type ProxyExport = ProxyFn | ProxyFn[];
 
 /**
  * Run the proxy pipeline.
@@ -28,19 +25,19 @@ export type ProxyExport = ProxyFn | ProxyFn[]
 export async function runProxy(
   proxyExport: ProxyExport,
   req: Request,
-  next: () => Promise<Response>,
+  next: () => Promise<Response>
 ): Promise<Response> {
-  const fns = Array.isArray(proxyExport) ? proxyExport : [proxyExport]
+  const fns = Array.isArray(proxyExport) ? proxyExport : [proxyExport];
 
   // Compose left-to-right: first item's next() calls the second, etc.
   // The last item's next() calls the original `next` (route matching + render).
-  let i = fns.length
-  let composed = next
+  let i = fns.length;
+  let composed = next;
   while (i--) {
-    const fn = fns[i]!
-    const downstream = composed
-    composed = () => Promise.resolve(fn(req, downstream))
+    const fn = fns[i]!;
+    const downstream = composed;
+    composed = () => Promise.resolve(fn(req, downstream));
   }
 
-  return composed()
+  return composed();
 }

@@ -8,36 +8,36 @@
  * See design/02-rendering-pipeline.md §"The Flush Point" and §"The Hold Window"
  */
 
-import { DenySignal, RedirectSignal, RenderError } from './primitives.js'
+import { DenySignal, RedirectSignal, RenderError } from './primitives.js';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 /** The readable stream from React's renderToReadableStream. */
 export interface ReactRenderStream {
   /** The underlying ReadableStream of HTML bytes. */
-  readable: ReadableStream<Uint8Array>
+  readable: ReadableStream<Uint8Array>;
   /** Resolves when the shell has finished rendering (all non-Suspense content). */
-  allReady?: Promise<void>
+  allReady?: Promise<void>;
 }
 
 /** Options for the flush controller. */
 export interface FlushOptions {
   /** Response headers to include (from middleware.ts, proxy.ts, etc.). */
-  responseHeaders?: Headers
+  responseHeaders?: Headers;
   /** Default status code when rendering succeeds. Default: 200. */
-  defaultStatus?: number
+  defaultStatus?: number;
 }
 
 /** Result of the flush process. */
 export interface FlushResult {
   /** The final HTTP Response. */
-  response: Response
+  response: Response;
   /** The status code committed. */
-  status: number
+  status: number;
   /** Whether the response was a redirect. */
-  isRedirect: boolean
+  isRedirect: boolean;
   /** Whether the response was a denial. */
-  isDenial: boolean
+  isDenial: boolean;
 }
 
 // ─── Render Function Type ────────────────────────────────────────────────────
@@ -55,12 +55,12 @@ export interface FlushResult {
  */
 export interface RenderResult {
   /** The HTML byte stream. */
-  stream: ReadableStream<Uint8Array>
+  stream: ReadableStream<Uint8Array>;
   /** Resolves when the shell is ready (all non-Suspense content rendered). */
-  shellReady: Promise<void>
+  shellReady: Promise<void>;
 }
 
-export type RenderFn = () => RenderResult | Promise<RenderResult>
+export type RenderFn = () => RenderResult | Promise<RenderResult>;
 
 // ─── Flush Controller ────────────────────────────────────────────────────────
 
@@ -86,30 +86,30 @@ export type RenderFn = () => RenderResult | Promise<RenderResult>
  */
 export async function flushResponse(
   renderFn: RenderFn,
-  options: FlushOptions = {},
+  options: FlushOptions = {}
 ): Promise<FlushResult> {
-  const { responseHeaders = new Headers(), defaultStatus = 200 } = options
+  const { responseHeaders = new Headers(), defaultStatus = 200 } = options;
 
-  let renderResult: RenderResult
+  let renderResult: RenderResult;
 
   // Phase 1: Start the render. The render function may throw synchronously
   // if there's an immediate error before React even starts.
   try {
-    renderResult = await renderFn()
+    renderResult = await renderFn();
   } catch (error) {
-    return handleSignal(error, responseHeaders)
+    return handleSignal(error, responseHeaders);
   }
 
   // Phase 2: Wait for onShellReady. Render-phase signals (deny, redirect,
   // throws outside Suspense) are caught here.
   try {
-    await renderResult.shellReady
+    await renderResult.shellReady;
   } catch (error) {
-    return handleSignal(error, responseHeaders)
+    return handleSignal(error, responseHeaders);
   }
 
   // Phase 3: Shell rendered successfully. Commit status and stream.
-  responseHeaders.set('Content-Type', 'text/html; charset=utf-8')
+  responseHeaders.set('Content-Type', 'text/html; charset=utf-8');
 
   return {
     response: new Response(renderResult.stream, {
@@ -119,7 +119,7 @@ export async function flushResponse(
     status: defaultStatus,
     isRedirect: false,
     isDenial: false,
-  }
+  };
 }
 
 // ─── Signal Handling ─────────────────────────────────────────────────────────
@@ -130,7 +130,7 @@ export async function flushResponse(
 function handleSignal(error: unknown, responseHeaders: Headers): FlushResult {
   // Redirect signal → HTTP 3xx
   if (error instanceof RedirectSignal) {
-    responseHeaders.set('Location', error.location)
+    responseHeaders.set('Location', error.location);
     return {
       response: new Response(null, {
         status: error.status,
@@ -139,7 +139,7 @@ function handleSignal(error: unknown, responseHeaders: Headers): FlushResult {
       status: error.status,
       isRedirect: true,
       isDenial: false,
-    }
+    };
   }
 
   // Deny signal → HTTP 4xx
@@ -152,7 +152,7 @@ function handleSignal(error: unknown, responseHeaders: Headers): FlushResult {
       status: error.status,
       isRedirect: false,
       isDenial: true,
-    }
+    };
   }
 
   // RenderError → HTTP status from error
@@ -165,11 +165,11 @@ function handleSignal(error: unknown, responseHeaders: Headers): FlushResult {
       status: error.status,
       isRedirect: false,
       isDenial: false,
-    }
+    };
   }
 
   // Unknown error → HTTP 500
-  console.error('[timber] Unhandled render-phase error:', error)
+  console.error('[timber] Unhandled render-phase error:', error);
   return {
     response: new Response(null, {
       status: 500,
@@ -178,5 +178,5 @@ function handleSignal(error: unknown, responseHeaders: Headers): FlushResult {
     status: 500,
     isRedirect: false,
     isDenial: false,
-  }
+  };
 }

@@ -8,10 +8,10 @@
  * See design/07-routing.md §"middleware.ts"
  */
 
-import type { MiddlewareContext } from './types.js'
+import type { MiddlewareContext } from './types.js';
 
 /** Signature of a middleware.ts default export. */
-export type MiddlewareFn = (ctx: MiddlewareContext) => Response | void | Promise<Response | void>
+export type MiddlewareFn = (ctx: MiddlewareContext) => Response | void | Promise<Response | void>;
 
 /**
  * Run a route's middleware function.
@@ -22,11 +22,11 @@ export type MiddlewareFn = (ctx: MiddlewareContext) => Response | void | Promise
  */
 export async function runMiddleware(
   middlewareFn: MiddlewareFn,
-  ctx: MiddlewareContext,
+  ctx: MiddlewareContext
 ): Promise<Response | undefined> {
-  const result = await middlewareFn(ctx)
+  const result = await middlewareFn(ctx);
   if (result instanceof Response) {
-    return result
+    return result;
   }
-  return undefined
+  return undefined;
 }

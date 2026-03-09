@@ -9,8 +9,8 @@
  * A subset of the resolved timber.config.ts relevant to adapters.
  */
 export interface TimberConfig {
-  output: 'server' | 'static'
-  static?: { noJS?: boolean }
+  output: 'server' | 'static';
+  static?: { noJS?: boolean };
 }
 
 /**
@@ -22,24 +22,24 @@ export interface TimberConfig {
  */
 export interface TimberPlatformAdapter {
   /** Unique adapter name (e.g. 'cloudflare', 'node', 'bun'). */
-  name: string
+  name: string;
 
   /**
    * Transform the build output for the target platform.
    * Called at the end of `timber build`.
    */
-  buildOutput(config: TimberConfig, buildDir: string): Promise<void>
+  buildOutput(config: TimberConfig, buildDir: string): Promise<void>;
 
   /**
    * Start a local preview server for the built output.
    * Falls back to the built-in Node.js preview server if not provided.
    */
-  preview?(config: TimberConfig, buildDir: string): Promise<void>
+  preview?(config: TimberConfig, buildDir: string): Promise<void>;
 
   /**
    * Register a promise to be kept alive after the response is sent.
    * Maps to platform-specific lifecycle extension (e.g. ctx.waitUntil()
    * on Cloudflare Workers). Undefined if the platform doesn't support it.
    */
-  waitUntil?(promise: Promise<unknown>): void
+  waitUntil?(promise: Promise<unknown>): void;
 }

@@ -8,18 +8,16 @@
  */
 
 /** Result of canonicalization — either a clean path or a rejection. */
-export type CanonicalizeResult =
-  | { ok: true; pathname: string }
-  | { ok: false; status: 400 }
+export type CanonicalizeResult = { ok: true; pathname: string } | { ok: false; status: 400 };
 
 /**
  * Encoded separators that produce a 400 rejection.
  * %2f (/) and %5c (\) cause path-confusion attacks.
  */
-const ENCODED_SEPARATOR_RE = /%2f|%5c/i
+const ENCODED_SEPARATOR_RE = /%2f|%5c/i;
 
 /** Null byte — rejected. */
-const NULL_BYTE_RE = /%00/i
+const NULL_BYTE_RE = /%00/i;
 
 /**
  * Canonicalize a URL pathname.
@@ -33,33 +31,30 @@ const NULL_BYTE_RE = /%00/i
  * @param rawPathname - The raw pathname from the request URL (percent-encoded)
  * @param stripTrailingSlash - Whether to strip trailing slashes. Default: true.
  */
-export function canonicalize(
-  rawPathname: string,
-  stripTrailingSlash = true,
-): CanonicalizeResult {
+export function canonicalize(rawPathname: string, stripTrailingSlash = true): CanonicalizeResult {
   // Step 1: Reject dangerous encoded sequences BEFORE decoding.
   // This must happen on the raw input so %252f doesn't bypass after a single decode.
   if (ENCODED_SEPARATOR_RE.test(rawPathname)) {
-    return { ok: false, status: 400 }
+    return { ok: false, status: 400 };
   }
   if (NULL_BYTE_RE.test(rawPathname)) {
-    return { ok: false, status: 400 }
+    return { ok: false, status: 400 };
   }
 
   // Step 2: Single percent-decode.
   // Double-encoded input (%2561 → %61) stays as %61 — not decoded again.
-  let decoded: string
+  let decoded: string;
   try {
-    decoded = decodeURIComponent(rawPathname)
+    decoded = decodeURIComponent(rawPathname);
   } catch {
     // Malformed percent-encoding → 400
-    return { ok: false, status: 400 }
+    return { ok: false, status: 400 };
   }
 
   // Reject null bytes that appeared after decoding (from valid %00-like sequences
   // that weren't caught above — belt and suspenders).
   if (decoded.includes('\0')) {
-    return { ok: false, status: 400 }
+    return { ok: false, status: 400 };
   }
 
   // Backslash is NOT a path separator — keep as literal character.
@@ -67,29 +62,29 @@ export function canonicalize(
   // We do NOT convert \ to / — it stays as a literal.
 
   // Step 3: Collapse consecutive slashes.
-  let pathname = decoded.replace(/\/\/+/g, '/')
+  let pathname = decoded.replace(/\/\/+/g, '/');
 
   // Step 4: Resolve .. and . segments.
-  const segments = pathname.split('/')
-  const resolved: string[] = []
+  const segments = pathname.split('/');
+  const resolved: string[] = [];
   for (const seg of segments) {
     if (seg === '..') {
       if (resolved.length <= 1) {
         // Trying to escape root — 400
-        return { ok: false, status: 400 }
+        return { ok: false, status: 400 };
       }
-      resolved.pop()
+      resolved.pop();
     } else if (seg !== '.') {
-      resolved.push(seg)
+      resolved.push(seg);
     }
   }
 
-  pathname = resolved.join('/') || '/'
+  pathname = resolved.join('/') || '/';
 
   // Step 5: Strip trailing slash (except root "/").
   if (stripTrailingSlash && pathname.length > 1 && pathname.endsWith('/')) {
-    pathname = pathname.slice(0, -1)
+    pathname = pathname.slice(0, -1);
   }
 
-  return { ok: true, pathname }
+  return { ok: true, pathname };
 }

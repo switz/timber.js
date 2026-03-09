@@ -100,3 +100,9 @@ export type {
 // Revalidation
 export { revalidatePath, revalidateTag, executeAction, buildNoJsResponse, isRscActionRequest } from './actions';
 export type { RevalidateRenderer, RevalidationState, ActionHandlerConfig, ActionHandlerResult } from './actions';
+
+// DeferredSuspense
+// Design doc: design/05-streaming.md §"DeferredSuspense"
+// Also exported from '@timber/app' for user-facing imports per design doc.
+export { DeferredSuspense } from './deferred-suspense';
+export type { DeferredSuspenseProps } from './deferred-suspense';

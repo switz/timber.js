@@ -46,6 +46,7 @@ Before requesting external review:
 3. Enable auto-merge: `gh pr merge <PR_NUMBER> --auto --squash --delete-branch`
 4. Close the bd task: `bd close <id> --reason "Implemented in PR #<PR_NUMBER>"`
 5. After merge, switch back to `main` and pull latest
+6. If everything looks good and passes, clear context and run a new autopilot
 
 ## Rules
 

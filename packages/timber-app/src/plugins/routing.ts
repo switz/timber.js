@@ -1,0 +1,278 @@
+/**
+ * timber-routing — Vite sub-plugin for route manifest generation.
+ *
+ * Bridges the route scanner with Vite's module graph. Scans app/ at startup,
+ * watches for file changes in dev, and serves the virtual:timber-route-manifest
+ * module that entry files consume.
+ *
+ * Design docs: 18-build-system.md §"Virtual Modules", 07-routing.md
+ */
+
+import type { Plugin, ViteDevServer } from 'vite';
+import { scanRoutes } from '../routing/scanner.js';
+import type { RouteTree, SegmentNode, RouteFile } from '../routing/types.js';
+import type { PluginContext } from '../index.js';
+
+const VIRTUAL_MODULE_ID = 'virtual:timber-route-manifest';
+const RESOLVED_VIRTUAL_ID = `\0${VIRTUAL_MODULE_ID}`;
+
+/**
+ * File convention names we track for changes that require manifest regeneration.
+ */
+const ROUTE_FILE_PATTERNS = /\/(page|layout|middleware|access|route|error|default|denied|\d{3}|[45]xx|not-found|forbidden|unauthorized)\./;
+
+/**
+ * Create the timber-routing Vite plugin.
+ *
+ * Hooks: resolveId, load, buildStart, configureServer
+ */
+export function timberRouting(ctx: PluginContext): Plugin {
+  function rescan(): void {
+    ctx.routeTree = scanRoutes(ctx.appDir, {
+      pageExtensions: ctx.config.pageExtensions,
+    });
+  }
+
+  return {
+    name: 'timber-routing',
+
+    /**
+     * Resolve the virtual module ID.
+     *
+     * Handles:
+     * - virtual:timber-route-manifest
+     * - <root>/virtual:timber-route-manifest (Vite SSR build root prefix)
+     * - \0virtual:timber-route-manifest (RSC plugin re-imports)
+     */
+    resolveId(id: string) {
+      // Strip \0 prefix if present (RSC plugin generates these)
+      const cleanId = id.startsWith('\0') ? id.slice(1) : id;
+
+      if (cleanId === VIRTUAL_MODULE_ID) {
+        return RESOLVED_VIRTUAL_ID;
+      }
+
+      // Handle root-prefixed resolution in SSR build
+      if (cleanId.endsWith(`/${VIRTUAL_MODULE_ID}`)) {
+        return RESOLVED_VIRTUAL_ID;
+      }
+
+      return null;
+    },
+
+    /**
+     * Generate the route manifest module.
+     *
+     * The manifest exports the route tree as a serialized data structure
+     * with absolute import paths for all file references.
+     */
+    load(id: string) {
+      if (id !== RESOLVED_VIRTUAL_ID) return null;
+
+      // If routeTree hasn't been built yet (shouldn't happen), scan now
+      if (!ctx.routeTree) {
+        rescan();
+      }
+
+      return generateManifestModule(ctx.routeTree!);
+    },
+
+    /**
+     * Scan routes at build start (production builds).
+     */
+    buildStart() {
+      rescan();
+    },
+
+    /**
+     * Set up file watcher in dev mode.
+     *
+     * Watches app/ for file additions/deletions/renames that affect
+     * the route tree, regenerates the manifest, and invalidates
+     * dependent modules via HMR.
+     */
+    configureServer(devServer: ViteDevServer) {
+      // Initial scan
+      rescan();
+
+      // Watch the app directory
+      devServer.watcher.add(ctx.appDir);
+
+      const handleFileChange = (filePath: string) => {
+        // Only react to route-significant files in the app directory
+        if (!filePath.startsWith(ctx.appDir)) return;
+        if (!ROUTE_FILE_PATTERNS.test(filePath)) return;
+
+        // Rescan the route tree
+        rescan();
+
+        // Invalidate the virtual module in all environments
+        invalidateManifest(devServer);
+      };
+
+      devServer.watcher.on('add', handleFileChange);
+      devServer.watcher.on('unlink', handleFileChange);
+      // Also watch renames (which are add+unlink) — handled by the above
+    },
+  };
+}
+
+/**
+ * Invalidate the virtual route manifest module across all Vite environments.
+ *
+ * When the route tree changes, any environment that has imported the manifest
+ * needs to be invalidated so the next request/transform picks up the new tree.
+ */
+function invalidateManifest(server: ViteDevServer): void {
+  for (const envName of Object.keys(server.environments)) {
+    const env = server.environments[envName];
+    if (!env?.moduleGraph) continue;
+
+    const mod = env.moduleGraph.getModuleById(RESOLVED_VIRTUAL_ID);
+    if (mod) {
+      env.moduleGraph.invalidateModule(mod);
+    }
+  }
+
+  // Trigger HMR full reload — route changes are structural
+  server.hot.send({ type: 'full-reload' });
+}
+
+/**
+ * Generate the virtual module source code for the route manifest.
+ *
+ * The output is a default-exported object containing the serialized route tree.
+ * All file references use absolute paths (required for virtual modules).
+ */
+function generateManifestModule(tree: RouteTree): string {
+  const imports: string[] = [];
+  let importIndex = 0;
+
+  /**
+   * Create a lazy import expression for a route file.
+   * Returns the import variable name.
+   */
+  function addImport(file: RouteFile): string {
+    const varName = `_route${importIndex++}`;
+    imports.push(`const ${varName} = () => import("${file.filePath}");`);
+    return varName;
+  }
+
+  /**
+   * Serialize a segment node to a JS object literal.
+   */
+  function serializeNode(node: SegmentNode, indent: string): string {
+    const nextIndent = indent + '  ';
+    const parts: string[] = [];
+
+    parts.push(`${nextIndent}segmentName: ${JSON.stringify(node.segmentName)},`);
+    parts.push(`${nextIndent}segmentType: ${JSON.stringify(node.segmentType)},`);
+    parts.push(`${nextIndent}urlPath: ${JSON.stringify(node.urlPath)},`);
+
+    if (node.paramName) {
+      parts.push(`${nextIndent}paramName: ${JSON.stringify(node.paramName)},`);
+    }
+
+    // File conventions — absolute paths as lazy imports
+    if (node.page) {
+      const v = addImport(node.page);
+      parts.push(`${nextIndent}page: { load: ${v}, filePath: ${JSON.stringify(node.page.filePath)} },`);
+    }
+    if (node.layout) {
+      const v = addImport(node.layout);
+      parts.push(`${nextIndent}layout: { load: ${v}, filePath: ${JSON.stringify(node.layout.filePath)} },`);
+    }
+    if (node.middleware) {
+      const v = addImport(node.middleware);
+      parts.push(`${nextIndent}middleware: { load: ${v}, filePath: ${JSON.stringify(node.middleware.filePath)} },`);
+    }
+    if (node.access) {
+      const v = addImport(node.access);
+      parts.push(`${nextIndent}access: { load: ${v}, filePath: ${JSON.stringify(node.access.filePath)} },`);
+    }
+    if (node.route) {
+      const v = addImport(node.route);
+      parts.push(`${nextIndent}route: { load: ${v}, filePath: ${JSON.stringify(node.route.filePath)} },`);
+    }
+    if (node.error) {
+      const v = addImport(node.error);
+      parts.push(`${nextIndent}error: { load: ${v}, filePath: ${JSON.stringify(node.error.filePath)} },`);
+    }
+    if (node.default) {
+      const v = addImport(node.default);
+      parts.push(`${nextIndent}default: { load: ${v}, filePath: ${JSON.stringify(node.default.filePath)} },`);
+    }
+    if (node.denied) {
+      const v = addImport(node.denied);
+      parts.push(`${nextIndent}denied: { load: ${v}, filePath: ${JSON.stringify(node.denied.filePath)} },`);
+    }
+
+    // Status-code files
+    if (node.statusFiles && node.statusFiles.size > 0) {
+      const statusEntries: string[] = [];
+      for (const [code, file] of node.statusFiles) {
+        const v = addImport(file);
+        statusEntries.push(`${nextIndent}    ${JSON.stringify(code)}: { load: ${v}, filePath: ${JSON.stringify(file.filePath)} }`);
+      }
+      parts.push(`${nextIndent}statusFiles: {\n${statusEntries.join(',\n')}\n${nextIndent}},`);
+    }
+
+    // Legacy status files
+    if (node.legacyStatusFiles && node.legacyStatusFiles.size > 0) {
+      const legacyEntries: string[] = [];
+      for (const [name, file] of node.legacyStatusFiles) {
+        const v = addImport(file);
+        legacyEntries.push(`${nextIndent}    ${JSON.stringify(name)}: { load: ${v}, filePath: ${JSON.stringify(file.filePath)} }`);
+      }
+      parts.push(`${nextIndent}legacyStatusFiles: {\n${legacyEntries.join(',\n')}\n${nextIndent}},`);
+    }
+
+    // Children
+    if (node.children.length > 0) {
+      const childNodes = node.children.map((c) => serializeNode(c, nextIndent));
+      parts.push(`${nextIndent}children: [\n${childNodes.join(',\n')}\n${nextIndent}],`);
+    } else {
+      parts.push(`${nextIndent}children: [],`);
+    }
+
+    // Parallel slots
+    if (node.slots.size > 0) {
+      const slotEntries: string[] = [];
+      for (const [slotName, slotNode] of node.slots) {
+        slotEntries.push(`${nextIndent}    ${JSON.stringify(slotName)}: ${serializeNode(slotNode, nextIndent + '  ')}`);
+      }
+      parts.push(`${nextIndent}slots: {\n${slotEntries.join(',\n')}\n${nextIndent}},`);
+    } else {
+      parts.push(`${nextIndent}slots: {},`);
+    }
+
+    return `${indent}{\n${parts.join('\n')}\n${indent}}`;
+  }
+
+  const rootSerialized = serializeNode(tree.root, '  ');
+
+  // Proxy file
+  let proxyLine = '';
+  if (tree.proxy) {
+    const v = addImport(tree.proxy);
+    proxyLine = `  proxy: { load: ${v}, filePath: ${JSON.stringify(tree.proxy.filePath)} },`;
+  }
+
+  const code = [
+    '// Auto-generated route manifest — do not edit.',
+    '// Generated by timber-routing plugin.',
+    '',
+    ...imports,
+    '',
+    'const manifest = {',
+    proxyLine,
+    `  root: ${rootSerialized},`,
+    '};',
+    '',
+    'export default manifest;',
+  ]
+    .filter((line) => line !== undefined)
+    .join('\n');
+
+  return code;
+}

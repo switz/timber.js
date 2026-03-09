@@ -8,7 +8,12 @@
       "Bash(git push -u origin *)",
       "Bash(git add *)",
       "Bash(pnpm exec playwright test)",
-      "Bash(python3 -c \"import json,sys; tasks=json.load\\(sys.stdin\\); [print\\(f''{t[\"\"id\"\"]:30} owner={t.get\\(\"\"owner\"\",\"\"none\"\"\\):30} {t[\"\"title\"\"]}''\\) for t in tasks]\")"
+      "Bash(python3 -c \"import json,sys; tasks=json.load\\(sys.stdin\\); [print\\(f''{t[\"\"id\"\"]:30} owner={t.get\\(\"\"owner\"\",\"\"none\"\"\\):30} {t[\"\"title\"\"]}''\\) for t in tasks]\")",
+      "Bash(grep -E \"\\\\.ts$|^d\")",
+      "Bash(ls /Users/dsaewitz/y/timber-js-fresh/tsconfig.json /Users/dsaewitz/y/timber-js-fresh/vitest.config.*)",
+      "Bash(ls -1 /Users/dsaewitz/y/timber-js-fresh/tests/*.test.ts)",
+      "Bash(npm info @switz/eslint-config)",
+      "Bash(pnpm install -D -w eslint @switz/eslint-config)"
     ],
     "additionalDirectories": [
       "/Users/dsaewitz/y/timber-js-fresh/tests/e2e"

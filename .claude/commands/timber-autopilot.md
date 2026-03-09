@@ -55,5 +55,5 @@ Before requesting external review:
 - **Never push to main directly.** Always use a feature branch and open a PR.
 - **Never use `gh pr merge --admin`.** If merge is blocked, investigate why.
 - **Security check is mandatory.** Read `design/13-security.md` before every implementation.
-- **No file >500 lines.** Decompose if approaching the limit.
+- **No file >500 lines.** Decompose if approaching the limit. Comments and blank lines don't count toward the limit — never trim comments to reduce line count.
 - **Maintain Context Through Plan** If running this in a plan, make sure to pass through all of these instructions through the plan.

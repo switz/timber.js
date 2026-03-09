@@ -110,7 +110,7 @@ Use Node.js built-ins before reaching for third-party packages:
 
 ### No File >500 Lines
 
-If a file approaches 500 lines, decompose it. This prevents god objects.
+If a file approaches 500 lines, decompose it. This prevents god objects. **Comments and blank lines don't count toward the limit** — never trim comments or documentation to reduce line count.
 
 ---
 

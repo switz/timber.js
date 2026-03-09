@@ -8,6 +8,7 @@
     "./client": "./src/client/index.ts",
     "./cache": "./src/cache/index.ts",
     "./search-params": "./src/search-params/index.ts",
+    "./routing": "./src/routing/index.ts",
     "./adapters/*": "./src/adapters/*.ts"
   },
   "scripts": {

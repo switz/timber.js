@@ -20,3 +20,6 @@ export type { HistoryEntry } from './history';
 // Forms
 export { useActionState, useFormAction } from './form';
 export type { UseActionStateFn, UseActionStateReturn } from './form';
+
+// Params
+export { useParams, setCurrentParams } from './use-params';

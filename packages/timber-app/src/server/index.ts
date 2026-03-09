@@ -54,3 +54,11 @@ export type {
   RenderFn,
   RenderResult,
 } from './flush'
+
+// CSRF Protection
+export { validateCsrf } from './csrf'
+export type { CsrfConfig, CsrfResult } from './csrf'
+
+// Body Limits
+export { parseBodySize, enforceBodyLimits, DEFAULT_LIMITS } from './body-limits'
+export type { BodyLimitsConfig, BodyLimitResult, BodyKind } from './body-limits'

@@ -96,6 +96,9 @@ export interface SearchParamsDefinition<T extends Record<string, unknown>> {
   /** Read-only codec map for spreading into .extend(). Aliases NOT carried. */
   codecs: { [K in keyof T]: SearchParamCodec<T[K]> };
 
+  /** Read-only URL key alias map. Maps property names to URL query parameter keys. */
+  readonly urlKeys: Readonly<Record<string, string>>;
+
   /**
    * Phantom property for build-time type extraction.
    * Never set at runtime — exists only in the type system.
@@ -304,6 +307,7 @@ function buildDefinition<T extends Record<string, unknown>>(
     href,
     toSearchParams,
     codecs: codecMap,
+    urlKeys: Object.freeze({ ...urlKeys }),
   };
 
   return definition;

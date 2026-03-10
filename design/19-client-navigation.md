@@ -91,10 +91,14 @@ Explicit full re-render. No state tree is sent — the server renders the comple
 
 ### Fetch
 
-Navigation requests use `fetch()` with headers:
+Navigation requests use `fetch()` with a `?_rsc=<timestamp>` cache-bust parameter appended to the URL. This follows Next.js's pattern — it prevents CDNs and the browser cache from serving cached HTML for RSC requests, and signals to intermediaries that this is an RSC fetch.
+
+Headers:
 - `Accept: text/x-component` — signals RSC payload request (not HTML)
 - `X-Timber-State-Tree: ...` — mounted segment tree for layout skip optimization
 - Standard cookies and auth headers — the request goes through the full pipeline
+
+The server responds with `Vary: Accept` to ensure CDNs cache HTML and RSC responses separately for the same URL.
 
 ### Parse
 
@@ -122,13 +126,18 @@ The wire format is identical — partial payloads are just full payloads with so
 
 RSC payloads are stored by `(url, scrollY)` in a session-lived history stack. This enables instant back/forward navigation without a server roundtrip.
 
+### Initial Page Entry
+
+On bootstrap, the initial SSR'd page is stored in the history stack with the decoded RSC element (from `createFromReadableStream` of the inlined RSC payload). This means back navigation to the initial page replays the cached element instantly — no server roundtrip required. If no RSC payload is available (e.g., JS-only client), the entry stores `null` and back navigation fetches from the server.
+
 ### Storage
 
 ```
 History Stack:
-  /dashboard          scrollY=0    → [RSC payload for all segments]
-  /projects           scrollY=200  → [RSC payload for all segments]
-  /projects/123       scrollY=0    → [RSC payload for all segments]
+  /                   scrollY=0    → [Initial RSC element from hydration]
+  /dashboard          scrollY=0    → [RSC payload from navigation fetch]
+  /projects           scrollY=200  → [RSC payload from navigation fetch]
+  /projects/123       scrollY=0    → [RSC payload from navigation fetch]
 ```
 
 Each entry stores the complete segment tree payload at the time of navigation. When the user navigates forward, the current page's payload (with scroll position) is pushed onto the stack.
@@ -175,20 +184,35 @@ timber.js does NOT prefetch links on viewport intersection. Only `<Link prefetch
 
 ## Scroll Restoration
 
+### afterPaint Timing
+
+All scroll operations are deferred until after React has committed the new content to the DOM. The router uses an `afterPaint` callback (double `requestAnimationFrame` in the browser) to schedule `scrollTo` after the paint. This is necessary because:
+
+1. `reactRoot.render()` is asynchronous — the DOM isn't updated synchronously
+2. Rendering to the `document` root causes the browser to reset scroll to 0 during DOM reconciliation
+3. Calling `scrollTo` before the new content is painted has no effect (browser clamps to content height)
+
+In unit tests, `afterPaint` falls back to synchronous execution (no rAF available).
+
 ### Forward Navigation
 
-Scroll to top. `window.scrollTo(0, 0)` after React reconciliation completes. This is the expected behavior when navigating to a new page.
+Scroll to top via `afterPaint(() => scrollTo(0, 0))` after React reconciliation. This is the expected behavior when navigating to a new page.
 
 ### Back/Forward Navigation
 
 Restore saved `scrollY`. The framework sets `history.scrollRestoration = 'manual'` and manages scroll position explicitly:
 
 1. On push (forward navigation): save `window.scrollY` with the current history entry
-2. On popstate (back/forward): restore the saved `scrollY` after React reconciliation
+2. On popstate (back/forward): replay cached payload, then `afterPaint(() => scrollTo(0, savedScrollY))`
 
-### Opt-Out
+### Opt-Out: `scroll={false}`
 
-`<Link scroll={false}>` prevents the automatic scroll-to-top on forward navigation. Useful for tabbed interfaces where navigation changes content within a fixed layout.
+`<Link scroll={false}>` preserves the current scroll position during forward navigation. When the user clicks a `scroll={false}` link:
+
+1. The current `scrollY` is captured before the fetch
+2. After `renderPayload()`, `afterPaint` restores the captured scroll position
+
+This active restoration is required because React's `render()` on the document root resets scroll to 0 during DOM reconciliation, even when layouts are preserved via React reconciliation. The scroll position cannot be passively preserved — it must be explicitly saved and restored.
 
 ---
 

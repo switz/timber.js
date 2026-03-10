@@ -233,7 +233,7 @@ describe('Router', () => {
 
       const [url, init] = mockFetch.mock.calls[0] as [string, RequestInit];
       // URL should have _rsc cache-bust parameter
-      expect(url).toMatch(/^\/projects\?_rsc=\d+$/);
+      expect(url).toMatch(/^\/projects\?_rsc=[a-z0-9]{5}$/);
       expect((init.headers as Record<string, string>).Accept).toBe('text/x-component');
     });
 
@@ -325,7 +325,7 @@ describe('Router', () => {
       await router.refresh();
 
       const [url] = mockFetch.mock.calls[0] as [string, RequestInit];
-      expect(url).toMatch(/^\/dashboard\?_rsc=\d+$/);
+      expect(url).toMatch(/^\/dashboard\?_rsc=[a-z0-9]{5}$/);
     });
   });
 
@@ -365,7 +365,7 @@ describe('Router', () => {
       await router.handlePopState('/unknown-page');
 
       const [url] = mockFetch.mock.calls[0] as [string, RequestInit];
-      expect(url).toMatch(/^\/unknown-page\?_rsc=\d+$/);
+      expect(url).toMatch(/^\/unknown-page\?_rsc=[a-z0-9]{5}$/);
     });
 
     it('fetches from server if cached payload is null (initial SSR page)', async () => {
@@ -513,7 +513,7 @@ describe('Router', () => {
       // Wait for the fire-and-forget fetch to resolve
       await vi.waitFor(() => {
         const [url] = mockFetch.mock.calls[0] as [string, RequestInit];
-        expect(url).toMatch(/^\/projects\?_rsc=\d+$/);
+        expect(url).toMatch(/^\/projects\?_rsc=[a-z0-9]{5}$/);
       });
     });
 

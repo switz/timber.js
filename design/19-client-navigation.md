@@ -91,7 +91,7 @@ Explicit full re-render. No state tree is sent — the server renders the comple
 
 ### Fetch
 
-Navigation requests use `fetch()` with a `?_rsc=<timestamp>` cache-bust parameter appended to the URL. This follows Next.js's pattern — it prevents CDNs and the browser cache from serving cached HTML for RSC requests, and signals to intermediaries that this is an RSC fetch.
+Navigation requests use `fetch()` with a `?_rsc=<id>` cache-bust parameter (5-char random a-z0-9, matching Next.js) appended to the URL. This follows Next.js's pattern — it prevents CDNs and the browser cache from serving cached HTML for RSC requests, and signals to intermediaries that this is an RSC fetch.
 
 Headers:
 - `Accept: text/x-component` — signals RSC payload request (not HTML)

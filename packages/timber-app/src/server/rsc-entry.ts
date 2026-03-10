@@ -250,7 +250,7 @@ async function renderRoute(
   if (isRscPayloadRequest(_req)) {
     responseHeaders.set('content-type', `${RSC_CONTENT_TYPE}; charset=utf-8`);
     // Vary on Accept so CDNs cache HTML and RSC responses separately
-    // for the same URL. The client appends ?_rsc=<time> as a cache-bust,
+    // for the same URL. The client appends ?_rsc=<id> as a cache-bust,
     // but Vary ensures correct behavior even without the query param.
     responseHeaders.set('Vary', 'Accept');
     return new Response(rscStream!, {

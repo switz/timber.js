@@ -49,7 +49,8 @@
       "/Users/dsaewitz/y/timber-js-fresh/tests/e2e",
       "/Users/dsaewitz/y/timber-js-fresh/tests",
       "/Users/dsaewitz/y/timber-js-fresh/tests/fixtures",
-      "/Users/dsaewitz/y/timber-js-fresh/tests/fixtures/phase2-app/app/dashboard"
+      "/Users/dsaewitz/y/timber-js-fresh/tests/fixtures/phase2-app/app/dashboard",
+      "/Users/dsaewitz/y/timber-js-fresh/tests/fixtures/static-app/app/docs"
     ]
   }
 }

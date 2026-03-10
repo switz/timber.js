@@ -12,8 +12,16 @@ import routeManifest from 'virtual:timber-route-manifest';
 // @ts-expect-error — virtual module provided by timber-entries plugin
 import config from 'virtual:timber-config';
 
+import { createElement } from 'react';
+import { renderToReadableStream } from 'react-dom/server';
+
 import { createPipeline } from './pipeline.js';
-import type { PipelineConfig } from './pipeline.js';
+import type { PipelineConfig, RouteMatch } from './pipeline.js';
+import { createRouteMatcher } from './route-matcher.js';
+import type { ManifestSegmentNode } from './route-matcher.js';
+import { resolveMetadata, renderMetadataToElements } from './metadata.js';
+import type { Metadata } from './types.js';
+import { DenySignal } from './primitives.js';
 
 /**
  * Create the RSC request handler from the route manifest.
@@ -22,17 +30,218 @@ import type { PipelineConfig } from './pipeline.js';
  * 103 Early Hints → middleware.ts → render.
  */
 function createRequestHandler(manifest: typeof routeManifest, _runtimeConfig: typeof config) {
-  // TODO: Build RouteMatcher from manifest, wire RouteRenderer,
-  // and compose the full PipelineConfig. This will be filled in
-  // as the rendering pipeline matures.
+  const matchRoute = createRouteMatcher(manifest);
+
   const pipelineConfig: PipelineConfig = {
     proxy: manifest.proxy?.load,
-    matchRoute: (_pathname: string) => null,
-    render: async (_req: Request) => new Response('Not implemented', { status: 501 }),
+    matchRoute,
+    render: async (req: Request, match: RouteMatch, responseHeaders: Headers) => {
+      return renderRoute(req, match, responseHeaders);
+    },
   };
 
   const pipeline = createPipeline(pipelineConfig);
   return pipeline;
+}
+
+/**
+ * Render a matched route to an HTML Response.
+ *
+ * Loads page and layout components from the segment chain, resolves
+ * metadata, and renders via renderToReadableStream.
+ */
+async function renderRoute(
+  _req: Request,
+  match: RouteMatch,
+  responseHeaders: Headers
+): Promise<Response> {
+  const segments = match.segments as unknown as ManifestSegmentNode[];
+
+  // Params are passed as a Promise to match Next.js 15+ convention.
+  const paramsPromise = Promise.resolve(match.params);
+
+  // Load all modules along the segment chain
+  const metadataEntries: Array<{ metadata: Metadata; isPage: boolean }> = [];
+  const layoutComponents: Array<{
+    component: (...args: unknown[]) => unknown;
+    segment: ManifestSegmentNode;
+  }> = [];
+  let PageComponent: ((...args: unknown[]) => unknown) | null = null;
+
+  for (let i = 0; i < segments.length; i++) {
+    const segment = segments[i];
+    const isLeaf = i === segments.length - 1;
+
+    // Load layout
+    if (segment.layout) {
+      const mod = (await segment.layout.load()) as Record<string, unknown>;
+      if (mod.default) {
+        layoutComponents.push({
+          component: mod.default as (...args: unknown[]) => unknown,
+          segment,
+        });
+      }
+      if (mod.metadata) {
+        metadataEntries.push({ metadata: mod.metadata as Metadata, isPage: false });
+      }
+    }
+
+    // Load page (leaf segment only)
+    if (isLeaf && segment.page) {
+      const mod = (await segment.page.load()) as Record<string, unknown>;
+      if (mod.default) {
+        PageComponent = mod.default as (...args: unknown[]) => unknown;
+      }
+      // Static metadata export
+      if (mod.metadata) {
+        metadataEntries.push({ metadata: mod.metadata as Metadata, isPage: true });
+      }
+      // Dynamic generateMetadata function
+      if (typeof mod.generateMetadata === 'function') {
+        type MetadataFn = (props: Record<string, unknown>) => Promise<Metadata>;
+        const generated = await (mod.generateMetadata as MetadataFn)({
+          params: paramsPromise,
+        });
+        if (generated) {
+          metadataEntries.push({ metadata: generated, isPage: true });
+        }
+      }
+    }
+  }
+
+  if (!PageComponent) {
+    return new Response(null, { status: 404 });
+  }
+
+  // Resolve metadata
+  const resolvedMetadata = resolveMetadata(metadataEntries);
+  const headElements = renderMetadataToElements(resolvedMetadata);
+
+  // Build head HTML
+  let headHtml = '';
+  for (const el of headElements) {
+    if (el.tag === 'title' && el.content) {
+      headHtml += `<title>${escapeHtml(el.content)}</title>`;
+    } else if (el.attrs) {
+      const attrs = Object.entries(el.attrs)
+        .map(([k, v]) => `${k}="${escapeHtml(v)}"`)
+        .join(' ');
+      headHtml += `<${el.tag} ${attrs}>`;
+    }
+  }
+
+  // Build element tree: page wrapped in layouts (innermost to outermost)
+  // Route components have custom props (params, children) that don't fit
+  // React's built-in element type overloads — use the untyped form.
+  const h = createElement as (...args: unknown[]) => React.ReactElement;
+
+  let element = h(PageComponent, {
+    params: paramsPromise,
+    searchParams: {},
+  });
+
+  // Wrap in layouts from innermost to outermost
+  for (let i = layoutComponents.length - 1; i >= 0; i--) {
+    const { component } = layoutComponents[i];
+    element = h(component, null, element);
+  }
+
+  // Track render-phase signals (deny, redirect).
+  // DenySignal thrown during shell render causes renderToReadableStream to
+  // reject — we catch it and return a bare status-code response.
+  let renderStatus = 200;
+  let stream: ReadableStream<Uint8Array>;
+  try {
+    stream = await renderToReadableStream(element, {
+      onError(error: unknown) {
+        if (error instanceof DenySignal) {
+          renderStatus = error.status;
+          return;
+        }
+        console.error('[timber] Render error:', error);
+      },
+    });
+  } catch (error) {
+    if (error instanceof DenySignal) {
+      return new Response(null, { status: error.status });
+    }
+    throw error;
+  }
+
+  // If DenySignal fired during shell render, return bare status response
+  if (renderStatus !== 200) {
+    return new Response(null, { status: renderStatus });
+  }
+
+  // Inject metadata into the stream by prepending head elements
+  // The layout already renders <html><head>...</head><body>...</body></html>
+  // We inject metadata via a TransformStream that adds to <head>
+  const injectedStream = injectHead(stream, headHtml);
+
+  if (!responseHeaders.has('content-type')) {
+    responseHeaders.set('content-type', 'text/html; charset=utf-8');
+  }
+
+  return new Response(injectedStream, {
+    status: 200,
+    headers: responseHeaders,
+  });
+}
+
+/**
+ * Inject head HTML into the rendered stream.
+ *
+ * Looks for </head> in the stream and inserts metadata elements before it.
+ * If no </head> is found, the head HTML is prepended to the stream.
+ */
+function injectHead(
+  stream: ReadableStream<Uint8Array>,
+  headHtml: string
+): ReadableStream<Uint8Array> {
+  if (!headHtml) return stream;
+
+  const decoder = new TextDecoder();
+  const encoder = new TextEncoder();
+  let injected = false;
+  let buffer = '';
+
+  return stream.pipeThrough(
+    new TransformStream<Uint8Array, Uint8Array>({
+      transform(chunk, controller) {
+        if (injected) {
+          controller.enqueue(chunk);
+          return;
+        }
+
+        buffer += decoder.decode(chunk, { stream: true });
+        const headCloseIndex = buffer.indexOf('</head>');
+
+        if (headCloseIndex !== -1) {
+          // Inject before </head>
+          const before = buffer.slice(0, headCloseIndex);
+          const after = buffer.slice(headCloseIndex);
+          controller.enqueue(encoder.encode(before + headHtml + after));
+          injected = true;
+          buffer = '';
+        }
+        // Otherwise keep buffering — </head> may span chunks
+      },
+      flush(controller) {
+        if (!injected && buffer) {
+          // No </head> found — just emit the buffer
+          controller.enqueue(encoder.encode(buffer));
+        }
+      },
+    })
+  );
+}
+
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
 export default createRequestHandler(routeManifest, config);

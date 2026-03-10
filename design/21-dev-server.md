@@ -6,7 +6,7 @@ This document consolidates and extends the dev server requirements scattered acr
 
 ## Overview
 
-`timber dev` starts a Vite-based dev server. The server intercepts incoming requests via a `configureServer` post-hook middleware, routes them through the timber pipeline (proxy → canonicalize → route match → middleware → access → render → flush), and streams the response back to the browser. All module loading uses Vite's `ssrLoadModule` against the dev module graph — no built bundles.
+`timber dev` starts a Vite-based dev server. The server intercepts incoming requests via a `configureServer` pre-hook middleware, routes them through the timber pipeline (proxy → canonicalize → route match → middleware → access → render → flush), and streams the response back to the browser. All module loading uses Vite's `ssrLoadModule` against the dev module graph — no built bundles.
 
 The dev server is **not** a separate server. It is a Vite plugin (`timber-dev-server`) that registers a Connect middleware. Vite handles static file serving, HMR websocket management, and module transforms. Timber handles request routing and rendering.
 
@@ -18,17 +18,22 @@ The dev server is **not** a separate server. It is a Vite plugin (`timber-dev-se
 
 ```
 Browser request
-  → Vite built-in middleware (static files, HMR, transforms)
-  → timber-dev-server middleware (post-hook — runs after Vite)
+  → timber-dev-server middleware (pre-hook — runs before Vite internals)
     → Skip if Vite-internal (/@, /__vite, /node_modules/)
     → Skip if static asset (.js, .css, .png, etc.)
     → Convert Node IncomingMessage → Web Request
     → ssrLoadModule('virtual:timber-rsc-entry')
     → handler(webRequest) — full pipeline
     → Convert Web Response → Node ServerResponse (streaming)
-    → On 404: pass through to Vite's SPA fallback
+    → On no-match 404 (X-Timber-No-Match): pass through to Vite's fallback
+    → On route-level 404 (deny(404)): serve as real 404 response
     → On error: 500 with stack trace in dev overlay format
+  → Vite built-in middleware (static files, HMR, transforms) — only if timber passed through
 ```
+
+**Pre-hook vs post-hook:** The middleware registers as a pre-hook (called directly in `configureServer`, not returned as a function) so it sees the original request URL before Vite's `historyApiFallback` can rewrite it to `/index.html`. Vite-internal and asset requests are filtered explicitly and passed through.
+
+**No-match vs deny 404:** When the route matcher finds no match, the pipeline returns `404` with an `X-Timber-No-Match` header. The dev server uses this to distinguish "no route found" (pass through to Vite) from a deliberate `deny(404)` thrown during rendering (serve as a real 404 response).
 
 ### Plugin Registration
 
@@ -38,10 +43,13 @@ Browser request
 export function timber(config?: TimberUserConfig): Plugin[] {
   const ctx = createPluginContext(config)
   return [
+    timberRootSync(ctx),     // configResolved: sync ctx.root/appDir with Vite
     timberShims(ctx),
     timberRouting(ctx),      // configureServer: file watching
     timberEntries(ctx),
     timberCache(ctx),
+    timberStaticBuild(ctx),
+    timberDynamicTransform(ctx),
     timberFonts(ctx),
     timberMdx(ctx),
     timberContent(ctx),      // configureServer: content watching
@@ -50,7 +58,9 @@ export function timber(config?: TimberUserConfig): Plugin[] {
 }
 ```
 
-`timber-dev-server` **must be the last plugin** in the array so its `configureServer` post-hook runs after all other plugins have registered their hooks and watchers.
+`timber-root-sync` **must be the first plugin** — it uses `configResolved` to sync `ctx.root` and `ctx.appDir` with Vite's resolved root. Without this, the plugin context uses `process.cwd()` as root, which is wrong when `--config` points to a subdirectory (e.g., `vite --config examples/blog/vite.config.ts` with `root: import.meta.dirname`).
+
+`timber-dev-server` **must be the last plugin** in the array so its `configureServer` pre-hook runs after all other plugins have registered their hooks and watchers.
 
 ---
 
@@ -302,10 +312,12 @@ Environment variables override config file values:
 
 | # | Decision | Rationale |
 |---|---|---|
-| 1 | `timber-dev-server` is last in the plugin array | Its `configureServer` post-hook must run after all other plugins have set up their watchers and virtual modules |
+| 1 | `timber-dev-server` is last in the plugin array | Its `configureServer` pre-hook must run after all other plugins have set up their watchers and virtual modules |
 | 2 | No custom HMR protocol | Vite's built-in module invalidation handles RSC/SSR. Client HMR is React Fast Refresh via `@vitejs/plugin-react`. No custom WebSocket messages needed. |
 | 3 | Config change triggers full restart | `timber.config.ts` is loaded once and shared via the plugin context. Partial reloading would require all plugins to support dynamic reconfiguration — not worth the complexity. |
 | 4 | Dev logging via event emitter, not middleware | Middleware can only see the start and end of a request. Event-based instrumentation captures the internal pipeline structure (middleware, access checks, render phases, cache hits). |
 | 5 | Warnings deduplicated per session | Prevents noise during HMR — a warning for a file triggers once, not on every save. |
 | 6 | Use Vite's error overlay | Avoids maintaining custom browser-side overlay code. Consistent with developer expectations from the Vite ecosystem. |
-| 7 | 404 passes through to Vite | Allows Vite to serve its own 404 page or SPA fallback, which is useful during development when not all routes are set up. |
+| 7 | No-match 404 passes through to Vite | Only "no route matched" 404s (marked with `X-Timber-No-Match` header) pass through to Vite's fallback. Route-level 404s from `deny(404)` are served directly as real HTTP 404 responses. |
+| 8 | `timber-root-sync` is first in the plugin array | Uses `configResolved` to sync `ctx.root`/`ctx.appDir` with Vite's resolved root, which may differ from `process.cwd()` when using `--config` or Vite's `root` option. |
+| 9 | Pre-hook middleware, not post-hook | Registers middleware before Vite's built-in `historyApiFallback`, which would otherwise rewrite route URLs (e.g., `/blog`) to `/index.html` before our handler sees them. |

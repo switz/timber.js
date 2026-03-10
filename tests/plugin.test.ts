@@ -5,13 +5,14 @@ describe('timber()', () => {
   it('returns an array of Vite plugins', () => {
     const plugins = timber();
     expect(Array.isArray(plugins)).toBe(true);
-    expect(plugins.length).toBe(10);
+    expect(plugins.length).toBe(11);
   });
 
   it('each plugin has a name', () => {
     const plugins = timber();
     const names = plugins.map((p) => p.name);
     expect(names).toEqual([
+      'timber-root-sync',
       'timber-shims',
       'timber-routing',
       'timber-entries',
@@ -27,6 +28,6 @@ describe('timber()', () => {
 
   it('accepts user config', () => {
     const plugins = timber({ output: 'static' });
-    expect(plugins.length).toBe(10);
+    expect(plugins.length).toBe(11);
   });
 });

@@ -1,16 +1,38 @@
 import { describe, it, expect } from 'vitest';
+import type { Plugin } from 'vite';
 import { timber } from '@timber/app';
 
+/**
+ * Resolve the PluginOption[] returned by timber() into a flat array of
+ * Plugin objects. Awaits any promises and flattens nested arrays.
+ */
+async function resolvePlugins(options: ReturnType<typeof timber>): Promise<Plugin[]> {
+  const resolved = await Promise.all(
+    options.map(async (opt) => {
+      const value = await opt;
+      if (Array.isArray(value)) {
+        // Nested array of plugins (e.g., from RSC plugin promise)
+        return value as Plugin[];
+      }
+      if (value && typeof value === 'object' && 'name' in value) {
+        return [value as Plugin];
+      }
+      return [];
+    })
+  );
+  return resolved.flat();
+}
+
 describe('timber()', () => {
-  it('returns an array of Vite plugins', () => {
-    const plugins = timber();
-    expect(Array.isArray(plugins)).toBe(true);
-    // At least 11 timber plugins + RSC plugins
-    expect(plugins.length).toBeGreaterThanOrEqual(11);
+  it('returns an array of plugin options', () => {
+    const options = timber();
+    expect(Array.isArray(options)).toBe(true);
+    // timber plugins + RSC loader promise
+    expect(options.length).toBeGreaterThanOrEqual(11);
   });
 
-  it('timber plugins are present and in correct order', () => {
-    const plugins = timber();
+  it('timber plugins are present and in correct order', async () => {
+    const plugins = await resolvePlugins(timber());
     const names = plugins.map((p) => p.name);
 
     // timber-root-sync must be first
@@ -43,8 +65,8 @@ describe('timber()', () => {
     }
   });
 
-  it('includes @vitejs/plugin-rsc plugins', () => {
-    const plugins = timber();
+  it('includes @vitejs/plugin-rsc plugins', async () => {
+    const plugins = await resolvePlugins(timber());
     const names = plugins.map((p) => p.name);
     // RSC plugin registers 'rsc' as its main plugin name
     expect(names).toContain('rsc');
@@ -52,8 +74,8 @@ describe('timber()', () => {
     expect(names).toContain('rsc:use-client');
   });
 
-  it('RSC plugins come after root-sync but before timber-shims', () => {
-    const plugins = timber();
+  it('RSC plugins come after root-sync but before timber-shims', async () => {
+    const plugins = await resolvePlugins(timber());
     const names = plugins.map((p) => p.name);
     const rootSyncIdx = names.indexOf('timber-root-sync');
     const shimsIdx = names.indexOf('timber-shims');
@@ -63,7 +85,7 @@ describe('timber()', () => {
   });
 
   it('accepts user config', () => {
-    const plugins = timber({ output: 'static' });
-    expect(plugins.length).toBeGreaterThanOrEqual(11);
+    const options = timber({ output: 'static' });
+    expect(options.length).toBeGreaterThanOrEqual(11);
   });
 });

@@ -1,6 +1,5 @@
-import type { Plugin } from 'vite';
+import type { Plugin, PluginOption } from 'vite';
 import { join } from 'node:path';
-import vitePluginRsc from '@vitejs/plugin-rsc';
 import { cacheTransformPlugin } from './plugins/cache-transform';
 import { timberContent } from './plugins/content';
 import { timberDevServer } from './plugins/dev-server';
@@ -77,7 +76,7 @@ function timberFonts(_ctx: PluginContext): Plugin {
   };
 }
 
-export function timber(config?: TimberUserConfig): Plugin[] {
+export function timber(config?: TimberUserConfig): PluginOption[] {
   const ctx = createPluginContext(config);
   // Sync ctx.root and ctx.appDir with Vite's resolved root, which may
   // differ from process.cwd() when --config points to a subdirectory.
@@ -95,16 +94,23 @@ export function timber(config?: TimberUserConfig): Plugin[] {
   // - "use server" directive → server reference transformation
   // - Client reference tracking and module map generation
   //
+  // Loaded via dynamic import() because @vitejs/plugin-rsc is ESM-only.
+  // Vite's config loader uses esbuild to transpile to CJS, which breaks
+  // static imports of ESM-only packages. The dynamic import() is preserved
+  // by esbuild and runs natively in ESM at runtime.
+  //
   // serverHandler: false — timber has its own dev server (timber-dev-server)
   // customBuildApp: true — timber controls its own build pipeline
-  const rscPlugins = vitePluginRsc({
-    serverHandler: false,
-    customBuildApp: true,
-  });
+  const rscPluginsPromise = import('@vitejs/plugin-rsc').then(({ default: vitePluginRsc }) =>
+    vitePluginRsc({
+      serverHandler: false,
+      customBuildApp: true,
+    })
+  );
 
   return [
     rootSync,
-    ...rscPlugins,
+    rscPluginsPromise,
     timberShims(ctx),
     timberRouting(ctx),
     timberEntries(ctx),

@@ -18,6 +18,7 @@ import { createFromReadableStream } from '@vitejs/plugin-rsc/ssr';
 
 import { renderSsrStream, buildSsrResponse } from './ssr-render.js';
 import { injectHead, injectScripts } from './html-injectors.js';
+import { DenySignal } from './primitives.js';
 
 /**
  * Navigation context passed from the RSC environment to SSR.
@@ -70,7 +71,35 @@ export async function handleSsr(
   const element = createFromReadableStream(rscStream) as React.ReactNode;
 
   // Render to HTML stream (waits for onShellReady).
-  const htmlStream = await renderSsrStream(element);
+  // DenySignal may be re-thrown here: when deny() is called during RSC
+  // rendering, the error is encoded into the RSC Flight stream. When SSR
+  // decodes and renders the stream, the error is re-thrown. We catch it
+  // and return a bare status response with the correct HTTP status code.
+  // Render to HTML stream (waits for onShellReady).
+  // DenySignal handling: when deny() is called during RSC rendering, the
+  // error is encoded into the RSC Flight stream. When SSR decodes and
+  // renders the stream, the error is re-thrown. It may arrive as:
+  // (a) A DenySignal instance (same module graph), or
+  // (b) A deserialized error with the DenySignal message pattern
+  //     (cross-environment boundary, different module instances)
+  // We catch both and return a bare status response.
+  let htmlStream: ReadableStream<Uint8Array>;
+  try {
+    htmlStream = await renderSsrStream(element);
+  } catch (error) {
+    if (error instanceof DenySignal) {
+      return new Response(null, { status: error.status, headers: navContext.responseHeaders });
+    }
+    // Cross-environment deserialization: DenySignal becomes a plain Error
+    // with message "Access denied with status NNN"
+    const denyMatch =
+      error instanceof Error && error.message.match(/^Access denied with status (\d+)$/);
+    if (denyMatch) {
+      const status = parseInt(denyMatch[1], 10);
+      return new Response(null, { status, headers: navContext.responseHeaders });
+    }
+    throw error;
+  }
 
   // Inject metadata into <head> and client scripts before </body>.
   // The layout renders <html><head>...</head><body>...</body></html>.

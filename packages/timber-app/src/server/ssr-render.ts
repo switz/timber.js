@@ -27,6 +27,15 @@ export async function renderSsrStream(
 ): Promise<ReadableStream<Uint8Array>> {
   const stream = await renderToReadableStream(element, {
     onError(error: unknown) {
+      // DenySignal errors are expected control flow — don't log them.
+      // They arrive as deserialized errors from the RSC Flight stream
+      // with the message pattern "Access denied with status NNN".
+      if (
+        error instanceof Error &&
+        error.message.match(/^Access denied with status \d+$/)
+      ) {
+        return;
+      }
       console.error('[timber] SSR render error:', error);
     },
   });

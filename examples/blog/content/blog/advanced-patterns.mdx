@@ -1,0 +1,35 @@
+---
+title: Advanced Patterns
+description: Exploring advanced content collection patterns in timber.js
+publishedAt: 2025-02-20
+author: Jane Developer
+tags: [advanced, patterns, content]
+---
+
+# Advanced Patterns
+
+This post covers advanced patterns for working with content collections.
+
+## Data Collections
+
+Beyond MDX blog posts, you can define collections for structured data like JSON or YAML files. This is useful for changelogs, team members, product catalogs, and more.
+
+## Computed Fields
+
+Use the `transform` option in your collection definition to add computed fields:
+
+- Reading time estimates
+- Table of contents generation
+- Related post linking
+
+## Querying
+
+Content collections are imported as typed arrays. Filter and sort at query time:
+
+```tsx
+const published = allBlogs
+  .filter((p) => !p.draft)
+  .sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime())
+```
+
+No database, no API — just typed data at build time.

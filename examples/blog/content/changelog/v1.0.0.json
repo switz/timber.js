@@ -1,0 +1,9 @@
+{
+  "version": "1.0.0",
+  "date": "2025-01-01",
+  "changes": [
+    { "type": "added", "description": "Initial release" },
+    { "type": "added", "description": "Content collections support" },
+    { "type": "added", "description": "MDX rendering pipeline" }
+  ]
+}

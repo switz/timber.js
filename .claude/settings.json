@@ -46,7 +46,8 @@
       "Bash(gh api repos/vercel/next.js/contents/packages/next/image.js?ref=canary -q '.content')",
       "Bash(gh api *)",
       "Bash(gh search *)",
-      "Bash(pnpm exec playwright test *)"
+      "Bash(pnpm exec playwright test *)",
+      "WebSearch"
     ],
     "additionalDirectories": [
       "/Users/dsaewitz/y/timber-js-fresh/tests/e2e",

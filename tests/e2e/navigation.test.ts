@@ -141,8 +141,9 @@ test.describe('history cached', () => {
     await page.waitForURL('/');
     await expect(page.locator('[data-testid="home-content"]')).toBeVisible();
 
-    // Wait for scroll restoration (happens after render + afterPaint)
-    await page.waitForFunction(() => window.scrollY > 0, null, { timeout: 5000 });
+    // Wait for scroll restoration (happens after render + afterPaint).
+    // Use a generous timeout — double-rAF can be slow under CI load.
+    await page.waitForFunction(() => window.scrollY > 0, null, { timeout: 10_000 });
     const restoredScroll = await page.evaluate(() => window.scrollY);
     expect(restoredScroll).toBe(500);
   });

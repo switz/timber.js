@@ -112,8 +112,12 @@ describe('server-only exclusion from client bundle', () => {
 
   it('RSC entry does not import client runtime modules', () => {
     const content = readFileSync(resolve(SRC_DIR, 'server/rsc-entry.ts'), 'utf-8');
-    // RSC entry should not import the client router or segment cache
-    expect(content).not.toContain("from '../client/");
+    // RSC entry should not import client runtime modules (router, segment cache).
+    // Importing 'use client' components like SegmentProvider is fine — they become
+    // serialized client references in the RSC Flight stream, not executed server-side.
+    expect(content).not.toContain("from '../client/router");
+    expect(content).not.toContain("from '../client/segment-cache");
+    expect(content).not.toContain("from '../client/browser-entry");
     expect(content).not.toContain("from './router");
   });
 });

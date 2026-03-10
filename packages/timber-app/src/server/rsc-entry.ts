@@ -45,6 +45,7 @@ import type { BuildManifest } from './build-manifest.js';
 
 import type { NavContext } from './ssr-entry.js';
 import { resolveSlotElement } from './slot-resolver.js';
+import { SegmentProvider } from '../client/segment-context.js';
 
 /**
  * Create a debug channel sink that discards all debug data.
@@ -233,6 +234,8 @@ async function renderRoute(
 
   // Wrap in layouts from innermost to outermost.
   // For each layout, resolve parallel slots and pass them as named props.
+  // Each layout is also wrapped with a SegmentProvider that records
+  // its position in the segment tree for useSelectedLayoutSegment hooks.
   for (let i = layoutComponents.length - 1; i >= 0; i--) {
     const { component, segment } = layoutComponents[i];
 
@@ -248,7 +251,17 @@ async function renderRoute(
       );
     }
 
-    element = h(component, { ...slotProps, children: element });
+    // Compute URL segments from root to this layout for the SegmentProvider.
+    // urlPath is the cumulative path (e.g. "/dashboard/settings"), split into
+    // segments so the hook knows this layout's depth in the tree.
+    const segmentPath = segment.urlPath.split('/');
+    const parallelRouteKeys = Object.keys(segment.slots ?? {});
+
+    element = h(SegmentProvider, {
+      segments: segmentPath,
+      parallelRouteKeys,
+      children: h(component, { ...slotProps, children: element }),
+    });
   }
 
   // Render to RSC Flight stream.

@@ -14,9 +14,6 @@
  * - redirect() does not accept a RedirectType argument — timber
  *   always uses replace semantics for redirects.
  * - permanentRedirect() delegates to redirect(path, 308).
- * - useSelectedLayoutSegment/useSelectedLayoutSegments not yet
- *   implemented — requires segment tree context.
- *
  * See design/14-ecosystem.md for the full shim audit.
  */
 
@@ -25,6 +22,10 @@ export { useParams } from '../client/use-params.js';
 export { usePathname } from '../client/use-pathname.js';
 export { useSearchParams } from '../client/use-search-params.js';
 export { useRouter } from '../client/use-router.js';
+export {
+  useSelectedLayoutSegment,
+  useSelectedLayoutSegments,
+} from '../client/use-selected-layout-segment.js';
 
 // Functions (server-side)
 export { redirect, permanentRedirect, notFound, RedirectType } from '../server/primitives.js';

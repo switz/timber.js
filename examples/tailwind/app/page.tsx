@@ -20,7 +20,7 @@ export default function HomePage() {
             Tailwind Docs
           </a>
           <a
-            href="https://github.com/AshleyYakeley/timber-js"
+            href="https://github.com/switz/timber.js"
             className="text-sm font-semibold leading-6 text-gray-900"
           >
             timber.js &rarr;

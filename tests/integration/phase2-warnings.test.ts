@@ -31,18 +31,15 @@ function makeRequest(path: string, init?: RequestInit): Request {
 // ─── Dev Warnings Fire Correctly ────────────────────────────────────────────
 
 describe('dev warnings', () => {
-  let consoleWarnSpy: ReturnType<typeof vi.spyOn>;
-  let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+  let stderrSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     _resetWarnings();
-    consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
   });
 
   afterEach(() => {
-    consoleWarnSpy.mockRestore();
-    consoleErrorSpy.mockRestore();
+    stderrSpy.mockRestore();
   });
 
   it('multiple warning types coexist in same request without interference', () => {
@@ -51,13 +48,14 @@ describe('dev warnings', () => {
     warnDenyAfterFlush('deny');
     warnSlowSlotWithoutSuspense('@sidebar', 350);
 
-    expect(consoleWarnSpy).toHaveBeenCalledTimes(2);
-    expect(consoleErrorSpy).toHaveBeenCalledTimes(2);
+    // All four warnings write to stderr
+    expect(stderrSpy).toHaveBeenCalledTimes(4);
 
-    expect(consoleWarnSpy.mock.calls[0]![0]).toContain('Suspense');
-    expect(consoleWarnSpy.mock.calls[1]![0]).toContain('@sidebar');
-    expect(consoleErrorSpy.mock.calls[0]![0]).toContain('redirect()');
-    expect(consoleErrorSpy.mock.calls[1]![0]).toContain('deny()');
+    const messages = stderrSpy.mock.calls.map((c: [unknown]) => c[0] as string);
+    expect(messages.some((m: string) => m.includes('Suspense'))).toBe(true);
+    expect(messages.some((m: string) => m.includes('@sidebar'))).toBe(true);
+    expect(messages.some((m: string) => m.includes('redirect()'))).toBe(true);
+    expect(messages.some((m: string) => m.includes('deny()'))).toBe(true);
   });
 
   it('warnings suppressed in production across all warning types', () => {
@@ -71,8 +69,7 @@ describe('dev warnings', () => {
       warnDenyAfterFlush('deny');
       warnSlowSlotWithoutSuspense('@sidebar', 500);
 
-      expect(consoleWarnSpy).not.toHaveBeenCalled();
-      expect(consoleErrorSpy).not.toHaveBeenCalled();
+      expect(stderrSpy).not.toHaveBeenCalled();
     } finally {
       process.env.NODE_ENV = originalEnv;
     }
@@ -85,8 +82,8 @@ describe('dev warnings', () => {
     warnSuspenseWrappingChildren('app/layout.tsx');
     warnRedirectInSlotAccess('@admin');
 
-    expect(consoleWarnSpy).toHaveBeenCalledTimes(1);
-    expect(consoleErrorSpy).toHaveBeenCalledTimes(1);
+    // Each warning type emitted once
+    expect(stderrSpy).toHaveBeenCalledTimes(2);
   });
 
   it('deny() signal in pipeline triggers correct status and warning integration', async () => {
@@ -111,7 +108,8 @@ describe('dev warnings', () => {
 
     const res = await handler(makeRequest('/admin'));
     expect(res.status).toBe(403);
-    expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('deny()'));
+    const messages = stderrSpy.mock.calls.map((c: [unknown]) => c[0] as string);
+    expect(messages.some((m: string) => m.includes('deny()'))).toBe(true);
   });
 });
 

@@ -28,3 +28,4 @@ The shortest version: **if Rails or PHP could do it, so can we.** Correct HTTP s
 | [Build System](18-build-system.md) | Vite plugin decomposition, module resolution, virtual modules, entry generation, build pipeline, dev server HMR, file budgets |
 | [Client Navigation](19-client-navigation.md) | Segment router, RSC payload handling, history stack, prefetch cache, scroll restoration, `useNavigationPending()` |
 | [Content Collections & MDX](20-content-collections.md) | `timber-mdx` plugin, `@mdx-js/rollup` integration, `mdx-components.tsx`, content collections, `defineCollection()`, typed queries, build-time validation |
+| [Dev Server & HMR](21-dev-server.md) | `timber-dev-server` plugin, three-environment HMR wiring, dev logging tree, dev-mode warnings, error overlay, Node↔Web conversion |

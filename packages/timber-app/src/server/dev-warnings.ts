@@ -4,12 +4,32 @@
  * These fire in development only and are stripped from production builds.
  * Each warning targets a specific misuse identified during design review.
  *
- * Warnings are deduplicated by a key (typically file path + warning type)
- * so the same warning is only emitted once per dev session.
+ * Warnings are deduplicated by warningId:filePath:line so the same warning
+ * is only emitted once per dev session (per unique source location).
  *
- * See design/02-rendering-pipeline.md §"Dev Warnings"
- * See design/06-caching.md §"Dev Warnings"
+ * Warnings are written to stderr and, when a Vite dev server is available,
+ * forwarded to the browser console via Vite's WebSocket.
+ *
+ * See design/21-dev-server.md §"Dev-Mode Warnings"
+ * See design/11-platform.md §"Dev Mode"
  */
+
+import type { ViteDevServer } from 'vite';
+
+// ─── Warning IDs ───────────────────────────────────────────────────────────
+
+export const WarningId = {
+  SUSPENSE_WRAPS_CHILDREN: 'SUSPENSE_WRAPS_CHILDREN',
+  DEFERRED_WRAPS_CHILDREN: 'DEFERRED_WRAPS_CHILDREN',
+  DENY_IN_SUSPENSE: 'DENY_IN_SUSPENSE',
+  REDIRECT_IN_SUSPENSE: 'REDIRECT_IN_SUSPENSE',
+  REDIRECT_IN_ACCESS: 'REDIRECT_IN_ACCESS',
+  STATIC_REQUEST_API: 'STATIC_REQUEST_API',
+  CACHE_REQUEST_PROPS: 'CACHE_REQUEST_PROPS',
+  SLOW_SLOT_NO_SUSPENSE: 'SLOW_SLOT_NO_SUSPENSE',
+} as const;
+
+export type WarningId = (typeof WarningId)[keyof typeof WarningId];
 
 // ─── Configuration ──────────────────────────────────────────────────────────
 
@@ -19,20 +39,56 @@ export interface DevWarningConfig {
   slowSlotThresholdMs?: number;
 }
 
-// ─── Deduplication ──────────────────────────────────────────────────────────
+// ─── Deduplication & Server ─────────────────────────────────────────────────
 
 const _emitted = new Set<string>();
+
+/** Vite dev server for forwarding warnings to browser console. */
+let _viteServer: ViteDevServer | null = null;
+
+/**
+ * Register the Vite dev server for browser console forwarding.
+ * Called by timber-dev-server during configureServer.
+ */
+export function setViteServer(server: ViteDevServer | null): void {
+  _viteServer = server;
+}
 
 function isDev(): boolean {
   return process.env.NODE_ENV !== 'production';
 }
 
-/** Emit a warning only once per key. Returns true if emitted. */
-function emitOnce(key: string, level: 'warn' | 'error', message: string): boolean {
+/**
+ * Emit a warning only once per dedup key.
+ *
+ * Writes to stderr and forwards to browser console via Vite WebSocket.
+ * Returns true if emitted (not deduplicated).
+ */
+function emitOnce(
+  warningId: WarningId,
+  location: string,
+  level: 'warn' | 'error',
+  message: string,
+): boolean {
   if (!isDev()) return false;
-  if (_emitted.has(key)) return false;
-  _emitted.add(key);
-  console[level](message);
+
+  const dedupKey = `${warningId}:${location}`;
+  if (_emitted.has(dedupKey)) return false;
+  _emitted.add(dedupKey);
+
+  // Write to stderr
+  const prefix = level === 'error' ? '\x1b[31m[timber]\x1b[0m' : '\x1b[33m[timber]\x1b[0m';
+  process.stderr.write(`${prefix} ${message}\n`);
+
+  // Forward to browser console via Vite WebSocket
+  if (_viteServer?.hot) {
+    _viteServer.hot.send('timber:dev-warning', {
+      warningId,
+      level,
+      message: `[timber] ${message}`,
+    });
+  }
+
   return true;
 }
 
@@ -50,11 +106,12 @@ function emitOnce(key: string, level: 'warn' | 'error', message: string): boolea
  */
 export function warnSuspenseWrappingChildren(layoutFile: string): void {
   emitOnce(
-    `suspense-children:${layoutFile}`,
+    WarningId.SUSPENSE_WRAPS_CHILDREN,
+    layoutFile,
     'warn',
-    `[timber] ${layoutFile}: <Suspense> wraps {children} in this layout. ` +
-      'This defers the page content and prevents it from affecting the HTTP status code. ' +
-      'Move <Suspense> inside the page to wrap specific slow content instead.'
+    `Layout at ${layoutFile} wraps {children} in <Suspense>. ` +
+      'This prevents child pages from setting HTTP status codes. ' +
+      'Use useNavigationPending() for loading states instead.',
   );
 }
 
@@ -68,30 +125,53 @@ export function warnSuspenseWrappingChildren(layoutFile: string): void {
  */
 export function warnDeferredSuspenseWrappingChildren(layoutFile: string): void {
   emitOnce(
-    `deferred-suspense-children:${layoutFile}`,
+    WarningId.DEFERRED_WRAPS_CHILDREN,
+    layoutFile,
     'warn',
-    `[timber] ${layoutFile}: <DeferredSuspense> wraps {children} in this layout. ` +
-      'This defers the page content and prevents it from affecting the HTTP status code. ' +
-      'Move <DeferredSuspense> inside the page to wrap specific slow content instead.'
+    `Layout at ${layoutFile} wraps {children} in <DeferredSuspense>. ` +
+      'This prevents child pages from setting HTTP status codes. ' +
+      'Use useNavigationPending() for loading states instead.',
   );
 }
 
 /**
- * Warn when cookies() or headers() is called in a static build.
+ * Warn when deny() is called inside a Suspense boundary.
  *
- * In output: 'static' mode, there is no per-request context — these APIs
- * read build-time values only. This is almost always a mistake.
+ * After the shell has flushed and the status code is committed, deny()
+ * cannot change the HTTP response. The signal will be caught by the nearest
+ * error boundary instead of producing a correct status code.
  *
- * @param api - The dynamic API name ("cookies" or "headers")
- * @param file - Relative path to the file calling the API
+ * @param file - Relative path to the file
+ * @param line - Line number where deny() was called
  */
-export function warnDynamicApiInStaticBuild(api: 'cookies' | 'headers', file: string): void {
+export function warnDenyInSuspense(file: string, line?: number): void {
+  const location = line ? `${file}:${line}` : file;
   emitOnce(
-    `static-dynamic-api:${api}:${file}`,
+    WarningId.DENY_IN_SUSPENSE,
+    location,
     'error',
-    `[timber] ${file}: ${api}() is not available in static builds (output: 'static'). ` +
-      'There is no per-request context at build time. ' +
-      "Remove this call or switch to output: 'server'."
+    `deny() called inside <Suspense> at ${location}. ` +
+      'The HTTP status is already committed — this will trigger an error boundary with a 200 status. ' +
+      'Move deny() outside <Suspense> for correct HTTP semantics.',
+  );
+}
+
+/**
+ * Warn when redirect() is called inside a Suspense boundary.
+ *
+ * This will perform a client-side navigation instead of an HTTP redirect.
+ *
+ * @param file - Relative path to the file
+ * @param line - Line number where redirect() was called
+ */
+export function warnRedirectInSuspense(file: string, line?: number): void {
+  const location = line ? `${file}:${line}` : file;
+  emitOnce(
+    WarningId.REDIRECT_IN_SUSPENSE,
+    location,
+    'error',
+    `redirect() called inside <Suspense> at ${location}. ` +
+      'This will perform a client-side navigation instead of an HTTP redirect.',
   );
 }
 
@@ -102,34 +182,65 @@ export function warnDynamicApiInStaticBuild(api: 'cookies' | 'headers', file: st
  * redirect the entire page, breaking the contract that slot failure is
  * isolated to the slot.
  *
- * @param slotName - The slot name (e.g., "@admin")
+ * @param accessFile - Relative path to the access.ts file
+ * @param line - Line number where redirect() was called
  */
-export function warnRedirectInSlotAccess(slotName: string): void {
+export function warnRedirectInAccess(accessFile: string, line?: number): void {
+  const location = line ? `${accessFile}:${line}` : accessFile;
   emitOnce(
-    `slot-redirect:${slotName}`,
+    WarningId.REDIRECT_IN_ACCESS,
+    location,
     'error',
-    `[timber] redirect() is not allowed in slot ${slotName} access.ts. ` +
-      'Slots use deny() for graceful degradation — denied.tsx → default.tsx → null. ' +
-      "If you need to redirect, move the logic to the parent segment's access.ts."
+    `redirect() called in access.ts at ${location}. ` +
+      'Only deny() is valid in slot access checks. ' +
+      'Use deny() to block access or move redirect() to middleware.ts.',
   );
 }
 
 /**
- * Warn when deny() or redirect() is called inside a post-flush <Suspense> boundary.
+ * Warn when cookies() or headers() is called during a static build.
  *
- * After the shell has flushed and the status code is committed, deny() and
- * redirect() cannot change the HTTP response. The signal will be caught by
- * the nearest error boundary instead of producing a correct status code.
+ * In output: 'static' mode, there is no per-request context — these APIs
+ * read build-time values only. This is almost always a mistake.
  *
- * @param signal - The signal type ("deny" or "redirect")
+ * @param api - The dynamic API name ("cookies" or "headers")
+ * @param file - Relative path to the file calling the API
  */
-export function warnDenyAfterFlush(signal: 'deny' | 'redirect'): void {
+export function warnStaticRequestApi(api: 'cookies' | 'headers', file: string): void {
   emitOnce(
-    `post-flush-signal:${signal}`,
+    WarningId.STATIC_REQUEST_API,
+    `${api}:${file}`,
     'error',
-    `[timber] ${signal}() was called inside a <Suspense> boundary after the status code was committed. ` +
-      `The HTTP status is already sent — ${signal}() cannot change it. ` +
-      `Move the ${signal}() call outside <Suspense> so it participates in the status code decision.`
+    `${api}() called during static generation of ${file}. ` +
+      'Dynamic request APIs are not available during prerendering.',
+  );
+}
+
+/**
+ * Warn when a "use cache" component receives request-specific props.
+ *
+ * Cached components should not depend on per-request data — a userId or
+ * sessionId in the props means the cache will either be ineffective
+ * (key per user) or dangerous (serve one user's data to another).
+ *
+ * @param componentName - Name of the cached component
+ * @param propName - Name of the suspicious prop
+ * @param file - Relative path to the component file
+ * @param line - Line number
+ */
+export function warnCacheRequestProps(
+  componentName: string,
+  propName: string,
+  file: string,
+  line?: number,
+): void {
+  const location = line ? `${file}:${line}` : file;
+  emitOnce(
+    WarningId.CACHE_REQUEST_PROPS,
+    `${componentName}:${propName}:${location}`,
+    'warn',
+    `Cached component ${componentName} receives prop "${propName}" which appears request-specific. ` +
+      'Cached components should not depend on per-request data.',
   );
 }
 
@@ -145,12 +256,34 @@ export function warnDenyAfterFlush(signal: 'deny' | 'redirect'): void {
  */
 export function warnSlowSlotWithoutSuspense(slotName: string, durationMs: number): void {
   emitOnce(
-    `slow-slot:${slotName}`,
+    WarningId.SLOW_SLOT_NO_SUSPENSE,
+    slotName,
     'warn',
-    `[timber] slot ${slotName} resolved in ${durationMs}ms and is not wrapped in <Suspense>. ` +
-      'Consider wrapping to avoid blocking the flush.'
+    `Slot ${slotName} resolved in ${durationMs}ms and is not wrapped in <Suspense>. ` +
+      'Consider wrapping to avoid blocking the flush.',
   );
 }
+
+// ─── Legacy aliases ─────────────────────────────────────────────────────────
+
+/** @deprecated Use warnStaticRequestApi instead */
+export const warnDynamicApiInStaticBuild = warnStaticRequestApi;
+
+/** @deprecated Use warnRedirectInAccess instead */
+export function warnRedirectInSlotAccess(slotName: string): void {
+  warnRedirectInAccess(`${slotName}/access.ts`);
+}
+
+/** @deprecated Use warnDenyInSuspense / warnRedirectInSuspense instead */
+export function warnDenyAfterFlush(signal: 'deny' | 'redirect'): void {
+  if (signal === 'deny') {
+    warnDenyInSuspense('unknown');
+  } else {
+    warnRedirectInSuspense('unknown');
+  }
+}
+
+// ─── Testing ────────────────────────────────────────────────────────────────
 
 /**
  * Reset emitted warnings. For testing only.
@@ -158,4 +291,12 @@ export function warnSlowSlotWithoutSuspense(slotName: string, durationMs: number
  */
 export function _resetWarnings(): void {
   _emitted.clear();
+}
+
+/**
+ * Get the set of emitted dedup keys. For testing only.
+ * @internal
+ */
+export function _getEmitted(): ReadonlySet<string> {
+  return _emitted;
 }

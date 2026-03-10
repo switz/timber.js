@@ -165,14 +165,22 @@ export { loadInstrumentation, callOnRequestError, hasOnRequestError } from './in
 export { Instrumentation } from './instrumentation';
 
 // Dev Warnings — dev-mode misuse detection
-// Design doc: design/02-rendering-pipeline.md §"Dev Warnings", design/06-caching.md §"Dev Warnings"
+// Design doc: design/21-dev-server.md §"Dev-Mode Warnings", design/11-platform.md §"Dev Mode"
 export {
   warnSuspenseWrappingChildren,
   warnDeferredSuspenseWrappingChildren,
+  warnDenyInSuspense,
+  warnRedirectInSuspense,
+  warnRedirectInAccess,
+  warnStaticRequestApi,
+  warnCacheRequestProps,
+  warnSlowSlotWithoutSuspense,
+  setViteServer,
+  WarningId,
+  // Legacy aliases
   warnDynamicApiInStaticBuild,
   warnRedirectInSlotAccess,
   warnDenyAfterFlush,
-  warnSlowSlotWithoutSuspense,
 } from './dev-warnings';
 export type { DevWarningConfig } from './dev-warnings';
 

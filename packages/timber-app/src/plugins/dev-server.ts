@@ -16,6 +16,7 @@ import type { Plugin, ViteDevServer } from 'vite';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { join } from 'node:path';
 import type { PluginContext } from '../index.js';
+import { setViteServer } from '../server/dev-warnings.js';
 
 // ─── Constants ────────────────────────────────────────────────────────────
 
@@ -77,6 +78,10 @@ export function timberDevServer(ctx: PluginContext): Plugin {
           server.restart();
         }
       });
+
+      // Register Vite server for browser console warning forwarding.
+      // See 21-dev-server.md §Dev-Mode Warnings.
+      setViteServer(server);
 
       // Return post-hook — registers middleware after Vite's internals
       return () => {

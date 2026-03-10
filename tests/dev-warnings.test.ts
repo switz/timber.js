@@ -2,136 +2,162 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   warnSuspenseWrappingChildren,
   warnDeferredSuspenseWrappingChildren,
-  warnDynamicApiInStaticBuild,
-  warnRedirectInSlotAccess,
-  warnDenyAfterFlush,
+  warnDenyInSuspense,
+  warnRedirectInSuspense,
+  warnRedirectInAccess,
+  warnStaticRequestApi,
+  warnCacheRequestProps,
   warnSlowSlotWithoutSuspense,
+  setViteServer,
   _resetWarnings,
+  _getEmitted,
+  WarningId,
 } from '../packages/timber-app/src/server/dev-warnings';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-let consoleWarnSpy: ReturnType<typeof vi.spyOn>;
-let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+let stderrSpy: ReturnType<typeof vi.spyOn>;
 
 beforeEach(() => {
   _resetWarnings();
-  consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-  consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+  stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+  setViteServer(null);
 });
 
 afterEach(() => {
-  consoleWarnSpy.mockRestore();
-  consoleErrorSpy.mockRestore();
+  stderrSpy.mockRestore();
 });
 
-// ─── Suspense wrapping {children} in layout ────────────────────────────────
+// ─── SUSPENSE_WRAPS_CHILDREN ────────────────────────────────────────────────
 
-describe('warnSuspenseWrappingChildren', () => {
-  it('suspense children warn', () => {
+describe('SUSPENSE_WRAPS_CHILDREN', () => {
+  it('warns on Suspense wrapping children', () => {
     warnSuspenseWrappingChildren('app/(dashboard)/layout.tsx');
 
-    expect(consoleWarnSpy).toHaveBeenCalledOnce();
-    expect(consoleWarnSpy.mock.calls[0]![0]).toContain('[timber]');
-    expect(consoleWarnSpy.mock.calls[0]![0]).toContain('Suspense');
-    expect(consoleWarnSpy.mock.calls[0]![0]).toContain('{children}');
-    expect(consoleWarnSpy.mock.calls[0]![0]).toContain('app/(dashboard)/layout.tsx');
-  });
-
-  it('warns about DeferredSuspense wrapping children', () => {
-    warnDeferredSuspenseWrappingChildren('app/layout.tsx');
-
-    expect(consoleWarnSpy).toHaveBeenCalledOnce();
-    expect(consoleWarnSpy.mock.calls[0]![0]).toContain('DeferredSuspense');
-    expect(consoleWarnSpy.mock.calls[0]![0]).toContain('{children}');
+    expect(stderrSpy).toHaveBeenCalledOnce();
+    const msg = stderrSpy.mock.calls[0]![0] as string;
+    expect(msg).toContain('Suspense');
+    expect(msg).toContain('{children}');
+    expect(msg).toContain('app/(dashboard)/layout.tsx');
+    expect(msg).toContain('useNavigationPending()');
   });
 });
 
-// ─── cookies()/headers() in static build ─────────────────────────────────
+// ─── DEFERRED_WRAPS_CHILDREN ────────────────────────────────────────────────
 
-describe('warnDynamicApiInStaticBuild', () => {
-  it('static dynamic api warn', () => {
-    warnDynamicApiInStaticBuild('cookies', 'app/page.tsx');
+describe('DEFERRED_WRAPS_CHILDREN', () => {
+  it('warns on DeferredSuspense wrapping children', () => {
+    warnDeferredSuspenseWrappingChildren('app/layout.tsx');
 
-    expect(consoleErrorSpy).toHaveBeenCalledOnce();
-    expect(consoleErrorSpy.mock.calls[0]![0]).toContain('[timber]');
-    expect(consoleErrorSpy.mock.calls[0]![0]).toContain('cookies()');
-    expect(consoleErrorSpy.mock.calls[0]![0]).toContain('static');
-    expect(consoleErrorSpy.mock.calls[0]![0]).toContain('app/page.tsx');
+    expect(stderrSpy).toHaveBeenCalledOnce();
+    const msg = stderrSpy.mock.calls[0]![0] as string;
+    expect(msg).toContain('DeferredSuspense');
+    expect(msg).toContain('{children}');
+    expect(msg).toContain('app/layout.tsx');
+  });
+});
+
+// ─── DENY_IN_SUSPENSE ──────────────────────────────────────────────────────
+
+describe('DENY_IN_SUSPENSE', () => {
+  it('warns on deny in Suspense', () => {
+    warnDenyInSuspense('app/dashboard/page.tsx', 42);
+
+    expect(stderrSpy).toHaveBeenCalledOnce();
+    const msg = stderrSpy.mock.calls[0]![0] as string;
+    expect(msg).toContain('deny()');
+    expect(msg).toContain('Suspense');
+    expect(msg).toContain('app/dashboard/page.tsx:42');
+    expect(msg).toContain('HTTP status');
+  });
+});
+
+// ─── REDIRECT_IN_SUSPENSE ──────────────────────────────────────────────────
+
+describe('REDIRECT_IN_SUSPENSE', () => {
+  it('warns on redirect in Suspense', () => {
+    warnRedirectInSuspense('app/dashboard/page.tsx', 55);
+
+    expect(stderrSpy).toHaveBeenCalledOnce();
+    const msg = stderrSpy.mock.calls[0]![0] as string;
+    expect(msg).toContain('redirect()');
+    expect(msg).toContain('Suspense');
+    expect(msg).toContain('app/dashboard/page.tsx:55');
+    expect(msg).toContain('client-side navigation');
+  });
+});
+
+// ─── REDIRECT_IN_ACCESS ────────────────────────────────────────────────────
+
+describe('REDIRECT_IN_ACCESS', () => {
+  it('warns on redirect in access', () => {
+    warnRedirectInAccess('app/admin/access.ts', 12);
+
+    expect(stderrSpy).toHaveBeenCalledOnce();
+    const msg = stderrSpy.mock.calls[0]![0] as string;
+    expect(msg).toContain('redirect()');
+    expect(msg).toContain('access.ts');
+    expect(msg).toContain('app/admin/access.ts:12');
+    expect(msg).toContain('deny()');
+    expect(msg).toContain('middleware.ts');
+  });
+});
+
+// ─── STATIC_REQUEST_API ────────────────────────────────────────────────────
+
+describe('STATIC_REQUEST_API', () => {
+  it('warns on dynamic API in static', () => {
+    warnStaticRequestApi('cookies', '/about');
+
+    expect(stderrSpy).toHaveBeenCalledOnce();
+    const msg = stderrSpy.mock.calls[0]![0] as string;
+    expect(msg).toContain('cookies()');
+    expect(msg).toContain('static');
+    expect(msg).toContain('/about');
   });
 
   it('warns for headers() in static build', () => {
-    warnDynamicApiInStaticBuild('headers', 'app/access.ts');
+    warnStaticRequestApi('headers', '/contact');
 
-    expect(consoleErrorSpy).toHaveBeenCalledOnce();
-    expect(consoleErrorSpy.mock.calls[0]![0]).toContain('headers()');
+    expect(stderrSpy).toHaveBeenCalledOnce();
+    const msg = stderrSpy.mock.calls[0]![0] as string;
+    expect(msg).toContain('headers()');
   });
 });
 
-// ─── redirect() in slot access ──────────────────────────────────────────
+// ─── CACHE_REQUEST_PROPS ───────────────────────────────────────────────────
 
-describe('warnRedirectInSlotAccess', () => {
-  it('slot redirect warn', () => {
-    warnRedirectInSlotAccess('@admin');
+describe('CACHE_REQUEST_PROPS', () => {
+  it('warns on cache request props', () => {
+    warnCacheRequestProps('UserGreeting', 'userId', 'app/components/greeting.tsx', 15);
 
-    expect(consoleErrorSpy).toHaveBeenCalledOnce();
-    expect(consoleErrorSpy.mock.calls[0]![0]).toContain('[timber]');
-    expect(consoleErrorSpy.mock.calls[0]![0]).toContain('redirect()');
-    expect(consoleErrorSpy.mock.calls[0]![0]).toContain('slot');
-    expect(consoleErrorSpy.mock.calls[0]![0]).toContain('@admin');
-    expect(consoleErrorSpy.mock.calls[0]![0]).toContain('deny()');
+    expect(stderrSpy).toHaveBeenCalledOnce();
+    const msg = stderrSpy.mock.calls[0]![0] as string;
+    expect(msg).toContain('UserGreeting');
+    expect(msg).toContain('"userId"');
+    expect(msg).toContain('request-specific');
+    expect(msg).toContain('Cached component');
   });
 });
 
-// ─── deny()/redirect() in post-flush Suspense ───────────────────────────
+// ─── SLOW_SLOT_NO_SUSPENSE ─────────────────────────────────────────────────
 
-describe('warnDenyAfterFlush', () => {
-  it('warns when deny() is called inside post-flush Suspense', () => {
-    warnDenyAfterFlush('deny');
-
-    expect(consoleErrorSpy).toHaveBeenCalledOnce();
-    expect(consoleErrorSpy.mock.calls[0]![0]).toContain('[timber]');
-    expect(consoleErrorSpy.mock.calls[0]![0]).toContain('deny()');
-    expect(consoleErrorSpy.mock.calls[0]![0]).toContain('Suspense');
-    expect(consoleErrorSpy.mock.calls[0]![0]).toContain('status code');
-  });
-
-  it('warns when redirect() is called inside post-flush Suspense', () => {
-    warnDenyAfterFlush('redirect');
-
-    expect(consoleErrorSpy).toHaveBeenCalledOnce();
-    expect(consoleErrorSpy.mock.calls[0]![0]).toContain('redirect()');
-  });
-});
-
-// ─── Slow slot without Suspense ─────────────────────────────────────────
-
-describe('warnSlowSlotWithoutSuspense', () => {
-  it('slow slot warn', () => {
+describe('SLOW_SLOT_NO_SUSPENSE', () => {
+  it('warns on slow slot', () => {
     warnSlowSlotWithoutSuspense('@admin', 847);
 
-    expect(consoleWarnSpy).toHaveBeenCalledOnce();
-    expect(consoleWarnSpy.mock.calls[0]![0]).toContain('[timber]');
-    expect(consoleWarnSpy.mock.calls[0]![0]).toContain('@admin');
-    expect(consoleWarnSpy.mock.calls[0]![0]).toContain('847ms');
-    expect(consoleWarnSpy.mock.calls[0]![0]).toContain('Suspense');
-  });
-
-  it('includes resolution time and advice', () => {
-    warnSlowSlotWithoutSuspense('@feed', 320);
-
-    const msg = consoleWarnSpy.mock.calls[0]![0] as string;
-    expect(msg).toContain('320ms');
-    expect(msg).toContain('wrapping');
+    expect(stderrSpy).toHaveBeenCalledOnce();
+    const msg = stderrSpy.mock.calls[0]![0] as string;
+    expect(msg).toContain('@admin');
+    expect(msg).toContain('847ms');
+    expect(msg).toContain('Suspense');
+    expect(msg).toContain('blocking the flush');
   });
 });
 
 // ─── Production stripping ───────────────────────────────────────────────
 
 describe('production stripping', () => {
-  // The warning functions check process.env.NODE_ENV internally.
-  // In production, they should be no-ops.
-
   it('no production warnings', () => {
     const originalEnv = process.env.NODE_ENV;
     try {
@@ -139,13 +165,14 @@ describe('production stripping', () => {
 
       warnSuspenseWrappingChildren('app/layout.tsx');
       warnDeferredSuspenseWrappingChildren('app/layout.tsx');
-      warnDynamicApiInStaticBuild('cookies', 'app/page.tsx');
-      warnRedirectInSlotAccess('@admin');
-      warnDenyAfterFlush('deny');
+      warnDenyInSuspense('app/page.tsx', 10);
+      warnRedirectInSuspense('app/page.tsx', 20);
+      warnRedirectInAccess('app/access.ts', 5);
+      warnStaticRequestApi('cookies', '/about');
+      warnCacheRequestProps('Foo', 'bar', 'app/foo.tsx');
       warnSlowSlotWithoutSuspense('@feed', 500);
 
-      expect(consoleWarnSpy).not.toHaveBeenCalled();
-      expect(consoleErrorSpy).not.toHaveBeenCalled();
+      expect(stderrSpy).not.toHaveBeenCalled();
     } finally {
       process.env.NODE_ENV = originalEnv;
     }
@@ -155,19 +182,75 @@ describe('production stripping', () => {
 // ─── Deduplication ──────────────────────────────────────────────────────
 
 describe('deduplication', () => {
-  it('does not repeat the same warning for the same location', () => {
-    warnSuspenseWrappingChildren('app/layout.tsx');
-    warnSuspenseWrappingChildren('app/layout.tsx');
-    warnSuspenseWrappingChildren('app/layout.tsx');
+  it('does not repeat the same warning for the same file:line', () => {
+    warnDenyInSuspense('app/page.tsx', 42);
+    warnDenyInSuspense('app/page.tsx', 42);
+    warnDenyInSuspense('app/page.tsx', 42);
 
-    // Should only warn once for the same file
-    expect(consoleWarnSpy).toHaveBeenCalledOnce();
+    expect(stderrSpy).toHaveBeenCalledOnce();
   });
 
   it('warns for different locations', () => {
+    warnDenyInSuspense('app/page.tsx', 42);
+    warnDenyInSuspense('app/page.tsx', 55);
+
+    expect(stderrSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it('warns for different files', () => {
     warnSuspenseWrappingChildren('app/layout.tsx');
     warnSuspenseWrappingChildren('app/(dashboard)/layout.tsx');
 
-    expect(consoleWarnSpy).toHaveBeenCalledTimes(2);
+    expect(stderrSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it('dedup key includes warningId and location', () => {
+    warnDenyInSuspense('app/page.tsx', 42);
+
+    const emitted = _getEmitted();
+    expect(emitted.has(`${WarningId.DENY_IN_SUSPENSE}:app/page.tsx:42`)).toBe(true);
+  });
+});
+
+// ─── stderr output ─────────────────────────────────────────────────────
+
+describe('stderr output', () => {
+  it('writes to stderr, not stdout', () => {
+    const stdoutSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    try {
+      warnSuspenseWrappingChildren('app/layout.tsx');
+
+      expect(stderrSpy).toHaveBeenCalledOnce();
+      expect(stdoutSpy).not.toHaveBeenCalled();
+    } finally {
+      stdoutSpy.mockRestore();
+    }
+  });
+});
+
+// ─── Browser console forwarding ────────────────────────────────────────
+
+describe('browser console forwarding', () => {
+  it('forwards warnings via Vite WebSocket when server is set', () => {
+    const hotSend = vi.fn();
+    const fakeServer = { hot: { send: hotSend } } as unknown as import('vite').ViteDevServer;
+    setViteServer(fakeServer);
+
+    warnSuspenseWrappingChildren('app/layout.tsx');
+
+    expect(hotSend).toHaveBeenCalledOnce();
+    expect(hotSend).toHaveBeenCalledWith('timber:dev-warning', {
+      warningId: WarningId.SUSPENSE_WRAPS_CHILDREN,
+      level: 'warn',
+      message: expect.stringContaining('[timber]'),
+    });
+  });
+
+  it('does not forward when no server is set', () => {
+    setViteServer(null);
+    warnSuspenseWrappingChildren('app/layout.tsx');
+
+    // Should not throw — just writes to stderr
+    expect(stderrSpy).toHaveBeenCalledOnce();
   });
 });

@@ -9,8 +9,10 @@ export type { Metadata, MetadataRoute } from './types';
 // Runtime primitives
 export {
   deny,
+  notFound,
   redirect,
   redirectExternal,
+  RedirectType,
   RenderError,
   waitUntil,
   DenySignal,

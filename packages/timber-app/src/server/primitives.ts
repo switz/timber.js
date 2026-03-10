@@ -42,6 +42,29 @@ export function deny(status: number = 403, data?: unknown): never {
   throw new DenySignal(status, data);
 }
 
+/**
+ * Convenience alias for `deny(404)`.
+ *
+ * Provided for Next.js API compatibility — libraries and user code that
+ * call `notFound()` from `next/navigation` get the same behavior as
+ * `deny(404)` in timber.
+ */
+export function notFound(): never {
+  throw new DenySignal(404);
+}
+
+/**
+ * Next.js redirect type discriminator.
+ *
+ * Provided for API compatibility with libraries that import `RedirectType`
+ * from `next/navigation`. In timber, `redirect()` always uses `replace`
+ * semantics (no history entry for the redirect itself).
+ */
+export const RedirectType = {
+  push: 'push',
+  replace: 'replace',
+} as const;
+
 // ─── RedirectSignal ─────────────────────────────────────────────────────────
 
 /**

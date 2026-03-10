@@ -4,8 +4,8 @@
  * Tests: blog index renders, individual posts render, draft filtering,
  * 404 for missing slugs, changelog data collection, metadata correctness.
  *
- * These tests use a separate Playwright project defined in
- * playwright-blog.config.ts targeting the examples/blog/ fixture.
+ * These tests use a colocated Playwright config at
+ * examples/blog/playwright.config.ts targeting the examples/blog/ app.
  */
 import { test, expect } from '@playwright/test';
 

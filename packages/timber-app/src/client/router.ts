@@ -12,6 +12,20 @@ export interface NavigationOptions {
 }
 
 /**
+ * Function that decodes an RSC Flight stream into a React element tree.
+ * In production: createFromFetch from @vitejs/plugin-rsc/browser.
+ * In tests: a mock that returns the raw payload.
+ */
+export type RscDecoder = (fetchPromise: Promise<Response>) => unknown;
+
+/**
+ * Function that renders a decoded RSC element tree into the DOM.
+ * In production: reactRoot.render(element).
+ * In tests: a no-op or mock.
+ */
+export type RootRenderer = (element: unknown) => void;
+
+/**
  * Platform dependencies injected for testability. In production these
  * map to browser APIs; in tests they're replaced with mocks.
  */
@@ -22,6 +36,10 @@ export interface RouterDeps {
   scrollTo: (x: number, y: number) => void;
   getCurrentUrl: () => string;
   getScrollY: () => number;
+  /** Decode RSC Flight stream into React elements. If not provided, raw response text is stored. */
+  decodeRsc?: RscDecoder;
+  /** Render decoded RSC tree into the DOM. If not provided, rendering is a no-op. */
+  renderRoot?: RootRenderer;
 }
 
 export interface RouterInstance {
@@ -35,6 +53,8 @@ export interface RouterInstance {
   isPending(): boolean;
   /** Subscribe to pending state changes */
   onPendingChange(listener: (pending: boolean) => void): () => void;
+  /** Prefetch an RSC payload for a URL (used by Link hover) */
+  prefetch(url: string): void;
   /** The segment cache (exposed for tests and <Link> prefetch) */
   segmentCache: SegmentCache;
   /** The prefetch cache (exposed for tests and <Link> prefetch) */
@@ -57,15 +77,26 @@ function buildRscHeaders(stateTree: { segments: string[] } | undefined): Record<
   return headers;
 }
 
+/**
+ * Fetch an RSC payload from the server. If a decodeRsc function is provided,
+ * the response is decoded into a React element tree via createFromFetch.
+ * Otherwise, the raw response text is returned (test mode).
+ */
 async function fetchRscPayload(
   url: string,
   deps: RouterDeps,
   stateTree?: { segments: string[] }
 ): Promise<unknown> {
   const headers = buildRscHeaders(stateTree);
+  if (deps.decodeRsc) {
+    // Production path: use createFromFetch for streaming RSC decoding.
+    // createFromFetch takes a Promise<Response> and progressively parses
+    // the RSC Flight stream as chunks arrive.
+    const fetchPromise = deps.fetch(url, { headers });
+    return deps.decodeRsc(fetchPromise);
+  }
+  // Test/fallback path: return raw text
   const response = await deps.fetch(url, { headers });
-  // In production, this would use createFromFetch() to parse the RSC stream.
-  // For now, we return the raw response body as the payload.
   return response.text();
 }
 
@@ -89,6 +120,13 @@ export function createRouter(deps: RouterDeps): RouterInstance {
       for (const listener of pendingListeners) {
         listener(value);
       }
+    }
+  }
+
+  /** Render a decoded RSC payload into the DOM if a renderer is available. */
+  function renderPayload(payload: unknown): void {
+    if (deps.renderRoot) {
+      deps.renderRoot(payload);
     }
   }
 
@@ -120,8 +158,8 @@ export function createRouter(deps: RouterDeps): RouterInstance {
       // Store the payload in the history stack
       historyStack.push(url, { payload, scrollY: 0 });
 
-      // In production: call reactRoot.render() with the parsed RSC tree here.
-      // The actual React reconciliation is handled by the entry module.
+      // Render the decoded RSC tree into the DOM
+      renderPayload(payload);
 
       // Scroll to top on forward navigation (unless opted out)
       if (scroll) {
@@ -147,7 +185,8 @@ export function createRouter(deps: RouterDeps): RouterInstance {
         scrollY: deps.getScrollY(),
       });
 
-      // In production: call reactRoot.render() with the full RSC tree.
+      // Render the fresh RSC tree
+      renderPayload(payload);
     } finally {
       setPending(false);
     }
@@ -158,7 +197,7 @@ export function createRouter(deps: RouterDeps): RouterInstance {
 
     if (entry) {
       // Replay cached payload — no server roundtrip
-      // In production: call reactRoot.render() with the cached RSC tree.
+      renderPayload(entry.payload);
       deps.scrollTo(0, entry.scrollY);
     } else {
       // No cached entry — fetch from server
@@ -167,11 +206,33 @@ export function createRouter(deps: RouterDeps): RouterInstance {
         const stateTree = segmentCache.serializeStateTree();
         const payload = await fetchRscPayload(url, deps, stateTree);
         historyStack.push(url, { payload, scrollY: 0 });
+        renderPayload(payload);
         deps.scrollTo(0, 0);
       } finally {
         setPending(false);
       }
     }
+  }
+
+  /**
+   * Prefetch an RSC payload for a URL and store it in the prefetch cache.
+   * Called on hover of <Link prefetch> elements.
+   */
+  function prefetch(url: string): void {
+    // Don't prefetch if already cached
+    if (prefetchCache.get(url) !== undefined) return;
+    if (historyStack.has(url)) return;
+
+    // Fire-and-forget fetch
+    const stateTree = segmentCache.serializeStateTree();
+    void fetchRscPayload(url, deps, stateTree).then(
+      (payload) => {
+        prefetchCache.set(url, payload);
+      },
+      () => {
+        // Prefetch failure is non-fatal — navigation will fetch fresh
+      }
+    );
   }
 
   return {
@@ -183,6 +244,7 @@ export function createRouter(deps: RouterDeps): RouterInstance {
       pendingListeners.add(listener);
       return () => pendingListeners.delete(listener);
     },
+    prefetch,
     segmentCache,
     prefetchCache,
     historyStack,

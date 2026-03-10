@@ -60,13 +60,27 @@ function createRequestHandler(manifest: typeof routeManifest, runtimeConfig: typ
   return pipeline;
 }
 
+/** RSC content type for client navigation payload requests. */
+const RSC_CONTENT_TYPE = 'text/x-component';
+
 /**
- * Render a matched route to an HTML Response via RSC → SSR pipeline.
+ * Check if a request is asking for an RSC payload (client navigation)
+ * rather than full HTML. Client-side navigation sends Accept: text/x-component.
+ */
+function isRscPayloadRequest(req: Request): boolean {
+  const accept = req.headers.get('Accept') ?? '';
+  return accept.includes(RSC_CONTENT_TYPE);
+}
+
+/**
+ * Render a matched route to an HTML Response via RSC → SSR pipeline,
+ * or return a raw RSC Flight stream for client-side navigation requests.
  *
  * 1. Load page/layout components from the segment chain
  * 2. Resolve metadata
  * 3. Render to RSC Flight stream (serializes "use client" as references)
- * 4. Pass RSC stream to SSR entry for HTML rendering
+ * 4. If Accept: text/x-component → return RSC stream directly
+ *    Otherwise → pass RSC stream to SSR entry for HTML rendering
  */
 async function renderRoute(
   _req: Request,
@@ -209,6 +223,16 @@ async function renderRoute(
   // (e.g. 404.tsx, 403.tsx) as a fresh RSC stream. All DenySignal handling
   // stays in the RSC entry — SSR never needs to detect or parse deny errors.
   if (denySignal) {
+    // For RSC payload requests, still render the deny page as RSC stream
+    // so the client can reconcile the error page into the existing DOM.
+    if (isRscPayloadRequest(_req)) {
+      return renderDenyPageAsRsc(
+        denySignal,
+        segments,
+        layoutComponents,
+        responseHeaders
+      );
+    }
     return renderDenyPage(
       denySignal,
       segments,
@@ -218,6 +242,17 @@ async function renderRoute(
       responseHeaders,
       scriptsHtml
     );
+  }
+
+  // For RSC payload requests (client navigation), return the RSC Flight
+  // stream directly — skip SSR HTML rendering entirely.
+  // See design/19-client-navigation.md §"RSC Payload Handling"
+  if (isRscPayloadRequest(_req)) {
+    responseHeaders.set('content-type', `${RSC_CONTENT_TYPE}; charset=utf-8`);
+    return new Response(rscStream!, {
+      status: 200,
+      headers: responseHeaders,
+    });
   }
 
   // Pass the RSC stream to the SSR entry for HTML rendering.
@@ -342,6 +377,63 @@ async function renderDenyPage(
   };
 
   return callSsr(rscStream, navContext);
+}
+
+/**
+ * Render a status-code error page as a raw RSC Flight stream for client navigation.
+ *
+ * Same as renderDenyPage but skips SSR — returns the RSC stream directly
+ * so the client can reconcile the error page into the existing DOM.
+ */
+async function renderDenyPageAsRsc(
+  deny: DenySignal,
+  segments: ManifestSegmentNode[],
+  layoutComponents: Array<{
+    component: (...args: unknown[]) => unknown;
+    segment: ManifestSegmentNode;
+  }>,
+  responseHeaders: Headers
+): Promise<Response> {
+  const resolution = resolveManifestStatusFile(deny.status, segments);
+
+  if (!resolution) {
+    responseHeaders.set('content-type', `${RSC_CONTENT_TYPE}; charset=utf-8`);
+    return new Response(null, { status: deny.status, headers: responseHeaders });
+  }
+
+  const mod = (await resolution.file.load()) as Record<string, unknown>;
+  if (!mod.default) {
+    responseHeaders.set('content-type', `${RSC_CONTENT_TYPE}; charset=utf-8`);
+    return new Response(null, { status: deny.status, headers: responseHeaders });
+  }
+
+  const ErrorPageComponent = mod.default as (...args: unknown[]) => unknown;
+  const h = createElement as (...args: unknown[]) => React.ReactElement;
+
+  let element = h(ErrorPageComponent, {
+    status: deny.status,
+    dangerouslyPassData: deny.data,
+  });
+
+  // Wrap in layouts up to the segment where the status file was found
+  const resolvedSegments = new Set(segments.slice(0, resolution.segmentIndex + 1));
+  const layoutsToWrap = layoutComponents.filter((lc) => resolvedSegments.has(lc.segment));
+  for (let i = layoutsToWrap.length - 1; i >= 0; i--) {
+    const { component } = layoutsToWrap[i];
+    element = h(component, null, element);
+  }
+
+  const rscStream = renderToReadableStream(element, {
+    onError(error: unknown) {
+      console.error('[timber] Error page RSC render error:', error);
+    },
+  });
+
+  responseHeaders.set('content-type', `${RSC_CONTENT_TYPE}; charset=utf-8`);
+  return new Response(rscStream, {
+    status: deny.status,
+    headers: responseHeaders,
+  });
 }
 
 function escapeHtml(str: string): string {

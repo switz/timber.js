@@ -394,6 +394,134 @@ describe('Router', () => {
       expect(router.isPending()).toBe(false);
     });
   });
+
+  describe('decodeRsc and renderRoot integration', () => {
+    let routerWithRenderer: RouterInstance;
+    let mockDecodeRsc: ReturnType<typeof vi.fn>;
+    let mockRenderRoot: ReturnType<typeof vi.fn>;
+
+    beforeEach(() => {
+      mockDecodeRsc = vi.fn((fetchPromise: Promise<Response>) =>
+        fetchPromise.then((r) => r.text()).then((text) => ({ decoded: text }))
+      );
+      mockRenderRoot = vi.fn();
+
+      routerWithRenderer = createRouter({
+        fetch: mockFetch,
+        pushState: mockPushState,
+        replaceState: mockReplaceState,
+        scrollTo: mockScrollTo,
+        getCurrentUrl: () => '/dashboard',
+        getScrollY: () => 0,
+        decodeRsc: mockDecodeRsc as (fetchPromise: Promise<Response>) => unknown,
+        renderRoot: mockRenderRoot as (element: unknown) => void,
+      });
+    });
+
+    it('uses decodeRsc to decode RSC stream when provided', async () => {
+      mockFetch.mockResolvedValueOnce(
+        new Response('rsc-flight-data', {
+          headers: { 'content-type': 'text/x-component' },
+        })
+      );
+
+      await routerWithRenderer.navigate('/projects');
+
+      expect(mockDecodeRsc).toHaveBeenCalled();
+    });
+
+    it('calls renderRoot with decoded payload on navigate', async () => {
+      mockFetch.mockResolvedValueOnce(
+        new Response('rsc-flight-data', {
+          headers: { 'content-type': 'text/x-component' },
+        })
+      );
+
+      await routerWithRenderer.navigate('/projects');
+
+      expect(mockRenderRoot).toHaveBeenCalledWith({ decoded: 'rsc-flight-data' });
+    });
+
+    it('calls renderRoot on refresh', async () => {
+      mockFetch.mockResolvedValueOnce(
+        new Response('refreshed-data', {
+          headers: { 'content-type': 'text/x-component' },
+        })
+      );
+
+      await routerWithRenderer.refresh();
+
+      expect(mockRenderRoot).toHaveBeenCalledWith({ decoded: 'refreshed-data' });
+    });
+
+    it('calls renderRoot on popstate with cached entry', async () => {
+      routerWithRenderer.historyStack.push('/projects', {
+        payload: { decoded: 'cached' },
+        scrollY: 0,
+      });
+
+      await routerWithRenderer.handlePopState('/projects');
+
+      expect(mockRenderRoot).toHaveBeenCalledWith({ decoded: 'cached' });
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('calls renderRoot on popstate without cached entry', async () => {
+      mockFetch.mockResolvedValueOnce(
+        new Response('fetched-data', {
+          headers: { 'content-type': 'text/x-component' },
+        })
+      );
+
+      await routerWithRenderer.handlePopState('/unknown');
+
+      expect(mockRenderRoot).toHaveBeenCalledWith({ decoded: 'fetched-data' });
+    });
+  });
+
+  describe('prefetch', () => {
+    it('prefetches an RSC payload on hover', async () => {
+      mockFetch.mockResolvedValueOnce(
+        new Response('prefetch-data', {
+          headers: { 'content-type': 'text/x-component' },
+        })
+      );
+
+      router.prefetch('/projects');
+
+      // Wait for the fire-and-forget fetch to resolve
+      await vi.waitFor(() => {
+        expect(mockFetch).toHaveBeenCalledWith('/projects', expect.anything());
+      });
+    });
+
+    it('does not prefetch if already in prefetch cache', () => {
+      router.prefetchCache.set('/projects', 'already-cached');
+
+      router.prefetch('/projects');
+
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('does not prefetch if already in history stack', () => {
+      router.historyStack.push('/projects', { payload: 'visited', scrollY: 0 });
+
+      router.prefetch('/projects');
+
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('prefetch failure is silent', async () => {
+      mockFetch.mockRejectedValueOnce(new Error('Network error'));
+
+      // Should not throw
+      router.prefetch('/projects');
+
+      await vi.waitFor(() => {
+        expect(mockFetch).toHaveBeenCalled();
+      });
+    });
+  });
 });
 
 // ─── Link Component ──────────────────────────────────────────────

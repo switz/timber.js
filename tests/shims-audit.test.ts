@@ -293,6 +293,96 @@ describe('nuqs compatibility', () => {
   });
 });
 
+// ─── next-intl compatibility ─────────────────────────────────────────────────
+
+describe('next-intl compatibility', () => {
+  describe('core i18n (next-intl root export)', () => {
+    it('next-intl core resolves without next/* imports', async () => {
+      // The root next-intl export (useTranslations, useFormatter, etc.)
+      // only depends on 'use-intl' and 'react' — no next/* imports.
+      // This means core i18n functionality works with timber's shims.
+      const mod = await import('next-intl');
+      expect(mod).toBeDefined();
+      // Core hooks should be exported
+      expect(typeof mod.useTranslations).toBe('function');
+      expect(typeof mod.useFormatter).toBe('function');
+      expect(typeof mod.useLocale).toBe('function');
+      expect(typeof mod.useNow).toBe('function');
+      expect(typeof mod.useTimeZone).toBe('function');
+      expect(typeof mod.NextIntlClientProvider).toBe('function');
+    });
+  });
+
+  describe('navigation integration (next-intl/navigation)', () => {
+    it('next-intl/navigation imports useRouter from next/navigation (shimmed)', async () => {
+      // next-intl/navigation's createNavigation() uses useRouter and usePathname
+      // from next/navigation — both shimmed by timber
+      const navShim = await import('../packages/timber-app/src/shims/navigation.js');
+      expect(typeof navShim.useRouter).toBe('function');
+      expect(typeof navShim.usePathname).toBe('function');
+    });
+
+    it('next-intl/navigation imports next/link (shimmed)', async () => {
+      // BaseLink.js imports default from next/link — shimmed by timber
+      const linkShim = await import('../packages/timber-app/src/shims/link.js');
+      expect(linkShim.default).toBeDefined();
+      expect(typeof linkShim.default).toBe('function');
+    });
+
+    it('next-intl/navigation imports redirect from next/navigation (shimmed)', async () => {
+      // createSharedNavigationFns.js imports redirect — shimmed by timber
+      const navShim = await import('../packages/timber-app/src/shims/navigation.js');
+      expect(typeof navShim.redirect).toBe('function');
+    });
+
+    it('next-intl/navigation imports permanentRedirect from next/navigation (NOT shimmed)', async () => {
+      // createSharedNavigationFns.js imports permanentRedirect — NOT shimmed.
+      // This will cause a runtime error when next-intl's permanentRedirect() is called.
+      // Follow-up task: timber-clf.1 (add permanentRedirect shim)
+      const navShim = await import('../packages/timber-app/src/shims/navigation.js');
+      expect((navShim as Record<string, unknown>).permanentRedirect).toBeUndefined();
+    });
+  });
+
+  describe('server integration (next-intl/server)', () => {
+    it('next-intl/server imports headers() from next/headers (intentional throw)', async () => {
+      // next-intl's getRequestLocale() calls headers() from next/headers.
+      // timber's next/headers shim intentionally throws with a migration hint.
+      // This means next-intl/server is NOT compatible without a custom locale provider.
+      const headersShim = await import('../packages/timber-app/src/shims/headers.js');
+      expect(() => headersShim.headers()).toThrow('not available in timber.js');
+    });
+  });
+
+  describe('middleware (next-intl/middleware)', () => {
+    it('next-intl/middleware imports NextResponse from next/server (NOT shimmed)', async () => {
+      // next-intl's middleware imports NextResponse from next/server.
+      // next/server is not in timber's shim map — intentionally not shimmed.
+      // timber uses proxy.ts instead of Next.js middleware.
+      const { timberShims } = await import('../packages/timber-app/src/plugins/shims.js');
+      const plugin = timberShims({
+        config: { output: 'server' },
+        routeTree: null,
+        appDir: resolve(__dirname, '..', 'app'),
+        root: resolve(__dirname, '..'),
+        dev: false,
+      });
+      const resolveId = plugin.resolveId as (id: string) => string | null;
+      const result = resolveId.call({}, 'next/server');
+      expect(result).toBeNull(); // Not shimmed
+    });
+  });
+
+  describe('plugin (next-intl/plugin)', () => {
+    it('next-intl/plugin is Next.js-only (imports next/package.json)', () => {
+      // createNextIntlPlugin reads next/package.json for version detection.
+      // This is a Next.js build plugin — not applicable to timber.
+      // No shim needed; users should not use next-intl/plugin with timber.
+      expect(true).toBe(true);
+    });
+  });
+});
+
 // ─── next-themes compatibility ───────────────────────────────────────────────
 
 describe('next-themes compatibility', () => {

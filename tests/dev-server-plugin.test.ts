@@ -12,6 +12,7 @@ function createPluginContext(overrides: Partial<PluginContext> = {}): PluginCont
     routeTree: null,
     appDir: '/test/app',
     root: '/test',
+    dev: false,
     ...overrides,
   };
 }

@@ -1,0 +1,105 @@
+/**
+ * HTML stream injectors — TransformStreams that modify streamed HTML.
+ *
+ * These are extracted into a separate module so they can be tested
+ * independently of rsc-entry.ts (which imports virtual modules).
+ *
+ * Design docs: 02-rendering-pipeline.md, 18-build-system.md §"Entry Files"
+ */
+
+/**
+ * Inject HTML content before a closing tag in the stream.
+ *
+ * Buffers chunks until the target tag is found, then injects the
+ * content immediately before it. If the tag is never found, the
+ * buffer is flushed as-is.
+ */
+function createInjector(
+  stream: ReadableStream<Uint8Array>,
+  content: string,
+  targetTag: string
+): ReadableStream<Uint8Array> {
+  if (!content) return stream;
+
+  const decoder = new TextDecoder();
+  const encoder = new TextEncoder();
+  let injected = false;
+  let buffer = '';
+
+  return stream.pipeThrough(
+    new TransformStream<Uint8Array, Uint8Array>({
+      transform(chunk, controller) {
+        if (injected) {
+          controller.enqueue(chunk);
+          return;
+        }
+
+        buffer += decoder.decode(chunk, { stream: true });
+        const tagIndex = buffer.indexOf(targetTag);
+
+        if (tagIndex !== -1) {
+          const before = buffer.slice(0, tagIndex);
+          const after = buffer.slice(tagIndex);
+          controller.enqueue(encoder.encode(before + content + after));
+          injected = true;
+          buffer = '';
+        }
+        // Otherwise keep buffering — target tag may span chunks
+      },
+      flush(controller) {
+        if (!injected && buffer) {
+          controller.enqueue(encoder.encode(buffer));
+        }
+      },
+    })
+  );
+}
+
+/**
+ * Inject metadata elements before </head> in the HTML stream.
+ *
+ * If no </head> is found, the buffer is emitted as-is.
+ */
+export function injectHead(
+  stream: ReadableStream<Uint8Array>,
+  headHtml: string
+): ReadableStream<Uint8Array> {
+  return createInjector(stream, headHtml, '</head>');
+}
+
+/**
+ * Inject client bootstrap scripts before </body> in the HTML stream.
+ *
+ * Returns the stream unchanged if scriptsHtml is empty (noJS mode).
+ * If no </body> is found, the buffer is emitted as-is.
+ */
+export function injectScripts(
+  stream: ReadableStream<Uint8Array>,
+  scriptsHtml: string
+): ReadableStream<Uint8Array> {
+  return createInjector(stream, scriptsHtml, '</body>');
+}
+
+/**
+ * Build client bootstrap script tags based on runtime config.
+ *
+ * Returns an empty string when `output: 'static'` + `noJS: true`,
+ * which produces zero-JS output. In dev mode, includes the Vite
+ * HMR client script.
+ */
+export function buildClientScripts(runtimeConfig: {
+  output: string;
+  noJS: boolean;
+  dev: boolean;
+}): string {
+  if (runtimeConfig.output === 'static' && runtimeConfig.noJS) {
+    return '';
+  }
+
+  let scripts = '';
+  if (runtimeConfig.dev) {
+    scripts += '<script type="module" src="/@vite/client"></script>';
+  }
+  scripts += '<script type="module" src="/virtual:timber-browser-entry"></script>';
+  return scripts;
+}

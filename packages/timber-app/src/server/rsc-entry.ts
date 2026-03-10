@@ -22,6 +22,7 @@ import type { ManifestSegmentNode } from './route-matcher.js';
 import { resolveMetadata, renderMetadataToElements } from './metadata.js';
 import type { Metadata } from './types.js';
 import { DenySignal } from './primitives.js';
+import { injectHead, injectScripts, buildClientScripts } from './html-injectors.js';
 
 /**
  * Create the RSC request handler from the route manifest.
@@ -29,14 +30,18 @@ import { DenySignal } from './primitives.js';
  * The pipeline handles: proxy.ts → canonicalize → route match →
  * 103 Early Hints → middleware.ts → render.
  */
-function createRequestHandler(manifest: typeof routeManifest, _runtimeConfig: typeof config) {
+function createRequestHandler(manifest: typeof routeManifest, runtimeConfig: typeof config) {
   const matchRoute = createRouteMatcher(manifest);
+
+  // Build the client bootstrap script tags.
+  // In noJS mode (output: static + noJS: true), no scripts are injected.
+  const scriptsHtml = buildClientScripts(runtimeConfig);
 
   const pipelineConfig: PipelineConfig = {
     proxy: manifest.proxy?.load,
     matchRoute,
     render: async (req: Request, match: RouteMatch, responseHeaders: Headers) => {
-      return renderRoute(req, match, responseHeaders);
+      return renderRoute(req, match, responseHeaders, scriptsHtml);
     },
   };
 
@@ -53,7 +58,8 @@ function createRequestHandler(manifest: typeof routeManifest, _runtimeConfig: ty
 async function renderRoute(
   _req: Request,
   match: RouteMatch,
-  responseHeaders: Headers
+  responseHeaders: Headers,
+  scriptsHtml: string
 ): Promise<Response> {
   const segments = match.segments as unknown as ManifestSegmentNode[];
 
@@ -173,67 +179,19 @@ async function renderRoute(
     return new Response(null, { status: renderStatus });
   }
 
-  // Inject metadata into the stream by prepending head elements
-  // The layout already renders <html><head>...</head><body>...</body></html>
-  // We inject metadata via a TransformStream that adds to <head>
-  const injectedStream = injectHead(stream, headHtml);
+  // Inject metadata into <head> and client scripts before </body>.
+  // The layout already renders <html><head>...</head><body>...</body></html>.
+  let outputStream = injectHead(stream, headHtml);
+  outputStream = injectScripts(outputStream, scriptsHtml);
 
   if (!responseHeaders.has('content-type')) {
     responseHeaders.set('content-type', 'text/html; charset=utf-8');
   }
 
-  return new Response(injectedStream, {
+  return new Response(outputStream, {
     status: 200,
     headers: responseHeaders,
   });
-}
-
-/**
- * Inject head HTML into the rendered stream.
- *
- * Looks for </head> in the stream and inserts metadata elements before it.
- * If no </head> is found, the head HTML is prepended to the stream.
- */
-function injectHead(
-  stream: ReadableStream<Uint8Array>,
-  headHtml: string
-): ReadableStream<Uint8Array> {
-  if (!headHtml) return stream;
-
-  const decoder = new TextDecoder();
-  const encoder = new TextEncoder();
-  let injected = false;
-  let buffer = '';
-
-  return stream.pipeThrough(
-    new TransformStream<Uint8Array, Uint8Array>({
-      transform(chunk, controller) {
-        if (injected) {
-          controller.enqueue(chunk);
-          return;
-        }
-
-        buffer += decoder.decode(chunk, { stream: true });
-        const headCloseIndex = buffer.indexOf('</head>');
-
-        if (headCloseIndex !== -1) {
-          // Inject before </head>
-          const before = buffer.slice(0, headCloseIndex);
-          const after = buffer.slice(headCloseIndex);
-          controller.enqueue(encoder.encode(before + headHtml + after));
-          injected = true;
-          buffer = '';
-        }
-        // Otherwise keep buffering — </head> may span chunks
-      },
-      flush(controller) {
-        if (!injected && buffer) {
-          // No </head> found — just emit the buffer
-          controller.enqueue(encoder.encode(buffer));
-        }
-      },
-    })
-  );
 }
 
 function escapeHtml(str: string): string {

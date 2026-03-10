@@ -1,6 +1,7 @@
 import type { Plugin } from 'vite';
 import { join } from 'node:path';
 import { cacheTransformPlugin } from './plugins/cache-transform';
+import { timberDevServer } from './plugins/dev-server';
 import { timberEntries } from './plugins/entries';
 import { timberRouting } from './plugins/routing';
 import { timberShims } from './plugins/shims';
@@ -73,6 +74,7 @@ export function timber(config?: TimberUserConfig): Plugin[] {
     timberShims(ctx),
     timberRouting(ctx),
     timberEntries(ctx),
+    timberDevServer(ctx),
     timberCache(ctx),
     timberFonts(ctx),
     timberMdx(ctx),

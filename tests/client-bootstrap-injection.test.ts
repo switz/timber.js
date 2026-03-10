@@ -68,7 +68,10 @@ function buildScriptTags(opts: { isDev: boolean }): string {
   if (opts.isDev) {
     scripts += '<script type="module" src="/@vite/client"></script>';
   }
-  scripts += '<script type="module" src="/virtual:timber-browser-entry"></script>';
+  const entryPath = opts.isDev
+    ? '/@id/virtual:timber-browser-entry'
+    : '/virtual:timber-browser-entry';
+  scripts += `<script type="module" src="${entryPath}"></script>`;
   return scripts;
 }
 
@@ -94,7 +97,7 @@ describe('client bootstrap script injection', () => {
 
       expect(result).toContain('<script type="module" src="/@vite/client"></script>');
       expect(result).toContain(
-        '<script type="module" src="/virtual:timber-browser-entry"></script>'
+        '<script type="module" src="/@id/virtual:timber-browser-entry"></script>'
       );
     });
 
@@ -147,9 +150,9 @@ describe('client bootstrap script injection', () => {
       // Head content preserved
       expect(result).toContain('<title>My Page</title>');
       expect(result).toContain('<meta name="description" content="Test">');
-      // Scripts still injected
+      // Scripts still injected (dev mode uses /@id/ prefix)
       expect(result).toContain(
-        '<script type="module" src="/virtual:timber-browser-entry"></script>'
+        '<script type="module" src="/@id/virtual:timber-browser-entry"></script>'
       );
     });
   });
@@ -187,7 +190,7 @@ describe('buildClientScripts', () => {
     const { buildClientScripts } = await import(resolve(SRC_DIR, 'server/html-injectors.ts'));
     const result = buildClientScripts({ output: 'server', noJS: false, dev: true });
     expect(result).toContain('/@vite/client');
-    expect(result).toContain('virtual:timber-browser-entry');
+    expect(result).toContain('/@id/virtual:timber-browser-entry');
   });
 
   it('excludes vite client in production', async () => {

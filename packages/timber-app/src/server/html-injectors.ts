@@ -100,6 +100,12 @@ export function buildClientScripts(runtimeConfig: {
   if (runtimeConfig.dev) {
     scripts += '<script type="module" src="/@vite/client"></script>';
   }
-  scripts += '<script type="module" src="/virtual:timber-browser-entry"></script>';
+  // In dev mode, use /@id/ prefix so Vite's dev middleware resolves the
+  // virtual module through the plugin pipeline. In production, the build
+  // step resolves it to a real chunk path.
+  const browserEntryPath = runtimeConfig.dev
+    ? '/@id/virtual:timber-browser-entry'
+    : '/virtual:timber-browser-entry';
+  scripts += `<script type="module" src="${browserEntryPath}"></script>`;
   return scripts;
 }

@@ -1,10 +1,11 @@
 /**
- * timber-build-manifest — Vite sub-plugin for CSS asset manifest generation.
+ * timber-build-manifest — Vite sub-plugin for build asset manifest generation.
  *
  * Provides `virtual:timber-build-manifest` which exports a BuildManifest
- * mapping route segment file paths to their CSS output chunks.
+ * mapping route segment file paths to their CSS, JS, and modulepreload
+ * output chunks.
  *
- * - Dev mode: exports an empty manifest (Vite HMR handles CSS).
+ * - Dev mode: exports an empty manifest (Vite HMR handles CSS/JS).
  * - Build mode: populated from Vite's .vite/manifest.json after client build.
  *
  * Design docs: 18-build-system.md §"Build Manifest", 02-rendering-pipeline.md §"Early Hints"
@@ -30,23 +31,70 @@ interface ViteManifestEntry {
 /**
  * Parse Vite's .vite/manifest.json into a BuildManifest.
  *
- * Walks each entry and collects its `css` array (which already includes
- * transitive CSS from imported modules). Keys are input file paths
- * (relative to project root), values are output CSS URLs (absolute paths).
+ * Walks each entry and collects:
+ * - `css`: CSS output URLs per input file (transitive CSS included by Vite)
+ * - `js`: Hashed JS chunk URL per input file
+ * - `modulepreload`: Transitive JS dependency URLs per input file
+ *
+ * Keys are input file paths (relative to project root).
  */
 export function parseViteManifest(
   viteManifest: Record<string, ViteManifestEntry>,
   base: string
 ): BuildManifest {
   const css: Record<string, string[]> = {};
+  const js: Record<string, string> = {};
+  const modulepreload: Record<string, string[]> = {};
 
   for (const [inputPath, entry] of Object.entries(viteManifest)) {
+    // JS chunk mapping
+    js[inputPath] = base + entry.file;
+
+    // CSS mapping
     if (entry.css && entry.css.length > 0) {
       css[inputPath] = entry.css.map((cssPath) => base + cssPath);
     }
+
+    // Collect transitive JS dependencies for modulepreload
+    modulepreload[inputPath] = collectTransitiveDeps(inputPath, viteManifest, base);
   }
 
-  return { css };
+  return { css, js, modulepreload };
+}
+
+/**
+ * Recursively collect transitive JS dependency URLs for an entry.
+ *
+ * Walks the `imports` graph in Vite's manifest, resolving each import
+ * key to its output `file` URL. Deduplicates to avoid cycles and
+ * redundant preloads.
+ */
+function collectTransitiveDeps(
+  entryKey: string,
+  manifest: Record<string, ViteManifestEntry>,
+  base: string
+): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+
+  function walk(key: string) {
+    const entry = manifest[key];
+    if (!entry?.imports) return;
+
+    for (const importKey of entry.imports) {
+      if (seen.has(importKey)) continue;
+      seen.add(importKey);
+
+      const dep = manifest[importKey];
+      if (dep) {
+        result.push(base + dep.file);
+        walk(importKey);
+      }
+    }
+  }
+
+  walk(entryKey);
+  return result;
 }
 
 /**
@@ -78,7 +126,7 @@ export function timberBuildManifest(ctx: PluginContext): Plugin {
       // In dev mode, return empty manifest — Vite HMR handles CSS.
       // In build mode, the manifest data comes from PluginContext
       // (populated by the adapter after client build).
-      const manifest = ctx.buildManifest ?? { css: {} };
+      const manifest = ctx.buildManifest ?? { css: {}, js: {}, modulepreload: {} };
 
       return [
         '// Auto-generated build manifest — do not edit.',

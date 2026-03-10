@@ -34,7 +34,13 @@ import type { Metadata } from './types.js';
 import { DenySignal } from './primitives.js';
 import { buildClientScripts } from './html-injectors.js';
 import { resolveManifestStatusFile } from './manifest-status-resolver.js';
-import { collectRouteCss, buildCssLinkTags, buildLinkHeaders } from './build-manifest.js';
+import {
+  collectRouteCss,
+  collectRouteModulepreloads,
+  buildCssLinkTags,
+  buildLinkHeaders,
+  buildModulepreloadTags,
+} from './build-manifest.js';
 import type { BuildManifest } from './build-manifest.js';
 
 import type { NavContext } from './ssr-entry.js';
@@ -74,7 +80,11 @@ function createRequestHandler(manifest: typeof routeManifest, runtimeConfig: typ
 
   // Build the client bootstrap script tags.
   // In noJS mode (output: static + noJS: true), no scripts are injected.
-  const scriptsHtml = buildClientScripts(runtimeConfig);
+  // In production, uses hashed chunk URLs from the build manifest.
+  const scriptsHtml = buildClientScripts({
+    ...runtimeConfig,
+    buildManifest: buildManifest as BuildManifest,
+  });
 
   const pipelineConfig: PipelineConfig = {
     proxy: manifest.proxy?.load,
@@ -183,12 +193,20 @@ async function renderRoute(
 
   // Collect CSS from the build manifest for matched segments.
   // In dev mode buildManifest.css is empty — Vite HMR handles CSS.
-  const cssUrls = collectRouteCss(segments, buildManifest as BuildManifest);
+  const typedManifest = buildManifest as BuildManifest;
+  const cssUrls = collectRouteCss(segments, typedManifest);
   if (cssUrls.length > 0) {
     headHtml += buildCssLinkTags(cssUrls);
     // Add Link preload headers — Cloudflare CDN converts these to 103 Early Hints.
     const linkHeader = buildLinkHeaders(cssUrls);
     responseHeaders.append('Link', linkHeader);
+  }
+
+  // Collect modulepreload hints for route-specific JS chunks.
+  // In dev mode modulepreload is empty — Vite HMR handles module loading.
+  const preloadUrls = collectRouteModulepreloads(segments, typedManifest);
+  if (preloadUrls.length > 0) {
+    headHtml += buildModulepreloadTags(preloadUrls);
   }
 
   for (const el of headElements) {

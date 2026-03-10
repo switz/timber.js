@@ -183,27 +183,43 @@ export function injectRscPayload(
  *
  * Returns an empty string when `output: 'static'` + `noJS: true`,
  * which produces zero-JS output. In dev mode, includes the Vite
- * HMR client script.
+ * HMR client script. In production, uses hashed chunk URLs from the
+ * build manifest and includes modulepreload hints for dependencies.
  */
 export function buildClientScripts(runtimeConfig: {
   output: string;
   noJS: boolean;
   dev: boolean;
+  buildManifest?: import('./build-manifest.js').BuildManifest;
 }): string {
   if (runtimeConfig.output === 'static' && runtimeConfig.noJS) {
     return '';
   }
 
   let scripts = '';
+
   if (runtimeConfig.dev) {
+    // Dev mode: Vite HMR client + virtual module path
     scripts += '<script type="module" src="/@vite/client"></script>';
+    scripts += '<script type="module" src="/@id/virtual:timber-browser-entry"></script>';
+    return scripts;
   }
-  // In dev mode, use /@id/ prefix so Vite's dev middleware resolves the
-  // virtual module through the plugin pipeline. In production, the build
-  // step resolves it to a real chunk path.
-  const browserEntryPath = runtimeConfig.dev
-    ? '/@id/virtual:timber-browser-entry'
-    : '/virtual:timber-browser-entry';
-  scripts += `<script type="module" src="${browserEntryPath}"></script>`;
+
+  // Production: resolve browser entry to hashed chunk URL from manifest
+  const manifest = runtimeConfig.buildManifest;
+  const browserEntryUrl = manifest?.js['virtual:timber-browser-entry'];
+
+  if (browserEntryUrl) {
+    // Modulepreload hints for browser entry dependencies
+    const preloads = manifest?.modulepreload['virtual:timber-browser-entry'] ?? [];
+    for (const url of preloads) {
+      scripts += `<link rel="modulepreload" href="${url}">`;
+    }
+    scripts += `<script type="module" src="${browserEntryUrl}"></script>`;
+  } else {
+    // Fallback: no manifest entry (e.g. manifest not yet populated)
+    scripts += '<script type="module" src="/virtual:timber-browser-entry"></script>';
+  }
+
   return scripts;
 }

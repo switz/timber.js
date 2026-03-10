@@ -17,6 +17,8 @@ describe('collectRouteCss()', () => {
       '/app/dashboard/layout.tsx': ['/assets/dashboard-def.css'],
       '/app/dashboard/page.tsx': ['/assets/page-ghi.css'],
     },
+    js: {},
+    modulepreload: {},
   };
 
   it('collects CSS from layout and page file paths', () => {
@@ -52,6 +54,8 @@ describe('collectRouteCss()', () => {
         '/app/layout.tsx': ['/assets/shared.css', '/assets/root.css'],
         '/app/page.tsx': ['/assets/shared.css', '/assets/page.css'],
       },
+      js: {},
+      modulepreload: {},
     };
 
     const segments = [
@@ -147,12 +151,14 @@ describe('parseViteManifest()', () => {
     };
 
     const result = parseViteManifest(viteManifest, '/');
-    expect(result).toEqual({
-      css: {
-        'app/layout.tsx': ['/assets/layout-abc.css'],
-        'app/page.tsx': ['/assets/page-def.css', '/assets/shared-ghi.css'],
-      },
+    expect(result.css).toEqual({
+      'app/layout.tsx': ['/assets/layout-abc.css'],
+      'app/page.tsx': ['/assets/page-def.css', '/assets/shared-ghi.css'],
     });
+    // JS chunks are also extracted
+    expect(result.js['app/layout.tsx']).toBe('/assets/layout-abc.js');
+    expect(result.js['app/page.tsx']).toBe('/assets/page-def.js');
+    expect(result.js['app/about/page.tsx']).toBe('/assets/about-jkl.js');
   });
 
   it('applies base path to CSS URLs', () => {
@@ -167,12 +173,14 @@ describe('parseViteManifest()', () => {
     expect(result.css['app/layout.tsx']).toEqual(['/my-app/assets/layout.css']);
   });
 
-  it('returns empty manifest for no CSS entries', () => {
+  it('returns empty css for entries without CSS', () => {
     const viteManifest = {
       'app/layout.tsx': { file: 'assets/layout.js' },
     };
 
     const result = parseViteManifest(viteManifest, '/');
-    expect(result).toEqual({ css: {} });
+    expect(result.css).toEqual({});
+    // JS chunk is still extracted
+    expect(result.js['app/layout.tsx']).toBe('/assets/layout.js');
   });
 });

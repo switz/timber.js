@@ -152,14 +152,16 @@ describe('timber-shims plugin', () => {
       expect(typeof mod.useParams).toBe('function');
     });
 
-    it('headers shim exports headers() that throws with migration hint', async () => {
+    it('headers shim exports ALS-backed headers()', async () => {
       const mod = await import('../packages/timber-app/src/shims/headers.js');
-      expect(() => mod.headers()).toThrow('not available in timber.js');
+      expect(typeof mod.headers).toBe('function');
+      expect(() => mod.headers()).toThrow('outside of a request context');
     });
 
-    it('headers shim exports cookies() that throws with migration hint', async () => {
+    it('headers shim exports ALS-backed cookies()', async () => {
       const mod = await import('../packages/timber-app/src/shims/headers.js');
-      expect(() => mod.cookies()).toThrow('not available in timber.js');
+      expect(typeof mod.cookies).toBe('function');
+      expect(() => mod.cookies()).toThrow('outside of a request context');
     });
 
     it('font-google shim exports a default font loader function', async () => {

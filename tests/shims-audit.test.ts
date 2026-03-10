@@ -216,34 +216,24 @@ describe('next/navigation shim', () => {
 // ─── next/headers shim ───────────────────────────────────────────────────────
 
 describe('next/headers shim', () => {
-  it('headers() throws with migration hint', async () => {
+  it('headers() re-exports ALS-backed implementation', async () => {
     const mod = await import('../packages/timber-app/src/shims/headers.js');
-    expect(() => mod.headers()).toThrow('not available in timber.js');
-    expect(() => mod.headers()).toThrow('ctx.headers');
+    expect(typeof mod.headers).toBe('function');
   });
 
-  it('cookies() throws with migration hint', async () => {
+  it('cookies() re-exports ALS-backed implementation', async () => {
     const mod = await import('../packages/timber-app/src/shims/headers.js');
-    expect(() => mod.cookies()).toThrow('not available in timber.js');
-    expect(() => mod.cookies()).toThrow('ctx.headers.get("cookie")');
+    expect(typeof mod.cookies).toBe('function');
   });
 
-  it('headers() error message mentions middleware/access/route handler', async () => {
+  it('headers() throws outside request context', async () => {
     const mod = await import('../packages/timber-app/src/shims/headers.js');
-    try {
-      mod.headers();
-    } catch (e) {
-      expect((e as Error).message).toContain('middleware/access/route handler');
-    }
+    expect(() => mod.headers()).toThrow('outside of a request context');
   });
 
-  it('cookies() error message mentions middleware/access/route handler', async () => {
+  it('cookies() throws outside request context', async () => {
     const mod = await import('../packages/timber-app/src/shims/headers.js');
-    try {
-      mod.cookies();
-    } catch (e) {
-      expect((e as Error).message).toContain('middleware/access/route handler');
-    }
+    expect(() => mod.cookies()).toThrow('outside of a request context');
   });
 });
 
@@ -366,12 +356,20 @@ describe('next-intl compatibility', () => {
   });
 
   describe('server integration (next-intl/server)', () => {
-    it('next-intl/server imports headers() from next/headers (intentional throw)', async () => {
+    it('next-intl/server imports headers() from next/headers (ALS-backed)', async () => {
       // next-intl's getRequestLocale() calls headers() from next/headers.
-      // timber's next/headers shim intentionally throws with a migration hint.
-      // This means next-intl/server is NOT compatible without a custom locale provider.
+      // timber's next/headers shim re-exports the real ALS-backed implementation.
+      // Outside a request context it throws — but within a request it works.
       const headersShim = await import('../packages/timber-app/src/shims/headers.js');
-      expect(() => headersShim.headers()).toThrow('not available in timber.js');
+      expect(typeof headersShim.headers).toBe('function');
+      // Throws outside request context (no ALS scope), not with "not available"
+      expect(() => headersShim.headers()).toThrow('outside of a request context');
+    });
+
+    it('next-intl/server imports cookies() from next/headers (ALS-backed)', async () => {
+      const headersShim = await import('../packages/timber-app/src/shims/headers.js');
+      expect(typeof headersShim.cookies).toBe('function');
+      expect(() => headersShim.cookies()).toThrow('outside of a request context');
     });
   });
 

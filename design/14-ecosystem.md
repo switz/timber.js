@@ -73,11 +73,11 @@ We keep `next/*` shims indefinitely. Ecosystem library compatibility is a core v
 
 | Export | Next.js | timber | Status |
 |--------|---------|--------|--------|
-| `headers` | Async function → `ReadonlyHeaders` | Throws with migration hint | Intentional error |
-| `cookies` | Async function → `ReadonlyRequestCookies` | Throws with migration hint | Intentional error |
+| `headers` | Async function → `ReadonlyHeaders` | ALS-backed, returns read-only Headers | Shimmed |
+| `cookies` | Async function → `ReadonlyRequestCookies` | ALS-backed, returns `RequestCookies` | Shimmed |
 | `draftMode` | Async function → `DraftMode` | — | Not shimmed |
 
-**Divergences:** timber uses explicit context passing instead of AsyncLocalStorage-based globals. `headers()` and `cookies()` throw with clear migration hints directing users to `ctx.headers` in middleware/access/route handlers. This is by design — see [Philosophy](01-philosophy.md). `draftMode` is not implemented and not planned.
+**Divergences:** `headers()` returns the standard `Headers` object (read-only by convention), not Next.js's `ReadonlyHeaders` wrapper. `cookies()` returns a `RequestCookies` object with `.get()`, `.has()`, `.getAll()` — read-only, unlike Next.js's `ReadonlyRequestCookies` which also has `.set()` and `.delete()`. Both throw outside a request context. `draftMode` is not implemented and not planned.
 
 ### `next/font/google`
 
@@ -121,7 +121,7 @@ next-intl has five entry points with different `next/*` dependencies:
 | | `next/link` default import | **Compatible** (shimmed) |
 | | `redirect` from `next/navigation` | **Compatible** (shimmed) |
 | | `permanentRedirect` from `next/navigation` | **Compatible** (shimmed) |
-| `next-intl/server` | `headers` from `next/headers` | **Not compatible** — throws migration hint |
+| `next-intl/server` | `headers` from `next/headers` | **Compatible** (ALS-backed) |
 | `next-intl/middleware` | `NextResponse` from `next/server` | **Not compatible** — `next/server` not shimmed |
 | `next-intl/plugin` | `next/package.json` (version check) | **Not applicable** — Next.js build plugin |
 
@@ -130,7 +130,7 @@ next-intl has five entry points with different `next/*` dependencies:
 **Recommended usage in timber:**
 - Use `next-intl` root export + `NextIntlClientProvider` for translations — works today
 - Use `next-intl/navigation` for `Link`, `useRouter`, `redirect`, and `permanentRedirect` — fully shimmed
-- For server-side locale detection, use timber middleware (`proxy.ts`) instead of `next-intl/server`
+- Use `next-intl/server` for server-side locale detection — `headers()` is now ALS-backed
 - Do not use `next-intl/middleware` or `next-intl/plugin` — these are Next.js-specific
 
 ---

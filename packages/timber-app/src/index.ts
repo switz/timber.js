@@ -9,7 +9,9 @@ import { timberRouting } from './plugins/routing';
 import { timberShims } from './plugins/shims';
 import { timberStaticBuild } from './plugins/static-build';
 import { timberDynamicTransform } from './plugins/dynamic-transform';
+import { timberBuildManifest } from './plugins/build-manifest';
 import type { RouteTree } from './routing/types';
+import type { BuildManifest } from './server/build-manifest';
 
 export interface TimberUserConfig {
   output?: 'server' | 'static';
@@ -50,6 +52,8 @@ export interface PluginContext {
   root: string;
   /** Whether the dev server is running (set by timber-root-sync in configResolved) */
   dev: boolean;
+  /** CSS build manifest (populated by adapter after client build, null in dev) */
+  buildManifest: BuildManifest | null;
 }
 
 function createPluginContext(config?: TimberUserConfig, root?: string): PluginContext {
@@ -63,6 +67,7 @@ function createPluginContext(config?: TimberUserConfig, root?: string): PluginCo
     appDir: join(projectRoot, 'app'),
     root: projectRoot,
     dev: false,
+    buildManifest: null,
   };
 }
 
@@ -114,6 +119,7 @@ export function timber(config?: TimberUserConfig): PluginOption[] {
     timberShims(ctx),
     timberRouting(ctx),
     timberEntries(ctx),
+    timberBuildManifest(ctx),
     timberCache(ctx),
     timberStaticBuild(ctx),
     timberDynamicTransform(ctx),

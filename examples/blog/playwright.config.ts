@@ -1,8 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
-  testDir: './tests/e2e',
-  testMatch: 'content-collections.test.ts',
+  testDir: './e2e',
   timeout: 60_000,
   retries: 1,
   use: {
@@ -19,5 +18,6 @@ export default defineConfig({
     port: 3001,
     reuseExistingServer: !process.env.CI,
     timeout: 30_000,
+    cwd: '../..',
   },
 });

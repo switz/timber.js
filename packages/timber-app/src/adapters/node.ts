@@ -325,20 +325,28 @@ export function generateNodeEntry(buildDir: string, outDir: string): string {
 
 import { createServer } from 'node:http'
 import { createNodeHandler } from '@timber/app/adapters/node'
+import { serveStaticFile } from '@timber/app/adapters/static-files'
 import { handler, adapter } from '${serverEntryRelative}'
 
 const compress = true
 const port = parseInt(process.env.PORT || '3000', 10)
 const hostname = process.env.HOST || '0.0.0.0'
 
-const { requestHandler, waitForPending } = createNodeHandler(adapter, handler, { compress })
+const publicDir = new URL('./public/', import.meta.url).pathname
+
+// Wrap handler to serve static files first, then fall through to app
+async function handlerWithStatic(req) {
+  const url = new URL(req.url, 'http://localhost')
+  const staticResponse = await serveStaticFile(url.pathname, publicDir)
+  if (staticResponse) return staticResponse
+  return handler(req)
+}
+
+const { requestHandler, waitForPending } = createNodeHandler(adapter, handlerWithStatic, { compress })
 
 const server = createServer(async (req, res) => {
   await requestHandler(req, res)
 })
-
-// Serve static files from public/
-const publicDir = new URL('./public/', import.meta.url).pathname
 
 server.listen(port, hostname, () => {
   console.log(\`[timber] Node.js server listening on http://\${hostname}:\${port}\`)

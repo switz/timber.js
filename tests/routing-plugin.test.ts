@@ -31,6 +31,7 @@ function createPluginContext(overrides: Partial<PluginContext> = {}): PluginCont
     appDir: appDir(),
     root: TMP_DIR,
     dev: false,
+    buildManifest: null,
     ...overrides,
   };
 }

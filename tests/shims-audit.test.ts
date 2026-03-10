@@ -298,6 +298,7 @@ describe('nuqs compatibility', () => {
       appDir: resolve(__dirname, '..', 'app'),
       root: resolve(__dirname, '..'),
       dev: false,
+      buildManifest: null,
     });
     const resolveId = plugin.resolveId as (id: string) => string | null;
     const result = resolveId.call({}, 'next/navigation.js');
@@ -385,6 +386,7 @@ describe('next-intl compatibility', () => {
         appDir: resolve(__dirname, '..', 'app'),
         root: resolve(__dirname, '..'),
         dev: false,
+        buildManifest: null,
       });
       const resolveId = plugin.resolveId as (id: string) => string | null;
       const result = resolveId.call({}, 'next/server');

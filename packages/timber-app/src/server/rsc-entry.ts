@@ -36,6 +36,30 @@ import { resolveManifestStatusFile } from './manifest-status-resolver.js';
 import type { NavContext } from './ssr-entry.js';
 
 /**
+ * Create a debug channel sink that discards all debug data.
+ *
+ * React Flight's dev mode serializes server component source code as `$E`
+ * entries for DevTools. Without a separate debugChannel, this data is
+ * embedded inline in the main RSC stream — leaking source code to the
+ * browser. By providing a debug channel, debug data goes to a separate
+ * stream that we drain and discard.
+ *
+ * See design/13-security.md §"Server component source leak"
+ *
+ * TODO: In the future, expose this debug data to the browser in dev mode
+ * for inline error overlays (e.g. component stack traces).
+ */
+function createDebugChannelSink(): { readable: ReadableStream; writable: WritableStream } {
+  const sink = new TransformStream();
+  // Drain the readable side so the writable never back-pressures.
+  sink.readable.pipeTo(new WritableStream()).catch(() => {});
+  return {
+    readable: new ReadableStream(), // no commands to send to Flight
+    writable: sink.writable,
+  };
+}
+
+/**
  * Create the RSC request handler from the route manifest.
  *
  * The pipeline handles: proxy.ts → canonicalize → route match →
@@ -201,6 +225,7 @@ async function renderRoute(
           }
           console.error('[timber] RSC render error:', error);
         },
+        debugChannel: createDebugChannelSink(),
       },
       {
         onClientReference(info: { id: string; name: string; deps: unknown }) {
@@ -375,6 +400,7 @@ async function renderDenyPage(
     onError(error: unknown) {
       console.error('[timber] Error page RSC render error:', error);
     },
+    debugChannel: createDebugChannelSink(),
   });
 
   const [ssrStream, inlineStream] = rscStream.tee();
@@ -441,6 +467,7 @@ async function renderDenyPageAsRsc(
     onError(error: unknown) {
       console.error('[timber] Error page RSC render error:', error);
     },
+    debugChannel: createDebugChannelSink(),
   });
 
   responseHeaders.set('content-type', `${RSC_CONTENT_TYPE}; charset=utf-8`);

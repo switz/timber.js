@@ -23,6 +23,6 @@ export default defineConfig({
   test: {
     testTimeout: 30_000,
     pool: 'forks',
-    exclude: ['tests/e2e/**', '**/node_modules/**'],
+    exclude: ['tests/e2e/**', 'examples/*/e2e/**', '**/node_modules/**'],
   },
 });

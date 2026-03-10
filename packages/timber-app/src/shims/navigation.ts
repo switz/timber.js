@@ -13,6 +13,7 @@
  *   timber's router doesn't distinguish push/replace yet.
  * - redirect() does not accept a RedirectType argument — timber
  *   always uses replace semantics for redirects.
+ * - permanentRedirect() delegates to redirect(path, 308).
  * - useSelectedLayoutSegment/useSelectedLayoutSegments not yet
  *   implemented — requires segment tree context.
  *
@@ -26,4 +27,4 @@ export { useSearchParams } from '../client/use-search-params.js';
 export { useRouter } from '../client/use-router.js';
 
 // Functions (server-side)
-export { redirect, notFound, RedirectType } from '../server/primitives.js';
+export { redirect, permanentRedirect, notFound, RedirectType } from '../server/primitives.js';

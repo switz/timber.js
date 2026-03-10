@@ -117,6 +117,11 @@ describe('next/navigation shim', () => {
       expect(typeof mod.notFound).toBe('function');
     });
 
+    it('exports permanentRedirect', async () => {
+      const mod = await import('../packages/timber-app/src/shims/navigation.js');
+      expect(typeof mod.permanentRedirect).toBe('function');
+    });
+
     it('exports RedirectType', async () => {
       const mod = await import('../packages/timber-app/src/shims/navigation.js');
       expect(mod.RedirectType).toBeDefined();
@@ -139,6 +144,24 @@ describe('next/navigation shim', () => {
         expect(e).toBeInstanceOf(RedirectSignal);
         expect((e as InstanceType<typeof RedirectSignal>).status).toBe(302);
       }
+    });
+  });
+
+  describe('permanentRedirect behavior', () => {
+    it('permanentRedirect throws RedirectSignal with status 308', async () => {
+      const { permanentRedirect, RedirectSignal } = await import(resolve(SRC_DIR, 'server/primitives.ts'));
+      try {
+        permanentRedirect('/new-page');
+      } catch (e) {
+        expect(e).toBeInstanceOf(RedirectSignal);
+        expect((e as InstanceType<typeof RedirectSignal>).status).toBe(308);
+        expect((e as InstanceType<typeof RedirectSignal>).location).toBe('/new-page');
+      }
+    });
+
+    it('permanentRedirect rejects absolute URLs (same as redirect)', async () => {
+      const { permanentRedirect } = await import(resolve(SRC_DIR, 'server/primitives.ts'));
+      expect(() => permanentRedirect('https://evil.com')).toThrow('only accepts relative URLs');
     });
   });
 
@@ -335,12 +358,10 @@ describe('next-intl compatibility', () => {
       expect(typeof navShim.redirect).toBe('function');
     });
 
-    it('next-intl/navigation imports permanentRedirect from next/navigation (NOT shimmed)', async () => {
-      // createSharedNavigationFns.js imports permanentRedirect — NOT shimmed.
-      // This will cause a runtime error when next-intl's permanentRedirect() is called.
-      // Follow-up task: timber-clf.1 (add permanentRedirect shim)
+    it('next-intl/navigation imports permanentRedirect from next/navigation (shimmed)', async () => {
+      // createSharedNavigationFns.js imports permanentRedirect — shimmed as redirect(path, 308)
       const navShim = await import('../packages/timber-app/src/shims/navigation.js');
-      expect((navShim as Record<string, unknown>).permanentRedirect).toBeUndefined();
+      expect(typeof navShim.permanentRedirect).toBe('function');
     });
   });
 

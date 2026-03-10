@@ -107,6 +107,18 @@ export function redirect(path: string, status: number = 302): never {
 }
 
 /**
+ * Permanent redirect to a relative path. Shorthand for `redirect(path, 308)`.
+ *
+ * Uses 308 (Permanent Redirect) which preserves the HTTP method — the browser
+ * will replay POST requests to the new location. This matches Next.js behavior.
+ *
+ * @param path - Relative path (e.g. '/new-page', '/dashboard')
+ */
+export function permanentRedirect(path: string): never {
+  redirect(path, 308);
+}
+
+/**
  * Redirect to an external URL. The hostname must be in the provided allow-list.
  *
  * @param url - Absolute URL to redirect to.

@@ -162,7 +162,11 @@ export type { TimberLogger } from './logger';
 // Instrumentation — instrumentation.ts file convention
 // Design doc: design/17-logging.md §"instrumentation.ts"
 export { loadInstrumentation, callOnRequestError, hasOnRequestError } from './instrumentation';
-export { Instrumentation } from './instrumentation';
+export type {
+  InstrumentationOnRequestError,
+  InstrumentationRequestInfo,
+  InstrumentationErrorContext,
+} from './instrumentation';
 
 // Dev Warnings — dev-mode misuse detection
 // Design doc: design/21-dev-server.md §"Dev-Mode Warnings", design/11-platform.md §"Dev Mode"

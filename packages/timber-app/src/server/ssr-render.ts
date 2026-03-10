@@ -19,6 +19,10 @@ import { renderToReadableStream } from 'react-dom/server';
  * The returned stream begins yielding after onShellReady — everything
  * outside <Suspense> boundaries is in the shell.
  *
+ * DenySignal handling is done entirely in the RSC entry (rsc-entry.ts).
+ * By the time this function is called, the element tree contains either
+ * the normal page or a rendered error page — no deny errors should appear.
+ *
  * @param element - The React element tree decoded from the RSC stream
  * @returns A ReadableStream of HTML bytes with hydration markers
  */
@@ -27,15 +31,6 @@ export async function renderSsrStream(
 ): Promise<ReadableStream<Uint8Array>> {
   const stream = await renderToReadableStream(element, {
     onError(error: unknown) {
-      // DenySignal errors are expected control flow — don't log them.
-      // They arrive as deserialized errors from the RSC Flight stream
-      // with the message pattern "Access denied with status NNN".
-      if (
-        error instanceof Error &&
-        error.message.match(/^Access denied with status \d+$/)
-      ) {
-        return;
-      }
       console.error('[timber] SSR render error:', error);
     },
   });

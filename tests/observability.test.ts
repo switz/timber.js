@@ -29,7 +29,8 @@ import {
   callOnRequestError,
   hasOnRequestError,
   resetInstrumentation,
-  type Instrumentation,
+  type InstrumentationRequestInfo,
+  type InstrumentationErrorContext,
 } from '../packages/timber-app/src/server/instrumentation';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
@@ -321,12 +322,12 @@ describe('instrumentation', () => {
 
     expect(hasOnRequestError()).toBe(true);
 
-    const reqInfo: Instrumentation.RequestInfo = {
+    const reqInfo: InstrumentationRequestInfo = {
       method: 'GET',
       path: '/test',
       headers: {},
     };
-    const errCtx: Instrumentation.ErrorContext = {
+    const errCtx: InstrumentationErrorContext = {
       phase: 'render',
       routePath: '/test',
       routeType: 'page',

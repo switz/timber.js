@@ -5,14 +5,27 @@
  *   proxy.ts → canonicalize → route match → 103 Early Hints → middleware.ts → render
  *
  * Each stage is a pure function or returns a Response to short-circuit.
+ * Each request gets a trace ID, structured logging, and OTEL spans.
  *
- * See design/07-routing.md §"Request Lifecycle" and design/02-rendering-pipeline.md §"Request Flow"
+ * See design/07-routing.md §"Request Lifecycle", design/02-rendering-pipeline.md §"Request Flow",
+ * and design/17-logging.md §"Production Logging"
  */
 
 import { canonicalize } from './canonicalize.js';
 import { runProxy, type ProxyExport } from './proxy.js';
 import { runMiddleware, type MiddlewareFn } from './middleware-runner.js';
 import { runWithRequestContext } from './request-context.js';
+import { generateTraceId, runWithTraceId, getOtelTraceId, replaceTraceId, withSpan, traceId } from './tracing.js';
+import {
+  logRequestReceived,
+  logRequestCompleted,
+  logSlowRequest,
+  logProxyError,
+  logMiddlewareError,
+  logMiddlewareShortCircuit,
+  logRenderError,
+} from './logger.js';
+import { callOnRequestError } from './instrumentation.js';
 import type { MiddlewareContext } from './types.js';
 import type { SegmentNode } from '../routing/types.js';
 
@@ -55,6 +68,8 @@ export interface PipelineConfig {
   earlyHints?: EarlyHintsEmitter;
   /** Whether to strip trailing slashes during canonicalization. Default: true. */
   stripTrailingSlash?: boolean;
+  /** Slow request threshold in ms. Requests exceeding this emit a warning. 0 to disable. Default: 3000. */
+  slowRequestMs?: number;
 }
 
 // ─── Pipeline ──────────────────────────────────────────────────────────────
@@ -66,28 +81,85 @@ export interface PipelineConfig {
  * and produces a Response. This is the top-level entry point for the server.
  */
 export function createPipeline(config: PipelineConfig): (req: Request) => Promise<Response> {
-  const { proxy, matchRoute, render, earlyHints, stripTrailingSlash = true } = config;
+  const {
+    proxy,
+    matchRoute,
+    render,
+    earlyHints,
+    stripTrailingSlash = true,
+    slowRequestMs = 3000,
+  } = config;
 
   return async (req: Request): Promise<Response> => {
-    // Establish request context ALS scope so headers() and cookies() work
-    // throughout the entire request lifecycle (proxy, middleware, render).
-    return runWithRequestContext(req, async () => {
-      // Wrap everything in proxy.ts if it exists.
-      // proxy.ts has next() and can wrap the entire lifecycle.
-      if (proxy) {
-        try {
-          return await runProxy(proxy, req, () => handleRequest(req));
-        } catch (error) {
-          // Uncaught proxy.ts error → bare HTTP 500
-          logError('proxy.ts', error);
-          return new Response(null, { status: 500 });
+    const url = new URL(req.url);
+    const method = req.method;
+    const path = url.pathname;
+    const startTime = performance.now();
+
+    // Establish per-request trace ID scope (design/17-logging.md §"trace_id is Always Set").
+    // This runs before runWithRequestContext so traceId() is available from the
+    // very first line of proxy.ts, middleware.ts, and all server code.
+    const traceIdValue = generateTraceId();
+
+    return runWithTraceId(traceIdValue, async () => {
+      // Establish request context ALS scope so headers() and cookies() work
+      // throughout the entire request lifecycle (proxy, middleware, render).
+      return runWithRequestContext(req, async () => {
+        logRequestReceived({ method, path });
+
+        let response: Response;
+
+        // Wrap everything in an OTEL root span if a tracer is available.
+        // The root span covers the entire request lifecycle.
+        response = await withSpan(
+          'http.server.request',
+          { 'http.request.method': method, 'url.path': path },
+          async () => {
+            // If OTEL is active, the root span now exists — replace the UUID
+            // fallback with the real OTEL trace ID for log–trace correlation.
+            const otelIds = await getOtelTraceId();
+            if (otelIds) {
+              replaceTraceId(otelIds.traceId, otelIds.spanId);
+            }
+
+            if (proxy) {
+              return runProxyPhase(req, method, path);
+            }
+            return handleRequest(req, method, path);
+          }
+        );
+
+        // Request completed — emit structured logs.
+        const durationMs = Math.round(performance.now() - startTime);
+        const status = response.status;
+
+        logRequestCompleted({ method, path, status, durationMs });
+
+        if (slowRequestMs > 0 && durationMs > slowRequestMs) {
+          logSlowRequest({ method, path, durationMs, threshold: slowRequestMs });
         }
-      }
-      return handleRequest(req);
+
+        return response;
+      });
     });
   };
 
-  async function handleRequest(req: Request): Promise<Response> {
+  async function runProxyPhase(req: Request, method: string, path: string): Promise<Response> {
+    try {
+      return await withSpan(
+        'timber.proxy',
+        {},
+        () => runProxy(config.proxy!, req, () => handleRequest(req, method, path))
+      );
+    } catch (error) {
+      // Uncaught proxy.ts error → bare HTTP 500
+      logProxyError({ error });
+      await fireOnRequestError(error, req, 'proxy');
+      return new Response(null, { status: 500 });
+    }
+  }
+
+  async function handleRequest(req: Request, method: string, path: string): Promise<Response> {
     // Stage 1: URL canonicalization
     const url = new URL(req.url);
     const result = canonicalize(url.pathname, stripTrailingSlash);
@@ -131,23 +203,57 @@ export function createPipeline(config: PipelineConfig): (req: Request) => Promis
       };
 
       try {
-        const middlewareResponse = await runMiddleware(match.middleware, ctx);
+        const middlewareResponse = await withSpan(
+          'timber.middleware',
+          {},
+          () => runMiddleware(match.middleware!, ctx)
+        );
         if (middlewareResponse) {
+          logMiddlewareShortCircuit({ method, path, status: middlewareResponse.status });
           return middlewareResponse;
         }
       } catch (error) {
         // Middleware throw → HTTP 500 (middleware runs before rendering,
         // no error boundary to catch it)
-        logError('middleware.ts', error);
+        logMiddlewareError({ method, path, error });
+        await fireOnRequestError(error, req, 'handler');
         return new Response(null, { status: 500 });
       }
     }
 
     // Stage 5: Render (access gates + element tree + renderToReadableStream)
-    return render(req, match, responseHeaders, requestHeaderOverlay);
+    try {
+      return await withSpan(
+        'timber.render',
+        { 'http.route': canonicalPathname },
+        () => render(req, match, responseHeaders, requestHeaderOverlay)
+      );
+    } catch (error) {
+      logRenderError({ method, path, error });
+      await fireOnRequestError(error, req, 'render');
+      return new Response(null, { status: 500 });
+    }
   }
 }
 
-function logError(phase: string, error: unknown): void {
-  console.error(`[timber] Uncaught error in ${phase}:`, error);
+/**
+ * Fire the user's onRequestError hook with request context.
+ * Extracts request info from the Request object and calls the instrumentation hook.
+ */
+async function fireOnRequestError(
+  error: unknown,
+  req: Request,
+  phase: 'proxy' | 'handler' | 'render' | 'action' | 'route'
+): Promise<void> {
+  const url = new URL(req.url);
+  const headersObj: Record<string, string> = {};
+  req.headers.forEach((v, k) => {
+    headersObj[k] = v;
+  });
+
+  await callOnRequestError(
+    error,
+    { method: req.method, path: url.pathname, headers: headersObj },
+    { phase, routePath: url.pathname, routeType: 'page', traceId: traceId() }
+  );
 }

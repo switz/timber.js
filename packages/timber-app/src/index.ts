@@ -5,6 +5,7 @@ import { timberDevServer } from './plugins/dev-server';
 import { timberEntries } from './plugins/entries';
 import { timberRouting } from './plugins/routing';
 import { timberShims } from './plugins/shims';
+import { timberStaticBuild } from './plugins/static-build';
 import type { RouteTree } from './routing/types';
 
 export interface TimberUserConfig {
@@ -76,6 +77,7 @@ export function timber(config?: TimberUserConfig): Plugin[] {
     timberEntries(ctx),
     timberDevServer(ctx),
     timberCache(ctx),
+    timberStaticBuild(ctx),
     timberFonts(ctx),
     timberMdx(ctx),
   ];

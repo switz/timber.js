@@ -5,7 +5,7 @@ describe('timber()', () => {
   it('returns an array of Vite plugins', () => {
     const plugins = timber();
     expect(Array.isArray(plugins)).toBe(true);
-    expect(plugins.length).toBe(7);
+    expect(plugins.length).toBe(8);
   });
 
   it('each plugin has a name', () => {
@@ -17,6 +17,7 @@ describe('timber()', () => {
       'timber-entries',
       'timber-dev-server',
       'timber-cache',
+      'timber-static-build',
       'timber-fonts',
       'timber-mdx',
     ]);
@@ -24,6 +25,6 @@ describe('timber()', () => {
 
   it('accepts user config', () => {
     const plugins = timber({ output: 'static' });
-    expect(plugins.length).toBe(7);
+    expect(plugins.length).toBe(8);
   });
 });

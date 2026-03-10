@@ -42,7 +42,8 @@
       "Read(//tmp/cc-inspect/package/dist/**)",
       "Read(//private/tmp/cc-inspect/package/dist/**)",
       "Bash(node /tmp/filter_tasks.js)",
-      "Bash(pnpm add -D acorn acorn-jsx)"
+      "Bash(pnpm add -D acorn acorn-jsx)",
+      "Bash(grep -r \"resolveId\\\\|load\\\\|transform\" packages/timber-app/src/plugins/*.ts)"
     ],
     "additionalDirectories": [
       "/Users/dsaewitz/y/timber-js-fresh/tests/e2e",

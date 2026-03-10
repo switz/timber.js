@@ -188,6 +188,7 @@ const blog = defineCollection({
   directory: 'content/blog',
   include: '**/*.mdx',
   schema: z.object({
+    content: z.string(),
     title: z.string(),
     description: z.string(),
     publishedAt: z.coerce.date(),
@@ -204,6 +205,7 @@ const changelog = defineCollection({
   include: '**/*.json',
   parser: 'json',
   schema: z.object({
+    content: z.string().optional(),
     version: z.string(),
     date: z.coerce.date(),
     changes: z.array(z.object({

@@ -30,7 +30,7 @@ const changelog = defineCollection({
   include: '**/*.json',
   parser: 'json',
   schema: z.object({
-    content: z.string(),
+    content: z.string().optional(),
     version: z.string(),
     date: z.coerce.date(),
     changes: z.array(

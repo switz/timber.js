@@ -110,9 +110,31 @@ next-themes does not import from any `next/*` module in its library source. It i
 
 ### next-intl
 
-**Status: Partially compatible** (not tested)
+**Status: Partially compatible** (audited)
 
-next-intl imports from `next/navigation` for routing integration. The core i18n functionality should work, but the navigation integration needs testing. File a follow-up task.
+next-intl has five entry points with different `next/*` dependencies:
+
+| Entry point | `next/*` imports | timber status |
+|---|---|---|
+| `next-intl` (root) | None — uses `use-intl` + `react` only | **Compatible** |
+| `next-intl/navigation` | `useRouter`, `usePathname` from `next/navigation` | **Compatible** (shimmed) |
+| | `next/link` default import | **Compatible** (shimmed) |
+| | `redirect` from `next/navigation` | **Compatible** (shimmed) |
+| | `permanentRedirect` from `next/navigation` | **Not shimmed** — runtime error if called |
+| `next-intl/server` | `headers` from `next/headers` | **Not compatible** — throws migration hint |
+| `next-intl/middleware` | `NextResponse` from `next/server` | **Not compatible** — `next/server` not shimmed |
+| `next-intl/plugin` | `next/package.json` (version check) | **Not applicable** — Next.js build plugin |
+
+**Summary:** Core i18n (`useTranslations`, `useFormatter`, `useLocale`, `NextIntlClientProvider`) works out of the box. The navigation integration (`createNavigation`) mostly works — `Link`, `usePathname`, `useRouter`, and `redirect` are all shimmed — but `permanentRedirect` will fail at runtime. The server integration requires `headers()` which timber intentionally does not provide (use explicit context passing instead). The middleware is N/A since timber uses `proxy.ts`.
+
+**Recommended usage in timber:**
+- Use `next-intl` root export + `NextIntlClientProvider` for translations — works today
+- Use `next-intl/navigation` for `Link` and `useRouter` — works, avoid `permanentRedirect`
+- For server-side locale detection, use timber middleware (`proxy.ts`) instead of `next-intl/server`
+- Do not use `next-intl/middleware` or `next-intl/plugin` — these are Next.js-specific
+
+**Follow-up tasks:**
+- `timber-i96`: Add `permanentRedirect` to `next/navigation` shim (delegates to `redirect(path, 308)`)
 
 ---
 

@@ -122,8 +122,9 @@ test.describe('history cached', () => {
   test('scroll position restored on back navigation', async ({ page }) => {
     await page.goto('/');
 
-    // Scroll down on home page
+    // Scroll down on home page and verify scroll took effect
     await page.evaluate(() => window.scrollTo(0, 500));
+    await page.waitForFunction(() => window.scrollY === 500);
 
     // Navigate to dashboard. Use dispatchEvent to avoid Playwright
     // auto-scrolling the link into view (which would reset scrollY).

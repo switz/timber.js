@@ -583,7 +583,7 @@ Two plugins are added to the `timber()` array:
 | Plugin | Hooks | Responsibility |
 |--------|-------|---------------|
 | `timber-mdx` | `config`, `buildStart` | Detects MDX usage, registers `@mdx-js/rollup`, finds `mdx-components.tsx` |
-| `timber-content` | `config`, `configResolved`, `buildStart`, `configureServer` | Wraps `@content-collections/vite`, detects `content/` directory, configures aliases |
+| `timber-content` | `config`, `configResolved`, `buildStart`, `resolveId`, `load`, `transform`, `configureServer` | Wraps `@content-collections/vite`, detects `content/` directory, configures aliases |
 
 `timber-mdx` is intentionally minimal — its job is to wire `@mdx-js/rollup` with the right options. The heavy lifting is done by the unified ecosystem.
 

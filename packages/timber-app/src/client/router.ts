@@ -74,13 +74,26 @@ export interface RouterInstance {
 const RSC_CONTENT_TYPE = 'text/x-component';
 
 /**
- * Append a `_rsc=<timestamp>` query parameter to the URL.
+ * Generate a short random cache-busting ID (5 chars, a-z0-9).
+ * Matches the format Next.js uses for _rsc params.
+ */
+function generateCacheBustId(): string {
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  let id = '';
+  for (let i = 0; i < 5; i++) {
+    id += chars[(Math.random() * 36) | 0];
+  }
+  return id;
+}
+
+/**
+ * Append a `_rsc=<id>` query parameter to the URL.
  * Follows Next.js's pattern — prevents CDN/browser from serving cached HTML
  * for RSC navigation requests and signals that this is an RSC fetch.
  */
 function appendRscParam(url: string): string {
   const separator = url.includes('?') ? '&' : '?';
-  return `${url}${separator}_rsc=${Date.now()}`;
+  return `${url}${separator}_rsc=${generateCacheBustId()}`;
 }
 
 function buildRscHeaders(stateTree: { segments: string[] } | undefined): Record<string, string> {

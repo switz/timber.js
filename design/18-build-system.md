@@ -21,7 +21,8 @@ export default defineConfig({
 | `timber-entries` | `resolveId`, `load` | Generates RSC/SSR/browser entry virtual modules |
 | `timber-cache` | `transform` | Transforms `"use cache"` directives into `registerCachedFunction()` calls |
 | `timber-fonts` | `resolveId`, `load`, `transform` | Google and local font handling (ported from `next/font`) |
-| `timber-mdx` | `buildStart` | Auto-detects `.mdx` files and registers `@mdx-js/rollup` |
+| `timber-mdx` | `config`, `buildStart` | Auto-detects `.mdx` files, registers `@mdx-js/rollup`, finds `mdx-components.tsx` |
+| `timber-content` | `resolveId`, `load`, `buildStart`, `configureServer` | Scans `content/` directory, validates schemas, generates content manifest virtual module, generates types |
 
 ```ts
 // packages/timber-app/src/index.ts
@@ -34,6 +35,7 @@ export function timber(config?: TimberUserConfig): Plugin[] {
     timberCache(ctx),
     timberFonts(ctx),
     timberMdx(ctx),
+    timberContent(ctx),
   ]
 }
 ```

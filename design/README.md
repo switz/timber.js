@@ -30,3 +30,4 @@ The shortest version: **if Rails or PHP could do it, so can we.** Correct HTTP s
 | [Client Navigation](19-client-navigation.md) | Segment router, RSC payload handling, history stack, prefetch cache, scroll restoration, `useNavigationPending()` |
 | [Content Collections & MDX](20-content-collections.md) | `timber-mdx` plugin, `@mdx-js/rollup` integration, `mdx-components.tsx`, content collections, `defineCollection()`, typed queries, build-time validation |
 | [Dev Server & HMR](21-dev-server.md) | `timber-dev-server` plugin, three-environment HMR wiring, dev logging tree, dev-mode warnings, error overlay, Node↔Web conversion |
+| [Docs & Marketing Site](22-docs-site.md) | `@timber/docs-site` package, content collections for docs + blog, server actions demos, AI-generated content banners, Tailwind v4 styling |

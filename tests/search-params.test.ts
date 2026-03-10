@@ -374,6 +374,67 @@ describe('composition', () => {
     expect(picked.serialize({ search: 'boots' })).toBe('q=boots');
   });
 
+  it('urlKeys accessor returns the alias map', () => {
+    const def = createSearchParams(
+      {
+        search: fromSchema(mockNullableStringSchema()),
+        itemsPerPage: fromSchema(mockNumberSchema(20)),
+      },
+      { urlKeys: { search: 'q', itemsPerPage: 'limit' } }
+    );
+
+    expect(def.urlKeys).toEqual({ search: 'q', itemsPerPage: 'limit' });
+  });
+
+  it('urlKeys returns empty object when no aliases', () => {
+    const def = createSearchParams({
+      page: fromSchema(mockNumberSchema(1)),
+    });
+
+    expect(def.urlKeys).toEqual({});
+  });
+
+  it('extend merges urlKeys', () => {
+    const base = createSearchParams(
+      {
+        search: fromSchema(mockNullableStringSchema()),
+      },
+      { urlKeys: { search: 'q' } }
+    );
+
+    const extended = base.extend(
+      { category: fromSchema(mockNullableStringSchema()) },
+      { urlKeys: { category: 'cat' } }
+    );
+
+    expect(extended.urlKeys).toEqual({ search: 'q', category: 'cat' });
+  });
+
+  it('pick preserves urlKeys for picked keys', () => {
+    const def = createSearchParams(
+      {
+        search: fromSchema(mockNullableStringSchema()),
+        page: fromSchema(mockNumberSchema(1)),
+        category: fromSchema(mockNullableStringSchema()),
+      },
+      { urlKeys: { search: 'q', category: 'cat' } }
+    );
+
+    const picked = def.pick('search', 'page');
+    expect(picked.urlKeys).toEqual({ search: 'q' });
+  });
+
+  it('urlKeys is frozen (immutable)', () => {
+    const def = createSearchParams(
+      { search: fromSchema(mockNullableStringSchema()) },
+      { urlKeys: { search: 'q' } }
+    );
+
+    expect(() => {
+      (def.urlKeys as Record<string, string>).search = 'changed';
+    }).toThrow();
+  });
+
   it('codecs accessor does not carry aliases', () => {
     const def = createSearchParams(
       {

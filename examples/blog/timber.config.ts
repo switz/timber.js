@@ -3,4 +3,4 @@ export default {
   mdx: {
     remarkPlugins: [],
   },
-}
+};

@@ -16,26 +16,34 @@ export default defineConfig({
 
 | Plugin | Hooks | Responsibility |
 |--------|-------|---------------|
+| `timber-root-sync` | `configResolved` | Syncs `ctx.root` and `ctx.appDir` with Vite's resolved root (must be first) |
 | `timber-shims` | `resolveId`, `load` | Resolves `next/*` and `@timber/app/*` imports to shim implementations |
 | `timber-routing` | `configureServer`, `buildStart`, `resolveId`, `load` | Scans `app/` directory, builds route tree, generates virtual route manifest |
 | `timber-entries` | `resolveId`, `load` | Generates RSC/SSR/browser entry virtual modules |
 | `timber-cache` | `transform` | Transforms `"use cache"` directives into `registerCachedFunction()` calls |
+| `timber-static-build` | build hooks | Handles static output mode builds |
+| `timber-dynamic-transform` | `transform` | Transforms dynamic route conventions |
 | `timber-fonts` | `resolveId`, `load`, `transform` | Google and local font handling (ported from `next/font`) |
 | `timber-mdx` | `config`, `buildStart` | Auto-detects `.mdx` files, registers `@mdx-js/rollup`, finds `mdx-components.tsx` |
 | `timber-content` | `resolveId`, `load`, `buildStart`, `configureServer` | Scans `content/` directory, validates schemas, generates content manifest virtual module, generates types |
+| `timber-dev-server` | `configureServer` | Dev request handling — routes requests through the timber pipeline (must be last) |
 
 ```ts
 // packages/timber-app/src/index.ts
 export function timber(config?: TimberUserConfig): Plugin[] {
   const ctx = createPluginContext(config)
   return [
+    timberRootSync(ctx),         // must be first — syncs ctx with Vite's resolved root
     timberShims(ctx),
     timberRouting(ctx),
     timberEntries(ctx),
     timberCache(ctx),
+    timberStaticBuild(ctx),
+    timberDynamicTransform(ctx),
     timberFonts(ctx),
     timberMdx(ctx),
     timberContent(ctx),
+    timberDevServer(ctx),        // must be last — see 21-dev-server.md
   ]
 }
 ```
@@ -44,10 +52,13 @@ export function timber(config?: TimberUserConfig): Plugin[] {
 
 The context object is created once and shared across all sub-plugins via closure. It holds:
 
+- `root` and `appDir` — synced with Vite's resolved root by `timber-root-sync`
 - Resolved `timber.config.ts` values
 - The scanned route tree (populated by `timber-routing`, consumed by `timber-entries`)
 - The shim map (populated by `timber-shims`)
 - Build manifest data (accumulated during build, consumed by adapters)
+
+**Root synchronization:** The initial context uses `process.cwd()` as the project root, but Vite may resolve a different root (e.g., when `--config` points to a subdirectory or Vite's `root` config option is set). The `timber-root-sync` plugin runs first and updates `ctx.root` and `ctx.appDir` in `configResolved` to match Vite's actual root. Without this, the route scanner and other plugins look in the wrong directory.
 
 Sub-plugins communicate through the context — not through Vite's plugin API or global state.
 
@@ -127,10 +138,12 @@ The route manifest virtual module contains the route tree data. The entry file c
 ### Entry Files
 
 **RSC Entry** (`rsc-entry.ts`):
-- Imports the route manifest
-- Creates the request handler (route matching → middleware → access → render)
+- Imports the route manifest and creates the request handler via `createPipeline`
+- Builds a `RouteMatcher` from the manifest tree (see `server/route-matcher.ts`)
+- Implements the renderer: loads page/layout components along the matched segment chain, resolves metadata (static `metadata` exports and `generateMetadata`), builds the React element tree, and renders via `renderToReadableStream`
+- Catches `DenySignal` (from `deny()`) during render to produce the correct HTTP status
+- Injects resolved metadata (`<title>`, `<meta>`) into the HTML stream before `</head>`
 - Exports a `default` function that handles `Request → Response`
-- The RSC plugin calls this for every request
 
 **SSR Entry** (`ssr-entry.ts`):
 - Receives the RSC stream from the RSC entry via `handleSsr(rscStream, navContext)`

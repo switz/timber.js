@@ -94,7 +94,12 @@ export function createPipeline(config: PipelineConfig): (req: Request) => Promis
     // Stage 2: Route matching
     const match = matchRoute(canonicalPathname);
     if (!match) {
-      return new Response(null, { status: 404 });
+      // X-Timber-No-Match signals "no route found" to the dev server,
+      // distinguishing it from a 404 produced by deny() during render.
+      return new Response(null, {
+        status: 404,
+        headers: { 'X-Timber-No-Match': '1' },
+      });
     }
 
     // Stage 3: 103 Early Hints (before middleware, after match)

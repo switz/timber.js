@@ -244,24 +244,20 @@ describe('dev server HMR wiring', () => {
   });
 
   describe('middleware registration', () => {
-    it('registers post-hook middleware (runs after Vite internals)', () => {
+    it('registers pre-hook middleware (runs before Vite internals)', () => {
       const ctx = createPluginContext();
       const plugin = timberDevServer(ctx);
       const { server, raw } = createMockServer();
 
       const configureServer = plugin.configureServer as (s: ViteDevServer) => (() => void) | void;
-      const postHook = configureServer.call({}, server);
+      const result = configureServer.call({}, server);
 
-      // configureServer returns a function (post-hook pattern)
-      expect(typeof postHook).toBe('function');
+      // configureServer does NOT return a function (pre-hook pattern).
+      // Middleware is registered directly so it runs before Vite's
+      // SPA fallback / historyApiFallback rewriting.
+      expect(result).toBeUndefined();
 
-      // Middleware not registered until post-hook runs
-      expect(raw.middlewares.use).not.toHaveBeenCalled();
-
-      // Execute post-hook
-      if (typeof postHook === 'function') postHook();
-
-      // Now middleware is registered
+      // Middleware registered immediately
       expect(raw.middlewares.use).toHaveBeenCalled();
     });
   });
@@ -273,8 +269,7 @@ describe('dev server HMR wiring', () => {
       const { server, raw } = createMockServer();
 
       const configureServer = plugin.configureServer as (s: ViteDevServer) => (() => void) | void;
-      const postHook = configureServer.call({}, server);
-      if (typeof postHook === 'function') postHook();
+      configureServer.call({}, server);
 
       // Get the registered middleware
       const middleware = raw.middlewares.use.mock.calls[0][0] as (

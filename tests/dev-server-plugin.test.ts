@@ -219,7 +219,13 @@ describe('timber-dev-server plugin', () => {
     });
 
     it('returns 404 for unmatched routes (passes to Vite fallback)', async () => {
-      const rscHandler = vi.fn(async () => new Response(null, { status: 404 }));
+      const rscHandler = vi.fn(
+        async () =>
+          new Response(null, {
+            status: 404,
+            headers: { 'X-Timber-No-Match': '1' },
+          })
+      );
 
       const { handler } = setupMiddleware({ rscHandler });
       const { next } = await invokeHandler(handler, '/nonexistent');

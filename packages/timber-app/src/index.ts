@@ -75,7 +75,17 @@ function timberFonts(_ctx: PluginContext): Plugin {
 
 export function timber(config?: TimberUserConfig): Plugin[] {
   const ctx = createPluginContext(config);
+  // Sync ctx.root and ctx.appDir with Vite's resolved root, which may
+  // differ from process.cwd() when --config points to a subdirectory.
+  const rootSync: Plugin = {
+    name: 'timber-root-sync',
+    configResolved(resolved) {
+      ctx.root = resolved.root;
+      ctx.appDir = join(resolved.root, 'app');
+    },
+  };
   return [
+    rootSync,
     timberShims(ctx),
     timberRouting(ctx),
     timberEntries(ctx),

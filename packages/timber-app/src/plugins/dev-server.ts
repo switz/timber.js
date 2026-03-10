@@ -64,9 +64,11 @@ export function timberDevServer(ctx: PluginContext): Plugin {
     /**
      * Register the dev server middleware and config file watcher.
      *
-     * Returns a post-hook function so our middleware runs after Vite's
-     * built-in middleware (static files, HMR, transforms). This means
-     * asset requests are already handled by Vite before reaching us.
+     * Registers as a pre-hook (no return value) so our middleware runs
+     * before Vite's built-in SPA fallback / historyApiFallback. This
+     * ensures we see the original URL (e.g. /blog) rather than a
+     * rewritten /index.html. Vite-internal and asset requests are
+     * filtered out explicitly and passed through to Vite.
      */
     configureServer(server: ViteDevServer) {
       // Watch config files for full restart.
@@ -84,10 +86,8 @@ export function timberDevServer(ctx: PluginContext): Plugin {
       // See 21-dev-server.md §Dev-Mode Warnings.
       setViteServer(server);
 
-      // Return post-hook — registers middleware after Vite's internals
-      return () => {
-        server.middlewares.use(createTimberMiddleware(server, ctx.root));
-      };
+      // Pre-hook — registers middleware before Vite's internals
+      server.middlewares.use(createTimberMiddleware(server, ctx.root));
     },
   };
 }
@@ -158,9 +158,10 @@ function createTimberMiddleware(server: ViteDevServer, projectRoot: string) {
       // Run the full pipeline
       const webResponse = await handler(webRequest);
 
-      // If the pipeline returned 404, pass through to Vite's fallback
-      // This allows Vite to serve index.html for SPA fallback or show its 404 page
-      if (webResponse.status === 404) {
+      // If no route matched (X-Timber-No-Match header), pass through to
+      // Vite's fallback for static files / SPA fallback. Route-level 404s
+      // (from deny(404)) are served directly as real 404 responses.
+      if (webResponse.status === 404 && webResponse.headers.get('X-Timber-No-Match')) {
         next();
         return;
       }

@@ -14,11 +14,18 @@
 
 import type { Plugin, ViteDevServer } from 'vite';
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { join } from 'node:path';
 import type { PluginContext } from '../index.js';
 
 // ─── Constants ────────────────────────────────────────────────────────────
 
 const RSC_ENTRY_ID = 'virtual:timber-rsc-entry';
+
+/**
+ * Config file names that trigger a full dev server restart when changed.
+ * See 21-dev-server.md §HMR Wiring — config is loaded once at startup.
+ */
+const CONFIG_FILE_NAMES = ['timber.config.ts', 'timber.config.js', 'timber.config.mjs'];
 
 /**
  * URL prefixes that are Vite-internal and should never be intercepted.
@@ -44,18 +51,33 @@ const ASSET_EXTENSIONS =
  *
  * Hook: configureServer (returns post-hook to register after Vite's middleware)
  */
-export function timberDevServer(_ctx: PluginContext): Plugin {
+export function timberDevServer(ctx: PluginContext): Plugin {
   return {
     name: 'timber-dev-server',
 
+    // Only active in dev mode (command === 'serve'), not during build.
+    // See 21-dev-server.md §Plugin Registration.
+    apply: 'serve',
+
     /**
-     * Register the dev server middleware.
+     * Register the dev server middleware and config file watcher.
      *
      * Returns a post-hook function so our middleware runs after Vite's
      * built-in middleware (static files, HMR, transforms). This means
      * asset requests are already handled by Vite before reaching us.
      */
     configureServer(server: ViteDevServer) {
+      // Watch config files for full restart.
+      // timber.config.ts is loaded once at startup — any change requires
+      // a full dev server restart. See 21-dev-server.md §HMR Wiring.
+      const configPaths = CONFIG_FILE_NAMES.map((name) => join(ctx.root, name));
+
+      server.watcher.on('change', (filePath: string) => {
+        if (configPaths.includes(filePath)) {
+          server.restart();
+        }
+      });
+
       // Return post-hook — registers middleware after Vite's internals
       return () => {
         server.middlewares.use(createTimberMiddleware(server));

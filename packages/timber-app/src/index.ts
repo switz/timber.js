@@ -79,13 +79,13 @@ export function timber(config?: TimberUserConfig): Plugin[] {
     timberShims(ctx),
     timberRouting(ctx),
     timberEntries(ctx),
-    timberDevServer(ctx),
     timberCache(ctx),
     timberStaticBuild(ctx),
     timberDynamicTransform(ctx),
     timberFonts(ctx),
     timberMdx(ctx),
     timberContent(ctx),
+    timberDevServer(ctx), // Must be last — configureServer post-hook runs after all watchers
   ];
 }
 

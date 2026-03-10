@@ -13,46 +13,44 @@ import { setLogger, type TimberLogger } from './logger.js';
 
 // ─── Instrumentation Types ────────────────────────────────────────────────
 
-export namespace Instrumentation {
-  export type OnRequestError = (
-    error: unknown,
-    request: RequestInfo,
-    context: ErrorContext
-  ) => void | Promise<void>;
+export type InstrumentationOnRequestError = (
+  error: unknown,
+  request: InstrumentationRequestInfo,
+  context: InstrumentationErrorContext
+) => void | Promise<void>;
 
-  export interface RequestInfo {
-    /** HTTP method: 'GET', 'POST', etc. */
-    method: string;
-    /** Request path: '/dashboard/projects/123' */
-    path: string;
-    /** Request headers as a plain object. */
-    headers: Record<string, string>;
-  }
+export interface InstrumentationRequestInfo {
+  /** HTTP method: 'GET', 'POST', etc. */
+  method: string;
+  /** Request path: '/dashboard/projects/123' */
+  path: string;
+  /** Request headers as a plain object. */
+  headers: Record<string, string>;
+}
 
-  export interface ErrorContext {
-    /** Which pipeline phase the error occurred in. */
-    phase: 'proxy' | 'handler' | 'render' | 'action' | 'route';
-    /** The route pattern: '/dashboard/projects/[id]' */
-    routePath: string;
-    /** Type of route that was matched. */
-    routeType: 'page' | 'route' | 'action';
-    /** Always set — OTEL trace ID or UUID fallback. */
-    traceId: string;
-  }
+export interface InstrumentationErrorContext {
+  /** Which pipeline phase the error occurred in. */
+  phase: 'proxy' | 'handler' | 'render' | 'action' | 'route';
+  /** The route pattern: '/dashboard/projects/[id]' */
+  routePath: string;
+  /** Type of route that was matched. */
+  routeType: 'page' | 'route' | 'action';
+  /** Always set — OTEL trace ID or UUID fallback. */
+  traceId: string;
 }
 
 // ─── Instrumentation Module Shape ─────────────────────────────────────────
 
 interface InstrumentationModule {
   register?: () => void | Promise<void>;
-  onRequestError?: Instrumentation.OnRequestError;
+  onRequestError?: InstrumentationOnRequestError;
   logger?: TimberLogger;
 }
 
 // ─── State ────────────────────────────────────────────────────────────────
 
 let _initialized = false;
-let _onRequestError: Instrumentation.OnRequestError | null = null;
+let _onRequestError: InstrumentationOnRequestError | null = null;
 
 /**
  * Load and initialize the user's instrumentation.ts module.
@@ -107,8 +105,8 @@ export async function loadInstrumentation(
  */
 export async function callOnRequestError(
   error: unknown,
-  request: Instrumentation.RequestInfo,
-  context: Instrumentation.ErrorContext
+  request: InstrumentationRequestInfo,
+  context: InstrumentationErrorContext
 ): Promise<void> {
   if (!_onRequestError) return;
   try {

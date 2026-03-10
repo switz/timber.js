@@ -31,6 +31,7 @@ import { resolveMetadata, renderMetadataToElements } from './metadata.js';
 import type { Metadata } from './types.js';
 import { DenySignal } from './primitives.js';
 import { buildClientScripts } from './html-injectors.js';
+import { resolveManifestStatusFile } from './manifest-status-resolver.js';
 
 import type { NavContext } from './ssr-entry.js';
 
@@ -173,7 +174,7 @@ async function renderRoute(
   // - reactOptions: passed to React (onError, signal, etc.)
   // - extraOptions: { onClientReference } for tracking client deps
   // The client manifest is created internally by the plugin.
-  let renderStatus = 200;
+  let denySignal: DenySignal | null = null;
   let rscStream: ReadableStream<Uint8Array>;
   try {
     rscStream = renderToReadableStream(
@@ -181,7 +182,7 @@ async function renderRoute(
       {
         onError(error: unknown) {
           if (error instanceof DenySignal) {
-            renderStatus = error.status;
+            denySignal = error;
             return;
           }
           console.error('[timber] RSC render error:', error);
@@ -198,9 +199,25 @@ async function renderRoute(
     );
   } catch (error) {
     if (error instanceof DenySignal) {
-      return new Response(null, { status: error.status });
+      denySignal = error;
+    } else {
+      throw error;
     }
-    throw error;
+  }
+
+  // If deny() was called during rendering, render the status-code error page
+  // (e.g. 404.tsx, 403.tsx) as a fresh RSC stream. All DenySignal handling
+  // stays in the RSC entry — SSR never needs to detect or parse deny errors.
+  if (denySignal) {
+    return renderDenyPage(
+      denySignal,
+      segments,
+      layoutComponents,
+      _req,
+      match,
+      responseHeaders,
+      scriptsHtml
+    );
   }
 
   // Pass the RSC stream to the SSR entry for HTML rendering.
@@ -210,20 +227,121 @@ async function renderRoute(
     pathname: new URL(_req.url).pathname,
     params: match.params,
     searchParams: Object.fromEntries(new URL(_req.url).searchParams),
-    statusCode: renderStatus,
+    statusCode: 200,
     responseHeaders,
     headHtml,
     scriptsHtml,
   };
 
-  // Load the SSR entry from the SSR environment.
-  // import.meta.viteRsc.import crosses the RSC→SSR environment boundary.
+  return callSsr(rscStream!, navContext);
+}
+
+/**
+ * Load the SSR entry and pass the RSC stream for HTML rendering.
+ */
+async function callSsr(
+  rscStream: ReadableStream<Uint8Array>,
+  navContext: NavContext
+): Promise<Response> {
   const ssrEntry = await import.meta.viteRsc.import<typeof import('./ssr-entry.js')>(
     './ssr-entry.js',
     { environment: 'ssr' }
   );
-
   return ssrEntry.handleSsr(rscStream, navContext);
+}
+
+/**
+ * Render a status-code error page for a DenySignal.
+ *
+ * Resolves the appropriate status-code file (e.g. 404.tsx, 403.tsx) from the
+ * segment chain, renders it through a fresh RSC→SSR pipeline, and returns
+ * an HTML Response with the correct status code.
+ *
+ * Falls back to a bare Response(null, { status }) when no status-code page
+ * exists in the segment chain.
+ */
+async function renderDenyPage(
+  deny: DenySignal,
+  segments: ManifestSegmentNode[],
+  layoutComponents: Array<{
+    component: (...args: unknown[]) => unknown;
+    segment: ManifestSegmentNode;
+  }>,
+  req: Request,
+  match: RouteMatch,
+  responseHeaders: Headers,
+  scriptsHtml: string
+): Promise<Response> {
+  const resolution = resolveManifestStatusFile(deny.status, segments);
+
+  // No status-code page found — fall back to bare response
+  if (!resolution) {
+    return new Response(null, { status: deny.status, headers: responseHeaders });
+  }
+
+  // Load the status-code page component
+  const mod = (await resolution.file.load()) as Record<string, unknown>;
+  if (!mod.default) {
+    return new Response(null, { status: deny.status, headers: responseHeaders });
+  }
+
+  const ErrorPageComponent = mod.default as (...args: unknown[]) => unknown;
+  const h = createElement as (...args: unknown[]) => React.ReactElement;
+
+  // 4xx status-code pages receive { status, dangerouslyPassData }
+  // per design/10-error-handling.md §"Status-Code File Props"
+  let element = h(ErrorPageComponent, {
+    status: deny.status,
+    dangerouslyPassData: deny.data,
+  });
+
+  // Wrap in layouts from root up to the segment where the status file was found.
+  // Compare by segment index in the original segments array, not layoutComponents index
+  // (not every segment has a layout, so indices don't align).
+  const resolvedSegments = new Set(segments.slice(0, resolution.segmentIndex + 1));
+  const layoutsToWrap = layoutComponents.filter((lc) => resolvedSegments.has(lc.segment));
+  for (let i = layoutsToWrap.length - 1; i >= 0; i--) {
+    const { component } = layoutsToWrap[i];
+    element = h(component, null, element);
+  }
+
+  // Build head HTML from error page metadata (if any)
+  let headHtml = '';
+  if (mod.metadata) {
+    const resolvedMeta = resolveMetadata([{ metadata: mod.metadata as Metadata, isPage: true }]);
+    const headElements = renderMetadataToElements(resolvedMeta);
+    for (const el of headElements) {
+      if (el.tag === 'title' && el.content) {
+        headHtml += `<title>${escapeHtml(el.content)}</title>`;
+      } else if (el.attrs) {
+        const attrs = Object.entries(el.attrs)
+          .map(([k, v]) => `${k}="${escapeHtml(v)}"`)
+          .join(' ');
+        headHtml += `<${el.tag} ${attrs}>`;
+      }
+    }
+  }
+
+  // Render the error page to a fresh RSC Flight stream.
+  // The error page component should not call deny() — if it does,
+  // the error is logged and the stream may be incomplete.
+  const rscStream = renderToReadableStream(element, {
+    onError(error: unknown) {
+      console.error('[timber] Error page RSC render error:', error);
+    },
+  });
+
+  const navContext: NavContext = {
+    pathname: new URL(req.url).pathname,
+    params: match.params,
+    searchParams: Object.fromEntries(new URL(req.url).searchParams),
+    statusCode: deny.status,
+    responseHeaders,
+    headHtml,
+    scriptsHtml,
+  };
+
+  return callSsr(rscStream, navContext);
 }
 
 function escapeHtml(str: string): string {

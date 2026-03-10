@@ -40,6 +40,12 @@ export interface RouterDeps {
   decodeRsc?: RscDecoder;
   /** Render decoded RSC tree into the DOM. If not provided, rendering is a no-op. */
   renderRoot?: RootRenderer;
+  /**
+   * Schedule a callback after the next paint. In the browser, this is
+   * requestAnimationFrame + setTimeout(0) to run after React commits.
+   * In tests, this runs the callback synchronously.
+   */
+  afterPaint?: (callback: () => void) => void;
 }
 
 export interface RouterInstance {
@@ -67,6 +73,16 @@ export interface RouterInstance {
 
 const RSC_CONTENT_TYPE = 'text/x-component';
 
+/**
+ * Append a `_rsc=<timestamp>` query parameter to the URL.
+ * Follows Next.js's pattern — prevents CDN/browser from serving cached HTML
+ * for RSC navigation requests and signals that this is an RSC fetch.
+ */
+function appendRscParam(url: string): string {
+  const separator = url.includes('?') ? '&' : '?';
+  return `${url}${separator}_rsc=${Date.now()}`;
+}
+
 function buildRscHeaders(stateTree: { segments: string[] } | undefined): Record<string, string> {
   const headers: Record<string, string> = {
     Accept: RSC_CONTENT_TYPE,
@@ -87,16 +103,17 @@ async function fetchRscPayload(
   deps: RouterDeps,
   stateTree?: { segments: string[] }
 ): Promise<unknown> {
+  const rscUrl = appendRscParam(url);
   const headers = buildRscHeaders(stateTree);
   if (deps.decodeRsc) {
     // Production path: use createFromFetch for streaming RSC decoding.
     // createFromFetch takes a Promise<Response> and progressively parses
     // the RSC Flight stream as chunks arrive.
-    const fetchPromise = deps.fetch(url, { headers });
+    const fetchPromise = deps.fetch(rscUrl, { headers });
     return deps.decodeRsc(fetchPromise);
   }
   // Test/fallback path: return raw text
-  const response = await deps.fetch(url, { headers });
+  const response = await deps.fetch(rscUrl, { headers });
   return response.text();
 }
 
@@ -130,6 +147,15 @@ export function createRouter(deps: RouterDeps): RouterInstance {
     }
   }
 
+  /** Run a callback after the next paint (after React commit). */
+  function afterPaint(callback: () => void): void {
+    if (deps.afterPaint) {
+      deps.afterPaint(callback);
+    } else {
+      callback();
+    }
+  }
+
   async function navigate(url: string, options: NavigationOptions = {}): Promise<void> {
     const scroll = options.scroll !== false;
 
@@ -158,13 +184,19 @@ export function createRouter(deps: RouterDeps): RouterInstance {
       // Store the payload in the history stack
       historyStack.push(url, { payload, scrollY: 0 });
 
-      // Render the decoded RSC tree into the DOM
+      // Render the decoded RSC tree into the DOM.
+      // React's render() on the document root can cause the browser to
+      // reset scroll to 0 during DOM reconciliation. We must actively
+      // restore scroll after paint when scroll={false}.
       renderPayload(payload);
 
-      // Scroll to top on forward navigation (unless opted out)
-      if (scroll) {
-        deps.scrollTo(0, 0);
-      }
+      afterPaint(() => {
+        if (scroll) {
+          deps.scrollTo(0, 0);
+        } else {
+          deps.scrollTo(0, currentScrollY);
+        }
+      });
     } finally {
       setPending(false);
     }
@@ -195,19 +227,23 @@ export function createRouter(deps: RouterDeps): RouterInstance {
   async function handlePopState(url: string): Promise<void> {
     const entry = historyStack.get(url);
 
-    if (entry) {
+    if (entry && entry.payload !== null) {
       // Replay cached payload — no server roundtrip
       renderPayload(entry.payload);
-      deps.scrollTo(0, entry.scrollY);
+      afterPaint(() => deps.scrollTo(0, entry.scrollY));
     } else {
-      // No cached entry — fetch from server
+      // No cached payload — fetch from server.
+      // This happens when navigating back to the initial SSR'd page
+      // (its payload is null since it was rendered via SSR, not RSC fetch)
+      // or when the entry doesn't exist at all.
+      const savedScrollY = entry?.scrollY ?? 0;
       setPending(true);
       try {
         const stateTree = segmentCache.serializeStateTree();
         const payload = await fetchRscPayload(url, deps, stateTree);
-        historyStack.push(url, { payload, scrollY: 0 });
+        historyStack.push(url, { payload, scrollY: savedScrollY });
         renderPayload(payload);
-        deps.scrollTo(0, 0);
+        afterPaint(() => deps.scrollTo(0, savedScrollY));
       } finally {
         setPending(false);
       }

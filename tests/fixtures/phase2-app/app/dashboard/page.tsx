@@ -4,7 +4,7 @@
  */
 export default function DashboardPage() {
   return (
-    <div data-testid="dashboard-content">
+    <div data-testid="dashboard-content" style={{ minHeight: '200vh' }}>
       <h1>Dashboard</h1>
       <p>Dashboard index page.</p>
     </div>

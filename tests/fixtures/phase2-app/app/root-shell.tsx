@@ -10,35 +10,30 @@
  * - Navigation pending indicator
  * - Navigation links with various test IDs
  */
-// import { Link } from '@timber/app/client';
-// import { useNavigationPending } from '@timber/app/client';
-
-// TODO: Replace with real timber imports once the client runtime is wired up.
-// For now, use plain <a> tags and a static pending indicator.
-// The E2E tests will validate behavior once the framework is functional.
+import { Link } from '@timber/app/client';
+import { useNavigationPending } from '@timber/app/client';
 
 export function RootShell({ children }: { children: React.ReactNode }) {
-  // const pending = useNavigationPending();
-  const pending = false;
+  const pending = useNavigationPending();
 
   return (
     <div data-testid="root-layout">
       <nav>
         {/* Standard navigation links */}
-        <a href="/dashboard" data-testid="link-dashboard">
+        <Link href="/dashboard" data-testid="link-dashboard">
           Dashboard
-        </a>
-        <a href="/todos" data-testid="link-todos">
+        </Link>
+        <Link href="/todos" data-testid="link-todos">
           Todos
-        </a>
-        <a href="/slow-page" data-testid="link-slow-page">
+        </Link>
+        <Link href="/slow-page" data-testid="link-slow-page">
           Slow Page
-        </a>
+        </Link>
 
         {/* Prefetch-enabled link */}
-        <a href="/dashboard" data-testid="link-prefetch-dashboard">
+        <Link href="/dashboard" prefetch data-testid="link-prefetch-dashboard">
           Dashboard (prefetch)
-        </a>
+        </Link>
       </nav>
 
       {/* Persistent input — tests DOM state preservation */}

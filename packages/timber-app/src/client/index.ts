@@ -9,6 +9,7 @@ export type { LinkProps, LinkPropsWithHref, LinkPropsWithParams } from './link';
 export { createRouter } from './router';
 export type { RouterInstance, NavigationOptions, RouterDeps, RscDecoder, RootRenderer } from './router';
 export { useNavigationPending } from './use-navigation-pending';
+export { getRouter } from './router-ref';
 
 // Segment cache (internal, but exported for advanced use)
 export { SegmentCache, PrefetchCache } from './segment-cache';

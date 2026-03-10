@@ -23,7 +23,7 @@
 // @ts-expect-error — virtual module provided by timber-entries plugin
 import config from 'virtual:timber-config';
 
-import { hydrateRoot, type Root } from 'react-dom/client';
+import { hydrateRoot, createRoot, type Root } from 'react-dom/client';
 import { createFromReadableStream, createFromFetch } from '@vitejs/plugin-rsc/browser';
 import { createRouter } from './router.js';
 import type { RouterDeps, RouterInstance } from './router.js';
@@ -56,13 +56,20 @@ function bootstrap(runtimeConfig: typeof config): void {
     | undefined;
 
   let reactRoot: Root | null = null;
+  let initialElement: unknown = null;
 
   if (rscPayload) {
     const element = createFromReadableStream(rscPayload);
-    const rootElement = document.getElementById('__timber');
-    if (rootElement) {
-      reactRoot = hydrateRoot(rootElement, element as React.ReactNode);
-    }
+    initialElement = element;
+    // Hydrate on document — the root layout renders the full <html> tree,
+    // so React owns the entire document from the root.
+    reactRoot = hydrateRoot(document, element as React.ReactNode);
+  } else {
+    // No RSC payload available (plugin hasn't inlined it yet) — create a
+    // non-hydrated root so client navigation can still render RSC payloads.
+    // The initial SSR HTML remains as-is; the first client navigation will
+    // replace it with a React-managed tree.
+    reactRoot = createRoot(document);
   }
 
   // Initialize the client-side navigation router.
@@ -87,15 +94,25 @@ function bootstrap(runtimeConfig: typeof config): void {
         reactRoot.render(element as React.ReactNode);
       }
     },
+
+    // Schedule a callback after the next paint so scroll operations
+    // happen after React commits the new content to the DOM.
+    // Double-rAF ensures the browser has painted the new frame.
+    afterPaint: (callback: () => void) => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(callback);
+      });
+    },
   };
 
   const router = createRouter(deps);
   setGlobalRouter(router);
 
   // Store the initial page in the history stack so back-button works
-  // after the first navigation.
+  // after the first navigation. We store the decoded RSC element so
+  // back navigation can replay it instantly without a server fetch.
   router.historyStack.push(window.location.href, {
-    payload: null, // Initial page — no cached RSC payload (was SSR'd)
+    payload: initialElement,
     scrollY: 0,
   });
 

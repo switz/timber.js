@@ -6,6 +6,14 @@ export default defineConfig({
     alias: {
       '@timber/app/cache': resolve(__dirname, 'packages/timber-app/src/cache/index.ts'),
       '@timber/app/server': resolve(__dirname, 'packages/timber-app/src/server/index.ts'),
+      '@timber/app/client/nuqs-adapter': resolve(
+        __dirname,
+        'packages/timber-app/src/client/nuqs-adapter.tsx'
+      ),
+      '@timber/app/client/router-ref': resolve(
+        __dirname,
+        'packages/timber-app/src/client/router-ref.ts'
+      ),
       '@timber/app/client': resolve(__dirname, 'packages/timber-app/src/client/index.ts'),
       '@timber/app/routing': resolve(__dirname, 'packages/timber-app/src/routing/index.ts'),
       '@timber/app/adapters/cloudflare': resolve(

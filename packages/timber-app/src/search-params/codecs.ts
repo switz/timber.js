@@ -41,7 +41,7 @@ type StandardSchemaResult<Output> =
  *
  * ```ts
  * import { fromSchema } from '@timber/app/search-params'
- * import { z } from 'zod'
+ * import { z } from 'zod/v4'
  *
  * const pageCodec = fromSchema(z.coerce.number().int().min(1).default(1))
  * ```
@@ -87,7 +87,7 @@ export function fromSchema<T>(schema: StandardSchemaV1<T>): SearchParamCodec<T> 
  *
  * ```ts
  * import { fromArraySchema } from '@timber/app/search-params'
- * import { z } from 'zod'
+ * import { z } from 'zod/v4'
  *
  * const tagsCodec = fromArraySchema(z.array(z.string()).default([]))
  * ```

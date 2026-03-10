@@ -66,7 +66,7 @@ export const adminAction = createActionClient({
 ```typescript
 // app/todos/actions.ts
 'use server'
-import { z } from 'zod'
+import { z } from 'zod/v4'
 import { action } from '@/lib/action'
 
 export const createTodo = action

@@ -565,7 +565,7 @@ describe('non-analyzable error', () => {
   it('accepts createSearchParams() call', () => {
     const source = `
       import { createSearchParams, fromSchema } from '@timber/app/search-params'
-      import { z } from 'zod'
+      import { z } from 'zod/v4'
 
       export default createSearchParams({
         page: fromSchema(z.coerce.number().default(1)),

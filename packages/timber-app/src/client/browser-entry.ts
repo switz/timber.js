@@ -23,11 +23,13 @@
 // @ts-expect-error — virtual module provided by timber-entries plugin
 import config from 'virtual:timber-config';
 
+import { createElement } from 'react';
 import { hydrateRoot, createRoot, type Root } from 'react-dom/client';
 import { createFromReadableStream, createFromFetch } from '@vitejs/plugin-rsc/browser';
 import { createRouter } from './router.js';
 import type { RouterDeps, RouterInstance } from './router.js';
 import { setGlobalRouter } from './router-ref.js';
+import { TimberNuqsAdapter } from './nuqs-adapter.js';
 
 // ─── Bootstrap ───────────────────────────────────────────────────
 
@@ -70,7 +72,9 @@ function bootstrap(runtimeConfig: typeof config): void {
     initialElement = element;
     // Hydrate on document — the root layout renders the full <html> tree,
     // so React owns the entire document from the root.
-    reactRoot = hydrateRoot(document, element as React.ReactNode);
+    // Wrap with TimberNuqsAdapter so useQueryStates works out of the box.
+    const wrapped = createElement(TimberNuqsAdapter, null, element as React.ReactNode);
+    reactRoot = hydrateRoot(document, wrapped);
   } else {
     // No RSC payload available (plugin hasn't inlined it yet) — create a
     // non-hydrated root so client navigation can still render RSC payloads.
@@ -96,9 +100,11 @@ function bootstrap(runtimeConfig: typeof config): void {
     },
 
     // Render decoded RSC tree into the hydrated React root.
+    // Wrap with TimberNuqsAdapter to maintain nuqs context across navigations.
     renderRoot: (element: unknown) => {
       if (reactRoot) {
-        reactRoot.render(element as React.ReactNode);
+        const wrapped = createElement(TimberNuqsAdapter, null, element as React.ReactNode);
+        reactRoot.render(wrapped);
       }
     },
 

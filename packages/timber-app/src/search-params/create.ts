@@ -146,7 +146,7 @@ function getDefaultSerialized<T>(codec: SearchParamCodec<T>): string | null {
  *
  * ```ts
  * import { createSearchParams, fromSchema } from '@timber/app/search-params'
- * import { z } from 'zod'
+ * import { z } from 'zod/v4'
  *
  * export default createSearchParams({
  *   page: fromSchema(z.coerce.number().int().min(1).default(1)),

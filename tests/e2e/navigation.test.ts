@@ -28,6 +28,9 @@ test.describe('dom state preserved', () => {
     await page.click('[data-testid="link-dashboard"]');
     await page.waitForURL('/dashboard');
 
+    // Wait for the new page content to render before checking layout state
+    await expect(page.locator('[data-testid="dashboard-content"]')).toBeVisible();
+
     // Layout input should retain its value — no full page reload
     await expect(layoutInput).toHaveValue('user-typed-value');
   });
@@ -51,9 +54,9 @@ test.describe('dom state preserved', () => {
   test('scroll position in layout preserved across navigation', async ({ page }) => {
     await page.goto('/dashboard');
 
-    // Scroll the page down. The nav links are at the top, so 300px
-    // keeps them out of the viewport in most configurations.
+    // Scroll the page down and wait for scroll to take effect
     await page.evaluate(() => window.scrollTo(0, 300));
+    await page.waitForFunction(() => Math.abs(window.scrollY - 300) < 10);
 
     // Use dispatchEvent to click without Playwright auto-scrolling
     // the element into view (which would reset scrollY to 0).
@@ -64,8 +67,8 @@ test.describe('dom state preserved', () => {
     await expect(page.locator('[data-testid="settings-content"]')).toBeVisible();
 
     // Wait for scroll restoration (afterPaint callback restores position).
-    // Use a tolerance range since CI environments may have sub-pixel differences.
-    await page.waitForFunction(() => Math.abs(window.scrollY - 300) < 10, null, { timeout: 5000 });
+    // Use a generous timeout — double-rAF can be slow under CI load.
+    await page.waitForFunction(() => Math.abs(window.scrollY - 300) < 10, null, { timeout: 10_000 });
     const scrollY = await page.evaluate(() => window.scrollY);
     expect(scrollY).toBeGreaterThanOrEqual(290);
     expect(scrollY).toBeLessThanOrEqual(310);

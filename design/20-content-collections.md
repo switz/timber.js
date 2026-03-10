@@ -181,7 +181,7 @@ Collections are defined in `content-collections.ts` using `defineCollection` and
 ```ts
 // content-collections.ts
 import { defineCollection, defineConfig } from '@content-collections/core'
-import { z } from 'zod'
+import { z } from 'zod/v4'
 
 const blog = defineCollection({
   name: 'blog',
@@ -240,7 +240,7 @@ For content collections with MDX files, use `@content-collections/mdx` to compil
 // content-collections.ts
 import { defineCollection, defineConfig } from '@content-collections/core'
 import { compileMDX } from '@content-collections/mdx'
-import { z } from 'zod'
+import { z } from 'zod/v4'
 
 const blog = defineCollection({
   name: 'blog',
@@ -448,7 +448,7 @@ export default {
 // content-collections.ts
 import { defineCollection, defineConfig } from '@content-collections/core'
 import { compileMDX } from '@content-collections/mdx'
-import { z } from 'zod'
+import { z } from 'zod/v4'
 
 const blog = defineCollection({
   name: 'blog',

@@ -45,20 +45,27 @@ function bootstrap(runtimeConfig: typeof config): void {
   window.history.scrollRestoration = 'manual';
 
   // Hydrate the React tree from the RSC payload.
-  // The RSC payload is embedded in the HTML as a script tag that
-  // creates a ReadableStream. createFromReadableStream decodes
-  // client component references and returns a React element tree.
+  // The RSC payload is embedded in the HTML as a script tag that sets
+  // window.__TIMBER_RSC_PAYLOAD to a UTF-8 string. We wrap it in a
+  // ReadableStream so createFromReadableStream can decode it.
   //
   // For the initial page load, the RSC payload is inlined in the HTML.
   // For subsequent navigations, it's fetched from the server.
-  const rscPayload = (window as unknown as Record<string, unknown>).__TIMBER_RSC_PAYLOAD as
-    | ReadableStream<Uint8Array>
+  const rscPayloadText = (window as unknown as Record<string, unknown>).__TIMBER_RSC_PAYLOAD as
+    | string
     | undefined;
 
   let reactRoot: Root | null = null;
   let initialElement: unknown = null;
 
-  if (rscPayload) {
+  if (rscPayloadText) {
+    const encoded = new TextEncoder().encode(rscPayloadText);
+    const rscPayload = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(encoded);
+        controller.close();
+      },
+    });
     const element = createFromReadableStream(rscPayload);
     initialElement = element;
     // Hydrate on document — the root layout renders the full <html> tree,

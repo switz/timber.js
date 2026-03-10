@@ -39,10 +39,7 @@ export function useRouter(): AppRouterInstance {
       void router.navigate(href, { scroll: options?.scroll });
     },
     replace(href: string, options?: { scroll?: boolean }) {
-      // timber's router doesn't distinguish push/replace yet —
-      // both use pushState. This is a known divergence; the router
-      // will need a replace mode in a future task.
-      void router.navigate(href, { scroll: options?.scroll });
+      void router.navigate(href, { scroll: options?.scroll, replace: true });
     },
     refresh() {
       void router.refresh();

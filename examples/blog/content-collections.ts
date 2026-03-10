@@ -1,6 +1,6 @@
 import { defineCollection, defineConfig } from '@content-collections/core';
 import { compileMDX } from '@content-collections/mdx';
-import { z } from 'zod';
+import { z } from 'zod/v4';
 
 const blog = defineCollection({
   name: 'blog',

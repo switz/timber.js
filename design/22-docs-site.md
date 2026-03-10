@@ -285,7 +285,7 @@ export default function ContactPage() {
 // app/examples/contact/actions.ts
 'use server'
 import { action } from '@/lib/action'
-import { z } from 'zod'
+import { z } from 'zod/v4'
 
 export const submitContact = action
   .schema(z.object({

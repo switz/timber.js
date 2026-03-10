@@ -71,7 +71,7 @@ export default async function ProjectPage({ params }) {
 // app/(authenticated)/dashboard/projects/[projectId]/actions.ts
 'use server'
 import { action } from '@/lib/action'
-import { z } from 'zod'
+import { z } from 'zod/v4'
 
 export const updateProject = action
   .schema(z.object({ projectId: z.string(), name: z.string().min(1), description: z.string() }))

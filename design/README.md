@@ -38,6 +38,10 @@ The shortest version: **if Rails or PHP could do it, so can we.** Correct HTTP s
 
 We don't need to create docs for these now but future things that would be nice to add
 
+- [ ] Intercepted routes
+- [ ] Route groups
+- [ ] More granular/proper route segment configs
+- [ ] Params serializing/deserializing similar to our searchParams integration
 - [ ] Built in support for svg sprite maps (for icons and otherwise), based on sly
 - [ ] Built in support for authentication libraries like better-auth
 - [ ] Open Graph image generation with takumi rs, fully integrated w/ cache busting

@@ -193,7 +193,7 @@ Shared search param bases live in normal modules (not `search-params.ts` route f
 ```typescript
 // lib/search-params/pagination.ts
 import { createSearchParams, fromSchema } from '@timber/app/search-params'
-import { z } from 'zod'
+import { z } from 'zod/v4'
 
 export const pagination = createSearchParams({
   page: fromSchema(z.coerce.number().int().min(1).default(1)),
@@ -206,7 +206,7 @@ export const pagination = createSearchParams({
 ```typescript
 // lib/search-params/searchable.ts
 import { createSearchParams, fromSchema } from '@timber/app/search-params'
-import { z } from 'zod'
+import { z } from 'zod/v4'
 
 export const searchable = createSearchParams({
   q: fromSchema(z.string().nullable().default(null)),
@@ -240,7 +240,7 @@ export const sortable = createSearchParams({
 import { pagination } from '@/lib/search-params/pagination'
 import { searchable } from '@/lib/search-params/searchable'
 import { fromSchema } from '@timber/app/search-params'
-import { z } from 'zod'
+import { z } from 'zod/v4'
 
 export default pagination.extend(searchable.codecs).extend({
   category: fromSchema(z.string().nullable().default(null)),

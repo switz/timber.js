@@ -40,7 +40,7 @@ The default export must be a `SearchParamsDefinition<T>` — created via `create
 ```typescript
 // app/products/search-params.ts
 import { createSearchParams, fromSchema } from '@timber/app/search-params'
-import { z } from 'zod'
+import { z } from 'zod/v4'
 
 export default createSearchParams({
   page: fromSchema(z.coerce.number().int().min(1).default(1)),
@@ -165,7 +165,7 @@ sort: {
 
 ```typescript
 import { fromSchema } from '@timber/app/search-params'
-import { z } from 'zod'
+import { z } from 'zod/v4'
 
 // Array codec via fromSchema — coerces single string to array
 tags: fromSchema(z.array(z.string()).default([]))
@@ -228,7 +228,7 @@ Many routes share common search params — pagination, search queries, status fi
 ```typescript
 // lib/search-params/pagination.ts — shared, NOT a route file
 import { createSearchParams, fromSchema } from '@timber/app/search-params'
-import { z } from 'zod'
+import { z } from 'zod/v4'
 
 export const pagination = createSearchParams({
   page: fromSchema(z.coerce.number().int().min(1).default(1)),
@@ -248,7 +248,7 @@ export const searchable = createSearchParams({
 import { pagination } from '@/lib/search-params/pagination'
 import { searchable } from '@/lib/search-params/searchable'
 import { fromSchema } from '@timber/app/search-params'
-import { z } from 'zod'
+import { z } from 'zod/v4'
 
 export default pagination.extend(searchable.codecs).extend({
   category: fromSchema(z.string().nullable().default(null)),

@@ -114,10 +114,45 @@ export interface RequestCookies {
  */
 export function runWithRequestContext<T>(req: Request, fn: () => T): T {
   const store: RequestContextStore = {
-    headers: req.headers,
+    headers: freezeHeaders(req.headers),
     cookieHeader: req.headers.get('cookie') ?? '',
   };
   return requestContextAls.run(store, fn);
+}
+
+// ─── Read-Only Headers ────────────────────────────────────────────────────
+
+const MUTATING_METHODS = new Set(['set', 'append', 'delete']);
+
+/**
+ * Wrap a Headers object in a Proxy that throws on mutating methods.
+ * Object.freeze doesn't work on Headers (native internal slots), so we
+ * intercept property access and reject set/append/delete at runtime.
+ *
+ * Read methods (get, has, entries, etc.) must be bound to the underlying
+ * Headers instance because they access private #headersList slots.
+ */
+function freezeHeaders(source: Headers): Headers {
+  const copy = new Headers(source);
+  return new Proxy(copy, {
+    get(target, prop) {
+      if (typeof prop === 'string' && MUTATING_METHODS.has(prop)) {
+        return () => {
+          throw new Error(
+            `[timber] headers() returns a read-only Headers object. ` +
+              `Calling .${prop}() is not allowed. ` +
+              `Use ctx.requestHeaders in middleware to inject headers for downstream components.`
+          );
+        };
+      }
+      const value = Reflect.get(target, prop);
+      // Bind methods to the real Headers instance so private slot access works
+      if (typeof value === 'function') {
+        return value.bind(target);
+      }
+      return value;
+    },
+  });
 }
 
 // ─── Cookie Parser ────────────────────────────────────────────────────────

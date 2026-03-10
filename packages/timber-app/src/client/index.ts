@@ -10,6 +10,10 @@ export { createRouter } from './router';
 export type { RouterInstance, NavigationOptions, RouterDeps, RscDecoder, RootRenderer } from './router';
 export { useNavigationPending } from './use-navigation-pending';
 export { getRouter } from './router-ref';
+export { useRouter } from './use-router';
+export type { AppRouterInstance } from './use-router';
+export { usePathname } from './use-pathname';
+export { useSearchParams } from './use-search-params';
 
 // Segment cache (internal, but exported for advanced use)
 export { SegmentCache, PrefetchCache } from './segment-cache';

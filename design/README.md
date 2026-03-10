@@ -21,6 +21,7 @@ The shortest version: **if Rails or PHP could do it, so can we.** Correct HTTP s
 | [Platform & Configuration](11-platform.md) | `timber.config.ts`, adapters, platform target, `waitUntil()`, dev mode, Vinext heritage |
 | [Complete Examples](12-example.md) | Server-mode dashboard and public product page using the full system end-to-end |
 | [Security](13-security.md) | URL canonicalization, CSRF, redirect safety, cache key integrity, cross-request isolation, testing checklist |
+| [Ecosystem Compatibility](14-ecosystem.md) | Shim audit, `next/*` → timber mapping, import path strategy, ecosystem library compatibility (nuqs, next-themes) |
 | [Next.js Test Triage](14-nextjs-test-triage.md) | Systematic triage of all Next.js tests, broken feature fixes, vinext vs timber.js divergence, timber.js feature testing |
 | [Future: Pre-Rendering](15-future-prerendering.md) | Deferred: static shell optimization for `server` mode, `'use dynamic'`, `prerender.ts` — not in v1 |
 | [Metadata](16-metadata.md) | `metadata` export, `generateMetadata()`, title templates, composition, metadata routes, error state metadata |

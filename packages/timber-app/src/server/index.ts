@@ -6,11 +6,17 @@ export type { MiddlewareContext } from './types';
 export type { RouteContext } from './types';
 export type { Metadata, MetadataRoute } from './types';
 
+// Request Context — ALS-backed headers() and cookies()
+// Design doc: design/04-authorization.md §"AccessContext does not include cookies or headers"
+export { headers, cookies, runWithRequestContext } from './request-context';
+export type { ReadonlyHeaders, RequestCookies } from './request-context';
+
 // Runtime primitives
 export {
   deny,
   notFound,
   redirect,
+  permanentRedirect,
   redirectExternal,
   RedirectType,
   RenderError,

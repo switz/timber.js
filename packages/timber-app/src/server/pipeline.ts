@@ -12,6 +12,7 @@
 import { canonicalize } from './canonicalize.js';
 import { runProxy, type ProxyExport } from './proxy.js';
 import { runMiddleware, type MiddlewareFn } from './middleware-runner.js';
+import { runWithRequestContext } from './request-context.js';
 import type { MiddlewareContext } from './types.js';
 import type { SegmentNode } from '../routing/types.js';
 
@@ -68,18 +69,22 @@ export function createPipeline(config: PipelineConfig): (req: Request) => Promis
   const { proxy, matchRoute, render, earlyHints, stripTrailingSlash = true } = config;
 
   return async (req: Request): Promise<Response> => {
-    // Wrap everything in proxy.ts if it exists.
-    // proxy.ts has next() and can wrap the entire lifecycle.
-    if (proxy) {
-      try {
-        return await runProxy(proxy, req, () => handleRequest(req));
-      } catch (error) {
-        // Uncaught proxy.ts error → bare HTTP 500
-        logError('proxy.ts', error);
-        return new Response(null, { status: 500 });
+    // Establish request context ALS scope so headers() and cookies() work
+    // throughout the entire request lifecycle (proxy, middleware, render).
+    return runWithRequestContext(req, async () => {
+      // Wrap everything in proxy.ts if it exists.
+      // proxy.ts has next() and can wrap the entire lifecycle.
+      if (proxy) {
+        try {
+          return await runProxy(proxy, req, () => handleRequest(req));
+        } catch (error) {
+          // Uncaught proxy.ts error → bare HTTP 500
+          logError('proxy.ts', error);
+          return new Response(null, { status: 500 });
+        }
       }
-    }
-    return handleRequest(req);
+      return handleRequest(req);
+    });
   };
 
   async function handleRequest(req: Request): Promise<Response> {

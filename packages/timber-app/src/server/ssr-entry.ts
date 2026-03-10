@@ -17,6 +17,7 @@ import config from 'virtual:timber-config';
 import { createFromReadableStream } from '@vitejs/plugin-rsc/ssr';
 
 import { renderSsrStream, buildSsrResponse } from './ssr-render.js';
+import { injectHead, injectScripts } from './html-injectors.js';
 
 /**
  * Navigation context passed from the RSC environment to SSR.
@@ -35,6 +36,10 @@ export interface NavContext {
   statusCode: number;
   /** Response headers from middleware/proxy */
   responseHeaders: Headers;
+  /** Pre-rendered metadata HTML to inject before </head> */
+  headHtml: string;
+  /** Client bootstrap script tags to inject before </body> */
+  scriptsHtml: string;
 }
 
 /**
@@ -42,9 +47,11 @@ export interface NavContext {
  *
  * Steps:
  * 1. Decode the RSC stream into a React element tree via createFromReadableStream
+ *    (resolves "use client" references to actual component modules for SSR)
  * 2. Render the decoded tree to HTML via renderToReadableStream (streaming)
  * 3. Wait for onShellReady before flushing (handled by renderSsrStream)
- * 4. Return Response with navContext.statusCode and navContext.responseHeaders
+ * 4. Inject metadata into <head> and client scripts before </body>
+ * 5. Return Response with navContext.statusCode and navContext.responseHeaders
  *
  * @param rscStream - The ReadableStream from the RSC environment
  * @param navContext - Per-request state passed across RSC→SSR boundary
@@ -57,16 +64,21 @@ export async function handleSsr(
   const _runtimeConfig = config;
 
   // Decode the RSC stream into a React element tree.
-  // createFromReadableStream returns a thenable that resolves to the
-  // React element tree encoded in the RSC payload. The return type is
-  // untyped (vendored react-server-dom); cast to ReactNode.
+  // createFromReadableStream resolves client component references
+  // (from "use client" modules) using the SSR environment's module
+  // map, importing the actual components for server-side rendering.
   const element = createFromReadableStream(rscStream) as React.ReactNode;
 
-  // Step 2 & 3: Render to HTML stream (waits for onShellReady).
+  // Render to HTML stream (waits for onShellReady).
   const htmlStream = await renderSsrStream(element);
 
-  // Step 4: Build and return the Response.
-  return buildSsrResponse(htmlStream, navContext.statusCode, navContext.responseHeaders);
+  // Inject metadata into <head> and client scripts before </body>.
+  // The layout renders <html><head>...</head><body>...</body></html>.
+  let outputStream = injectHead(htmlStream, navContext.headHtml);
+  outputStream = injectScripts(outputStream, navContext.scriptsHtml);
+
+  // Build and return the Response.
+  return buildSsrResponse(outputStream, navContext.statusCode, navContext.responseHeaders);
 }
 
 export default handleSsr;

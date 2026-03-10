@@ -1,5 +1,6 @@
 import type { Plugin } from 'vite';
 import { join } from 'node:path';
+import vitePluginRsc from '@vitejs/plugin-rsc';
 import { cacheTransformPlugin } from './plugins/cache-transform';
 import { timberContent } from './plugins/content';
 import { timberDevServer } from './plugins/dev-server';
@@ -88,8 +89,22 @@ export function timber(config?: TimberUserConfig): Plugin[] {
       ctx.dev = resolved.command === 'serve';
     },
   };
+  // @vitejs/plugin-rsc handles:
+  // - RSC/SSR/client environment setup
+  // - "use client" directive → client reference proxy transformation
+  // - "use server" directive → server reference transformation
+  // - Client reference tracking and module map generation
+  //
+  // serverHandler: false — timber has its own dev server (timber-dev-server)
+  // customBuildApp: true — timber controls its own build pipeline
+  const rscPlugins = vitePluginRsc({
+    serverHandler: false,
+    customBuildApp: true,
+  });
+
   return [
     rootSync,
+    ...rscPlugins,
     timberShims(ctx),
     timberRouting(ctx),
     timberEntries(ctx),

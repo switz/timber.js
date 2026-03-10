@@ -13,6 +13,7 @@
  */
 
 import type { Plugin, ViteDevServer } from 'vite';
+import { isRunnableDevEnvironment } from 'vite';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { join } from 'node:path';
 import type { PluginContext } from '../index.js';
@@ -126,12 +127,17 @@ function createTimberMiddleware(server: ViteDevServer, projectRoot: string) {
       return;
     }
 
-    // Step 1: Load the RSC entry module.
-    // Separated from the handler call to distinguish module transform errors
-    // (syntax errors, import resolution) from pipeline errors.
+    // Step 1: Load the RSC entry module from the RSC environment.
+    // The RSC entry runs in the 'rsc' Vite environment (separate module
+    // graph with react-server conditions). In dev mode, this uses the
+    // environment's module runner for HMR-aware loading.
     let handler: (req: Request) => Promise<Response>;
     try {
-      const rscModule = await server.ssrLoadModule(RSC_ENTRY_ID);
+      const rscEnv = server.environments.rsc;
+      if (!isRunnableDevEnvironment(rscEnv)) {
+        throw new Error('[timber] RSC environment is not runnable');
+      }
+      const rscModule = await rscEnv.runner.import(RSC_ENTRY_ID);
       handler = rscModule.default as (req: Request) => Promise<Response>;
     } catch (error) {
       // Module transform error — syntax error, missing import, etc.

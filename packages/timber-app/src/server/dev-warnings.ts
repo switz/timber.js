@@ -68,7 +68,7 @@ function emitOnce(
   warningId: WarningId,
   location: string,
   level: 'warn' | 'error',
-  message: string,
+  message: string
 ): boolean {
   if (!isDev()) return false;
 
@@ -111,7 +111,7 @@ export function warnSuspenseWrappingChildren(layoutFile: string): void {
     'warn',
     `Layout at ${layoutFile} wraps {children} in <Suspense>. ` +
       'This prevents child pages from setting HTTP status codes. ' +
-      'Use useNavigationPending() for loading states instead.',
+      'Use useNavigationPending() for loading states instead.'
   );
 }
 
@@ -130,7 +130,7 @@ export function warnDeferredSuspenseWrappingChildren(layoutFile: string): void {
     'warn',
     `Layout at ${layoutFile} wraps {children} in <DeferredSuspense>. ` +
       'This prevents child pages from setting HTTP status codes. ' +
-      'Use useNavigationPending() for loading states instead.',
+      'Use useNavigationPending() for loading states instead.'
   );
 }
 
@@ -152,7 +152,7 @@ export function warnDenyInSuspense(file: string, line?: number): void {
     'error',
     `deny() called inside <Suspense> at ${location}. ` +
       'The HTTP status is already committed — this will trigger an error boundary with a 200 status. ' +
-      'Move deny() outside <Suspense> for correct HTTP semantics.',
+      'Move deny() outside <Suspense> for correct HTTP semantics.'
   );
 }
 
@@ -171,7 +171,7 @@ export function warnRedirectInSuspense(file: string, line?: number): void {
     location,
     'error',
     `redirect() called inside <Suspense> at ${location}. ` +
-      'This will perform a client-side navigation instead of an HTTP redirect.',
+      'This will perform a client-side navigation instead of an HTTP redirect.'
   );
 }
 
@@ -193,7 +193,7 @@ export function warnRedirectInAccess(accessFile: string, line?: number): void {
     'error',
     `redirect() called in access.ts at ${location}. ` +
       'Only deny() is valid in slot access checks. ' +
-      'Use deny() to block access or move redirect() to middleware.ts.',
+      'Use deny() to block access or move redirect() to middleware.ts.'
   );
 }
 
@@ -212,7 +212,7 @@ export function warnStaticRequestApi(api: 'cookies' | 'headers', file: string): 
     `${api}:${file}`,
     'error',
     `${api}() called during static generation of ${file}. ` +
-      'Dynamic request APIs are not available during prerendering.',
+      'Dynamic request APIs are not available during prerendering.'
   );
 }
 
@@ -232,7 +232,7 @@ export function warnCacheRequestProps(
   componentName: string,
   propName: string,
   file: string,
-  line?: number,
+  line?: number
 ): void {
   const location = line ? `${file}:${line}` : file;
   emitOnce(
@@ -240,7 +240,7 @@ export function warnCacheRequestProps(
     `${componentName}:${propName}:${location}`,
     'warn',
     `Cached component ${componentName} receives prop "${propName}" which appears request-specific. ` +
-      'Cached components should not depend on per-request data.',
+      'Cached components should not depend on per-request data.'
   );
 }
 
@@ -260,7 +260,7 @@ export function warnSlowSlotWithoutSuspense(slotName: string, durationMs: number
     slotName,
     'warn',
     `Slot ${slotName} resolved in ${durationMs}ms and is not wrapped in <Suspense>. ` +
-      'Consider wrapping to avoid blocking the flush.',
+      'Consider wrapping to avoid blocking the flush.'
   );
 }
 

@@ -20,7 +20,10 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { DevLogEmitter } from '../packages/timber-app/src/server/dev-log-events';
 import type { DevLogEvent } from '../packages/timber-app/src/server/dev-log-events';
-import { createRequestCollector, resolveLogMode } from '../packages/timber-app/src/server/dev-logger';
+import {
+  createRequestCollector,
+  resolveLogMode,
+} from '../packages/timber-app/src/server/dev-logger';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
 

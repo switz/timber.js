@@ -32,7 +32,7 @@ describe('timber-content', () => {
     // config hook should return undefined when no config file found
     const result = await (plugin.config as Function)?.(
       { root: '/nonexistent-project' },
-      { mode: 'development', command: 'serve' },
+      { mode: 'development', command: 'serve' }
     );
     expect(result).toBeUndefined();
   });

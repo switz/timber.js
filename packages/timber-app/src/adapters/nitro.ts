@@ -40,7 +40,7 @@ interface PresetConfig {
 }
 
 const PRESET_CONFIGS: Record<NitroPreset, PresetConfig> = {
-  vercel: {
+  'vercel': {
     nitroPreset: 'vercel',
     outputDir: '.vercel/output',
     supportsWaitUntil: true,
@@ -51,7 +51,7 @@ const PRESET_CONFIGS: Record<NitroPreset, PresetConfig> = {
     outputDir: '.vercel/output',
     supportsWaitUntil: true,
   },
-  netlify: {
+  'netlify': {
     nitroPreset: 'netlify',
     outputDir: '.netlify/functions-internal',
     supportsWaitUntil: false,

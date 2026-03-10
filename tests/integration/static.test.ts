@@ -14,9 +14,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { scanRoutes } from '@timber/app/routing';
-import {
-  validateStaticMode,
-} from '../../packages/timber-app/src/plugins/static-build';
+import { validateStaticMode } from '../../packages/timber-app/src/plugins/static-build';
 import {
   resolvePrerenderConfig,
   checkDynamicSegmentParams,
@@ -370,7 +368,7 @@ describe('dynamic per-request', () => {
     const result = transformUseDynamic(code);
     expect(result).not.toBeNull();
     expect(result?.code).toContain('__markDynamic()');
-    expect(result?.code).toContain("import { markDynamic as __markDynamic }");
+    expect(result?.code).toContain('import { markDynamic as __markDynamic }');
     expect(result?.code).not.toContain("'use dynamic'");
   });
 
@@ -496,15 +494,15 @@ describe('shell invalidation', () => {
   });
 
   it('rejects non-string, non-array tags', () => {
-    expect(() =>
-      resolvePrerenderConfig({ tags: 'docs' as unknown as string[] })
-    ).toThrow('tags must be an array of strings');
+    expect(() => resolvePrerenderConfig({ tags: 'docs' as unknown as string[] })).toThrow(
+      'tags must be an array of strings'
+    );
   });
 
   it('rejects invalid fallback values', () => {
-    expect(() =>
-      resolvePrerenderConfig({ fallback: 'blocking' as unknown as 'shell' })
-    ).toThrow("fallback must be 'shell' or omitted");
+    expect(() => resolvePrerenderConfig({ fallback: 'blocking' as unknown as 'shell' })).toThrow(
+      "fallback must be 'shell' or omitted"
+    );
   });
 
   it('accepts fallback: "shell" in config', () => {
@@ -577,7 +575,7 @@ describe('shell invalidation', () => {
     const diag = checkDynamicSegmentParams(
       '/docs/[slug]',
       true, // isDynamic
-      true, // hasGenerateParams (prerender.ts has it)
+      true // hasGenerateParams (prerender.ts has it)
     );
     expect(diag).toBeNull();
   });
@@ -599,7 +597,7 @@ describe('shell invalidation', () => {
     const diag = checkDynamicSegmentParams(
       '/products/[id]',
       true,
-      false, // no generateParams
+      false // no generateParams
     );
     expect(diag).not.toBeNull();
     expect(diag?.type).toBe('DYNAMIC_SEGMENT_NO_PARAMS');

@@ -184,7 +184,7 @@ describe('http serve', () => {
     const { requestHandler } = createNodeHandler(adapter, timberHandler);
 
     const req = createMockIncomingMessage('POST', '/submit', {
-      host: 'localhost',
+      'host': 'localhost',
       'content-type': 'application/json',
     });
     const res = createMockServerResponse();
@@ -229,7 +229,7 @@ describe('compression', () => {
     });
 
     const req = createMockIncomingMessage('GET', '/', {
-      host: 'localhost',
+      'host': 'localhost',
       'accept-encoding': 'gzip, deflate',
     });
     const res = createMockServerResponse();
@@ -254,7 +254,7 @@ describe('compression', () => {
     });
 
     const req = createMockIncomingMessage('GET', '/', {
-      host: 'localhost',
+      'host': 'localhost',
       'accept-encoding': 'br, gzip',
     });
     const res = createMockServerResponse();
@@ -277,7 +277,7 @@ describe('compression', () => {
     });
 
     const req = createMockIncomingMessage('GET', '/', {
-      host: 'localhost',
+      'host': 'localhost',
       'accept-encoding': 'gzip',
     });
     const res = createMockServerResponse();
@@ -322,7 +322,7 @@ describe('compression', () => {
     });
 
     const req = createMockIncomingMessage('GET', '/', {
-      host: 'localhost',
+      'host': 'localhost',
       'accept-encoding': 'gzip',
     });
     const res = createMockServerResponse();

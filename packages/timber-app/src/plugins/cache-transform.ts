@@ -1,8 +1,5 @@
 import type { Plugin } from 'vite';
-import {
-  findFunctionsWithDirective,
-  containsDirective,
-} from '../utils/directive-parser.js';
+import { findFunctionsWithDirective, containsDirective } from '../utils/directive-parser.js';
 
 /**
  * Parse a cacheLife duration string to seconds.

@@ -251,12 +251,7 @@ async function renderRoute(
     // For RSC payload requests, still render the deny page as RSC stream
     // so the client can reconcile the error page into the existing DOM.
     if (isRscPayloadRequest(_req)) {
-      return renderDenyPageAsRsc(
-        denySignal,
-        segments,
-        layoutComponents,
-        responseHeaders
-      );
+      return renderDenyPageAsRsc(denySignal, segments, layoutComponents, responseHeaders);
     }
     return renderDenyPage(
       denySignal,

@@ -76,7 +76,7 @@ export function timberMdx(ctx: PluginContext): Plugin {
   async function activate(): Promise<void> {
     if (innerPlugin !== null || !shouldActivate(ctx)) return;
 
-    const createMdxPlugin = await tryImport('@mdx-js/rollup') as
+    const createMdxPlugin = (await tryImport('@mdx-js/rollup')) as
       | ((options?: Record<string, unknown>) => Plugin)
       | undefined;
 
@@ -89,7 +89,7 @@ export function timberMdx(ctx: PluginContext): Plugin {
           '  pnpm add -D @mdx-js/rollup remark-frontmatter remark-mdx-frontmatter',
           '',
           'MDX is activated because pageExtensions includes "mdx"/"md" or a content/ directory exists.',
-        ].join('\n'),
+        ].join('\n')
       );
     }
 
@@ -128,7 +128,10 @@ export function timberMdx(ctx: PluginContext): Plugin {
       await activate();
       if (!innerPlugin) return;
       if (typeof innerPlugin.buildStart === 'function') {
-        await (innerPlugin.buildStart as (options: unknown) => void | Promise<void>).call(this, options);
+        await (innerPlugin.buildStart as (options: unknown) => void | Promise<void>).call(
+          this,
+          options
+        );
       }
     },
 

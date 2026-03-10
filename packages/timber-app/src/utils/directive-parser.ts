@@ -111,10 +111,7 @@ export function detectFileDirective(
  * Scans lines from the top of the file. Skips blank lines and comments.
  * Checks if the first real statement is a directive string literal.
  */
-function detectFileDirectiveFallback(
-  code: string,
-  directives: string[]
-): FileDirective | null {
+function detectFileDirectiveFallback(code: string, directives: string[]): FileDirective | null {
   const lines = code.split('\n');
   let inBlockComment = false;
 
@@ -229,19 +226,12 @@ function walkAst(
   if (!node.type) return;
 
   // Check function declarations and expressions
-  if (
-    node.type === 'FunctionDeclaration' ||
-    node.type === 'FunctionExpression'
-  ) {
+  if (node.type === 'FunctionDeclaration' || node.type === 'FunctionExpression') {
     checkFunctionBody(node, code, directive, results, ancestors);
   }
 
   // Check arrow functions with block bodies
-  if (
-    node.type === 'ArrowFunctionExpression' &&
-    node.body &&
-    node.body.type === 'BlockStatement'
-  ) {
+  if (node.type === 'ArrowFunctionExpression' && node.body && node.body.type === 'BlockStatement') {
     checkFunctionBody(node, code, directive, results, ancestors);
   }
 
@@ -266,8 +256,7 @@ function checkFunctionBody(
   results: FunctionWithDirective[],
   ancestors: any[]
 ): void {
-  const body =
-    node.type === 'ArrowFunctionExpression' ? node.body : node.body;
+  const body = node.type === 'ArrowFunctionExpression' ? node.body : node.body;
   if (!body || body.type !== 'BlockStatement' || body.body.length === 0) return;
 
   // Check the first statement for a directive
@@ -286,7 +275,7 @@ function checkFunctionBody(
 
   let name = '';
   let prefix = '';
-  let isArrow = node.type === 'ArrowFunctionExpression';
+  const isArrow = node.type === 'ArrowFunctionExpression';
   let funcStart = node.start;
   let funcEnd = node.end;
 
@@ -386,10 +375,13 @@ function findFunctionsWithDirectiveFallback(
     const bodyContent = code.slice(bodyStart, bodyEnd);
     // Check that the directive is the first meaningful statement
     const trimmedBody = bodyContent.trimStart();
-    if (!trimmedBody.startsWith(`'${directive}'`) && !trimmedBody.startsWith(`"${directive}"`)) continue;
+    if (!trimmedBody.startsWith(`'${directive}'`) && !trimmedBody.startsWith(`"${directive}"`))
+      continue;
 
-    const directiveLine = code.slice(0, bodyStart).split('\n').length +
-      bodyContent.slice(0, bodyContent.indexOf(directive)).split('\n').length - 1;
+    const directiveLine =
+      code.slice(0, bodyStart).split('\n').length +
+      bodyContent.slice(0, bodyContent.indexOf(directive)).split('\n').length -
+      1;
 
     results.push({
       name,
@@ -416,10 +408,13 @@ function findFunctionsWithDirectiveFallback(
 
     const bodyContent = code.slice(bodyStart, bodyEnd);
     const trimmedBody = bodyContent.trimStart();
-    if (!trimmedBody.startsWith(`'${directive}'`) && !trimmedBody.startsWith(`"${directive}"`)) continue;
+    if (!trimmedBody.startsWith(`'${directive}'`) && !trimmedBody.startsWith(`"${directive}"`))
+      continue;
 
-    const directiveLine = code.slice(0, bodyStart).split('\n').length +
-      bodyContent.slice(0, bodyContent.indexOf(directive)).split('\n').length - 1;
+    const directiveLine =
+      code.slice(0, bodyStart).split('\n').length +
+      bodyContent.slice(0, bodyContent.indexOf(directive)).split('\n').length -
+      1;
 
     results.push({
       name,
@@ -488,7 +483,10 @@ function skipStringFallback(code: string, start: number): number {
   const quote = code[start];
   let i = start + 1;
   while (i < code.length) {
-    if (code[i] === '\\') { i += 2; continue; }
+    if (code[i] === '\\') {
+      i += 2;
+      continue;
+    }
     if (code[i] === quote) return i + 1;
     i++;
   }
@@ -498,7 +496,10 @@ function skipStringFallback(code: string, start: number): number {
 function skipTemplateFallback(code: string, start: number): number {
   let i = start + 1;
   while (i < code.length) {
-    if (code[i] === '\\') { i += 2; continue; }
+    if (code[i] === '\\') {
+      i += 2;
+      continue;
+    }
     if (code[i] === '`') return i + 1;
     if (code[i] === '$' && code[i + 1] === '{') {
       i = findMatchingBraceFallback(code, i + 1) + 1;

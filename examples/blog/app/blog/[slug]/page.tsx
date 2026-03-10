@@ -3,23 +3,21 @@ import { deny } from '@timber/app/server';
 import type { Metadata } from '@timber/app/server';
 
 export async function generateStaticParams() {
-  return allBlogs
-    .filter((p) => !p.draft)
-    .map((post) => ({ slug: post._meta.path }));
+  return allBlogs.filter((p) => !p.draft).map((post) => ({ slug: post._meta.path }));
 }
 
-export async function generateMetadata(
-  { params }: { params: Promise<{ slug: string }> },
-): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
   const { slug } = await params;
   const post = allBlogs.find((p) => p._meta.path === slug);
   if (!post) return {};
   return { title: post.title, description: post.description };
 }
 
-export default async function BlogPost(
-  { params }: { params: Promise<{ slug: string }> },
-) {
+export default async function BlogPost({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const post = allBlogs.find((p) => p._meta.path === slug);
   if (!post) deny(404);

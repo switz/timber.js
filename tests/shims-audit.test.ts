@@ -127,16 +127,12 @@ describe('next/navigation shim', () => {
 
   describe('redirect behavior', () => {
     it('redirect throws RedirectSignal', async () => {
-      const { redirect, RedirectSignal } = await import(
-        resolve(SRC_DIR, 'server/primitives.ts')
-      );
+      const { redirect, RedirectSignal } = await import(resolve(SRC_DIR, 'server/primitives.ts'));
       expect(() => redirect('/login')).toThrow(RedirectSignal);
     });
 
     it('redirect defaults to 302', async () => {
-      const { redirect, RedirectSignal } = await import(
-        resolve(SRC_DIR, 'server/primitives.ts')
-      );
+      const { redirect, RedirectSignal } = await import(resolve(SRC_DIR, 'server/primitives.ts'));
       try {
         redirect('/login');
       } catch (e) {
@@ -148,9 +144,7 @@ describe('next/navigation shim', () => {
 
   describe('notFound behavior', () => {
     it('notFound throws DenySignal with status 404', async () => {
-      const { notFound, DenySignal } = await import(
-        resolve(SRC_DIR, 'server/primitives.ts')
-      );
+      const { notFound, DenySignal } = await import(resolve(SRC_DIR, 'server/primitives.ts'));
       try {
         notFound();
       } catch (e) {
@@ -160,21 +154,25 @@ describe('next/navigation shim', () => {
     });
 
     it('notFound is equivalent to deny(404)', async () => {
-      const { notFound, deny, DenySignal } = await import(
-        resolve(SRC_DIR, 'server/primitives.ts')
-      );
+      const { notFound, deny, DenySignal } = await import(resolve(SRC_DIR, 'server/primitives.ts'));
 
       let notFoundError: unknown;
       let denyError: unknown;
 
-      try { notFound(); } catch (e) { notFoundError = e; }
-      try { deny(404); } catch (e) { denyError = e; }
+      try {
+        notFound();
+      } catch (e) {
+        notFoundError = e;
+      }
+      try {
+        deny(404);
+      } catch (e) {
+        denyError = e;
+      }
 
       expect(notFoundError).toBeInstanceOf(DenySignal);
       expect(denyError).toBeInstanceOf(DenySignal);
-      expect(
-        (notFoundError as InstanceType<typeof DenySignal>).status
-      ).toBe(
+      expect((notFoundError as InstanceType<typeof DenySignal>).status).toBe(
         (denyError as InstanceType<typeof DenySignal>).status
       );
     });
@@ -280,9 +278,7 @@ describe('nuqs compatibility', () => {
 
   it('.js extension import resolves (nuqs imports next/navigation.js)', async () => {
     // This tests the plugin resolveId behavior — nuqs imports with .js extension
-    const { timberShims } = await import(
-      '../packages/timber-app/src/plugins/shims.js'
-    );
+    const { timberShims } = await import('../packages/timber-app/src/plugins/shims.js');
     const plugin = timberShims({
       config: { output: 'server' },
       routeTree: null,
@@ -312,9 +308,7 @@ describe('next-themes compatibility', () => {
 
 describe('DenySignal handling integrity', () => {
   it('DenySignal is caught via instanceof, not message matching', async () => {
-    const { DenySignal } = await import(
-      resolve(SRC_DIR, 'server/primitives.ts')
-    );
+    const { DenySignal } = await import(resolve(SRC_DIR, 'server/primitives.ts'));
     const signal = new DenySignal(403);
 
     // Verify instanceof works (the correct detection path)

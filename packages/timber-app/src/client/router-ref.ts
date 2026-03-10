@@ -19,9 +19,7 @@ export function setGlobalRouter(router: RouterInstance): void {
  */
 export function getRouter(): RouterInstance {
   if (!globalRouter) {
-    throw new Error(
-      '[timber] Router not initialized. getRouter() was called before bootstrap().'
-    );
+    throw new Error('[timber] Router not initialized. getRouter() was called before bootstrap().');
   }
   return globalRouter;
 }

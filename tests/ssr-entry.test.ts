@@ -67,11 +67,7 @@ describe('SSR entry — renderSsrStream', () => {
       'html',
       null,
       createElement('head', null),
-      createElement(
-        'body',
-        null,
-        createElement('div', { id: 'shell' }, 'Shell Content')
-      )
+      createElement('body', null, createElement('div', { id: 'shell' }, 'Shell Content'))
     );
 
     const stream = await renderSsrStream(element);

@@ -26,9 +26,7 @@ import { renderToReadableStream } from 'react-dom/server';
  * @param element - The React element tree decoded from the RSC stream
  * @returns A ReadableStream of HTML bytes with hydration markers
  */
-export async function renderSsrStream(
-  element: ReactNode
-): Promise<ReadableStream<Uint8Array>> {
+export async function renderSsrStream(element: ReactNode): Promise<ReadableStream<Uint8Array>> {
   const stream = await renderToReadableStream(element, {
     onError(error: unknown) {
       console.error('[timber] SSR render error:', error);

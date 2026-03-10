@@ -16,9 +16,7 @@ import { test, expect } from '@playwright/test';
 const LEAKED_SOURCE_PATTERN = /\$E(?:Object\.defineProperty\()?(?:\()?function\s/;
 
 test.describe('rsc payload source leak', () => {
-  test('initial HTML does not contain server component source code', async ({
-    page,
-  }) => {
+  test('initial HTML does not contain server component source code', async ({ page }) => {
     // Intercept the raw HTML response before the browser parses it
     const [response] = await Promise.all([
       page.waitForResponse((res) => res.url().includes('/') && res.status() === 200),
@@ -40,7 +38,7 @@ test.describe('rsc payload source leak', () => {
 
     // Intercept the RSC payload response during client-side navigation
     const rscResponse = page.waitForResponse(
-      (res) => res.headers()['content-type']?.includes('text/x-component') ?? false,
+      (res) => res.headers()['content-type']?.includes('text/x-component') ?? false
     );
 
     await page.click('[data-testid="link-dashboard"]');

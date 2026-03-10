@@ -63,7 +63,9 @@ function createPluginContext(overrides: Partial<PluginContext> = {}): PluginCont
 }
 
 function createMockServer() {
-  const handlers: Array<(req: IncomingMessage, res: ServerResponse, next: () => void) => Promise<void>> = [];
+  const handlers: Array<
+    (req: IncomingMessage, res: ServerResponse, next: () => void) => Promise<void>
+  > = [];
   const rscRunner = {
     import: vi.fn(async () => ({
       default: async () => new Response('OK', { status: 200 }),
@@ -72,9 +74,13 @@ function createMockServer() {
   return {
     server: {
       middlewares: {
-        use: vi.fn((handler: (req: IncomingMessage, res: ServerResponse, next: () => void) => Promise<void>) => {
-          handlers.push(handler);
-        }),
+        use: vi.fn(
+          (
+            handler: (req: IncomingMessage, res: ServerResponse, next: () => void) => Promise<void>
+          ) => {
+            handlers.push(handler);
+          }
+        ),
       },
       ssrLoadModule: vi.fn(async () => ({
         default: async () => new Response('OK', { status: 200 }),
@@ -122,7 +128,10 @@ describe('frame classification', () => {
 
   it('classifies node: frames as "internal"', () => {
     expect(
-      classifyFrame('    at processTicksAndRejections (node:internal/process/task_queues:95:5)', PROJECT_ROOT)
+      classifyFrame(
+        '    at processTicksAndRejections (node:internal/process/task_queues:95:5)',
+        PROJECT_ROOT
+      )
     ).toBe('internal');
   });
 });
@@ -134,7 +143,7 @@ describe('component stack extraction', () => {
     const err = createRenderError(
       'Cannot read property',
       'Error: Cannot read property\n    at fn (/project/app/page.tsx:10:5)',
-      '  at ProductCard (app/products/product-card.tsx:23)\n  at ProductGrid (app/products/product-grid.tsx:15)',
+      '  at ProductCard (app/products/product-card.tsx:23)\n  at ProductGrid (app/products/product-grid.tsx:15)'
     );
     expect(extractComponentStack(err)).toContain('ProductCard');
   });
@@ -183,7 +192,10 @@ describe('first app frame parsing', () => {
 
 describe('error phase classification', () => {
   it('detects middleware errors from stack', () => {
-    const err = createError('fail', 'Error: fail\n    at handler (/project/app/dashboard/middleware.ts:10:5)');
+    const err = createError(
+      'fail',
+      'Error: fail\n    at handler (/project/app/dashboard/middleware.ts:10:5)'
+    );
     expect(classifyErrorPhase(err, PROJECT_ROOT)).toBe('middleware');
   });
 
@@ -196,13 +208,16 @@ describe('error phase classification', () => {
     const err = createRenderError(
       'fail',
       'Error: fail\n    at fn (/project/app/page.tsx:5:3)',
-      '  at Page (app/page.tsx:5)',
+      '  at Page (app/page.tsx:5)'
     );
     expect(classifyErrorPhase(err, PROJECT_ROOT)).toBe('render');
   });
 
   it('detects route handler errors from stack', () => {
-    const err = createError('fail', 'Error: fail\n    at GET (/project/app/api/users/route.ts:12:5)');
+    const err = createError(
+      'fail',
+      'Error: fail\n    at GET (/project/app/api/users/route.ts:12:5)'
+    );
     expect(classifyErrorPhase(err, PROJECT_ROOT)).toBe('handler');
   });
 
@@ -220,7 +235,7 @@ describe('terminal error formatting', () => {
       'render failed',
       'Error: render failed\n' +
         '    at Component (/project/app/page.tsx:10:5)\n' +
-        '    at renderComponent (packages/timber-app/src/server/render.ts:45:3)',
+        '    at renderComponent (packages/timber-app/src/server/render.ts:45:3)'
     );
 
     const output = formatTerminalError(err, 'render', PROJECT_ROOT);
@@ -231,10 +246,7 @@ describe('terminal error formatting', () => {
   });
 
   it('shows application frames at normal brightness', () => {
-    const err = createError(
-      'boom',
-      'Error: boom\n    at handler (/project/app/page.tsx:10:5)',
-    );
+    const err = createError('boom', 'Error: boom\n    at handler (/project/app/page.tsx:10:5)');
     const output = formatTerminalError(err, 'middleware', PROJECT_ROOT);
     // The app frame line should appear without DIM prefix
     const lines = output.split('\n');
@@ -253,7 +265,7 @@ describe('terminal error formatting', () => {
     const err = createRenderError(
       'fail',
       'Error: fail\n    at fn (/project/app/page.tsx:5:3)',
-      '  at ProductCard (app/products/card.tsx:23)\n  at ProductPage (app/products/page.tsx:8)',
+      '  at ProductCard (app/products/card.tsx:23)\n  at ProductPage (app/products/page.tsx:8)'
     );
     const output = formatTerminalError(err, 'render', PROJECT_ROOT);
     expect(output).toContain('Component Stack:');
@@ -268,7 +280,9 @@ describe('terminal error formatting', () => {
     expect(formatTerminalError(err, 'access', PROJECT_ROOT)).toContain('Access Check Error');
     expect(formatTerminalError(err, 'render', PROJECT_ROOT)).toContain('RSC Render Error');
     expect(formatTerminalError(err, 'handler', PROJECT_ROOT)).toContain('Route Handler Error');
-    expect(formatTerminalError(err, 'module-transform', PROJECT_ROOT)).toContain('Module Transform Error');
+    expect(formatTerminalError(err, 'module-transform', PROJECT_ROOT)).toContain(
+      'Module Transform Error'
+    );
   });
 });
 
@@ -294,7 +308,7 @@ describe('overlay payload construction', () => {
     expect(raw.ssrFixStacktrace).toHaveBeenCalledWith(err);
     // ssrFixStacktrace called before hot.send
     expect(raw.ssrFixStacktrace.mock.invocationCallOrder[0]).toBeLessThan(
-      raw.hot.send.mock.invocationCallOrder[0]!,
+      raw.hot.send.mock.invocationCallOrder[0]!
     );
   });
 
@@ -320,7 +334,7 @@ describe('overlay payload construction', () => {
       'boom',
       'Error: boom\n' +
         '    at internal (packages/timber-app/src/render.ts:10:3)\n' +
-        '    at Component (/project/app/page.tsx:42:18)',
+        '    at Component (/project/app/page.tsx:42:18)'
     );
 
     sendErrorToOverlay(server, err, 'render', PROJECT_ROOT);
@@ -338,7 +352,7 @@ describe('overlay payload construction', () => {
     const err = createRenderError(
       'fail',
       'Error: fail\n    at fn (/project/app/page.tsx:5:3)',
-      '  at ProductCard (app/card.tsx:23)',
+      '  at ProductCard (app/card.tsx:23)'
     );
 
     sendErrorToOverlay(server, err, 'render', PROJECT_ROOT);
@@ -374,20 +388,24 @@ describe('dev server integration', () => {
     stderrSpy.mockRestore();
   });
 
-  function setupMiddleware(overrides: {
-    rscHandler?: (req: Request) => Promise<Response>;
-    rscRunnerImportError?: Error;
-  } = {}) {
+  function setupMiddleware(
+    overrides: {
+      rscHandler?: (req: Request) => Promise<Response>;
+      rscRunnerImportError?: Error;
+    } = {}
+  ) {
     const ctx = createPluginContext();
     const plugin = timberDevServer(ctx);
     const mock = createMockServer();
 
     if (overrides.rscRunnerImportError) {
-      (mock.rscRunner as { import: unknown }).import =
-        vi.fn(async () => { throw overrides.rscRunnerImportError; });
+      (mock.rscRunner as { import: unknown }).import = vi.fn(async () => {
+        throw overrides.rscRunnerImportError;
+      });
     } else if (overrides.rscHandler) {
-      (mock.rscRunner as { import: unknown }).import =
-        vi.fn(async () => ({ default: overrides.rscHandler }));
+      (mock.rscRunner as { import: unknown }).import = vi.fn(async () => ({
+        default: overrides.rscHandler,
+      }));
     }
 
     const configureServer = plugin.configureServer as (s: ViteDevServer) => (() => void) | void;
@@ -399,7 +417,7 @@ describe('dev server integration', () => {
 
   async function invokeHandler(
     handler: (req: IncomingMessage, res: ServerResponse, next: () => void) => Promise<void>,
-    url: string,
+    url: string
   ) {
     const req = {
       url,
@@ -417,7 +435,11 @@ describe('dev server integration', () => {
     const next = vi.fn();
 
     await handler(req, res, next);
-    return { req, res: res as unknown as { statusCode: number; end: ReturnType<typeof vi.fn> }, next };
+    return {
+      req,
+      res: res as unknown as { statusCode: number; end: ReturnType<typeof vi.fn> },
+      next,
+    };
   }
 
   it('sends module transform errors to overlay on RSC runner import failure', async () => {
@@ -429,17 +451,18 @@ describe('dev server integration', () => {
 
     expect(res.statusCode).toBe(500);
     expect(mock.raw.ssrFixStacktrace).toHaveBeenCalledWith(syntaxError);
-    expect(mock.raw.hot.send).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'error' }),
-    );
+    expect(mock.raw.hot.send).toHaveBeenCalledWith(expect.objectContaining({ type: 'error' }));
   });
 
   it('sends pipeline errors to overlay with phase classification', async () => {
     const middlewareError = new Error('Middleware failed');
-    middlewareError.stack = 'Error: Middleware failed\n    at handler (/project/app/dashboard/middleware.ts:10:5)';
+    middlewareError.stack =
+      'Error: Middleware failed\n    at handler (/project/app/dashboard/middleware.ts:10:5)';
 
     const { handler, mock } = setupMiddleware({
-      rscHandler: async () => { throw middlewareError; },
+      rscHandler: async () => {
+        throw middlewareError;
+      },
     });
 
     const { res } = await invokeHandler(handler, '/dashboard');
@@ -451,7 +474,7 @@ describe('dev server integration', () => {
         err: expect.objectContaining({
           plugin: 'timber (Middleware)',
         }),
-      }),
+      })
     );
   });
 
@@ -459,7 +482,8 @@ describe('dev server integration', () => {
     const { handler, mock } = setupMiddleware();
 
     // First request: RSC runner.import throws
-    mock.rscRunner.import = vi.fn()
+    mock.rscRunner.import = vi
+      .fn()
       .mockRejectedValueOnce(new Error('syntax error'))
       .mockResolvedValueOnce({
         default: async () => new Response('OK', { status: 200 }),
@@ -478,7 +502,9 @@ describe('dev server integration', () => {
     pipelineError.stack = 'Error: render boom\n    at Component (/project/app/page.tsx:10:5)';
 
     const { handler, mock } = setupMiddleware({
-      rscHandler: async () => { throw pipelineError; },
+      rscHandler: async () => {
+        throw pipelineError;
+      },
     });
 
     await invokeHandler(handler, '/page');

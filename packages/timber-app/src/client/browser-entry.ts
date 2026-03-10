@@ -158,9 +158,9 @@ function handleLinkClick(event: MouseEvent, router: RouterInstance): void {
   if (event.defaultPrevented) return;
 
   // Find the closest <a> ancestor with data-timber-link
-  const anchor = (event.target as Element).closest?.('a[data-timber-link]') as
-    | HTMLAnchorElement
-    | null;
+  const anchor = (event.target as Element).closest?.(
+    'a[data-timber-link]'
+  ) as HTMLAnchorElement | null;
   if (!anchor) return;
 
   // Don't intercept links that should open externally
@@ -190,9 +190,9 @@ function handleLinkClick(event: MouseEvent, router: RouterInstance): void {
  * See design/19-client-navigation.md §"Prefetch Cache"
  */
 function handleLinkHover(event: MouseEvent, router: RouterInstance): void {
-  const anchor = (event.target as Element).closest?.('a[data-timber-prefetch]') as
-    | HTMLAnchorElement
-    | null;
+  const anchor = (event.target as Element).closest?.(
+    'a[data-timber-prefetch]'
+  ) as HTMLAnchorElement | null;
   if (!anchor) return;
 
   const href = anchor.getAttribute('href');

@@ -7,7 +7,13 @@ export type { RenderErrorDigest } from './types';
 export { Link, interpolateParams, resolveHref, validateLinkHref, buildLinkProps } from './link';
 export type { LinkProps, LinkPropsWithHref, LinkPropsWithParams } from './link';
 export { createRouter } from './router';
-export type { RouterInstance, NavigationOptions, RouterDeps, RscDecoder, RootRenderer } from './router';
+export type {
+  RouterInstance,
+  NavigationOptions,
+  RouterDeps,
+  RscDecoder,
+  RootRenderer,
+} from './router';
 export { useNavigationPending } from './use-navigation-pending';
 export { getRouter } from './router-ref';
 export { useRouter } from './use-router';

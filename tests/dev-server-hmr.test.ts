@@ -242,7 +242,9 @@ describe('dev server HMR wiring', () => {
     it('timber-dev-server is last in the plugin array', () => {
       const options = timber();
       // Filter to resolved Plugin objects (skip RSC loader promise)
-      const plugins = options.filter((p): p is import('vite').Plugin => !!p && typeof p === 'object' && 'name' in p);
+      const plugins = options.filter(
+        (p): p is import('vite').Plugin => !!p && typeof p === 'object' && 'name' in p
+      );
 
       // Find the timber-dev-server plugin
       const names = plugins.map((p) => p.name);
@@ -253,7 +255,9 @@ describe('dev server HMR wiring', () => {
 
     it('timber-dev-server comes after timber-content', () => {
       const options = timber();
-      const plugins = options.filter((p): p is import('vite').Plugin => !!p && typeof p === 'object' && 'name' in p);
+      const plugins = options.filter(
+        (p): p is import('vite').Plugin => !!p && typeof p === 'object' && 'name' in p
+      );
 
       const names = plugins.map((p) => p.name);
       const contentIndex = names.indexOf('timber-content');

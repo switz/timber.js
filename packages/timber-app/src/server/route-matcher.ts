@@ -57,7 +57,9 @@ export interface ManifestRoot {
  * The returned function takes a canonical pathname and returns a RouteMatch
  * or null if no route matches.
  */
-export function createRouteMatcher(manifest: ManifestRoot): (pathname: string) => RouteMatch | null {
+export function createRouteMatcher(
+  manifest: ManifestRoot
+): (pathname: string) => RouteMatch | null {
   return (pathname: string) => matchPathname(manifest.root, pathname);
 }
 

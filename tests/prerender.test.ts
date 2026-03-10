@@ -147,15 +147,15 @@ describe('resolvePrerenderConfig', () => {
   });
 
   it('throws on non-array tags', () => {
-    expect(() =>
-      resolvePrerenderConfig({ tags: 'docs' as unknown as string[] })
-    ).toThrow('tags must be an array of strings');
+    expect(() => resolvePrerenderConfig({ tags: 'docs' as unknown as string[] })).toThrow(
+      'tags must be an array of strings'
+    );
   });
 
   it('throws on invalid fallback', () => {
-    expect(() =>
-      resolvePrerenderConfig({ fallback: 'ssr' as unknown as 'shell' })
-    ).toThrow("fallback must be 'shell' or omitted");
+    expect(() => resolvePrerenderConfig({ fallback: 'ssr' as unknown as 'shell' })).toThrow(
+      "fallback must be 'shell' or omitted"
+    );
   });
 
   it('accepts fallback: "shell"', () => {
@@ -236,7 +236,7 @@ describe("'use dynamic' transform", () => {
     const result = transformUseDynamic(code);
     expect(result).not.toBeNull();
     expect(result?.code).toContain('__markDynamic();');
-    expect(result?.code).toContain("import { markDynamic as __markDynamic }");
+    expect(result?.code).toContain('import { markDynamic as __markDynamic }');
     expect(result?.code).not.toContain("'use dynamic'");
   });
 

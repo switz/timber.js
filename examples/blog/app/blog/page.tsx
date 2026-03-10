@@ -24,7 +24,9 @@ export default function BlogIndex() {
             {post.tags.length > 0 && (
               <div data-testid="blog-tags">
                 {post.tags.map((t) => (
-                  <span key={t} data-testid="blog-tag">#{t}</span>
+                  <span key={t} data-testid="blog-tag">
+                    #{t}
+                  </span>
                 ))}
               </div>
             )}

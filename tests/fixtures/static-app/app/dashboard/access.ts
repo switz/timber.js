@@ -1,3 +1,3 @@
 export default function access(ctx: any) {
-  return ctx.allow()
+  return ctx.allow();
 }

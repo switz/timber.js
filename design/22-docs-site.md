@@ -6,6 +6,8 @@ timber.js needs a public-facing documentation and marketing site. The site is a 
 
 The site uses `output: 'server'` so it can showcase forms, server actions, middleware, and other server-side features that a static export would strip away. It runs on Cloudflare Workers alongside the framework it documents.
 
+This will be deployed to https://timberjs.com on cloudflare pages - which we own on Cloudflare.
+
 ---
 
 ## Package
@@ -27,11 +29,19 @@ packages/docs-site/
     page.tsx                    # Marketing landing page
     components/
       ai-docs-banner.tsx        # Warning banner for AI-generated content
+      version-selector.tsx      # 'use client' — version dropdown
+      copy-button.tsx           # 'use client' — code block copy
+      package-manager-tabs.tsx  # 'use client' — npm/pnpm/yarn tabs
     docs/
-      layout.tsx                # Sidebar nav
-      page.tsx                  # Redirects to first doc
+      layout.tsx                # Outer docs chrome (version selector)
+      page.tsx                  # Redirects to /docs/latest
       [slug]/
-        page.tsx                # Individual doc page
+        middleware.ts           # Redirects /docs/foo → /docs/latest/foo
+      [version]/
+        layout.tsx              # Sidebar nav (filtered to this version)
+        page.tsx                # Version index (brief intro, sidebar navigates)
+        [slug]/
+          page.tsx              # Individual doc page
     blog/
       page.tsx                  # Blog index
       [slug]/
@@ -47,11 +57,16 @@ packages/docs-site/
 
   content/
     docs/
-      getting-started.mdx
-      configuration.mdx
-      routing.mdx
+      v1/
+        getting-started.mdx
+        configuration.mdx
+        routing.mdx
     blog/
       hello-world.mdx
+
+  lib/
+    docs.ts                 # LATEST_VERSION, ALL_VERSIONS constants
+    utils.ts                # groupBy helper, cn() for shadcn
 
   public/
     favicon.ico
@@ -69,7 +84,7 @@ export default {
   pageExtensions: ['tsx', 'ts', 'jsx', 'js', 'mdx'],
   mdx: {
     remarkPlugins: [],    // add remark-gfm, etc. as needed
-    rehypePlugins: [],    // add rehype-shiki for syntax highlighting
+    rehypePlugins: [],
   },
 }
 ```
@@ -134,6 +149,8 @@ Tailwind v4 via `@tailwindcss/vite`. Zero-config — no `tailwind.config.js` or 
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
 }
 ```
+
+Font loading (Inter, JetBrains Mono) is handled by the framework-level font system — see [Fonts & Web Font Loading](24-fonts.md). The `--font-sans` and `--font-mono` declarations reference fonts that timber's font pipeline makes available.
 
 ---
 
@@ -204,40 +221,27 @@ No animations. No JavaScript for the landing page beyond hydration.
 
 ### `/docs` — Documentation
 
-Sidebar layout generated from the docs content collection, sorted by `order`, grouped by `section`.
+Versioned docs with sidebar navigation. See [Doc Versioning](#doc-versioning) for full route structure, content organization, and code examples.
 
-```tsx
-// app/docs/layout.tsx
-import { allDocs } from 'content-collections'
+`/docs` redirects to `/docs/latest`. `/docs/v1` (version with no slug) shows a brief version index page with the sidebar providing navigation. Each doc page renders MDX content with the AI-generated content banner.
 
-export default function DocsLayout({ children }) {
-  const sections = groupBy(allDocs.sort((a, b) => a.order - b.order), 'section')
+## Writing Style
 
-  return (
-    <div className="flex">
-      <nav className="w-64 shrink-0">
-        {Object.entries(sections).map(([section, docs]) => (
-          <div key={section}>
-            {section && <h3>{section}</h3>}
-            <ul>
-              {docs.map((doc) => (
-                <li key={doc._meta.path}>
-                  <Link href={`/docs/${doc._meta.path}`}>{doc.title}</Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
-      </nav>
-      <main className="flex-1 min-w-0">{children}</main>
-    </div>
-  )
-}
-```
+Docs and pages should be written in a serious but informal tone. They should convey an air of authority, confidence, but friendliness and the occasionally cheekiness. They should be clear, concise, and not use more description than necessary to get the point across. They should never be critical or denigrating towards alternatives like nextjs and vinext, nor should they hold these comparisons with great reverence. Nextjs is a valuable and powerful framework and this would not exist without it, but we feel divergent design decisions make this framework easier to use and understand, and aligns better with our intended usage. This is not a framework for everyone, nor for every use case. Next is far more mature and battle-tested.
 
-`/docs` itself redirects to the first doc (lowest `order`). No index page.
+These docs will be replaced by hand-written docs. This is just for us to get something up and help us organize our thoughts. Before we launch publicly they will _all_ be re-written. For future readers of this document, please understand that I too find the fact that I am writing this description completely absurd and somewhat embarassing. The real website will be entirely hand-written.
 
-Each doc page renders the MDX content with the AI-generated content banner.
+Code samples should be rendered with Bright.js (rsc code block - https://github.com/code-hike/bright) with proper syntax highlighting. Code blocks should have copying. `npm install` should have support for `pnpm`/`yarn`/`npm` using client components.
+
+In general you should use `<Link` components for anchor tags.
+
+## Components
+
+Avoid pulling in external components unless they are shadcn related. If we need some re-usable components, install shadcn and the related packages.
+
+## Light Mode/Dark Mode
+
+The docs site should have a light mode and a dark mode and only be rendered based on the users preferred style (css). Don't do any javascript based detection.
 
 ### `/blog` — Blog
 
@@ -373,6 +377,7 @@ export default function RootLayout({ children }) {
 {
   "dependencies": {
     "@timber/app": "workspace:*",
+    "bright": "^0.8.5",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
@@ -395,9 +400,9 @@ Version numbers follow the existing `examples/blog` and `examples/tailwind` pack
 
 ## What This Doc Does Not Cover
 
-- **Visual design.** Color palette, typography scale, and page layouts will be iterated on after scaffolding is in place.
+- **Visual design.** Color palette, typography scale, and page layouts will be iterated on after scaffolding is in place. Choose some basic good tenants for now without going too far.
 - **Search.** Full-text doc search is a future feature. Not needed for scaffolding.
-- **Versioned docs.** See [Doc Versioning](#doc-versioning) below.
+- **Font loading.** How fonts are loaded (Inter, JetBrains Mono) is a framework-level concern — see [Fonts & Web Font Loading](24-fonts.md).
 - **Deployment.** Cloudflare Workers deployment config (wrangler.toml, etc.) will be added when the site is ready to ship.
 - **Analytics.** No tracking in scaffolding. Add later if needed.
 
@@ -416,7 +421,7 @@ Docs are versioned by URL prefix. The canonical URL for a doc page includes the 
 /docs/v2/routing
 ```
 
-`/docs/latest/getting-started` is an alias that redirects (302) to the current version. `/docs/getting-started` (no version prefix) also redirects to latest. This keeps one canonical URL per doc page — no duplicate content, clean cache behavior.
+`/docs/latest/getting-started` is an alias that renders the latest docs inline — no redirect. The page resolves `latest` to `LATEST_VERSION` for content lookup but serves the response at the `/docs/latest/` URL. `/docs/getting-started` (no version prefix) redirects to `/docs/latest/getting-started`.
 
 ### Route Structure
 
@@ -429,9 +434,12 @@ app/
       middleware.ts                   # Redirects /docs/foo → /docs/latest/foo
     [version]/
       layout.tsx                      # Sidebar nav (filtered to this version)
+      page.tsx                        # Version index (brief intro, sidebar navigates)
       [slug]/
         page.tsx                      # Individual doc page
 ```
+
+**Why `[slug]` and `[version]` don't conflict:** Both are dynamic segments at the same level under `docs/`, but they match different URL depths. A request for `/docs/routing` (one segment) matches `[slug]/middleware.ts`. A request for `/docs/v1/routing` (two segments) matches `[version]/[slug]/page.tsx`. The router resolves these unambiguously based on segment count — see [Route Matching](07-routing.md#route-matching).
 
 ### Middleware for Redirects
 
@@ -451,17 +459,18 @@ The `[slug]` route exists only for the redirect — it has no `page.tsx`. The `[
 ```ts
 // app/docs/[version]/[slug]/page.tsx
 import { allDocs } from 'content-collections'
-import { deny, redirect } from '@timber/app/server'
+import { deny } from '@timber/app/server'
 import { LATEST_VERSION } from '@/lib/docs'
 
 export default async function DocPage({ params }) {
   const { version, slug } = await params
 
-  // Redirect /docs/latest/foo → /docs/v1/foo
-  if (version === 'latest') redirect(`/docs/${LATEST_VERSION}/${slug}`)
+  // Resolve "latest" to the actual version for content lookup — no redirect.
+  // The URL stays as /docs/latest/routing.
+  const resolvedVersion = version === 'latest' ? LATEST_VERSION : version
 
   const doc = allDocs.find(
-    (d) => d.version === version && d._meta.path === slug
+    (d) => d.version === resolvedVersion && d._meta.fileName === slug
   )
   if (!doc) deny(404)
 
@@ -541,6 +550,27 @@ export default function DocsLayout({ children }) {
 
 `VersionSelector` is a `'use client'` component that reads the current path and swaps the version segment.
 
+### Version Index Page
+
+`/docs/v1` (version with no slug) renders a brief intro page. The sidebar provides navigation to individual docs — this page does not duplicate the sidebar as a table of contents.
+
+```tsx
+// app/docs/[version]/page.tsx
+import { LATEST_VERSION } from '@/lib/docs'
+
+export default async function VersionIndex({ params }) {
+  const { version } = await params
+  const resolvedVersion = version === 'latest' ? LATEST_VERSION : version
+
+  return (
+    <div className="prose dark:prose-invert">
+      <h1>timber.js {resolvedVersion} Documentation</h1>
+      <p>Select a topic from the sidebar to get started.</p>
+    </div>
+  )
+}
+```
+
 ### Sidebar Filtering
 
 The sidebar layout inside `[version]/` filters docs to the current version:
@@ -548,11 +578,13 @@ The sidebar layout inside `[version]/` filters docs to the current version:
 ```tsx
 // app/docs/[version]/layout.tsx
 import { allDocs } from 'content-collections'
+import { LATEST_VERSION } from '@/lib/docs'
 
 export default async function VersionedDocsLayout({ children, params }) {
   const { version } = await params
+  const resolvedVersion = version === 'latest' ? LATEST_VERSION : version
   const versionDocs = allDocs
-    .filter((d) => d.version === version)
+    .filter((d) => d.version === resolvedVersion)
     .sort((a, b) => a.order - b.order)
 
   const sections = groupBy(versionDocs, 'section')
@@ -581,6 +613,14 @@ export default async function VersionedDocsLayout({ children, params }) {
 }
 ```
 
+### Extra Content
+
+All of these should include the AI header.
+
+- Create a docs page explaining _why timber_?
+- Create a docs page comparing timber to nextjs
+- Create a docs page comparing timber to vinext
+
 ### Design Decisions
 
 **Why URL-prefix versioning, not query params or a toggle?**
@@ -589,10 +629,11 @@ export default async function VersionedDocsLayout({ children, params }) {
 - Old links never break — `/docs/v1/routing` works forever
 - Middleware handles all the redirect logic with zero client JS
 
-**Why `latest` redirects instead of rendering directly?**
-- One canonical URL per page (SEO)
-- Cache keys are unambiguous
-- When `LATEST_VERSION` changes from v1 to v2, all `/docs/latest/*` links automatically point to v2 content with no stale caches
+**Why `latest` renders in-place instead of redirecting?**
+- `/docs/latest/routing` is a stable, shareable URL that always shows current docs
+- No redirect chain — faster page loads
+- When `LATEST_VERSION` changes from v1 to v2, `/docs/latest/*` URLs serve v2 content automatically
+- Versioned URLs (`/docs/v1/routing`) still work forever for pinned references
 
 **Why content directories, not frontmatter `version` field?**
 - Directory structure mirrors URL structure — predictable
@@ -609,3 +650,4 @@ export default async function VersionedDocsLayout({ children, params }) {
 - [Routing & Middleware](07-routing.md) — File-system routing, `middleware.ts`, `<Link>`
 - [Metadata](16-metadata.md) — Title templates, `generateMetadata`
 - [Complete Examples](12-example.md) — Patterns used in the example routes
+- [Fonts & Web Font Loading](24-fonts.md) — Framework-level font optimization

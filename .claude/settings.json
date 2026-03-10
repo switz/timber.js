@@ -47,7 +47,10 @@
       "Bash(gh api *)",
       "Bash(gh search *)",
       "Bash(pnpm exec playwright test *)",
-      "WebSearch"
+      "WebSearch",
+      "WebFetch(domain:nuqs.47ng.com)",
+      "WebFetch(domain:nuqs.dev)",
+      "WebFetch(domain:github.com)"
     ],
     "additionalDirectories": [
       "/Users/dsaewitz/y/timber-js-fresh/tests/e2e",

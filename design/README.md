@@ -31,3 +31,26 @@ The shortest version: **if Rails or PHP could do it, so can we.** Correct HTTP s
 | [Content Collections & MDX](20-content-collections.md) | `timber-mdx` plugin, `@mdx-js/rollup` integration, `mdx-components.tsx`, content collections, `defineCollection()`, typed queries, build-time validation |
 | [Dev Server & HMR](21-dev-server.md) | `timber-dev-server` plugin, three-environment HMR wiring, dev logging tree, dev-mode warnings, error overlay, Node↔Web conversion |
 | [Docs & Marketing Site](22-docs-site.md) | `@timber/docs-site` package, content collections for docs + blog, server actions demos, AI-generated content banners, Tailwind v4 styling |
+| [Search Params](23-search-params.md) | nuqs integration, `useQueryStates`, route-scoped typing, composable patterns, URL key aliasing, codec bridge, `shallow: false` default |
+| [Fonts & Web Font Loading](24-fonts.md) | `@timber/fonts/google`, `@timber/fonts/local`, build-time font download/subsetting, size-adjusted fallbacks, Early Hints integration, CSS variable bridging |
+
+## Future Concerns
+
+We don't need to create docs for these now but future things that would be nice to add
+
+- [ ] Built in support for svg sprite maps (for icons and otherwise), based on sly
+- [ ] Built in support for authentication libraries like better-auth
+- [ ] Open Graph image generation with takumi rs, fully integrated w/ cache busting
+- [ ] Cross-deployment/build server action encryption keys
+- [ ] Version skew management somehow, for both assets and actions
+- [ ] Public ENV vars with a key prefix
+- [ ] Built-in image optimization pipeline (resizing, format conversion, CDN-aware caching)
+- [ ] Dev overlay w/ RSC aware stack traces
+- [ ] better/proper i18n localization story
+- [ ] preview deployments?
+- [ ] CLI scaffolding and create-timber-app
+- [ ] built-in sitemap/robots generation
+- [ ] structure logging/log drains
+- [ ] comprehensive framework-integrated feature flags
+- [ ] monorepo support
+- [ ] content security policies

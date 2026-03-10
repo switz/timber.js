@@ -26,6 +26,15 @@ import { timberDevServer } from '../packages/timber-app/src/plugins/dev-server';
 import type { PluginContext } from '../packages/timber-app/src/index';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
+// Mock isRunnableDevEnvironment to always return true in tests
+vi.mock('vite', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('vite')>();
+  return {
+    ...actual,
+    isRunnableDevEnvironment: () => true,
+  };
+});
+
 // ─── Helpers ──────────────────────────────────────────────────────────────
 
 const PROJECT_ROOT = '/project';
@@ -55,6 +64,11 @@ function createPluginContext(overrides: Partial<PluginContext> = {}): PluginCont
 
 function createMockServer() {
   const handlers: Array<(req: IncomingMessage, res: ServerResponse, next: () => void) => Promise<void>> = [];
+  const rscRunner = {
+    import: vi.fn(async () => ({
+      default: async () => new Response('OK', { status: 200 }),
+    })),
+  };
   return {
     server: {
       middlewares: {
@@ -68,16 +82,20 @@ function createMockServer() {
       ssrFixStacktrace: vi.fn(),
       watcher: { on: vi.fn().mockReturnThis(), add: vi.fn() },
       restart: vi.fn(),
-      environments: {},
+      environments: {
+        rsc: { runner: rscRunner },
+      },
       config: { root: PROJECT_ROOT },
       hot: { send: vi.fn() },
     } as unknown as ViteDevServer,
     handlers,
+    rscRunner,
     get raw() {
       return this.server as unknown as {
         ssrLoadModule: ReturnType<typeof vi.fn>;
         ssrFixStacktrace: ReturnType<typeof vi.fn>;
         hot: { send: ReturnType<typeof vi.fn> };
+        environments: { rsc: { runner: { import: ReturnType<typeof vi.fn> } } };
       };
     },
   };
@@ -358,17 +376,17 @@ describe('dev server integration', () => {
 
   function setupMiddleware(overrides: {
     rscHandler?: (req: Request) => Promise<Response>;
-    ssrLoadModuleError?: Error;
+    rscRunnerImportError?: Error;
   } = {}) {
     const ctx = createPluginContext();
     const plugin = timberDevServer(ctx);
     const mock = createMockServer();
 
-    if (overrides.ssrLoadModuleError) {
-      (mock.server as unknown as { ssrLoadModule: ReturnType<typeof vi.fn> }).ssrLoadModule =
-        vi.fn(async () => { throw overrides.ssrLoadModuleError; });
+    if (overrides.rscRunnerImportError) {
+      (mock.rscRunner as { import: unknown }).import =
+        vi.fn(async () => { throw overrides.rscRunnerImportError; });
     } else if (overrides.rscHandler) {
-      (mock.server as unknown as { ssrLoadModule: ReturnType<typeof vi.fn> }).ssrLoadModule =
+      (mock.rscRunner as { import: unknown }).import =
         vi.fn(async () => ({ default: overrides.rscHandler }));
     }
 
@@ -402,10 +420,10 @@ describe('dev server integration', () => {
     return { req, res: res as unknown as { statusCode: number; end: ReturnType<typeof vi.fn> }, next };
   }
 
-  it('sends module transform errors to overlay on ssrLoadModule failure', async () => {
+  it('sends module transform errors to overlay on RSC runner import failure', async () => {
     const syntaxError = new SyntaxError('Unexpected token');
     syntaxError.stack = 'SyntaxError: Unexpected token\n    at parse (/project/app/page.tsx:5:10)';
-    const { handler, mock } = setupMiddleware({ ssrLoadModuleError: syntaxError });
+    const { handler, mock } = setupMiddleware({ rscRunnerImportError: syntaxError });
 
     const { res } = await invokeHandler(handler, '/dashboard');
 
@@ -440,13 +458,12 @@ describe('dev server integration', () => {
   it('server remains running after error — next request succeeds', async () => {
     const { handler, mock } = setupMiddleware();
 
-    // First request: ssrLoadModule throws
-    (mock.server as unknown as { ssrLoadModule: ReturnType<typeof vi.fn> }).ssrLoadModule =
-      vi.fn()
-        .mockRejectedValueOnce(new Error('syntax error'))
-        .mockResolvedValueOnce({
-          default: async () => new Response('OK', { status: 200 }),
-        });
+    // First request: RSC runner.import throws
+    mock.rscRunner.import = vi.fn()
+      .mockRejectedValueOnce(new Error('syntax error'))
+      .mockResolvedValueOnce({
+        default: async () => new Response('OK', { status: 200 }),
+      });
 
     const first = await invokeHandler(handler, '/dashboard');
     expect(first.res.statusCode).toBe(500);

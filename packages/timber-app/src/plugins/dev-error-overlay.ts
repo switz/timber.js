@@ -12,16 +12,22 @@ import type { ViteDevServer } from 'vite';
 // ─── Types ──────────────────────────────────────────────────────────────────
 
 /** The phase of the pipeline where the error occurred. */
-export type ErrorPhase = 'module-transform' | 'proxy' | 'middleware' | 'access' | 'render' | 'handler';
+export type ErrorPhase =
+  | 'module-transform'
+  | 'proxy'
+  | 'middleware'
+  | 'access'
+  | 'render'
+  | 'handler';
 
 /** Labels for terminal output. */
 const PHASE_LABELS: Record<ErrorPhase, string> = {
   'module-transform': 'Module Transform',
-  proxy: 'Proxy',
-  middleware: 'Middleware',
-  access: 'Access Check',
-  render: 'RSC Render',
-  handler: 'Route Handler',
+  'proxy': 'Proxy',
+  'middleware': 'Middleware',
+  'access': 'Access Check',
+  'render': 'RSC Render',
+  'handler': 'Route Handler',
 };
 
 // ─── Frame Classification ───────────────────────────────────────────────────
@@ -188,7 +194,7 @@ export function sendErrorToOverlay(
   server: ViteDevServer,
   error: Error,
   phase: ErrorPhase,
-  projectRoot: string,
+  projectRoot: string
 ): void {
   // Fix stack trace to use source-mapped positions
   server.ssrFixStacktrace(error);

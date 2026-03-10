@@ -19,6 +19,15 @@ import { timberDevServer } from '../packages/timber-app/src/plugins/dev-server.j
 import { timber } from '../packages/timber-app/src/index.js';
 import type { PluginContext } from '../packages/timber-app/src/index.js';
 
+// Mock isRunnableDevEnvironment to always return true in tests
+vi.mock('vite', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('vite')>();
+  return {
+    ...actual,
+    isRunnableDevEnvironment: () => true,
+  };
+});
+
 // ─── Helpers ──────────────────────────────────────────────────────────────
 
 function createPluginContext(overrides: Partial<PluginContext> = {}): PluginContext {
@@ -43,6 +52,12 @@ function createMockServer() {
     handlers: [] as Array<unknown>,
   };
 
+  const rscRunner = {
+    import: vi.fn(async () => ({
+      default: async () => new Response('OK', { status: 200 }),
+    })),
+  };
+
   const server = {
     middlewares,
     watcher: {
@@ -59,6 +74,7 @@ function createMockServer() {
     restart: vi.fn(),
     environments: {
       rsc: {
+        runner: rscRunner,
         moduleGraph: {
           getModuleById: vi.fn().mockReturnValue({ id: 'test' }),
           invalidateModule: vi.fn(),
@@ -224,7 +240,9 @@ describe('dev server HMR wiring', () => {
 
   describe('plugin ordering', () => {
     it('timber-dev-server is last in the plugin array', () => {
-      const plugins = timber();
+      const options = timber();
+      // Filter to resolved Plugin objects (skip RSC loader promise)
+      const plugins = options.filter((p): p is import('vite').Plugin => !!p && typeof p === 'object' && 'name' in p);
 
       // Find the timber-dev-server plugin
       const names = plugins.map((p) => p.name);
@@ -234,7 +252,8 @@ describe('dev server HMR wiring', () => {
     });
 
     it('timber-dev-server comes after timber-content', () => {
-      const plugins = timber();
+      const options = timber();
+      const plugins = options.filter((p): p is import('vite').Plugin => !!p && typeof p === 'object' && 'name' in p);
 
       const names = plugins.map((p) => p.name);
       const contentIndex = names.indexOf('timber-content');
@@ -263,8 +282,8 @@ describe('dev server HMR wiring', () => {
     });
   });
 
-  describe('SSR module re-evaluation on request', () => {
-    it('calls ssrLoadModule on each request for fresh modules', async () => {
+  describe('RSC module re-evaluation on request', () => {
+    it('calls RSC environment runner.import on each request for fresh modules', async () => {
       const ctx = createPluginContext();
       const plugin = timberDevServer(ctx);
       const { server, raw } = createMockServer();
@@ -297,9 +316,9 @@ describe('dev server HMR wiring', () => {
         await middleware(req, res, vi.fn());
       }
 
-      // ssrLoadModule should be called on each request (not cached)
+      // RSC runner.import should be called on each request (not cached)
       // This ensures file changes picked up by Vite's invalidation are reflected
-      expect(raw.ssrLoadModule).toHaveBeenCalledTimes(2);
+      expect(raw.environments.rsc.runner.import).toHaveBeenCalledTimes(2);
     });
   });
 });

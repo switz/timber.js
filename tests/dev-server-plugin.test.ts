@@ -4,6 +4,15 @@ import { timberDevServer } from '../packages/timber-app/src/plugins/dev-server.j
 import type { PluginContext } from '../packages/timber-app/src/index.js';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
+// vi.mock isRunnableDevEnvironment to always return true in tests
+vi.mock('vite', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('vite')>();
+  return {
+    ...actual,
+    isRunnableDevEnvironment: () => true,
+  };
+});
+
 // ─── Helpers ──────────────────────────────────────────────────────────────
 
 function createPluginContext(overrides: Partial<PluginContext> = {}): PluginContext {
@@ -63,7 +72,7 @@ function createMockRes() {
 }
 
 /**
- * Create a mock ViteDevServer with ssrLoadModule stubbed.
+ * Create a mock ViteDevServer with RSC environment runner stubbed.
  */
 function createMockServer(
   overrides: {
@@ -74,6 +83,15 @@ function createMockServer(
 
   const rscHandler =
     overrides.rscHandler ?? (async () => new Response('RSC stream', { status: 200 }));
+
+  const rscRunner = {
+    import: vi.fn(async (id: string) => {
+      if (id === 'virtual:timber-rsc-entry') {
+        return { default: rscHandler };
+      }
+      throw new Error(`Unexpected module: ${id}`);
+    }),
+  };
 
   const server = {
     middlewares,
@@ -90,7 +108,11 @@ function createMockServer(
     },
     restart: vi.fn(),
     ssrFixStacktrace: vi.fn(),
-    environments: {},
+    environments: {
+      rsc: {
+        runner: rscRunner,
+      },
+    },
     config: {
       root: '/test',
     },
@@ -164,7 +186,7 @@ describe('timber-dev-server plugin', () => {
   });
 
   describe('request handling', () => {
-    it('loads RSC entry via ssrLoadModule', async () => {
+    it('loads RSC entry via RSC environment runner', async () => {
       const rscHandler = vi.fn(async () => new Response('test', { status: 200 }));
       const { handler } = setupMiddleware({ rscHandler });
 

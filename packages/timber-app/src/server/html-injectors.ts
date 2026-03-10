@@ -81,12 +81,31 @@ export function injectScripts(
 }
 
 /**
+ * Escape a string for safe embedding inside a `<script>` tag as a
+ * single-quoted string literal.
+ *
+ * Escapes backslashes, single quotes, newlines (`\n`, `\r`), `<`
+ * (prevents `</script>` from closing the tag early), and U+2028/U+2029
+ * (line/paragraph separators that are valid in JSON but invalid in JS
+ * string literals).
+ */
+function escapeForScript(str: string): string {
+  return str
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, "\\'")
+    .replace(/\n/g, '\\n')
+    .replace(/\r/g, '\\r')
+    .replace(/</g, '\\x3c')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029');
+}
+
+/**
  * Inline the RSC Flight payload into the HTML stream for client-side hydration.
  *
- * Reads the RSC stream, base64-encodes the bytes, and injects a script before
- * </body> that creates window.__TIMBER_RSC_PAYLOAD as a ReadableStream.
- * The browser entry decodes this via createFromReadableStream to hydrate
- * the React tree without a second server round-trip.
+ * Reads the RSC stream, collects it as a UTF-8 string, and injects a script
+ * before </body> that sets window.__TIMBER_RSC_PAYLOAD to the escaped text.
+ * The browser entry wraps this in a ReadableStream for createFromReadableStream.
  *
  * If no rscStream is provided, returns the HTML stream unchanged.
  */
@@ -103,17 +122,21 @@ export function injectRscPayload(
   // Buffer the HTML stream until we find </body>, then inject the RSC script.
   let htmlBuffer = '';
   let htmlInjected = false;
-  const rscChunks: Uint8Array[] = [];
+  const rscChunks: string[] = [];
   let rscDone = false;
   const rscReader = rscStream.getReader();
+  const rscDecoder = new TextDecoder();
 
   // Read the RSC stream to completion in the background
   const rscPromise = (async () => {
     for (;;) {
       const { done, value } = await rscReader.read();
       if (done) break;
-      rscChunks.push(value);
+      rscChunks.push(rscDecoder.decode(value, { stream: true }));
     }
+    // Flush any remaining bytes from the streaming decoder
+    const final = rscDecoder.decode();
+    if (final) rscChunks.push(final);
     rscDone = true;
   })();
 
@@ -132,27 +155,11 @@ export function injectRscPayload(
           // Wait for RSC stream to complete before injecting
           if (!rscDone) await rscPromise;
 
-          // Concatenate RSC chunks and base64-encode
-          const totalLen = rscChunks.reduce((sum, c) => sum + c.length, 0);
-          const combined = new Uint8Array(totalLen);
-          let offset = 0;
-          for (const c of rscChunks) {
-            combined.set(c, offset);
-            offset += c.length;
-          }
-
-          // Encode RSC bytes as a comma-separated list of byte values.
-          // This avoids base64 decoding complexity on the client and works
-          // with any binary content in the RSC stream.
-          const byteStr = Array.from(combined).join(',');
+          const rscText = escapeForScript(rscChunks.join(''));
 
           const script =
             '<script>' +
-            '(function(){' +
-            `var d=new Uint8Array([${byteStr}]);` +
-            'var s=new ReadableStream({start:function(c){c.enqueue(d);c.close();}});' +
-            'window.__TIMBER_RSC_PAYLOAD=s;' +
-            '})()' +
+            `window.__TIMBER_RSC_PAYLOAD='${rscText}'` +
             '</script>';
 
           const before = htmlBuffer.slice(0, tagIndex);

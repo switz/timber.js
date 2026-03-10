@@ -179,6 +179,125 @@ describe('client bootstrap script injection', () => {
   });
 });
 
+/**
+ * Helper: run HTML through injectRscPayload and collect output.
+ */
+async function runInjectRscPayload(html: string, rscPayload: string | undefined): Promise<string> {
+  const { injectRscPayload } = await import(resolve(SRC_DIR, 'server/html-injectors.ts'));
+  const encoder = new TextEncoder();
+  const decoder = new TextDecoder();
+
+  const htmlStream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(encoder.encode(html));
+      controller.close();
+    },
+  });
+
+  let rscStream: ReadableStream<Uint8Array> | undefined;
+  if (rscPayload !== undefined) {
+    rscStream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(encoder.encode(rscPayload));
+        controller.close();
+      },
+    });
+  }
+
+  const outputStream = injectRscPayload(htmlStream, rscStream);
+  const reader = outputStream.getReader();
+  let result = '';
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    result += decoder.decode(value);
+  }
+  return result;
+}
+
+describe('injectRscPayload', () => {
+  it('returns stream unchanged when rscStream is undefined', async () => {
+    const html = '<html><body><div>Hello</div></body></html>';
+    const result = await runInjectRscPayload(html, undefined);
+    expect(result).toBe(html);
+  });
+
+  it('injects RSC payload as a UTF-8 string, not Uint8Array', async () => {
+    const html = '<html><body><div>App</div></body></html>';
+    const rscPayload = '0:D"$1"\n0:["$","div",null,{"children":"Hello"}]\n';
+    const result = await runInjectRscPayload(html, rscPayload);
+
+    // Should contain a script tag with the payload as a string
+    expect(result).toContain('<script>');
+    expect(result).toContain('__TIMBER_RSC_PAYLOAD');
+    // Must NOT contain Uint8Array — that's the old format
+    expect(result).not.toContain('Uint8Array');
+    // Must NOT contain ReadableStream construction — client handles that now
+    expect(result).not.toContain('ReadableStream');
+    // Should be injected before </body>
+    const scriptIdx = result.indexOf('__TIMBER_RSC_PAYLOAD');
+    const bodyIdx = result.indexOf('</body>');
+    expect(scriptIdx).toBeLessThan(bodyIdx);
+  });
+
+  it('escapes < to prevent script injection', async () => {
+    const html = '<html><body></body></html>';
+    const rscPayload = '0:["$","div",null,{"children":"<script>alert(1)</script>"}]\n';
+    const result = await runInjectRscPayload(html, rscPayload);
+
+    // The literal < should be escaped so it doesn't break the <script> tag
+    expect(result).not.toContain('<script>alert');
+    // The payload should still be recoverable — escaped form
+    expect(result).toContain('\\x3c');
+  });
+
+  it('escapes single quotes in the payload', async () => {
+    const html = '<html><body></body></html>';
+    const rscPayload = '0:["$","div",null,{"children":"it\'s a test"}]\n';
+    const result = await runInjectRscPayload(html, rscPayload);
+
+    // Single quotes must be escaped so they don't break the string literal
+    expect(result).toContain("\\'");
+  });
+
+  it('escapes backslashes in the payload', async () => {
+    const html = '<html><body></body></html>';
+    const rscPayload = '0:["$","div",null,{"children":"path\\\\to\\\\file"}]\n';
+    const result = await runInjectRscPayload(html, rscPayload);
+
+    // Backslashes should be doubled
+    expect(result).toContain('\\\\');
+  });
+
+  it('escapes newlines in the payload', async () => {
+    const html = '<html><body></body></html>';
+    // RSC flight format uses newlines as row delimiters
+    const rscPayload = '0:D"$1"\n0:["$","div",null,{"children":"Hello"}]\n';
+    const result = await runInjectRscPayload(html, rscPayload);
+
+    // Literal newlines in a JS string literal are a syntax error —
+    // they must be escaped as \n
+    const scriptMatch = result.match(/<script>(.*)<\/script>/s);
+    expect(scriptMatch).not.toBeNull();
+    const scriptContent = scriptMatch![1];
+    // The script body should not contain literal newline characters
+    expect(scriptContent).not.toMatch(/\n/);
+    // But it should contain escaped newline sequences
+    expect(scriptContent).toContain('\\n');
+  });
+
+  it('preserves the payload content after escaping', async () => {
+    const html = '<html><body><div>App</div></body></html>';
+    const rscPayload = '0:D"$1"\n0:["$","div",null,{"children":"Hello World"}]\n';
+    const result = await runInjectRscPayload(html, rscPayload);
+
+    // The original HTML content should still be present
+    expect(result).toContain('<div>App</div>');
+    // The payload text should be present (with escaping)
+    expect(result).toContain('Hello World');
+  });
+});
+
 describe('buildClientScripts', () => {
   it('returns empty string for static + noJS', async () => {
     const { buildClientScripts } = await import(resolve(SRC_DIR, 'server/html-injectors.ts'));

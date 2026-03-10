@@ -8,6 +8,7 @@ import { timberMdx } from './plugins/mdx';
 import { timberRouting } from './plugins/routing';
 import { timberShims } from './plugins/shims';
 import { timberStaticBuild } from './plugins/static-build';
+import { timberDynamicTransform } from './plugins/dynamic-transform';
 import type { RouteTree } from './routing/types';
 
 export interface TimberUserConfig {
@@ -81,6 +82,7 @@ export function timber(config?: TimberUserConfig): Plugin[] {
     timberDevServer(ctx),
     timberCache(ctx),
     timberStaticBuild(ctx),
+    timberDynamicTransform(ctx),
     timberFonts(ctx),
     timberMdx(ctx),
     timberContent(ctx),

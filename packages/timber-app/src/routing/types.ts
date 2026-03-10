@@ -47,6 +47,8 @@ export interface SegmentNode {
   denied?: RouteFile;
   /** Legacy compat: not-found.tsx (maps to 404), forbidden.tsx (403), unauthorized.tsx (401) */
   legacyStatusFiles?: Map<string, RouteFile>;
+  /** prerender.ts — signals build-time pre-rendering for this segment's shell */
+  prerender?: RouteFile;
 
   // --- Children ---
   children: SegmentNode[];

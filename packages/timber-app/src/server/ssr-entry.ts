@@ -17,7 +17,7 @@ import config from 'virtual:timber-config';
 import { createFromReadableStream } from '@vitejs/plugin-rsc/ssr';
 
 import { renderSsrStream, buildSsrResponse } from './ssr-render.js';
-import { injectHead, injectScripts } from './html-injectors.js';
+import { injectHead, injectScripts, injectRscPayload } from './html-injectors.js';
 
 /**
  * Navigation context passed from the RSC environment to SSR.
@@ -40,6 +40,8 @@ export interface NavContext {
   headHtml: string;
   /** Client bootstrap script tags to inject before </body> */
   scriptsHtml: string;
+  /** Tee'd RSC stream for client-side hydration (inlined into HTML) */
+  rscStream?: ReadableStream<Uint8Array>;
 }
 
 /**
@@ -77,9 +79,11 @@ export async function handleSsr(
   // Render to HTML stream (waits for onShellReady).
   const htmlStream = await renderSsrStream(element);
 
-  // Inject metadata into <head> and client scripts before </body>.
+  // Inject metadata into <head>, RSC payload for hydration, and
+  // client scripts before </body>.
   // The layout renders <html><head>...</head><body>...</body></html>.
   let outputStream = injectHead(htmlStream, navContext.headHtml);
+  outputStream = injectRscPayload(outputStream, navContext.rscStream);
   outputStream = injectScripts(outputStream, navContext.scriptsHtml);
 
   // Build and return the Response.

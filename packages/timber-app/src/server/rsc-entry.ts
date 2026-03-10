@@ -249,11 +249,21 @@ async function renderRoute(
   // See design/19-client-navigation.md §"RSC Payload Handling"
   if (isRscPayloadRequest(_req)) {
     responseHeaders.set('content-type', `${RSC_CONTENT_TYPE}; charset=utf-8`);
+    // Vary on Accept so CDNs cache HTML and RSC responses separately
+    // for the same URL. The client appends ?_rsc=<time> as a cache-bust,
+    // but Vary ensures correct behavior even without the query param.
+    responseHeaders.set('Vary', 'Accept');
     return new Response(rscStream!, {
       status: 200,
       headers: responseHeaders,
     });
   }
+
+  // Tee the RSC stream — one copy goes to SSR for HTML rendering,
+  // the other is inlined in the HTML for client-side hydration.
+  // The client reads __TIMBER_RSC_PAYLOAD via createFromReadableStream
+  // to hydrate the React tree without a second server round-trip.
+  const [ssrStream, inlineStream] = rscStream!.tee();
 
   // Pass the RSC stream to the SSR entry for HTML rendering.
   // The SSR entry runs in a separate Vite environment (separate module graph)
@@ -266,9 +276,10 @@ async function renderRoute(
     responseHeaders,
     headHtml,
     scriptsHtml,
+    rscStream: inlineStream,
   };
 
-  return callSsr(rscStream!, navContext);
+  return callSsr(ssrStream, navContext);
 }
 
 /**
@@ -366,6 +377,8 @@ async function renderDenyPage(
     },
   });
 
+  const [ssrStream, inlineStream] = rscStream.tee();
+
   const navContext: NavContext = {
     pathname: new URL(req.url).pathname,
     params: match.params,
@@ -374,9 +387,10 @@ async function renderDenyPage(
     responseHeaders,
     headHtml,
     scriptsHtml,
+    rscStream: inlineStream,
   };
 
-  return callSsr(rscStream, navContext);
+  return callSsr(ssrStream, navContext);
 }
 
 /**
@@ -430,6 +444,7 @@ async function renderDenyPageAsRsc(
   });
 
   responseHeaders.set('content-type', `${RSC_CONTENT_TYPE}; charset=utf-8`);
+  responseHeaders.set('Vary', 'Accept');
   return new Response(rscStream, {
     status: deny.status,
     headers: responseHeaders,

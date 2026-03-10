@@ -221,7 +221,7 @@ describe('Router', () => {
   });
 
   describe('navigate', () => {
-    it('sends RSC payload request with correct headers', async () => {
+    it('sends RSC payload request with correct headers and _rsc param', async () => {
       const rscPayload = 'rsc-stream-data';
       mockFetch.mockResolvedValueOnce(
         new Response(rscPayload, {
@@ -231,14 +231,10 @@ describe('Router', () => {
 
       await router.navigate('/projects');
 
-      expect(mockFetch).toHaveBeenCalledWith(
-        '/projects',
-        expect.objectContaining({
-          headers: expect.objectContaining({
-            Accept: 'text/x-component',
-          }),
-        })
-      );
+      const [url, init] = mockFetch.mock.calls[0] as [string, RequestInit];
+      // URL should have _rsc cache-bust parameter
+      expect(url).toMatch(/^\/projects\?_rsc=\d+$/);
+      expect((init.headers as Record<string, string>).Accept).toBe('text/x-component');
     });
 
     it('includes X-Timber-State-Tree header for segment diff skip sync', async () => {
@@ -250,8 +246,8 @@ describe('Router', () => {
 
       await router.navigate('/projects');
 
-      const [, options] = mockFetch.mock.calls[0] as [string, RequestInit];
-      const headers = options.headers as Record<string, string>;
+      const [, init] = mockFetch.mock.calls[0] as [string, RequestInit];
+      const headers = init.headers as Record<string, string>;
       expect(headers['X-Timber-State-Tree']).toBeDefined();
       const stateTree = JSON.parse(headers['X-Timber-State-Tree']);
       expect(stateTree).toHaveProperty('segments');
@@ -280,7 +276,7 @@ describe('Router', () => {
       expect(mockScrollTo).toHaveBeenCalledWith(0, 0);
     });
 
-    it('skips scroll when scroll=false option', async () => {
+    it('restores scroll position when scroll=false option', async () => {
       mockFetch.mockResolvedValueOnce(
         new Response('payload', {
           headers: { 'content-type': 'text/x-component' },
@@ -288,7 +284,9 @@ describe('Router', () => {
       );
 
       await router.navigate('/projects', { scroll: false });
-      expect(mockScrollTo).not.toHaveBeenCalled();
+      // scroll={false} restores the current scroll position after render,
+      // because React's render() on the document root can reset scroll to 0.
+      expect(mockScrollTo).toHaveBeenCalledWith(0, 0);
     });
 
     it('uses prefetch cache if available', async () => {
@@ -312,12 +310,12 @@ describe('Router', () => {
 
       await router.refresh();
 
-      const [, options] = mockFetch.mock.calls[0] as [string, RequestInit];
-      const headers = options.headers as Record<string, string>;
+      const [, init] = mockFetch.mock.calls[0] as [string, RequestInit];
+      const headers = init.headers as Record<string, string>;
       expect(headers['X-Timber-State-Tree']).toBeUndefined();
     });
 
-    it('router.refresh() fetches current URL', async () => {
+    it('router.refresh() fetches current URL with _rsc param', async () => {
       mockFetch.mockResolvedValueOnce(
         new Response('full-payload', {
           headers: { 'content-type': 'text/x-component' },
@@ -326,7 +324,8 @@ describe('Router', () => {
 
       await router.refresh();
 
-      expect(mockFetch).toHaveBeenCalledWith('/dashboard', expect.anything());
+      const [url] = mockFetch.mock.calls[0] as [string, RequestInit];
+      expect(url).toMatch(/^\/dashboard\?_rsc=\d+$/);
     });
   });
 
@@ -365,7 +364,29 @@ describe('Router', () => {
 
       await router.handlePopState('/unknown-page');
 
-      expect(mockFetch).toHaveBeenCalledWith('/unknown-page', expect.anything());
+      const [url] = mockFetch.mock.calls[0] as [string, RequestInit];
+      expect(url).toMatch(/^\/unknown-page\?_rsc=\d+$/);
+    });
+
+    it('fetches from server if cached payload is null (initial SSR page)', async () => {
+      // Initial page has null payload (SSR'd, no RSC fetch)
+      router.historyStack.push('/initial', {
+        payload: null,
+        scrollY: 150,
+      });
+
+      mockFetch.mockResolvedValueOnce(
+        new Response('fresh-payload', {
+          headers: { 'content-type': 'text/x-component' },
+        })
+      );
+
+      await router.handlePopState('/initial');
+
+      // Should fetch because payload is null
+      expect(mockFetch).toHaveBeenCalled();
+      // Should restore the saved scroll position
+      expect(mockScrollTo).toHaveBeenCalledWith(0, 150);
     });
   });
 
@@ -491,7 +512,8 @@ describe('Router', () => {
 
       // Wait for the fire-and-forget fetch to resolve
       await vi.waitFor(() => {
-        expect(mockFetch).toHaveBeenCalledWith('/projects', expect.anything());
+        const [url] = mockFetch.mock.calls[0] as [string, RequestInit];
+        expect(url).toMatch(/^\/projects\?_rsc=\d+$/);
       });
     });
 

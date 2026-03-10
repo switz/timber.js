@@ -8,7 +8,7 @@
  */
 export default function SettingsPage() {
   return (
-    <div data-testid="settings-content">
+    <div data-testid="settings-content" style={{ minHeight: '200vh' }}>
       <h1>Settings</h1>
       <p>Dashboard settings page.</p>
     </div>

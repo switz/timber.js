@@ -17,6 +17,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { join } from 'node:path';
 import type { PluginContext } from '../index.js';
 import { setViteServer } from '../server/dev-warnings.js';
+import { sendErrorToOverlay, classifyErrorPhase } from './dev-error-overlay.js';
 
 // ─── Constants ────────────────────────────────────────────────────────────
 
@@ -85,7 +86,7 @@ export function timberDevServer(ctx: PluginContext): Plugin {
 
       // Return post-hook — registers middleware after Vite's internals
       return () => {
-        server.middlewares.use(createTimberMiddleware(server));
+        server.middlewares.use(createTimberMiddleware(server, ctx.root));
       };
     },
   };
@@ -105,7 +106,7 @@ export function timberDevServer(ctx: PluginContext): Plugin {
  * For non-route requests (assets, Vite internals, HMR), the middleware
  * calls next() to let Vite handle them.
  */
-function createTimberMiddleware(server: ViteDevServer) {
+function createTimberMiddleware(server: ViteDevServer, projectRoot: string) {
   return async (req: IncomingMessage, res: ServerResponse, next: () => void): Promise<void> => {
     const url = req.url;
     if (!url) {
@@ -125,17 +126,32 @@ function createTimberMiddleware(server: ViteDevServer) {
       return;
     }
 
+    // Step 1: Load the RSC entry module.
+    // Separated from the handler call to distinguish module transform errors
+    // (syntax errors, import resolution) from pipeline errors.
+    let handler: (req: Request) => Promise<Response>;
     try {
-      // Load the RSC entry module — this gives us the full pipeline handler
       const rscModule = await server.ssrLoadModule(RSC_ENTRY_ID);
-      const handler = rscModule.default as (req: Request) => Promise<Response>;
-
-      if (typeof handler !== 'function') {
-        console.error('[timber] RSC entry module does not export a default function');
-        next();
-        return;
+      handler = rscModule.default as (req: Request) => Promise<Response>;
+    } catch (error) {
+      // Module transform error — syntax error, missing import, etc.
+      // Vite may already show its own overlay for these, but we still
+      // log to stderr with frame dimming for the terminal.
+      if (error instanceof Error) {
+        sendErrorToOverlay(server, error, 'module-transform', projectRoot);
       }
+      respond500(res, error);
+      return;
+    }
 
+    if (typeof handler !== 'function') {
+      console.error('[timber] RSC entry module does not export a default function');
+      next();
+      return;
+    }
+
+    // Step 2: Run the pipeline.
+    try {
       // Convert Node IncomingMessage → Web Request
       const webRequest = toWebRequest(req);
 
@@ -152,18 +168,30 @@ function createTimberMiddleware(server: ViteDevServer) {
       // Convert Web Response → Node ServerResponse
       await sendWebResponse(res, webResponse);
     } catch (error) {
-      // Pipeline error — send 500 without crashing the dev server
-      console.error('[timber] Dev server error:', error);
-
-      if (!res.headersSent) {
-        res.statusCode = 500;
-        res.setHeader('content-type', 'text/plain');
-        res.end(
-          `[timber] Internal server error\n\n${error instanceof Error ? (error.stack ?? error.message) : String(error)}`
-        );
+      // Pipeline error — classify the phase, send to overlay, respond 500.
+      // The dev server remains running for recovery on file fix + HMR.
+      if (error instanceof Error) {
+        const phase = classifyErrorPhase(error, projectRoot);
+        sendErrorToOverlay(server, error, phase, projectRoot);
+      } else {
+        process.stderr.write(`\x1b[31m[timber] Dev server error:\x1b[0m ${String(error)}\n`);
       }
+      respond500(res, error);
     }
   };
+}
+
+/**
+ * Send a 500 response without crashing the dev server.
+ */
+function respond500(res: ServerResponse, error: unknown): void {
+  if (!res.headersSent) {
+    res.statusCode = 500;
+    res.setHeader('content-type', 'text/plain');
+    res.end(
+      `[timber] Internal server error\n\n${error instanceof Error ? (error.stack ?? error.message) : String(error)}`
+    );
+  }
 }
 
 // ─── Request/Response Conversion ──────────────────────────────────────────

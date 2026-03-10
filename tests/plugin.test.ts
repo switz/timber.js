@@ -15,13 +15,13 @@ describe('timber()', () => {
       'timber-shims',
       'timber-routing',
       'timber-entries',
-      'timber-dev-server',
       'timber-cache',
       'timber-static-build',
       'timber-dynamic-transform',
       'timber-fonts',
       'timber-mdx',
       'timber-content',
+      'timber-dev-server', // Must be last — see 21-dev-server.md §Plugin Registration
     ]);
   });
 

@@ -83,6 +83,11 @@ function createMockServer(
       throw new Error(`Unexpected module: ${id}`);
     }),
     transformIndexHtml: vi.fn(async (_url: string, html: string) => html),
+    watcher: {
+      on: vi.fn().mockReturnThis(),
+      add: vi.fn(),
+    },
+    restart: vi.fn(),
     environments: {},
     config: {
       root: '/test',

@@ -68,8 +68,7 @@ test('blog post shows tags', async ({ page }) => {
   await expect(page.locator('[data-testid="blog-post-tags"]')).toBeVisible();
 });
 
-// TODO: returns 500 instead of 404 — needs notFound() support in dynamic routes
-test.fixme('blog post returns 404 for missing slug', async ({ page }) => {
+test('blog post returns 404 for missing slug', async ({ page }) => {
   const response = await page.goto('/blog/nonexistent-post');
   expect(response?.status()).toBe(404);
 });

@@ -259,6 +259,17 @@ async function renderRoute(
     }
   }
 
+  // For async server components, deny() throws during stream consumption
+  // (not stream creation). Read the RSC stream fully to trigger onError,
+  // then check denySignal. If deny was called, discard the buffered stream
+  // and render the error page. Otherwise, replay the buffer as a stream.
+  //
+  // This is safe for performance because the RSC stream encodes the full
+  // component tree — SSR must consume it entirely anyway.
+  if (!denySignal && rscStream!) {
+    rscStream = await bufferRscStream(rscStream, () => denySignal);
+  }
+
   // If deny() was called during rendering, render the status-code error page
   // (e.g. 404.tsx, 403.tsx) as a fresh RSC stream. All DenySignal handling
   // stays in the RSC entry — SSR never needs to detect or parse deny errors.
@@ -485,6 +496,42 @@ async function renderDenyPageAsRsc(
   return new Response(rscStream, {
     status: deny.status,
     headers: responseHeaders,
+  });
+}
+
+/**
+ * Buffer the RSC stream to detect deny() in async server components.
+ *
+ * For async components, deny() throws during stream consumption — the
+ * onError callback fires only when React resolves the component. By
+ * reading the full stream we give React a chance to report errors.
+ *
+ * Returns a new ReadableStream that replays the buffered chunks.
+ * If getDeny() returns a signal, the caller discards this stream.
+ */
+async function bufferRscStream(
+  stream: ReadableStream<Uint8Array>,
+  getDeny: () => DenySignal | null
+): Promise<ReadableStream<Uint8Array>> {
+  const reader = stream.getReader();
+  const chunks: Uint8Array[] = [];
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    // Stop early if deny was detected — no need to read more
+    if (getDeny()) break;
+  }
+
+  // Replay buffered chunks as a new ReadableStream
+  return new ReadableStream<Uint8Array>({
+    start(controller) {
+      for (const chunk of chunks) {
+        controller.enqueue(chunk);
+      }
+      controller.close();
+    },
   });
 }
 

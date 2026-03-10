@@ -29,6 +29,9 @@ export function RootShell({ children }: { children: React.ReactNode }) {
         <Link href="/slow-page" data-testid="link-slow-page">
           Slow Page
         </Link>
+        <Link href="/parallel" data-testid="link-parallel">
+          Parallel
+        </Link>
 
         {/* Prefetch-enabled link */}
         <Link href="/dashboard" prefetch data-testid="link-prefetch-dashboard">

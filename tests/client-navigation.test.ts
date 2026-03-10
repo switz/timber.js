@@ -289,6 +289,32 @@ describe('Router', () => {
       expect(mockScrollTo).toHaveBeenCalledWith(0, 0);
     });
 
+    it('uses replaceState when replace option is true', async () => {
+      mockFetch.mockResolvedValueOnce(
+        new Response('payload', {
+          headers: { 'content-type': 'text/x-component' },
+        })
+      );
+
+      await router.navigate('/projects', { replace: true });
+
+      expect(mockReplaceState).toHaveBeenCalledWith(expect.anything(), '', '/projects');
+      expect(mockPushState).not.toHaveBeenCalled();
+    });
+
+    it('defaults to pushState when replace option is not set', async () => {
+      mockFetch.mockResolvedValueOnce(
+        new Response('payload', {
+          headers: { 'content-type': 'text/x-component' },
+        })
+      );
+
+      await router.navigate('/projects');
+
+      expect(mockPushState).toHaveBeenCalledWith(expect.anything(), '', '/projects');
+      expect(mockReplaceState).not.toHaveBeenCalled();
+    });
+
     it('uses prefetch cache if available', async () => {
       // Prime the prefetch cache
       router.prefetchCache.set('/projects', 'prefetched-payload');

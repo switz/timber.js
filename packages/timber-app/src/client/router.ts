@@ -9,6 +9,8 @@ import { HistoryStack } from './history';
 export interface NavigationOptions {
   /** Set to false to prevent scroll-to-top on forward navigation */
   scroll?: boolean;
+  /** Use replaceState instead of pushState (replaces current history entry) */
+  replace?: boolean;
 }
 
 /**
@@ -171,6 +173,7 @@ export function createRouter(deps: RouterDeps): RouterInstance {
 
   async function navigate(url: string, options: NavigationOptions = {}): Promise<void> {
     const scroll = options.scroll !== false;
+    const replace = options.replace === true;
 
     // Save current page to history stack before navigating away
     const currentUrl = deps.getCurrentUrl();
@@ -191,8 +194,12 @@ export function createRouter(deps: RouterDeps): RouterInstance {
         payload = await fetchRscPayload(url, deps, stateTree);
       }
 
-      // Push the new URL to the browser history
-      deps.pushState({ timber: true }, '', url);
+      // Update the browser history — replace mode overwrites the current entry
+      if (replace) {
+        deps.replaceState({ timber: true }, '', url);
+      } else {
+        deps.pushState({ timber: true }, '', url);
+      }
 
       // Store the payload in the history stack
       historyStack.push(url, { payload, scrollY: 0 });

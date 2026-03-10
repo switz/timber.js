@@ -63,7 +63,7 @@ We keep `next/*` shims indefinitely. Ecosystem library compatibility is a core v
 | `useServerInsertedHTML` | Hook | — | Not shimmed |
 
 **Divergences:**
-- `useRouter().replace()` currently uses `pushState` (same as `push`). timber's router doesn't distinguish push/replace yet — future task.
+- `useRouter().replace()` uses `replaceState` (replaces the current history entry, matching Next.js behavior).
 - `redirect()` does not accept a `RedirectType` second argument. timber always uses replace semantics for redirects. The `RedirectType` const is exported for type compatibility but ignored at runtime.
 - `useSearchParams()` returns standard `URLSearchParams`, not Next.js's `ReadonlyURLSearchParams` that throws on mutation. Mutation of the returned object doesn't affect the URL.
 - `permanentRedirect(path)` delegates to `redirect(path, 308)`. Unlike Next.js, it does not accept a `RedirectType` argument.
@@ -100,7 +100,7 @@ nuqs imports from `next/navigation.js`:
 - `useRouter` — calls `router.replace(url, { scroll: false })` for URL updates
 - `useSearchParams` — reads current search params
 
-Both are now shimmed. Note: `useRouter().replace()` currently uses pushState in timber, which means URL updates via nuqs will add history entries. This is a known divergence to be addressed when the router gains replace mode.
+Both are now shimmed. `useRouter().replace()` uses `replaceState`, so nuqs URL updates do not add history entries.
 
 ### next-themes
 

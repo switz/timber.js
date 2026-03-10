@@ -40,7 +40,9 @@
       "Bash(npm view @content-collections/vite)",
       "Read(//private/tmp/cc-inspect/**)",
       "Read(//tmp/cc-inspect/package/dist/**)",
-      "Read(//private/tmp/cc-inspect/package/dist/**)"
+      "Read(//private/tmp/cc-inspect/package/dist/**)",
+      "Bash(node /tmp/filter_tasks.js)",
+      "Bash(pnpm add -D acorn acorn-jsx)"
     ],
     "additionalDirectories": [
       "/Users/dsaewitz/y/timber-js-fresh/tests/e2e",

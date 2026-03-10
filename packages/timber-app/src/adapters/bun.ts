@@ -1,0 +1,203 @@
+// Bun HTTP server adapter
+//
+// Uses Bun.serve() which speaks Request/Response natively — no node:http
+// wrapping needed. Simpler and faster than the Node adapter for Bun
+// deployments. See design/11-platform.md §"Bun".
+
+import { writeFile, mkdir, cp } from 'node:fs/promises';
+import { join, relative } from 'node:path';
+import type { TimberPlatformAdapter, TimberConfig } from './types';
+
+/** Options for the Bun adapter. */
+export interface BunAdapterOptions {
+  /**
+   * Hostname to bind the server to.
+   * @default '0.0.0.0'
+   */
+  hostname?: string;
+
+  /**
+   * Port to listen on.
+   * @default 3000
+   */
+  port?: number;
+}
+
+/**
+ * Create a Bun HTTP server adapter.
+ *
+ * Bun speaks `Request`/`Response` natively via `Bun.serve()`, so this
+ * adapter is much simpler than the Node.js adapter — no `node:http`
+ * bridging, no manual compression (Bun handles it internally).
+ *
+ * @example
+ * ```ts
+ * import { bun } from '@timber/app/adapters/bun'
+ *
+ * export default {
+ *   output: 'server',
+ *   adapter: bun({ port: 3000 }),
+ * }
+ * ```
+ */
+export function bun(options: BunAdapterOptions = {}): TimberPlatformAdapter {
+  const pendingPromises: Promise<unknown>[] = [];
+
+  return {
+    name: 'bun',
+
+    async buildOutput(config: TimberConfig, buildDir: string) {
+      const outDir = join(buildDir, 'bun');
+      await mkdir(outDir, { recursive: true });
+
+      // Copy client assets to public directory for static serving
+      const clientDir = join(buildDir, 'client');
+      const publicDir = join(outDir, 'public');
+      await mkdir(publicDir, { recursive: true });
+      await cp(clientDir, publicDir, { recursive: true }).catch(() => {
+        // Client dir may not exist in static+noJS mode
+      });
+
+      // Generate the Bun entry point
+      const entry = generateBunEntry(buildDir, outDir, options);
+      await writeFile(join(outDir, 'entry.ts'), entry);
+    },
+
+    async preview(config: TimberConfig, buildDir: string) {
+      const { handler } = await import(join(buildDir, 'bun', 'entry.ts'));
+
+      const hostname = options.hostname ?? '0.0.0.0';
+      const port = options.port ?? 3000;
+
+      // Bun.serve() is only available in the Bun runtime.
+      // Use a dynamic check so this file compiles on Node.js too.
+      const BunGlobal = globalThis as BunGlobalScope;
+      if (!BunGlobal.Bun?.serve) {
+        throw new Error(
+          '[timber] The Bun adapter requires the Bun runtime. ' +
+            'Run with `bun` instead of `node`, or use the Node.js adapter.'
+        );
+      }
+
+      BunGlobal.Bun.serve({
+        hostname,
+        port,
+        fetch: async (req: Request) => {
+          return handler(req);
+        },
+      });
+
+      console.log(`[timber] Bun server listening on http://${hostname}:${port}`);
+    },
+
+    waitUntil(promise: Promise<unknown>) {
+      const tracked = promise.catch((err) => {
+        console.error('[timber] waitUntil promise rejected:', err);
+      });
+      pendingPromises.push(tracked);
+    },
+  };
+}
+
+// ─── Request Handler ─────────────────────────────────────────────────────────
+
+/**
+ * Create a Bun-compatible request handler that wraps the timber handler
+ * with waitUntil collection. Returns the fetch handler and a function
+ * to wait for pending promises.
+ *
+ * Because Bun natively speaks Request/Response, this is much simpler than
+ * the Node.js equivalent — no conversion needed.
+ *
+ * @internal Exported for testing.
+ */
+export function createBunHandler(
+  adapter: TimberPlatformAdapter,
+  handler: (req: Request) => Promise<Response>
+) {
+  const pendingPromises: Promise<unknown>[] = [];
+
+  // Override adapter.waitUntil to collect promises
+  const originalWaitUntil = adapter.waitUntil;
+  adapter.waitUntil = (promise: Promise<unknown>) => {
+    const tracked = promise.catch((err) => {
+      console.error('[timber] waitUntil promise rejected:', err);
+    });
+    pendingPromises.push(tracked);
+
+    // Forward to adapter's own collector
+    originalWaitUntil?.call(adapter, promise);
+  };
+
+  async function fetch(req: Request): Promise<Response> {
+    try {
+      return await handler(req);
+    } catch (err) {
+      console.error('[timber] Unhandled error in request handler:', err);
+      return new Response('Internal Server Error', { status: 500 });
+    }
+  }
+
+  async function waitForPending(): Promise<void> {
+    await Promise.allSettled(pendingPromises);
+    pendingPromises.length = 0;
+  }
+
+  return { fetch, waitForPending };
+}
+
+// ─── Entry Generation ────────────────────────────────────────────────────────
+
+/** @internal Exported for testing. */
+export function generateBunEntry(
+  buildDir: string,
+  outDir: string,
+  options: BunAdapterOptions = {}
+): string {
+  const serverEntryRelative = relative(outDir, join(buildDir, 'server', 'entry.js'));
+  const port = options.port ?? 3000;
+  const hostname = options.hostname ?? '0.0.0.0';
+
+  return `// Generated by @timber/app/adapters/bun
+// Do not edit — this file is regenerated on each build.
+
+import { createBunHandler } from '@timber/app/adapters/bun'
+import { handler, adapter } from '${serverEntryRelative}'
+
+const port = parseInt(Bun.env.PORT || '${port}', 10)
+const hostname = Bun.env.HOST || '${hostname}'
+
+const { fetch, waitForPending } = createBunHandler(adapter, handler)
+
+Bun.serve({
+  hostname,
+  port,
+  fetch,
+})
+
+console.log(\`[timber] Bun server listening on http://\${hostname}:\${port}\`)
+
+// Graceful shutdown: wait for pending waitUntil promises
+process.on('SIGTERM', async () => {
+  await waitForPending()
+  process.exit(0)
+})
+`;
+}
+
+// ─── Bun type stubs ──────────────────────────────────────────────────────────
+// Minimal type declarations so this file compiles without @types/bun.
+// In production, users running on Bun have these types available globally.
+
+interface BunServeOptions {
+  hostname?: string;
+  port?: number;
+  fetch: (req: Request) => Promise<Response> | Response;
+}
+
+interface BunGlobalScope {
+  Bun?: {
+    serve(options: BunServeOptions): void;
+    env: Record<string, string | undefined>;
+  };
+}

@@ -147,6 +147,8 @@ For MDX route pages, frontmatter exports can serve as an implicit `metadata` exp
 
 Content collections are a typed, file-based content system for managing structured content outside the route tree. Collections are data sources — they do not generate routes. Routing is explicit, through `page.tsx` files that query collections.
 
+timber.js uses [`content-collections`](https://www.content-collections.dev/) as the underlying engine for content scanning, schema validation, file watching, and code generation. This is a battle-tested library with built-in Vite support that handles the complex lifecycle of content processing. timber.js wraps it with a thin integration layer and provides a typed `@timber/app/content` API surface.
+
 ### Why Not Routes?
 
 Route generation from content files (Astro-style `getStaticPaths`) conflates data and routing. In timber.js, the route tree is the file system under `app/`. Content is data. A page queries content and renders it. This keeps routing explicit and avoids the "where did this route come from?" confusion.
@@ -158,32 +160,33 @@ Collections live in a `content/` directory at the project root, sibling to `app/
 ```
 content/
   blog/
-    collection.ts        ← schema definition
     hello-world.mdx
     advanced-patterns.mdx
     react-server-components.md
   docs/
-    collection.ts
     getting-started.mdx
     api-reference.mdx
   changelog/
-    collection.ts
     v1.0.0.json
     v1.1.0.json
+content-collections.ts   ← collection definitions
 ```
 
-Each subdirectory of `content/` is a collection. Each collection has a `collection.ts` that defines the schema. Content files (`.mdx`, `.md`, `.json`, `.yaml`) sit alongside the schema.
+All collections are defined in a single `content-collections.ts` file at the project root. This is the standard content-collections convention. Each collection declaration specifies its `directory`, file `include` pattern, and Zod schema.
 
 ### Schema Definition
 
-`collection.ts` exports a collection definition created via `defineCollection()` from `@timber/app/content`. Schemas use Zod for frontmatter validation. Both `zod` and `gray-matter` are **peer dependencies** — only needed if using content collections.
+Collections are defined in `content-collections.ts` using `defineCollection` and `defineConfig` from `@content-collections/core`:
 
 ```ts
-// content/blog/collection.ts
-import { defineCollection } from '@timber/app/content'
+// content-collections.ts
+import { defineCollection, defineConfig } from '@content-collections/core'
 import { z } from 'zod'
 
-export default defineCollection({
+const blog = defineCollection({
+  name: 'blog',
+  directory: 'content/blog',
+  include: '**/*.mdx',
   schema: z.object({
     title: z.string(),
     description: z.string(),
@@ -194,15 +197,12 @@ export default defineCollection({
     coverImage: z.string().optional(),
   }),
 })
-```
 
-```ts
-// content/changelog/collection.ts — data-only collection
-import { defineCollection } from '@timber/app/content'
-import { z } from 'zod'
-
-export default defineCollection({
-  type: 'data',
+const changelog = defineCollection({
+  name: 'changelog',
+  directory: 'content/changelog',
+  include: '**/*.json',
+  parser: 'json',
   schema: z.object({
     version: z.string(),
     date: z.coerce.date(),
@@ -212,106 +212,124 @@ export default defineCollection({
     })),
   }),
 })
+
+export default defineConfig({
+  content: [blog, changelog],
+})
 ```
 
-### Collection Types
+### content-collections API
 
-| Type | Content files | Body | Use case |
-|------|--------------|------|----------|
-| `'content'` (default) | `.mdx`, `.md` | Rendered MDX/Markdown body | Blog posts, docs, guides |
-| `'data'` | `.json`, `.yaml`, `.yml` | None | Changelogs, team members, config data |
+content-collections provides the full collection lifecycle:
 
-### `defineCollection` API
+| Concept | API | Description |
+|---------|-----|-------------|
+| Define a collection | `defineCollection({ name, directory, include, schema, transform? })` | Declares a collection with Zod schema validation |
+| Define config | `defineConfig({ content: [...] })` | Bundles collections into a single config |
+| Transform entries | `transform` option | Optional transform function for computed fields |
+| MDX compilation | `@content-collections/mdx` `compileMDX()` | Compiles MDX content bodies in transform step |
+| Parsers | `parser: 'frontmatter' | 'json' | 'yaml'` | Built-in parsers for different file types. Default: `'frontmatter'` |
+
+### MDX in Content Collections
+
+For content collections with MDX files, use `@content-collections/mdx` to compile the MDX body in the transform step:
 
 ```ts
-interface CollectionConfig<T extends z.ZodType> {
-  type?: 'content' | 'data'    // default: 'content'
-  schema: T                     // Zod schema for frontmatter (content) or full document (data)
-}
+// content-collections.ts
+import { defineCollection, defineConfig } from '@content-collections/core'
+import { compileMDX } from '@content-collections/mdx'
+import { z } from 'zod'
 
-function defineCollection<T extends z.ZodType>(
-  config: CollectionConfig<T>
-): CollectionDefinition<z.infer<T>>
+const blog = defineCollection({
+  name: 'blog',
+  directory: 'content/blog',
+  include: '**/*.{mdx,md}',
+  schema: z.object({
+    title: z.string(),
+    description: z.string(),
+    publishedAt: z.coerce.date(),
+    tags: z.array(z.string()).default([]),
+    draft: z.boolean().default(false),
+  }),
+  transform: async (document, context) => {
+    const mdx = await compileMDX(context, document)
+    return {
+      ...document,
+      mdx,
+    }
+  },
+})
+
+export default defineConfig({
+  content: [blog],
+})
+```
+
+The compiled MDX code is stored as a string in the generated output. To render it as a React component, use `@content-collections/mdx/react`:
+
+```tsx
+import { useMDXComponent } from '@content-collections/mdx/react'
+
+function BlogContent({ code }: { code: string }) {
+  const MDXContent = useMDXComponent(code)
+  return <MDXContent />
+}
 ```
 
 ### Querying Collections
 
-Collections are queried via `getCollection()` and `getEntry()` from `@timber/app/content`. These are async, typed, and designed for RSC.
+content-collections generates typed modules that are imported directly. The generated output is aliased to `content-collections` via Vite:
 
 ```ts
-import { getCollection, getEntry } from '@timber/app/content'
+import { allBlogs, allChangelogs } from 'content-collections'
 
-// Get all entries in a collection
-const posts = await getCollection('blog')
-// Type: Array<ContentEntry<{ title: string; description: string; publishedAt: Date; ... }>>
+// allBlogs is Array<{ title: string; description: string; ... }>
+// Fully typed based on the schema + transform
+```
+
+For timber.js, we also provide a convenience wrapper via `@timber/app/content` that re-exports the generated collections and adds timber-specific utilities:
+
+```ts
+import { allBlogs } from '@timber/app/content'
 
 // Filter at query time
-const published = await getCollection('blog', (entry) => !entry.data.draft)
+const published = allBlogs.filter((post) => !post.draft)
 
-// Get a single entry by slug
-const post = await getEntry('blog', 'hello-world')
-// Type: ContentEntry<{ title: string; ... }> | undefined
+// Find a single entry by slug
+const post = allBlogs.find((p) => p._meta.path === slug)
 ```
 
-### `ContentEntry` Type
+### Entry Metadata
+
+Every content entry includes a `_meta` object with file metadata:
 
 ```ts
-interface ContentEntry<T> {
-  /** The collection name */
-  collection: string
-  /** The slug (filename without extension) */
-  slug: string
-  /** Validated frontmatter/data, typed by the collection schema */
-  data: T
-  /** The raw content body (MDX/Markdown source). Undefined for 'data' collections */
-  body?: string
-  /** Render the content body to a React element. Only for 'content' collections */
-  render(): Promise<React.ReactElement>
-  /** Absolute file path (available in server context only) */
+interface Meta {
+  /** Relative file path from collection directory */
   filePath: string
+  /** File name without extension */
+  fileName: string
+  /** Directory path relative to collection directory */
+  directory: string
+  /** File path without extension — use as slug */
+  path: string
+  /** File extension */
+  extension: string
 }
 ```
-
-### Rendering Content
-
-The `render()` method on a content entry returns a React element (RSC) that can be placed directly in the component tree:
-
-```tsx
-// app/blog/[slug]/page.tsx
-import { getEntry } from '@timber/app/content'
-import { deny } from '@timber/app/server'
-
-export default async function BlogPost({ params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = await params
-  const post = await getEntry('blog', slug)
-  if (!post) deny(404)
-
-  const content = await post.render()
-  return (
-    <article>
-      <h1>{post.data.title}</h1>
-      <time dateTime={post.data.publishedAt.toISOString()}>
-        {post.data.publishedAt.toLocaleDateString()}
-      </time>
-      <div className="prose">
-        {content}
-      </div>
-    </article>
-  )
-}
-```
-
-`render()` compiles the MDX/Markdown at build time (production) or on demand (dev). The result is an RSC element — server-rendered with zero client JS unless the content uses `'use client'` components. Custom components from `mdx-components.tsx` are applied automatically.
 
 ### Content and the Rendering Pipeline
 
 Content that defines whether a page exists is **primary content** — it belongs outside `<Suspense>`. A blog post at `/blog/my-post` is the reason the page exists. If the post is missing, the correct response is a 404, not a loading spinner. See [Rendering Pipeline](02-rendering-pipeline.md).
 
 ```tsx
-// Correct: post fetch outside Suspense, 404 if missing
-export default async function BlogPost({ params }) {
+// app/blog/[slug]/page.tsx
+import { allBlogs } from 'content-collections'
+import { deny } from '@timber/app/server'
+
+export default async function BlogPost({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
-  const post = await getEntry('blog', slug)
+  const post = allBlogs.find((p) => p._meta.path === slug)
   if (!post) deny(404)
   // ...
 }
@@ -326,81 +344,51 @@ Secondary content — like "related posts" or "recent articles" sidebar — can 
 ```tsx
 // app/blog/[slug]/page.tsx
 import type { Metadata } from '@timber/app/server'
-import { getEntry } from '@timber/app/content'
+import { allBlogs } from 'content-collections'
 
 export async function generateMetadata(
   { params }: { params: Promise<{ slug: string }> }
 ): Promise<Metadata> {
   const { slug } = await params
-  const post = await getEntry('blog', slug)
+  const post = allBlogs.find((p) => p._meta.path === slug)
   if (!post) return {}
   return {
-    title: post.data.title,
-    description: post.data.description,
+    title: post.title,
+    description: post.description,
     openGraph: {
-      images: post.data.coverImage ? [post.data.coverImage] : [],
+      images: post.coverImage ? [post.coverImage] : [],
     },
   }
 }
 ```
 
-### Type Generation
-
-The `timber-content` plugin generates TypeScript declarations at build/dev time from the `content/` directory:
-
-```ts
-// .timber/content.d.ts (generated — do not edit)
-declare module '@timber/app/content' {
-  interface CollectionMap {
-    blog: {
-      title: string
-      description: string
-      publishedAt: Date
-      author: string
-      tags: string[]
-      draft: boolean
-      coverImage?: string
-    }
-    docs: {
-      title: string
-      description: string
-      order: number
-    }
-    changelog: {
-      version: string
-      date: Date
-      changes: Array<{ type: 'added' | 'changed' | 'fixed' | 'removed'; description: string }>
-    }
-  }
-}
-```
-
-This makes `getCollection('blog')` and `getEntry('blog', slug)` fully typed without manual type annotations. Collection names that don't exist are TypeScript errors.
-
 ### Build-Time Processing
 
-Content collections are processed at build time:
+content-collections handles the full build lifecycle:
 
-1. **Schema validation.** Every content file's frontmatter is validated against its collection's Zod schema. Validation failures are build errors with clear diagnostics: file path, field name, expected type, received value.
+1. **Schema validation.** Every content file's frontmatter/data is validated against its collection's Zod schema. Validation failures are build errors with clear diagnostics: file path, field name, expected type, received value.
 
-2. **MDX compilation.** All `.mdx` and `.md` files in content collections are compiled to JavaScript modules. The compiled modules are included in the RSC build output.
+2. **Transform execution.** Transform functions (including MDX compilation) run after validation. Results are serialized to the generated output directory.
 
-3. **Content manifest.** A virtual module `virtual:timber-content-manifest` is generated containing the collection index: slug-to-module mappings, validated frontmatter data, and lazy import functions for rendered content.
+3. **Code generation.** content-collections generates typed JavaScript modules in `.content-collections/generated/`. The Vite plugin aliases `content-collections` to this directory, so imports resolve at build time with zero runtime cost.
 
-In dev mode, content files are compiled on demand (not eagerly) and the manifest is regenerated on file change with HMR support.
+In dev mode, content-collections watches for file changes and regenerates affected collections with HMR support via the Vite plugin.
 
 ### Dev Mode File Watching
 
-The `timber-content` plugin watches the `content/` directory:
+The `@content-collections/vite` plugin handles file watching automatically:
 
-- **New/deleted content file:** regenerate manifest, invalidate `virtual:timber-content-manifest`
-- **Changed content file:** recompile MDX, invalidate cache tag `content:<collection>:<slug>`
-- **Changed `collection.ts`:** re-validate all entries in that collection, regenerate types
+- **New/deleted content file:** regenerate collection, invalidate dependent modules
+- **Changed content file:** re-validate, re-transform, regenerate
+- **Changed `content-collections.ts`:** rebuild all collections
 
 ### Caching
 
-- **Production:** Content is compiled and validated at build time. `getCollection()` and `getEntry()` read from the build manifest — no runtime cost.
-- **Dev mode:** Content is compiled on demand. Queries are `timber.cache`-wrapped with tag `content:<collection>` for efficient invalidation on file change.
+content-collections has built-in caching:
+
+- **`'file'` cache (default):** Caches transform results to `.content-collections/cache/`. Only re-processes changed files on rebuild.
+- **`'memory'` cache:** In-memory caching for dev mode.
+- **`'none'`:** No caching, always reprocess.
 
 Content collections are **local files only** in v1. For remote content (CMS, APIs), developers wrap their own fetch functions with `timber.cache`. See [Caching](06-caching.md).
 
@@ -412,11 +400,12 @@ Static export of content-driven routes uses `generateStaticParams()`, same as an
 
 ```tsx
 // app/blog/[slug]/page.tsx
-import { getCollection } from '@timber/app/content'
+import { allBlogs } from 'content-collections'
 
 export async function generateStaticParams() {
-  const posts = await getCollection('blog', (e) => !e.data.draft)
-  return posts.map((post) => ({ slug: post.slug }))
+  return allBlogs
+    .filter((p) => !p.draft)
+    .map((post) => ({ slug: post._meta.path }))
 }
 ```
 
@@ -428,7 +417,6 @@ export async function generateStaticParams() {
 project/
   content/
     blog/
-      collection.ts
       hello-world.mdx
       advanced-patterns.mdx
   app/
@@ -438,6 +426,7 @@ project/
         page.tsx            ← individual post
     layout.tsx
   mdx-components.tsx
+  content-collections.ts
   timber.config.ts
 ```
 
@@ -454,11 +443,15 @@ export default {
 ```
 
 ```ts
-// content/blog/collection.ts
-import { defineCollection } from '@timber/app/content'
+// content-collections.ts
+import { defineCollection, defineConfig } from '@content-collections/core'
+import { compileMDX } from '@content-collections/mdx'
 import { z } from 'zod'
 
-export default defineCollection({
+const blog = defineCollection({
+  name: 'blog',
+  directory: 'content/blog',
+  include: '**/*.{mdx,md}',
   schema: z.object({
     title: z.string(),
     description: z.string(),
@@ -466,6 +459,17 @@ export default defineCollection({
     tags: z.array(z.string()).default([]),
     draft: z.boolean().default(false),
   }),
+  transform: async (document, context) => {
+    const mdx = await compileMDX(context, document)
+    return {
+      ...document,
+      mdx,
+    }
+  },
+})
+
+export default defineConfig({
+  content: [blog],
 })
 ```
 
@@ -489,26 +493,25 @@ This is my first post. It supports **GFM** thanks to `remark-gfm`.
 
 ```tsx
 // app/blog/page.tsx
-import { getCollection } from '@timber/app/content'
+import { allBlogs } from 'content-collections'
 import Link from '@timber/app/link'
 
 export const metadata = { title: 'Blog' }
 
 export default async function BlogIndex() {
-  const posts = await getCollection('blog', (e) => !e.data.draft)
-  const sorted = posts.sort(
-    (a, b) => b.data.publishedAt.getTime() - a.data.publishedAt.getTime()
-  )
+  const posts = allBlogs
+    .filter((p) => !p.draft)
+    .sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime())
 
   return (
     <ul>
-      {sorted.map((post) => (
-        <li key={post.slug}>
-          <Link href={`/blog/${post.slug}`}>
-            <h2>{post.data.title}</h2>
-            <p>{post.data.description}</p>
-            <time dateTime={post.data.publishedAt.toISOString()}>
-              {post.data.publishedAt.toLocaleDateString()}
+      {posts.map((post) => (
+        <li key={post._meta.path}>
+          <Link href={`/blog/${post._meta.path}`}>
+            <h2>{post.title}</h2>
+            <p>{post.description}</p>
+            <time dateTime={post.publishedAt.toISOString()}>
+              {post.publishedAt.toLocaleDateString()}
             </time>
           </Link>
         </li>
@@ -520,42 +523,50 @@ export default async function BlogIndex() {
 
 ```tsx
 // app/blog/[slug]/page.tsx
-import { getEntry, getCollection } from '@timber/app/content'
+import { allBlogs } from 'content-collections'
+import { useMDXComponent } from '@content-collections/mdx/react'
 import { deny } from '@timber/app/server'
 import type { Metadata } from '@timber/app/server'
 
 export async function generateStaticParams() {
-  const posts = await getCollection('blog', (e) => !e.data.draft)
-  return posts.map((post) => ({ slug: post.slug }))
+  return allBlogs
+    .filter((p) => !p.draft)
+    .map((post) => ({ slug: post._meta.path }))
 }
 
 export async function generateMetadata(
   { params }: { params: Promise<{ slug: string }> }
 ): Promise<Metadata> {
   const { slug } = await params
-  const post = await getEntry('blog', slug)
+  const post = allBlogs.find((p) => p._meta.path === slug)
   if (!post) return {}
-  return { title: post.data.title, description: post.data.description }
+  return { title: post.title, description: post.description }
+}
+
+function BlogContent({ code }: { code: string }) {
+  const MDXContent = useMDXComponent(code)
+  return <MDXContent />
 }
 
 export default async function BlogPost(
   { params }: { params: Promise<{ slug: string }> }
 ) {
   const { slug } = await params
-  const post = await getEntry('blog', slug)
+  const post = allBlogs.find((p) => p._meta.path === slug)
   if (!post) deny(404)
 
-  const content = await post.render()
   return (
     <article>
       <header>
-        <h1>{post.data.title}</h1>
-        <time dateTime={post.data.publishedAt.toISOString()}>
-          {post.data.publishedAt.toLocaleDateString()}
+        <h1>{post.title}</h1>
+        <time dateTime={post.publishedAt.toISOString()}>
+          {post.publishedAt.toLocaleDateString()}
         </time>
-        <div>{post.data.tags.map((t) => <span key={t}>#{t}</span>)}</div>
+        <div>{post.tags.map((t) => <span key={t}>#{t}</span>)}</div>
       </header>
-      <div className="prose">{content}</div>
+      <div className="prose">
+        <BlogContent code={post.mdx} />
+      </div>
     </article>
   )
 }
@@ -572,56 +583,40 @@ Two plugins are added to the `timber()` array:
 | Plugin | Hooks | Responsibility |
 |--------|-------|---------------|
 | `timber-mdx` | `config`, `buildStart` | Detects MDX usage, registers `@mdx-js/rollup`, finds `mdx-components.tsx` |
-| `timber-content` | `resolveId`, `load`, `buildStart`, `configureServer` | Scans `content/`, validates schemas, generates manifest virtual module, generates types |
+| `timber-content` | `config`, `configResolved`, `buildStart`, `configureServer` | Wraps `@content-collections/vite`, detects `content/` directory, configures aliases |
 
 `timber-mdx` is intentionally minimal — its job is to wire `@mdx-js/rollup` with the right options. The heavy lifting is done by the unified ecosystem.
 
-`timber-content` follows the same pattern as `timber-routing`: scan a directory, build a manifest, serve it as a virtual module, watch for changes in dev.
+`timber-content` wraps `@content-collections/vite` and activates only when a `content-collections.ts` config file exists at the project root. It delegates all scanning, validation, code generation, and file watching to content-collections.
 
 ### File Decomposition
 
 | File | Responsibility | Budget |
 |------|---------------|--------|
 | `plugins/mdx.ts` | `timber-mdx` plugin | ~100 lines |
-| `plugins/content.ts` | `timber-content` plugin (Vite hooks) | ~200 lines |
-| `content/scanner.ts` | Content directory scanner, frontmatter extraction | ~200 lines |
-| `content/types.ts` | TypeScript types for entries, collections, manifest | ~80 lines |
-| `content/runtime.ts` | `getCollection()`, `getEntry()`, `defineCollection()` | ~150 lines |
-| `content/codegen.ts` | Type declaration generation for `.timber/content.d.ts` | ~100 lines |
+| `plugins/content.ts` | `timber-content` plugin — wraps `@content-collections/vite` | ~80 lines |
+| `content/index.ts` | Re-exports from generated `content-collections`, timber-specific utilities | ~50 lines |
 
-### Virtual Module
+The implementation is significantly simpler than a custom scanner because content-collections handles:
+- File scanning and glob matching
+- Frontmatter parsing (gray-matter built in)
+- Schema validation (Zod / Standard Schema)
+- Transform pipeline with caching
+- Code generation to `.content-collections/generated/`
+- Dev mode file watching and HMR
+- JSON/YAML/frontmatter parsing
 
-`virtual:timber-content-manifest` contains:
+### Dependencies
 
-```ts
-// Auto-generated content manifest
-export default {
-  blog: {
-    type: 'content',
-    entries: {
-      'hello-world': {
-        slug: 'hello-world',
-        data: { title: 'Hello World', /* ... */ },
-        load: () => import('/path/to/content/blog/hello-world.mdx'),
-        filePath: '/path/to/content/blog/hello-world.mdx',
-      },
-      // ...
-    },
-  },
-}
-```
+| Package | Type | Purpose |
+|---------|------|---------|
+| `@content-collections/core` | peer dependency | Collection definition, scanning, validation, code generation |
+| `@content-collections/vite` | peer dependency | Vite plugin integration, aliases, dev watching |
+| `@content-collections/mdx` | peer dependency (optional) | MDX compilation in content collection transforms |
+| `@mdx-js/rollup` | peer dependency | MDX route pages (`.mdx` in `app/`) |
+| `zod` | peer dependency | Schema validation (used by content-collections) |
 
-The `load()` function returns the compiled MDX module lazily. For `'data'` collections, the data is inlined directly.
-
-### Peer Dependencies
-
-| Package | When needed | Purpose |
-|---------|-------------|---------|
-| `@mdx-js/rollup` | MDX pages or content collections with `.mdx` files | MDX compilation |
-| `zod` | Content collections | Schema validation |
-| `gray-matter` | Content collections | Frontmatter extraction |
-
-All three produce clear build errors with install instructions if missing when the relevant feature is activated.
+All peer dependencies produce clear build errors with install instructions if missing when the relevant feature is activated. `@content-collections/mdx` is only needed if content collections use MDX transforms.
 
 ### Config Type Extension
 
@@ -638,10 +633,12 @@ interface TimberUserConfig {
 }
 ```
 
+No content-specific config is added to `TimberUserConfig` — content-collections is configured entirely through its own `content-collections.ts` file.
+
 ### Cross-References
 
 - [Routing](07-routing.md) — Page Extensions, MDX as valid route segments
 - [Build System](18-build-system.md) — Plugin decomposition, virtual module patterns
-- [Caching](06-caching.md) — `timber.cache` for content query caching in dev
+- [Caching](06-caching.md) — `timber.cache` for remote content caching
 - [Metadata](16-metadata.md) — `generateMetadata` integration with content data
 - [Rendering Pipeline](02-rendering-pipeline.md) — Content renders as RSC, primary vs secondary content distinction

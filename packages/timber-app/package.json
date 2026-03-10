@@ -10,6 +10,7 @@
     "./server": "./src/server/index.ts",
     "./client": "./src/client/index.ts",
     "./cache": "./src/cache/index.ts",
+    "./content": "./src/content/index.ts",
     "./search-params": "./src/search-params/index.ts",
     "./routing": "./src/routing/index.ts",
     "./adapters/*": "./src/adapters/*.ts"
@@ -19,9 +20,21 @@
     "typecheck": "tsgo --noEmit"
   },
   "peerDependencies": {
+    "@content-collections/core": "^0.14.0",
+    "@content-collections/mdx": "^0.2.0",
+    "@content-collections/vite": "^0.2.0",
+    "@mdx-js/rollup": "^3.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "vite": "^7.0.0"
+    "vite": "^7.0.0",
+    "zod": "^3.22.0 || ^4.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@content-collections/core": { "optional": true },
+    "@content-collections/mdx": { "optional": true },
+    "@content-collections/vite": { "optional": true },
+    "@mdx-js/rollup": { "optional": true },
+    "zod": { "optional": true }
   },
   "dependencies": {
     "@opentelemetry/api": "^1.9.0",

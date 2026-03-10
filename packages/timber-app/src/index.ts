@@ -1,8 +1,10 @@
 import type { Plugin } from 'vite';
 import { join } from 'node:path';
 import { cacheTransformPlugin } from './plugins/cache-transform';
+import { timberContent } from './plugins/content';
 import { timberDevServer } from './plugins/dev-server';
 import { timberEntries } from './plugins/entries';
+import { timberMdx } from './plugins/mdx';
 import { timberRouting } from './plugins/routing';
 import { timberShims } from './plugins/shims';
 import { timberStaticBuild } from './plugins/static-build';
@@ -21,6 +23,13 @@ export interface TimberUserConfig {
     maxFields?: number;
   };
   pageExtensions?: string[];
+  /** MDX compilation options passed to @mdx-js/rollup. See design/20-content-collections.md. */
+  mdx?: {
+    remarkPlugins?: unknown[];
+    rehypePlugins?: unknown[];
+    recmaPlugins?: unknown[];
+    remarkRehypeOptions?: Record<string, unknown>;
+  };
 }
 
 /**
@@ -63,12 +72,6 @@ function timberFonts(_ctx: PluginContext): Plugin {
   };
 }
 
-function timberMdx(_ctx: PluginContext): Plugin {
-  return {
-    name: 'timber-mdx',
-  };
-}
-
 export function timber(config?: TimberUserConfig): Plugin[] {
   const ctx = createPluginContext(config);
   return [
@@ -80,6 +83,7 @@ export function timber(config?: TimberUserConfig): Plugin[] {
     timberStaticBuild(ctx),
     timberFonts(ctx),
     timberMdx(ctx),
+    timberContent(ctx),
   ];
 }
 

@@ -33,7 +33,14 @@
       "Bash(jq '[.[] | select\\(.issue_type == \"\"task\"\"\\)] | .[].id')",
       "Bash(jq '[.[] | select\\(.issue_type == \"\"task\"\"\\)] | .[] | {id, title, priority}')",
       "Bash(grep -l \"Phase 3\\\\|phase 3\\\\|search-params\\\\|typed.*link\\\\|type.*safe\" /Users/dsaewitz/y/timber-js-fresh/design/*.md)",
-      "Bash(wc -l packages/timber-app/src/plugins/shims.ts packages/timber-app/src/shims/*.ts tests/shims-plugin.test.ts)"
+      "Bash(wc -l packages/timber-app/src/plugins/shims.ts packages/timber-app/src/shims/*.ts tests/shims-plugin.test.ts)",
+      "Bash(ls -la /Users/dsaewitz/y/timber-js-fresh/*.md)",
+      "WebFetch(domain:www.content-collections.dev)",
+      "Bash(npm view @content-collections/core)",
+      "Bash(npm view @content-collections/vite)",
+      "Read(//private/tmp/cc-inspect/**)",
+      "Read(//tmp/cc-inspect/package/dist/**)",
+      "Read(//private/tmp/cc-inspect/package/dist/**)"
     ],
     "additionalDirectories": [
       "/Users/dsaewitz/y/timber-js-fresh/tests/e2e",

@@ -2,11 +2,11 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './tests/e2e',
-  testIgnore: 'content-collections.test.ts',
+  testMatch: 'content-collections.test.ts',
   timeout: 60_000,
   retries: 1,
   use: {
-    baseURL: 'http://localhost:3000',
+    baseURL: 'http://localhost:3001',
   },
   projects: [
     {
@@ -15,8 +15,8 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'pnpm exec vite --config tests/fixtures/phase2-app/vite.config.ts',
-    port: 3000,
+    command: 'pnpm exec vite --config examples/blog/vite.config.ts',
+    port: 3001,
     reuseExistingServer: !process.env.CI,
     timeout: 30_000,
   },

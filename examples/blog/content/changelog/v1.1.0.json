@@ -1,0 +1,9 @@
+{
+  "version": "1.1.0",
+  "date": "2025-02-15",
+  "changes": [
+    { "type": "added", "description": "Data collections (JSON/YAML)" },
+    { "type": "changed", "description": "Improved schema validation errors" },
+    { "type": "fixed", "description": "Frontmatter date parsing edge case" }
+  ]
+}

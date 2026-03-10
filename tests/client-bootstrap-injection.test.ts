@@ -269,6 +269,23 @@ describe('injectRscPayload', () => {
     expect(result).toContain('\\\\');
   });
 
+  it('escapes newlines in the payload', async () => {
+    const html = '<html><body></body></html>';
+    // RSC flight format uses newlines as row delimiters
+    const rscPayload = '0:D"$1"\n0:["$","div",null,{"children":"Hello"}]\n';
+    const result = await runInjectRscPayload(html, rscPayload);
+
+    // Literal newlines in a JS string literal are a syntax error —
+    // they must be escaped as \n
+    const scriptMatch = result.match(/<script>(.*)<\/script>/s);
+    expect(scriptMatch).not.toBeNull();
+    const scriptContent = scriptMatch![1];
+    // The script body should not contain literal newline characters
+    expect(scriptContent).not.toMatch(/\n/);
+    // But it should contain escaped newline sequences
+    expect(scriptContent).toContain('\\n');
+  });
+
   it('preserves the payload content after escaping', async () => {
     const html = '<html><body><div>App</div></body></html>';
     const rscPayload = '0:D"$1"\n0:["$","div",null,{"children":"Hello World"}]\n';

@@ -84,14 +84,17 @@ export function injectScripts(
  * Escape a string for safe embedding inside a `<script>` tag as a
  * single-quoted string literal.
  *
- * Escapes backslashes, single quotes, `<` (prevents `</script>` from
- * closing the tag early), and U+2028/U+2029 (line/paragraph separators
- * that are valid in JSON but invalid in JS string literals).
+ * Escapes backslashes, single quotes, newlines (`\n`, `\r`), `<`
+ * (prevents `</script>` from closing the tag early), and U+2028/U+2029
+ * (line/paragraph separators that are valid in JSON but invalid in JS
+ * string literals).
  */
 function escapeForScript(str: string): string {
   return str
     .replace(/\\/g, '\\\\')
     .replace(/'/g, "\\'")
+    .replace(/\n/g, '\\n')
+    .replace(/\r/g, '\\r')
     .replace(/</g, '\\x3c')
     .replace(/\u2028/g, '\\u2028')
     .replace(/\u2029/g, '\\u2029');

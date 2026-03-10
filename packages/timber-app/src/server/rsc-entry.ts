@@ -44,6 +44,7 @@ import {
 import type { BuildManifest } from './build-manifest.js';
 
 import type { NavContext } from './ssr-entry.js';
+import { resolveSlotElement } from './slot-resolver.js';
 
 /**
  * Create a debug channel sink that discards all debug data.
@@ -230,10 +231,24 @@ async function renderRoute(
     searchParams: {},
   });
 
-  // Wrap in layouts from innermost to outermost
+  // Wrap in layouts from innermost to outermost.
+  // For each layout, resolve parallel slots and pass them as named props.
   for (let i = layoutComponents.length - 1; i >= 0; i--) {
-    const { component } = layoutComponents[i];
-    element = h(component, null, element);
+    const { component, segment } = layoutComponents[i];
+
+    // Resolve parallel slots for this layout
+    const slotProps: Record<string, unknown> = {};
+    const slotEntries = Object.entries(segment.slots ?? {});
+    for (const [slotName, slotNode] of slotEntries) {
+      slotProps[slotName] = await resolveSlotElement(
+        slotNode as ManifestSegmentNode,
+        match,
+        paramsPromise,
+        h
+      );
+    }
+
+    element = h(component, { ...slotProps, children: element });
   }
 
   // Render to RSC Flight stream.

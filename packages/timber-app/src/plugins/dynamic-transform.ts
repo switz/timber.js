@@ -16,22 +16,21 @@
 
 import type { Plugin } from 'vite';
 import type { PluginContext } from '../index.js';
+import {
+  findFunctionsWithDirective,
+  containsDirective,
+} from '../utils/directive-parser.js';
 
 // ---------------------------------------------------------------------------
 // Detection
 // ---------------------------------------------------------------------------
 
 /**
- * Match 'use dynamic' or "use dynamic" as a directive in a function body.
- */
-const USE_DYNAMIC_PATTERN = /['"]use dynamic['"]/;
-
-/**
  * Quick check: does this source file contain 'use dynamic' anywhere?
- * Used as a fast bail-out before doing expensive parsing.
+ * Used as a fast bail-out before doing expensive AST parsing.
  */
 export function containsUseDynamic(code: string): boolean {
-  return USE_DYNAMIC_PATTERN.test(code);
+  return containsDirective(code, 'use dynamic');
 }
 
 // ---------------------------------------------------------------------------
@@ -73,24 +72,21 @@ interface TransformResult {
 export function transformUseDynamic(code: string): TransformResult | null {
   if (!containsUseDynamic(code)) return null;
 
-  // Replace all 'use dynamic' / "use dynamic" directives (including optional semicolons)
-  // with __markDynamic() calls.
-  const directivePattern = /(?<=['"{])use dynamic(?=['"}])/;
-  if (!directivePattern.test(code)) return null;
+  const functions = findFunctionsWithDirective(code, 'use dynamic');
+  if (functions.length === 0) return null;
 
-  // Replace the directive strings with runtime calls.
-  // We match the full string literal including quotes and optional semicolon.
-  const fullPattern = /['"]use dynamic['"];?/g;
-  let hasMatch = false;
-  const transformed = code.replace(fullPattern, () => {
-    hasMatch = true;
-    return '__markDynamic();';
-  });
-
-  if (!hasMatch) return null;
+  // Replace directive strings with __markDynamic() calls, processing
+  // from end to start to preserve source offsets
+  let result = code;
+  for (const fn of functions) {
+    // Replace the directive in the body content
+    const cleanBody = fn.bodyContent.replace(/['"]use dynamic['"];?/, '__markDynamic();');
+    // Reconstruct: replace the body content between braces
+    result = result.slice(0, fn.bodyStart) + cleanBody + result.slice(fn.bodyEnd);
+  }
 
   // Add the import at the top
-  const result = `import { markDynamic as __markDynamic } from '@timber/app/runtime';\n` + transformed;
+  result = `import { markDynamic as __markDynamic } from '@timber/app/runtime';\n` + result;
 
   return { code: result, map: null };
 }
@@ -109,21 +105,15 @@ export function validateNoDynamicInStaticMode(
 ): { message: string; line?: number } | null {
   if (!containsUseDynamic(code)) return null;
 
-  const lines = code.split('\n');
-  let line: number | undefined;
-  for (let i = 0; i < lines.length; i++) {
-    if (USE_DYNAMIC_PATTERN.test(lines[i])) {
-      line = i + 1;
-      break;
-    }
-  }
+  const functions = findFunctionsWithDirective(code, 'use dynamic');
+  if (functions.length === 0) return null;
 
   return {
     message:
       `'use dynamic' cannot be used in static mode (output: 'static'). ` +
       `Static mode renders all content at build time — there is no per-request rendering. ` +
       `Remove the directive or switch to output: 'server'.`,
-    line,
+    line: functions[functions.length - 1].directiveLine, // First occurrence (sorted descending)
   };
 }
 

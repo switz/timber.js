@@ -11,6 +11,7 @@
 
 import type { Plugin } from 'vite';
 import type { PluginContext } from '../index.js';
+import { detectFileDirective } from '../utils/directive-parser.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -82,14 +83,7 @@ export function detectDynamicApis(code: string, fileId: string): StaticValidatio
 // ---------------------------------------------------------------------------
 
 /**
- * Match 'use client' or "use client" / 'use server' or "use server"
- * as a top-level directive (first non-empty statement in file).
- */
-const USE_CLIENT_PATTERN = /^['"]use client['"]/m;
-const USE_SERVER_PATTERN = /^['"]use server['"]/m;
-
-/**
- * Detect 'use client' and 'use server' directives.
+ * Detect 'use client' and 'use server' directives using AST-based parsing.
  * In noJS mode, both are hard build errors — no React runtime or server
  * actions are allowed in the output.
  *
@@ -105,45 +99,31 @@ export function detectDirectives(
 
   const errors: StaticValidationError[] = [];
 
-  // Strip leading whitespace/comments to find directive at top of file
-  const trimmed = code.trimStart();
-
-  if (USE_CLIENT_PATTERN.test(trimmed)) {
+  const clientDirective = detectFileDirective(code, ['use client']);
+  if (clientDirective) {
     errors.push({
       type: 'nojs-directive',
       file: fileId,
       message:
         `'use client' is not allowed in noJS mode (output: 'static', static.noJS: true). ` +
         `noJS mode produces zero JavaScript — client components cannot exist.`,
-      line: findDirectiveLine(code, USE_CLIENT_PATTERN),
+      line: clientDirective.line,
     });
   }
 
-  if (USE_SERVER_PATTERN.test(trimmed)) {
+  const serverDirective = detectFileDirective(code, ['use server']);
+  if (serverDirective) {
     errors.push({
       type: 'nojs-directive',
       file: fileId,
       message:
         `'use server' is not allowed in noJS mode (output: 'static', static.noJS: true). ` +
         `noJS mode produces zero JavaScript — server actions cannot exist.`,
-      line: findDirectiveLine(code, USE_SERVER_PATTERN),
+      line: serverDirective.line,
     });
   }
 
   return errors;
-}
-
-/**
- * Find the 1-based line number where a directive pattern first matches.
- */
-function findDirectiveLine(code: string, pattern: RegExp): number | undefined {
-  const lines = code.split('\n');
-  for (let i = 0; i < lines.length; i++) {
-    if (pattern.test(lines[i])) {
-      return i + 1;
-    }
-  }
-  return undefined;
 }
 
 // ---------------------------------------------------------------------------

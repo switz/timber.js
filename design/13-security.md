@@ -16,6 +16,8 @@ This document consolidates timber.js's security model. Each section references t
 
 6. **CSRF protection by default.** Server actions validate the `Origin` header. See [Forms — Security](08-forms-and-actions.md#csrf-protection).
 
+7. **Server source never reaches the client.** React Flight's debug channel is routed to a discard sink so server component function bodies are never serialized into the RSC payload sent to browsers. See [Rendering Pipeline](02-rendering-pipeline.md).
+
 ## Vulnerability Classes Addressed
 
 These are the specific attack classes from the vinext security audit that timber.js's design mitigates:
@@ -31,6 +33,7 @@ These are the specific attack classes from the vinext security audit that timber
 | 20–21 | Open redirect via image proxy / middleware rewrite | `redirect()` relative-only; `redirectExternal()` with allow-list | [Forms](08-forms-and-actions.md) |
 | 22 | XSS via Link component URL scheme | `<Link>` rejects `javascript:`, `data:`, `vbscript:` | [Routing](07-routing.md) |
 | 24 | Cache key collision via weak hash | SHA-256 for default cache keys | [Caching](06-caching.md) |
+| 25 | Server component source leak via RSC debug channel | `debugChannel` sink separates debug data from client payload; source code never inlined | [Rendering Pipeline](02-rendering-pipeline.md) |
 
 ## Security Testing Checklist
 
@@ -58,3 +61,4 @@ These are the specific attack classes from the vinext security audit that timber
 | 20 | `deny()` in Suspense | `deny()` called inside post-flush `<Suspense>` | Dev warning, error boundary rendered, status already 200 |
 | 21 | Slot access `redirect()` | Slot `access.ts` calls `redirect()` | Dev-mode error — only `deny()` allowed in slot access |
 | 22 | API route auth | `GET /api/users` with no session, segment has `access.ts` | `access.ts` runs, returns 401/redirect |
+| 23 | RSC source leak | Initial HTML and RSC navigation payload inspected for `$E` function bodies | No server component source code in client-visible payloads |

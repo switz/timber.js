@@ -1,0 +1,227 @@
+/**
+ * timber-static-build — Vite sub-plugin for static output mode.
+ *
+ * When `output: 'static'` is set in timber.config.ts, this plugin:
+ * 1. Validates that no dynamic APIs (cookies(), headers()) are used
+ * 2. In noJS mode, rejects 'use client' and 'use server' directives
+ * 3. Coordinates build-time rendering of all pages
+ *
+ * Design doc: design/15-future-prerendering.md
+ */
+
+import type { Plugin } from 'vite';
+import type { PluginContext } from '../index.js';
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+export interface StaticValidationError {
+  type: 'dynamic-api' | 'nojs-directive';
+  file: string;
+  message: string;
+  line?: number;
+}
+
+interface StaticOptions {
+  noJS: boolean;
+}
+
+// ---------------------------------------------------------------------------
+// Detection: dynamic APIs (cookies, headers)
+// ---------------------------------------------------------------------------
+
+/**
+ * Patterns that indicate dynamic per-request API usage.
+ * These are build errors in static mode because there is no request at build time.
+ *
+ * We detect both import-level and call-level usage.
+ */
+const DYNAMIC_API_PATTERNS: Array<{ pattern: RegExp; name: string }> = [
+  { pattern: /\bcookies\s*\(/, name: 'cookies()' },
+  { pattern: /\bheaders\s*\(/, name: 'headers()' },
+];
+
+/**
+ * Detect usage of dynamic per-request APIs (cookies(), headers())
+ * that cannot work at build time in static mode.
+ *
+ * Returns an array of validation errors.
+ */
+export function detectDynamicApis(code: string, fileId: string): StaticValidationError[] {
+  const errors: StaticValidationError[] = [];
+
+  for (const { pattern, name } of DYNAMIC_API_PATTERNS) {
+    if (pattern.test(code)) {
+      // Find the line number of the first match
+      const lines = code.split('\n');
+      let line: number | undefined;
+      for (let i = 0; i < lines.length; i++) {
+        if (pattern.test(lines[i])) {
+          line = i + 1;
+          break;
+        }
+      }
+
+      errors.push({
+        type: 'dynamic-api',
+        file: fileId,
+        message:
+          `${name} cannot be used in static mode — there is no request at build time. ` +
+          `Remove the ${name} call or switch to output: 'server'.`,
+        line,
+      });
+    }
+  }
+
+  return errors;
+}
+
+// ---------------------------------------------------------------------------
+// Detection: 'use client' / 'use server' directives (noJS mode)
+// ---------------------------------------------------------------------------
+
+/**
+ * Match 'use client' or "use client" / 'use server' or "use server"
+ * as a top-level directive (first non-empty statement in file).
+ */
+const USE_CLIENT_PATTERN = /^['"]use client['"]/m;
+const USE_SERVER_PATTERN = /^['"]use server['"]/m;
+
+/**
+ * Detect 'use client' and 'use server' directives.
+ * In noJS mode, both are hard build errors — no React runtime or server
+ * actions are allowed in the output.
+ *
+ * In non-noJS static mode, these are allowed (client components hydrate,
+ * server actions get extracted to API endpoints).
+ */
+export function detectDirectives(
+  code: string,
+  fileId: string,
+  options: StaticOptions
+): StaticValidationError[] {
+  if (!options.noJS) return [];
+
+  const errors: StaticValidationError[] = [];
+
+  // Strip leading whitespace/comments to find directive at top of file
+  const trimmed = code.trimStart();
+
+  if (USE_CLIENT_PATTERN.test(trimmed)) {
+    errors.push({
+      type: 'nojs-directive',
+      file: fileId,
+      message:
+        `'use client' is not allowed in noJS mode (output: 'static', static.noJS: true). ` +
+        `noJS mode produces zero JavaScript — client components cannot exist.`,
+      line: findDirectiveLine(code, USE_CLIENT_PATTERN),
+    });
+  }
+
+  if (USE_SERVER_PATTERN.test(trimmed)) {
+    errors.push({
+      type: 'nojs-directive',
+      file: fileId,
+      message:
+        `'use server' is not allowed in noJS mode (output: 'static', static.noJS: true). ` +
+        `noJS mode produces zero JavaScript — server actions cannot exist.`,
+      line: findDirectiveLine(code, USE_SERVER_PATTERN),
+    });
+  }
+
+  return errors;
+}
+
+/**
+ * Find the 1-based line number where a directive pattern first matches.
+ */
+function findDirectiveLine(code: string, pattern: RegExp): number | undefined {
+  const lines = code.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    if (pattern.test(lines[i])) {
+      return i + 1;
+    }
+  }
+  return undefined;
+}
+
+// ---------------------------------------------------------------------------
+// Combined validation
+// ---------------------------------------------------------------------------
+
+/**
+ * Run all static mode validations on a source file.
+ *
+ * Combines:
+ * - Dynamic API detection (cookies, headers) — always in static mode
+ * - Directive detection ('use client', 'use server') — only in noJS mode
+ */
+export function validateStaticMode(
+  code: string,
+  fileId: string,
+  options: StaticOptions
+): StaticValidationError[] {
+  const errors: StaticValidationError[] = [];
+
+  errors.push(...detectDynamicApis(code, fileId));
+  errors.push(...detectDirectives(code, fileId, options));
+
+  return errors;
+}
+
+// ---------------------------------------------------------------------------
+// Vite Plugin
+// ---------------------------------------------------------------------------
+
+/**
+ * Create the timber-static-build Vite plugin.
+ *
+ * Only active when output: 'static' is configured.
+ *
+ * Hooks:
+ * - transform: Validates source files for static mode violations
+ */
+export function timberStaticBuild(ctx: PluginContext): Plugin {
+  const isStatic = ctx.config.output === 'static';
+  const noJS = ctx.config.static?.noJS ?? false;
+
+  return {
+    name: 'timber-static-build',
+
+    /**
+     * Validate source files during transform.
+     *
+     * In static mode, we check every app/ file for:
+     * - Dynamic API usage (cookies(), headers()) → build error
+     * - In noJS mode: 'use client' / 'use server' directives → build error
+     */
+    transform(code: string, id: string) {
+      // Only active in static mode
+      if (!isStatic) return null;
+
+      // Skip node_modules
+      if (id.includes('node_modules')) return null;
+
+      // Only check files in the app directory
+      if (!id.includes('/app/') && !id.startsWith('app/')) return null;
+
+      // Only check JS/TS files
+      if (!/\.[jt]sx?$/.test(id)) return null;
+
+      const errors = validateStaticMode(code, id, { noJS });
+
+      if (errors.length > 0) {
+        // Format all errors into a single build error message
+        const messages = errors.map(
+          (e) =>
+            `[timber] Static mode error in ${e.file}${e.line ? `:${e.line}` : ''}: ${e.message}`
+        );
+
+        this.error(messages.join('\n\n'));
+      }
+
+      return null;
+    },
+  };
+}

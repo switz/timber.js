@@ -20,6 +20,11 @@ export { useRouter } from './use-router';
 export type { AppRouterInstance } from './use-router';
 export { usePathname } from './use-pathname';
 export { useSearchParams } from './use-search-params';
+export { useSelectedLayoutSegment, useSelectedLayoutSegments } from './use-selected-layout-segment';
+
+// Segment context (internal, used by rsc-entry to inject layout position)
+export { SegmentProvider, useSegmentContext } from './segment-context';
+export type { SegmentContextValue } from './segment-context';
 
 // Segment cache (internal, but exported for advanced use)
 export { SegmentCache, PrefetchCache } from './segment-cache';

@@ -54,8 +54,8 @@ We keep `next/*` shims indefinitely. Ecosystem library compatibility is a core v
 | `notFound` | Function | Alias for `deny(404)` | Shimmed |
 | `RedirectType` | Const enum `{ push, replace }` | Const object | Shimmed |
 | `permanentRedirect` | Function (308) | Delegates to `redirect(path, 308)` | Shimmed |
-| `useSelectedLayoutSegment` | Hook | — | Not shimmed |
-| `useSelectedLayoutSegments` | Hook | — | Not shimmed |
+| `useSelectedLayoutSegment` | Hook | Reads segment depth from `SegmentProvider` context + pathname | Shimmed |
+| `useSelectedLayoutSegments` | Hook | Reads segment depth from `SegmentProvider` context + pathname | Shimmed |
 | `forbidden` | Function (experimental) | — | Not shimmed |
 | `unauthorized` | Function (experimental) | — | Not shimmed |
 | `ReadonlyURLSearchParams` | Class | — | Not shimmed (standard `URLSearchParams` returned) |
@@ -67,7 +67,7 @@ We keep `next/*` shims indefinitely. Ecosystem library compatibility is a core v
 - `redirect()` does not accept a `RedirectType` second argument. timber always uses replace semantics for redirects. The `RedirectType` const is exported for type compatibility but ignored at runtime.
 - `useSearchParams()` returns standard `URLSearchParams`, not Next.js's `ReadonlyURLSearchParams` that throws on mutation. Mutation of the returned object doesn't affect the URL.
 - `permanentRedirect(path)` delegates to `redirect(path, 308)`. Unlike Next.js, it does not accept a `RedirectType` argument.
-- `useSelectedLayoutSegment`/`useSelectedLayoutSegments` require segment tree context not yet available on the client.
+- `useSelectedLayoutSegment`/`useSelectedLayoutSegments` derive the selected segment from URL pathname + layout depth context. The `parallelRouteKey` argument is accepted for API compatibility but currently unused (parallel route segment tracking is not yet implemented).
 
 ### `next/headers`
 

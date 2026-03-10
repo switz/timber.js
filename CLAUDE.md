@@ -124,7 +124,7 @@ If a file approaches 500 lines, decompose it. This prevents god objects. **Comme
 ### PR Workflow
 
 1. Create a branch: `git checkout -b fix/descriptive-name`
-2. Make changes and commit
+2. Make changes and commit (do not mention claude)
 3. Push: `git push -u origin fix/descriptive-name`
 4. Open PR: `gh pr create`
 5. Wait for CI, then merge: `gh pr merge --squash --delete-branch`

@@ -22,6 +22,7 @@ function createPluginContext(overrides: Partial<PluginContext> = {}): PluginCont
     appDir: '/test/app',
     root: '/test',
     dev: false,
+    buildManifest: null,
     ...overrides,
   };
 }

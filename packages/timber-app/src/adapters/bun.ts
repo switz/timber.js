@@ -162,12 +162,23 @@ export function generateBunEntry(
 // Do not edit — this file is regenerated on each build.
 
 import { createBunHandler } from '@timber/app/adapters/bun'
+import { serveStaticFile } from '@timber/app/adapters/static-files'
 import { handler, adapter } from '${serverEntryRelative}'
 
 const port = parseInt(Bun.env.PORT || '${port}', 10)
 const hostname = Bun.env.HOST || '${hostname}'
 
-const { fetch, waitForPending } = createBunHandler(adapter, handler)
+const publicDir = new URL('./public/', import.meta.url).pathname
+
+// Wrap handler to serve static files first, then fall through to app
+async function handlerWithStatic(req) {
+  const url = new URL(req.url)
+  const staticResponse = await serveStaticFile(url.pathname, publicDir)
+  if (staticResponse) return staticResponse
+  return handler(req)
+}
+
+const { fetch, waitForPending } = createBunHandler(adapter, handlerWithStatic)
 
 Bun.serve({
   hostname,

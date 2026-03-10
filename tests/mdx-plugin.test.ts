@@ -12,6 +12,7 @@ function createCtx(overrides?: Partial<PluginContext>): PluginContext {
     appDir: '/project/app',
     root: '/project',
     dev: false,
+    buildManifest: null,
     ...overrides,
   };
 }

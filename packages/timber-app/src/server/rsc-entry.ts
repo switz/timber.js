@@ -19,6 +19,8 @@
 import routeManifest from 'virtual:timber-route-manifest';
 // @ts-expect-error — virtual module provided by timber-entries plugin
 import config from 'virtual:timber-config';
+// @ts-expect-error — virtual module provided by timber-build-manifest plugin
+import buildManifest from 'virtual:timber-build-manifest';
 
 import { createElement } from 'react';
 import { renderToReadableStream } from '@vitejs/plugin-rsc/rsc';
@@ -32,6 +34,8 @@ import type { Metadata } from './types.js';
 import { DenySignal } from './primitives.js';
 import { buildClientScripts } from './html-injectors.js';
 import { resolveManifestStatusFile } from './manifest-status-resolver.js';
+import { collectRouteCss, buildCssLinkTags, buildLinkHeaders } from './build-manifest.js';
+import type { BuildManifest } from './build-manifest.js';
 
 import type { NavContext } from './ssr-entry.js';
 
@@ -176,6 +180,17 @@ async function renderRoute(
 
   // Build head HTML for injection into the SSR output
   let headHtml = '';
+
+  // Collect CSS from the build manifest for matched segments.
+  // In dev mode buildManifest.css is empty — Vite HMR handles CSS.
+  const cssUrls = collectRouteCss(segments, buildManifest as BuildManifest);
+  if (cssUrls.length > 0) {
+    headHtml += buildCssLinkTags(cssUrls);
+    // Add Link preload headers — Cloudflare CDN converts these to 103 Early Hints.
+    const linkHeader = buildLinkHeaders(cssUrls);
+    responseHeaders.append('Link', linkHeader);
+  }
+
   for (const el of headElements) {
     if (el.tag === 'title' && el.content) {
       headHtml += `<title>${escapeHtml(el.content)}</title>`;

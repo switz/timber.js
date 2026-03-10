@@ -1,0 +1,59 @@
+/**
+ * Static asset cache header utilities.
+ *
+ * Hashed assets (e.g. /assets/layout-abc123.css) are immutable — the hash
+ * changes when content changes. These get long-lived cache headers:
+ *   Cache-Control: public, max-age=31536000, immutable
+ *
+ * Unhashed assets (e.g. /favicon.ico) get a shorter cache with revalidation:
+ *   Cache-Control: public, max-age=3600, must-revalidate
+ *
+ * This is applied automatically by the framework for static assets served
+ * from the build output. Page responses are NOT affected — those are
+ * controlled by the developer via middleware.ts or proxy.ts.
+ *
+ * Design docs: 18-build-system.md, 06-caching.md
+ */
+
+/**
+ * Regex matching Vite-hashed asset filenames.
+ *
+ * Vite's default naming: `[name]-[hash].[ext]` where hash is 8+ hex chars.
+ * Also matches `[name].[hash].[ext]` pattern.
+ *
+ * Examples:
+ *   /assets/layout-a1b2c3d4.css  → match
+ *   /assets/page-e5f6g7h8.js     → match
+ *   /assets/chunk.a1b2c3d4.js    → match
+ *   /favicon.ico                  → no match
+ *   /index.html                   → no match
+ */
+const HASHED_ASSET_RE = /[-.][\da-f]{8,}\.\w+$/;
+
+/** One year in seconds (365 days). */
+const ONE_YEAR = 31_536_000;
+
+/** One hour in seconds. */
+const ONE_HOUR = 3_600;
+
+/** Cache-Control value for hashed (immutable) assets. */
+export const IMMUTABLE_CACHE = `public, max-age=${ONE_YEAR}, immutable`;
+
+/** Cache-Control value for unhashed static assets. */
+export const STATIC_CACHE = `public, max-age=${ONE_HOUR}, must-revalidate`;
+
+/**
+ * Check if a URL path looks like a hashed asset.
+ */
+export function isHashedAsset(pathname: string): boolean {
+  return HASHED_ASSET_RE.test(pathname);
+}
+
+/**
+ * Get the appropriate Cache-Control header for a static asset path.
+ *
+ * Returns `immutable` for hashed assets, short-lived for unhashed.
+ */
+export function getAssetCacheControl(pathname: string): string {
+  return isHashedAsset(pathname) ? IMMUTABLE_CACHE : STATIC_CACHE;
+}

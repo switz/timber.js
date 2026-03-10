@@ -7,6 +7,7 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "test:e2e:blog": "playwright test --config playwright-blog.config.ts",
+    "test:e2e:tailwind": "playwright test --config playwright-tailwind.config.ts",
     "typecheck": "tsgo --noEmit",
     "lint": "oxlint --deny-warnings",
     "fmt": "oxfmt",

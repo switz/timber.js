@@ -105,6 +105,9 @@ export function timber(config?: TimberUserConfig): PluginOption[] {
     vitePluginRsc({
       serverHandler: false,
       customBuildApp: true,
+      // Tell the RSC plugin our browser entry so loadBootstrapScriptContent('index')
+      // can resolve it. This sets environments.client.build.rollupOptions.input.index.
+      entries: { client: 'virtual:timber-browser-entry' },
     })
   );
 

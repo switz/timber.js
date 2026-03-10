@@ -88,9 +88,13 @@ function createMockServer(
       add: vi.fn(),
     },
     restart: vi.fn(),
+    ssrFixStacktrace: vi.fn(),
     environments: {},
     config: {
       root: '/test',
+    },
+    hot: {
+      send: vi.fn(),
     },
   } as unknown as ViteDevServer;
 

@@ -84,6 +84,8 @@ function generateConfigModule(ctx: PluginContext): string {
   const runtimeConfig = {
     output: ctx.config.output ?? 'server',
     csrf: ctx.config.csrf ?? true,
+    noJS: ctx.config.static?.noJS ?? false,
+    dev: ctx.dev ?? false,
   };
 
   return [

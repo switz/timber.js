@@ -11,6 +11,7 @@ function createCtx(overrides?: Partial<PluginContext>): PluginContext {
     routeTree: null,
     appDir: '/project/app',
     root: '/project',
+    dev: false,
     ...overrides,
   };
 }

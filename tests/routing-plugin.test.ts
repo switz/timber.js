@@ -30,6 +30,7 @@ function createPluginContext(overrides: Partial<PluginContext> = {}): PluginCont
     routeTree: null,
     appDir: appDir(),
     root: TMP_DIR,
+    dev: false,
     ...overrides,
   };
 }

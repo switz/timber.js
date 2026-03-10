@@ -48,6 +48,8 @@ export interface PluginContext {
   appDir: string;
   /** Absolute path to the project root */
   root: string;
+  /** Whether the dev server is running (set by timber-root-sync in configResolved) */
+  dev: boolean;
 }
 
 function createPluginContext(config?: TimberUserConfig, root?: string): PluginContext {
@@ -60,6 +62,7 @@ function createPluginContext(config?: TimberUserConfig, root?: string): PluginCo
     routeTree: null,
     appDir: join(projectRoot, 'app'),
     root: projectRoot,
+    dev: false,
   };
 }
 
@@ -82,6 +85,7 @@ export function timber(config?: TimberUserConfig): Plugin[] {
     configResolved(resolved) {
       ctx.root = resolved.root;
       ctx.appDir = join(resolved.root, 'app');
+      ctx.dev = resolved.command === 'serve';
     },
   };
   return [

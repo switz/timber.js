@@ -39,7 +39,7 @@ export interface NavContext {
  */
 export async function handleSsr(
   rscStream: ReadableStream<Uint8Array>,
-  navContext: NavContext,
+  navContext: NavContext
 ): Promise<Response> {
   // TODO: Implement once renderToReadableStream wiring is in place.
   // Steps:

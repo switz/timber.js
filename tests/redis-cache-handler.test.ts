@@ -6,7 +6,10 @@ import type { RedisClient } from '@timber/app/cache';
  * In-memory mock of a Redis client for testing RedisCacheHandler
  * without a real Redis connection.
  */
-function createMockRedisClient(): RedisClient & { _store: Map<string, string>; _sets: Map<string, Set<string>> } {
+function createMockRedisClient(): RedisClient & {
+  _store: Map<string, string>;
+  _sets: Map<string, Set<string>>;
+} {
   const store = new Map<string, string>();
   const sets = new Map<string, Set<string>>();
 

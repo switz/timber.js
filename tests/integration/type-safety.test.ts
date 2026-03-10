@@ -25,15 +25,8 @@ import {
   analyzeSearchParams,
   formatAnalyzeError,
 } from '@timber/app/search-params';
-import {
-  resolveHref,
-  buildLinkProps,
-  setCurrentParams,
-  useParams,
-} from '@timber/app/client';
-import {
-  setQueryStatesDeps,
-} from '../../packages/timber-app/src/client/use-query-states.js';
+import { resolveHref, buildLinkProps, setCurrentParams, useParams } from '@timber/app/client';
+import { setQueryStatesDeps } from '../../packages/timber-app/src/client/use-query-states.js';
 import type { UseQueryStatesDeps } from '../../packages/timber-app/src/client/use-query-states.js';
 import { generateRouteMap } from '../../packages/timber-app/src/routing/codegen.js';
 import { scanRoutes } from '@timber/app/routing';
@@ -169,7 +162,9 @@ describe('search params', () => {
     );
 
     // Parse from a realistic URL
-    const url = new URL('https://shop.example.com/products?q=boots&cat=footwear&page=2&tags=sale&tags=new');
+    const url = new URL(
+      'https://shop.example.com/products?q=boots&cat=footwear&page=2&tags=sale&tags=new'
+    );
     const parsed = def.parse(url.searchParams);
 
     expect(parsed).toEqual({
@@ -259,9 +254,7 @@ describe('search params', () => {
     expect(def.href('/products', { page: 1, q: null })).toBe('/products');
 
     // Non-default → includes query with urlKey
-    expect(def.href('/products', { page: 2, q: 'boots' })).toBe(
-      '/products?page=2&search=boots'
-    );
+    expect(def.href('/products', { page: 2, q: 'boots' })).toBe('/products?page=2&search=boots');
 
     // Partial — only non-default values serialized
     expect(def.href('/products', { q: 'boots' })).toBe('/products?search=boots');
@@ -429,9 +422,7 @@ describe('typed link', () => {
 
   it('Link security: rejects javascript: scheme in dynamic params', () => {
     // Even with params that might craft a dangerous URL, validation catches it
-    expect(() =>
-      buildLinkProps({ href: 'javascript:alert(1)' })
-    ).toThrow('dangerous href');
+    expect(() => buildLinkProps({ href: 'javascript:alert(1)' })).toThrow('dangerous href');
   });
 
   it('codegen generates Link overloads that reference searchParams types', () => {
@@ -537,9 +528,7 @@ describe('query states', () => {
     // page=1 is default but page=3 is not, so page is included
 
     // 4. href generation matches
-    expect(def.href('/products', updated)).toBe(
-      '/products?page=3&search=boots&sort=newest'
-    );
+    expect(def.href('/products', updated)).toBe('/products?page=3&search=boots&sort=newest');
   });
 
   it('URL key aliasing through full lifecycle', () => {

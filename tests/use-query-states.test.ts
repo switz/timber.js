@@ -1,8 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createSearchParams } from '@timber/app/search-params';
-import {
-  setQueryStatesDeps,
-} from '../packages/timber-app/src/client/use-query-states.js';
+import { setQueryStatesDeps } from '../packages/timber-app/src/client/use-query-states.js';
 import type { UseQueryStatesDeps } from '../packages/timber-app/src/client/use-query-states.js';
 
 // ─── Mock dependencies ──────────────────────────────────────────
@@ -223,7 +221,8 @@ describe('useQueryStates with SearchParamsDefinition', () => {
       page: pageCodec,
       q: qCodec,
       sort: {
-        parse: (v: string | string[] | undefined): string => (typeof v === 'string' ? v : 'popular'),
+        parse: (v: string | string[] | undefined): string =>
+          typeof v === 'string' ? v : 'popular',
         serialize: (v: string): string | null => v,
       },
     });

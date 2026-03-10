@@ -71,10 +71,7 @@ export function resolveAllowedMethods(mod: RouteModule): HttpMethod[] {
  * Dispatches to the named method handler, auto-generates 405/OPTIONS,
  * and merges response headers from ctx.headers.
  */
-export async function handleRouteRequest(
-  mod: RouteModule,
-  ctx: RouteContext
-): Promise<Response> {
+export async function handleRouteRequest(mod: RouteModule, ctx: RouteContext): Promise<Response> {
   const method = ctx.req.method.toUpperCase() as HttpMethod;
   const allowed = resolveAllowedMethods(mod);
   const allowHeader = allowed.join(', ');

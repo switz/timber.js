@@ -34,12 +34,7 @@ export function TodoForm() {
   }
 
   return (
-    <form
-      method="POST"
-      action="/todos"
-      data-testid="todo-form"
-      onSubmit={handleSubmit}
-    >
+    <form method="POST" action="/todos" data-testid="todo-form" onSubmit={handleSubmit}>
       <input
         type="text"
         name="title"

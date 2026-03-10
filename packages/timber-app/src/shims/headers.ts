@@ -18,7 +18,7 @@
 export function headers(): never {
   throw new Error(
     'next/headers `headers()` is not available in timber.js. ' +
-      'Use `ctx.headers` from your middleware/access/route handler context instead.',
+      'Use `ctx.headers` from your middleware/access/route handler context instead.'
   );
 }
 
@@ -34,6 +34,6 @@ export function headers(): never {
 export function cookies(): never {
   throw new Error(
     'next/headers `cookies()` is not available in timber.js. ' +
-      'Use `ctx.headers.get("cookie")` from your middleware/access/route handler context instead.',
+      'Use `ctx.headers.get("cookie")` from your middleware/access/route handler context instead.'
   );
 }

@@ -25,8 +25,8 @@ const RSC_ENTRY_ID = 'virtual:timber-rsc-entry';
  * These are passed through to Vite's built-in middleware.
  */
 const VITE_INTERNAL_PREFIXES = [
-  '/@',       // /@vite/client, /@fs/, /@id/
-  '/__vite',  // /__vite_hmr, /__vite_ping
+  '/@', // /@vite/client, /@fs/, /@id/
+  '/__vite', // /__vite_hmr, /__vite_ping
   '/node_modules/',
 ];
 
@@ -34,7 +34,8 @@ const VITE_INTERNAL_PREFIXES = [
  * File extensions that indicate static asset requests.
  * These are passed through to Vite's static file serving.
  */
-const ASSET_EXTENSIONS = /\.(?:js|ts|tsx|jsx|css|map|json|svg|png|jpg|jpeg|gif|webp|avif|ico|woff|woff2|ttf|eot|mp4|webm|ogg|mp3|wav)(?:\?.*)?$/;
+const ASSET_EXTENSIONS =
+  /\.(?:js|ts|tsx|jsx|css|map|json|svg|png|jpg|jpeg|gif|webp|avif|ico|woff|woff2|ttf|eot|mp4|webm|ogg|mp3|wav)(?:\?.*)?$/;
 
 // ─── Plugin ───────────────────────────────────────────────────────────────
 
@@ -78,11 +79,7 @@ export function timberDevServer(_ctx: PluginContext): Plugin {
  * calls next() to let Vite handle them.
  */
 function createTimberMiddleware(server: ViteDevServer) {
-  return async (
-    req: IncomingMessage,
-    res: ServerResponse,
-    next: () => void
-  ): Promise<void> => {
+  return async (req: IncomingMessage, res: ServerResponse, next: () => void): Promise<void> => {
     const url = req.url;
     if (!url) {
       next();
@@ -135,7 +132,7 @@ function createTimberMiddleware(server: ViteDevServer) {
         res.statusCode = 500;
         res.setHeader('content-type', 'text/plain');
         res.end(
-          `[timber] Internal server error\n\n${error instanceof Error ? error.stack ?? error.message : String(error)}`
+          `[timber] Internal server error\n\n${error instanceof Error ? (error.stack ?? error.message) : String(error)}`
         );
       }
     }
@@ -203,10 +200,7 @@ function nodeReadableToWebStream(nodeStream: IncomingMessage): ReadableStream<Ui
  *
  * Copies status code, headers, and streams the body.
  */
-async function sendWebResponse(
-  nodeRes: ServerResponse,
-  webResponse: Response
-): Promise<void> {
+async function sendWebResponse(nodeRes: ServerResponse, webResponse: Response): Promise<void> {
   nodeRes.statusCode = webResponse.status;
 
   // Copy headers

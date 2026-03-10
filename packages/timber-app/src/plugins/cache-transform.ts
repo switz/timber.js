@@ -9,7 +9,9 @@ export function parseCacheLife(value: string | number): number {
 
   const match = value.match(/^(\d+)(s|m|h|d|w)$/);
   if (!match) {
-    throw new Error(`Invalid cacheLife value: "${value}". Expected format: "30s", "5m", "1h", "2d", "1w", or a number.`);
+    throw new Error(
+      `Invalid cacheLife value: "${value}". Expected format: "30s", "5m", "1h", "2d", "1w", or a number.`
+    );
   }
 
   const amount = parseInt(match[1], 10);
@@ -61,7 +63,8 @@ function findCachedFunctions(code: string): FunctionInfo[] {
   // We work with a character-level scan to handle nested braces correctly.
 
   // Pattern 1: named function declarations
-  const fnDeclPattern = /(?:(export\s+default\s+|export\s+))?async\s+function\s+(\w+)\s*\([^)]*\)\s*\{/g;
+  const fnDeclPattern =
+    /(?:(export\s+default\s+|export\s+))?async\s+function\s+(\w+)\s*\([^)]*\)\s*\{/g;
   let match: RegExpExecArray | null;
 
   while ((match = fnDeclPattern.exec(code)) !== null) {

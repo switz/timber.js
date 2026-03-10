@@ -33,21 +33,21 @@ describe('timber-entries plugin', () => {
     it('resolves rsc entry', () => {
       const resolveId = createResolveId();
       expect(resolveId.call({}, 'virtual:timber-rsc-entry')).toBe(
-        resolve(SRC_DIR, 'server/rsc-entry.ts'),
+        resolve(SRC_DIR, 'server/rsc-entry.ts')
       );
     });
 
     it('resolves ssr entry', () => {
       const resolveId = createResolveId();
       expect(resolveId.call({}, 'virtual:timber-ssr-entry')).toBe(
-        resolve(SRC_DIR, 'server/ssr-entry.ts'),
+        resolve(SRC_DIR, 'server/ssr-entry.ts')
       );
     });
 
     it('resolves browser entry', () => {
       const resolveId = createResolveId();
       expect(resolveId.call({}, 'virtual:timber-browser-entry')).toBe(
-        resolve(SRC_DIR, 'client/browser-entry.ts'),
+        resolve(SRC_DIR, 'client/browser-entry.ts')
       );
     });
 
@@ -61,21 +61,21 @@ describe('timber-entries plugin', () => {
     it('strips null prefix from rsc entry', () => {
       const resolveId = createResolveId();
       expect(resolveId.call({}, '\0virtual:timber-rsc-entry')).toBe(
-        resolve(SRC_DIR, 'server/rsc-entry.ts'),
+        resolve(SRC_DIR, 'server/rsc-entry.ts')
       );
     });
 
     it('strips null prefix from ssr entry', () => {
       const resolveId = createResolveId();
       expect(resolveId.call({}, '\0virtual:timber-ssr-entry')).toBe(
-        resolve(SRC_DIR, 'server/ssr-entry.ts'),
+        resolve(SRC_DIR, 'server/ssr-entry.ts')
       );
     });
 
     it('strips null prefix from browser entry', () => {
       const resolveId = createResolveId();
       expect(resolveId.call({}, '\0virtual:timber-browser-entry')).toBe(
-        resolve(SRC_DIR, 'client/browser-entry.ts'),
+        resolve(SRC_DIR, 'client/browser-entry.ts')
       );
     });
 
@@ -89,28 +89,28 @@ describe('timber-entries plugin', () => {
     it('handles root prefix for rsc entry', () => {
       const resolveId = createResolveId();
       expect(resolveId.call({}, `${PROJECT_ROOT}/virtual:timber-rsc-entry`)).toBe(
-        resolve(SRC_DIR, 'server/rsc-entry.ts'),
+        resolve(SRC_DIR, 'server/rsc-entry.ts')
       );
     });
 
     it('handles root prefix for ssr entry', () => {
       const resolveId = createResolveId();
       expect(resolveId.call({}, `${PROJECT_ROOT}/virtual:timber-ssr-entry`)).toBe(
-        resolve(SRC_DIR, 'server/ssr-entry.ts'),
+        resolve(SRC_DIR, 'server/ssr-entry.ts')
       );
     });
 
     it('handles root prefix for browser entry', () => {
       const resolveId = createResolveId();
       expect(resolveId.call({}, `${PROJECT_ROOT}/virtual:timber-browser-entry`)).toBe(
-        resolve(SRC_DIR, 'client/browser-entry.ts'),
+        resolve(SRC_DIR, 'client/browser-entry.ts')
       );
     });
 
     it('handles root prefix for config', () => {
       const resolveId = createResolveId();
       expect(resolveId.call({}, `${PROJECT_ROOT}/virtual:timber-config`)).toBe(
-        '\0virtual:timber-config',
+        '\0virtual:timber-config'
       );
     });
   });

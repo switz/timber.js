@@ -1,5 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { transformUseCache, parseCacheLife } from '../packages/timber-app/src/plugins/cache-transform';
+import {
+  transformUseCache,
+  parseCacheLife,
+} from '../packages/timber-app/src/plugins/cache-transform';
 import { registerCachedFunction } from '../packages/timber-app/src/cache/index';
 import { MemoryCacheHandler } from '../packages/timber-app/src/cache/index';
 
@@ -185,7 +188,7 @@ async function Cached() {
 `;
     const result = transformUseCache(code, 'app/page.tsx');
     expect(result).not.toBeNull();
-    expect(result!.code).toContain("import { registerCachedFunction }");
+    expect(result!.code).toContain('import { registerCachedFunction }');
   });
 
   it('handles "use cache" with double quotes', () => {
@@ -253,7 +256,7 @@ describe('registerCachedFunction', () => {
     const cached = registerCachedFunction(
       fn,
       { ttl: 60, id: 'test#getProducts', tags: (cat: string) => [`products:${cat}`] },
-      handler,
+      handler
     );
 
     await cached('shoes');
@@ -276,14 +279,12 @@ describe('registerCachedFunction', () => {
     const cached = registerCachedFunction(
       fn,
       { ttl: 60, id: 'test#UserWidget', isComponent: true },
-      handler,
+      handler
     );
 
     await cached({ userId: '123', cookies: 'session=abc' });
 
-    expect(warn).toHaveBeenCalledWith(
-      expect.stringContaining('request-specific'),
-    );
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('request-specific'));
 
     warn.mockRestore();
   });

@@ -110,7 +110,9 @@ describe('Routes interface params typing', () => {
     // /products → empty params
     expect(output).toMatch(/['"]\/products['"]\s*:\s*\{[^}]*params\s*:\s*\{\}/);
     // /products/[id] → { id: string }
-    expect(output).toMatch(/['"]\/products\/\[id\]['"]\s*:\s*\{[^}]*params\s*:\s*\{\s*id\s*:\s*string\s*\}/);
+    expect(output).toMatch(
+      /['"]\/products\/\[id\]['"]\s*:\s*\{[^}]*params\s*:\s*\{\s*id\s*:\s*string\s*\}/
+    );
   });
 });
 
@@ -127,9 +129,7 @@ describe('useParams overloads typing', () => {
     expect(output).toMatch(
       /useParams\(route:\s*'\/products\/\[id\]'\)\s*:\s*\{\s*id\s*:\s*string\s*\}/
     );
-    expect(output).toMatch(
-      /useParams\(route:\s*'\/users\/\[userId\]\/posts\/\[postId\]'\)/
-    );
+    expect(output).toMatch(/useParams\(route:\s*'\/users\/\[userId\]\/posts\/\[postId\]'\)/);
   });
 
   it('catch-all useParams returns string[]', () => {
@@ -154,9 +154,7 @@ describe('useParams overloads typing', () => {
     const root = createApp({ 'items/[id]/page.tsx': '' });
     const output = generateRouteMap(scanRoutes(root));
 
-    expect(output).toMatch(
-      /useParams\(\)\s*:\s*Record<string,\s*string\s*\|\s*string\[\]>/
-    );
+    expect(output).toMatch(/useParams\(\)\s*:\s*Record<string,\s*string\s*\|\s*string\[\]>/);
   });
 
   it('static-only app does not generate useParams overloads (no dynamic routes)', () => {

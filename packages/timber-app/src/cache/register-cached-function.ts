@@ -38,7 +38,7 @@ function generateKey(id: string, args: unknown[]): string {
  */
 function resolveTags<Fn extends (...args: any[]) => any>(
   opts: RegisterCachedFunctionOptions<Fn>,
-  args: Parameters<Fn>,
+  args: Parameters<Fn>
 ): string[] {
   if (!opts.tags) return [];
   if (Array.isArray(opts.tags)) return opts.tags;
@@ -57,7 +57,7 @@ function warnRequestSpecificProps(id: string, props: unknown): void {
     console.warn(
       `[timber] "use cache" component ${id} received request-specific props: ${suspicious.join(', ')}. ` +
         `This may serve one user's cached render to another user. ` +
-        `Remove request-specific data from props or remove "use cache".`,
+        `Remove request-specific data from props or remove "use cache".`
     );
   }
 }
@@ -72,7 +72,7 @@ function warnRequestSpecificProps(id: string, props: unknown): void {
 export function registerCachedFunction<Fn extends (...args: any[]) => Promise<any>>(
   fn: Fn,
   opts: RegisterCachedFunctionOptions<Fn>,
-  handler: CacheHandler,
+  handler: CacheHandler
 ): (...args: Parameters<Fn>) => Promise<Awaited<ReturnType<Fn>>> {
   return async (...args: Parameters<Fn>): Promise<Awaited<ReturnType<Fn>>> => {
     // Dev-mode warning for components with request-specific props

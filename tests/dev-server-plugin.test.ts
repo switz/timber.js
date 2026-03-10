@@ -33,11 +33,7 @@ function createMockMiddlewares() {
 /**
  * Create a mock IncomingMessage (Node HTTP request).
  */
-function createMockReq(
-  url: string,
-  method = 'GET',
-  headers: Record<string, string> = {}
-) {
+function createMockReq(url: string, method = 'GET', headers: Record<string, string> = {}) {
   return {
     url,
     method,
@@ -68,12 +64,15 @@ function createMockRes() {
 /**
  * Create a mock ViteDevServer with ssrLoadModule stubbed.
  */
-function createMockServer(overrides: {
-  rscHandler?: (req: Request) => Promise<Response>;
-} = {}) {
+function createMockServer(
+  overrides: {
+    rscHandler?: (req: Request) => Promise<Response>;
+  } = {}
+) {
   const middlewares = createMockMiddlewares();
 
-  const rscHandler = overrides.rscHandler ?? (async () => new Response('RSC stream', { status: 200 }));
+  const rscHandler =
+    overrides.rscHandler ?? (async () => new Response('RSC stream', { status: 200 }));
 
   const server = {
     middlewares,
@@ -181,11 +180,12 @@ describe('timber-dev-server plugin', () => {
 
   describe('RSC to HTML pipeline', () => {
     it('pipes RSC stream through SSR entry for HTML', async () => {
-      const rscHandler = vi.fn(async () =>
-        new Response('RSC payload', {
-          status: 200,
-          headers: { 'content-type': 'text/x-component' },
-        })
+      const rscHandler = vi.fn(
+        async () =>
+          new Response('RSC payload', {
+            status: 200,
+            headers: { 'content-type': 'text/x-component' },
+          })
       );
 
       const { handler } = setupMiddleware({ rscHandler });
@@ -201,9 +201,7 @@ describe('timber-dev-server plugin', () => {
 
   describe('status codes', () => {
     it('returns 200 for successful page render', async () => {
-      const rscHandler = vi.fn(async () =>
-        new Response('OK', { status: 200 })
-      );
+      const rscHandler = vi.fn(async () => new Response('OK', { status: 200 }));
 
       const { handler } = setupMiddleware({ rscHandler });
       const { next } = await invokeHandler(handler, '/');
@@ -212,9 +210,7 @@ describe('timber-dev-server plugin', () => {
     });
 
     it('returns 404 for unmatched routes (passes to Vite fallback)', async () => {
-      const rscHandler = vi.fn(async () =>
-        new Response(null, { status: 404 })
-      );
+      const rscHandler = vi.fn(async () => new Response(null, { status: 404 }));
 
       const { handler } = setupMiddleware({ rscHandler });
       const { next } = await invokeHandler(handler, '/nonexistent');
@@ -224,11 +220,12 @@ describe('timber-dev-server plugin', () => {
     });
 
     it('returns 302 for redirects', async () => {
-      const rscHandler = vi.fn(async () =>
-        new Response(null, {
-          status: 302,
-          headers: { location: '/login' },
-        })
+      const rscHandler = vi.fn(
+        async () =>
+          new Response(null, {
+            status: 302,
+            headers: { location: '/login' },
+          })
       );
 
       const { handler } = setupMiddleware({ rscHandler });
@@ -254,11 +251,12 @@ describe('timber-dev-server plugin', () => {
   describe('browser entry injection', () => {
     it('injects browser entry script into HTML response', async () => {
       const htmlBody = '<html><head></head><body><div id="root">Content</div></body></html>';
-      const rscHandler = vi.fn(async () =>
-        new Response(htmlBody, {
-          status: 200,
-          headers: { 'content-type': 'text/html' },
-        })
+      const rscHandler = vi.fn(
+        async () =>
+          new Response(htmlBody, {
+            status: 200,
+            headers: { 'content-type': 'text/html' },
+          })
       );
 
       const { handler } = setupMiddleware({ rscHandler });
@@ -274,9 +272,7 @@ describe('timber-dev-server plugin', () => {
       // The dev server loads the RSC entry which includes the full pipeline
       // (proxy.ts → canonicalize → route match → middleware → render).
       // We verify this by checking that the RSC handler is called for route requests.
-      const rscHandler = vi.fn(async () =>
-        new Response('test', { status: 200 })
-      );
+      const rscHandler = vi.fn(async () => new Response('test', { status: 200 }));
 
       const { handler } = setupMiddleware({ rscHandler });
 

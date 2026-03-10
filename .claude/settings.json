@@ -32,7 +32,8 @@
       "Bash(jq '[.[] | select\\(.issue_type == \"\"task\"\" and .owner == null\\)] | length')",
       "Bash(jq '[.[] | select\\(.issue_type == \"\"task\"\"\\)] | .[].id')",
       "Bash(jq '[.[] | select\\(.issue_type == \"\"task\"\"\\)] | .[] | {id, title, priority}')",
-      "Bash(grep -l \"Phase 3\\\\|phase 3\\\\|search-params\\\\|typed.*link\\\\|type.*safe\" /Users/dsaewitz/y/timber-js-fresh/design/*.md)"
+      "Bash(grep -l \"Phase 3\\\\|phase 3\\\\|search-params\\\\|typed.*link\\\\|type.*safe\" /Users/dsaewitz/y/timber-js-fresh/design/*.md)",
+      "Bash(wc -l packages/timber-app/src/plugins/shims.ts packages/timber-app/src/shims/*.ts tests/shims-plugin.test.ts)"
     ],
     "additionalDirectories": [
       "/Users/dsaewitz/y/timber-js-fresh/tests/e2e",

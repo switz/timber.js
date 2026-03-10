@@ -8,10 +8,7 @@ import type { RouteContext } from '../packages/timber-app/src/server/types';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
 
-function makeRequest(
-  path: string,
-  init?: RequestInit
-): Request {
+function makeRequest(path: string, init?: RequestInit): Request {
   return new Request(`http://localhost${path}`, init);
 }
 

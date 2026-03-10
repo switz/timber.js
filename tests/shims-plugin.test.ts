@@ -94,7 +94,7 @@ describe('timber-shims plugin', () => {
     it('resolves @timber/app/search-params', () => {
       const resolveId = createResolveId();
       expect(resolveId.call({}, '@timber/app/search-params')).toBe(
-        resolve(SRC_DIR, 'search-params/index.ts'),
+        resolve(SRC_DIR, 'search-params/index.ts')
       );
     });
 

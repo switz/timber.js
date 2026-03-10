@@ -55,7 +55,9 @@ describe('generateRouteMap', () => {
 
     // Single dynamic param
     expect(output).toContain("'/products/[id]'");
-    expect(output).toMatch(/['"]\/products\/\[id\]['"]\s*:\s*\{[^}]*params\s*:\s*\{\s*id\s*:\s*string/);
+    expect(output).toMatch(
+      /['"]\/products\/\[id\]['"]\s*:\s*\{[^}]*params\s*:\s*\{\s*id\s*:\s*string/
+    );
 
     // Nested dynamic params
     expect(output).toContain("'/users/[userId]/posts/[postId]'");
@@ -163,7 +165,9 @@ export default createSearchParams({
     expect(output).toContain("'/api/users'");
     expect(output).toContain("'/api/products/[id]'");
     // API route with dynamic param
-    expect(output).toMatch(/['"]\/api\/products\/\[id\]['"]\s*:\s*\{[^}]*params\s*:\s*\{\s*id\s*:\s*string/);
+    expect(output).toMatch(
+      /['"]\/api\/products\/\[id\]['"]\s*:\s*\{[^}]*params\s*:\s*\{\s*id\s*:\s*string/
+    );
   });
 
   it('empty params for static routes', () => {

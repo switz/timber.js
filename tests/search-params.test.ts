@@ -69,7 +69,10 @@ describe('create search params', () => {
   it('creates a definition with codecs', () => {
     const def = createSearchParams({
       page: fromSchema(mockNumberSchema(1)),
-      q: { parse: (v: string | string[] | undefined) => (typeof v === 'string' ? v : null), serialize: (v: string | null) => v },
+      q: {
+        parse: (v: string | string[] | undefined) => (typeof v === 'string' ? v : null),
+        serialize: (v: string | null) => v,
+      },
     });
 
     expect(def).toBeDefined();
@@ -195,7 +198,7 @@ describe('url keys', () => {
       },
       {
         urlKeys: { category: 'cat', search: 'q' },
-      },
+      }
     );
 
     const result = def.parse(new URLSearchParams('cat=shoes&q=boots'));
@@ -210,7 +213,7 @@ describe('url keys', () => {
       },
       {
         urlKeys: { category: 'cat', search: 'q' },
-      },
+      }
     );
 
     const qs = def.serialize({ category: 'shoes', search: 'boots' });
@@ -227,7 +230,7 @@ describe('url keys', () => {
       },
       {
         urlKeys: { category: 'cat' },
-      },
+      }
     );
 
     expect(def.href('/products', { category: 'shoes' })).toBe('/products?cat=shoes');
@@ -240,7 +243,7 @@ describe('url keys', () => {
       },
       {
         urlKeys: { category: 'cat' },
-      },
+      }
     );
 
     const usp = def.toSearchParams({ category: 'shoes' });
@@ -335,15 +338,11 @@ describe('composition', () => {
   });
 
   it('extend chaining works', () => {
-    const combined = pagination
-      .extend(searchable.codecs)
-      .extend({
-        category: fromSchema(mockNullableStringSchema()),
-      });
+    const combined = pagination.extend(searchable.codecs).extend({
+      category: fromSchema(mockNullableStringSchema()),
+    });
 
-    const result = combined.parse(
-      new URLSearchParams('page=2&q=boots&category=shoes'),
-    );
+    const result = combined.parse(new URLSearchParams('page=2&q=boots&category=shoes'));
     expect(result).toEqual({ page: 2, pageSize: 20, q: 'boots', category: 'shoes' });
   });
 
@@ -367,7 +366,7 @@ describe('composition', () => {
         search: fromSchema(mockNullableStringSchema()),
         page: fromSchema(mockNumberSchema(1)),
       },
-      { urlKeys: { search: 'q' } },
+      { urlKeys: { search: 'q' } }
     );
 
     const picked = def.pick('search');
@@ -380,7 +379,7 @@ describe('composition', () => {
       {
         search: fromSchema(mockNullableStringSchema()),
       },
-      { urlKeys: { search: 'q' } },
+      { urlKeys: { search: 'q' } }
     );
 
     // Spread codecs into a new definition — alias not inherited
@@ -633,7 +632,7 @@ describe('edge cases', () => {
       {
         itemsPerPage: fromSchema(mockNumberSchema(20)),
       },
-      { urlKeys: { itemsPerPage: 'limit' } },
+      { urlKeys: { itemsPerPage: 'limit' } }
     );
 
     expect(def.parse(new URLSearchParams('limit=50'))).toEqual({ itemsPerPage: 50 });

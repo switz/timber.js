@@ -268,7 +268,9 @@ function formatTypedLinkOverloads(routes: RouteEntry[]): string[] {
       const spProp = searchParamsType
         ? `searchParams?: { definition: SearchParamsDefinition<${searchParamsType}>; values: Partial<${searchParamsType}> }`
         : `searchParams?: never`;
-      lines.push(`  export function Link(props: Omit<import('react').AnchorHTMLAttributes<HTMLAnchorElement>, 'href'> & {`);
+      lines.push(
+        `  export function Link(props: Omit<import('react').AnchorHTMLAttributes<HTMLAnchorElement>, 'href'> & {`
+      );
       lines.push(`    href: '${route.urlPath}'`);
       lines.push(`    params: ${paramsType}`);
       lines.push(`    ${spProp}`);
@@ -279,7 +281,9 @@ function formatTypedLinkOverloads(routes: RouteEntry[]): string[] {
       const spProp = searchParamsType
         ? `searchParams?: { definition: SearchParamsDefinition<${searchParamsType}>; values: Partial<${searchParamsType}> }`
         : `searchParams?: never`;
-      lines.push(`  export function Link(props: Omit<import('react').AnchorHTMLAttributes<HTMLAnchorElement>, 'href'> & {`);
+      lines.push(
+        `  export function Link(props: Omit<import('react').AnchorHTMLAttributes<HTMLAnchorElement>, 'href'> & {`
+      );
       lines.push(`    href: '${route.urlPath}'`);
       lines.push(`    params?: never`);
       lines.push(`    ${spProp}`);
@@ -289,7 +293,9 @@ function formatTypedLinkOverloads(routes: RouteEntry[]): string[] {
   }
 
   // Fallback overload for arbitrary string hrefs (escape hatch)
-  lines.push(`  export function Link(props: import('./client/link.js').LinkProps): import('react').JSX.Element`);
+  lines.push(
+    `  export function Link(props: import('./client/link.js').LinkProps): import('react').JSX.Element`
+  );
 
   return lines;
 }

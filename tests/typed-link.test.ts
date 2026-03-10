@@ -1,11 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import {
-  interpolateParams,
-  resolveHref,
-  buildLinkProps,
-} from '@timber/app/client';
+import { interpolateParams, resolveHref, buildLinkProps } from '@timber/app/client';
 import { createSearchParams } from '@timber/app/search-params';
 import { generateRouteMap } from '../packages/timber-app/src/routing/codegen.js';
 import { scanRoutes } from '@timber/app/routing';
@@ -14,9 +10,7 @@ import { scanRoutes } from '@timber/app/routing';
 
 describe('interpolateParams', () => {
   it('interpolates single dynamic segment', () => {
-    expect(interpolateParams('/products/[id]', { id: '123' })).toBe(
-      '/products/123'
-    );
+    expect(interpolateParams('/products/[id]', { id: '123' })).toBe('/products/123');
   });
 
   it('interpolates multiple dynamic segments', () => {
@@ -29,21 +23,19 @@ describe('interpolateParams', () => {
   });
 
   it('interpolates catch-all segments', () => {
-    expect(
-      interpolateParams('/blog/[...slug]', { slug: ['2024', '03', 'hello'] })
-    ).toBe('/blog/2024/03/hello');
-  });
-
-  it('interpolates catch-all with single value', () => {
-    expect(interpolateParams('/blog/[...slug]', { slug: 'hello' })).toBe(
-      '/blog/hello'
+    expect(interpolateParams('/blog/[...slug]', { slug: ['2024', '03', 'hello'] })).toBe(
+      '/blog/2024/03/hello'
     );
   });
 
+  it('interpolates catch-all with single value', () => {
+    expect(interpolateParams('/blog/[...slug]', { slug: 'hello' })).toBe('/blog/hello');
+  });
+
   it('interpolates optional catch-all with values', () => {
-    expect(
-      interpolateParams('/docs/[[...path]]', { path: ['api', 'reference'] })
-    ).toBe('/docs/api/reference');
+    expect(interpolateParams('/docs/[[...path]]', { path: ['api', 'reference'] })).toBe(
+      '/docs/api/reference'
+    );
   });
 
   it('optional catch-all with empty array produces clean path', () => {
@@ -55,15 +47,11 @@ describe('interpolateParams', () => {
   });
 
   it('encodes param values', () => {
-    expect(interpolateParams('/search/[q]', { q: 'hello world' })).toBe(
-      '/search/hello%20world'
-    );
+    expect(interpolateParams('/search/[q]', { q: 'hello world' })).toBe('/search/hello%20world');
   });
 
   it('throws for missing required param', () => {
-    expect(() => interpolateParams('/products/[id]', {})).toThrow(
-      'missing required param "id"'
-    );
+    expect(() => interpolateParams('/products/[id]', {})).toThrow('missing required param "id"');
   });
 
   it('throws for missing catch-all param', () => {
@@ -73,15 +61,15 @@ describe('interpolateParams', () => {
   });
 
   it('throws for empty catch-all array', () => {
-    expect(() =>
-      interpolateParams('/blog/[...slug]', { slug: [] })
-    ).toThrow('must have at least one segment');
+    expect(() => interpolateParams('/blog/[...slug]', { slug: [] })).toThrow(
+      'must have at least one segment'
+    );
   });
 
   it('throws for array value in single segment', () => {
-    expect(() =>
-      interpolateParams('/products/[id]', { id: ['a', 'b'] })
-    ).toThrow('expected a string but received an array');
+    expect(() => interpolateParams('/products/[id]', { id: ['a', 'b'] })).toThrow(
+      'expected a string but received an array'
+    );
   });
 
   it('root route with no segments', () => {
@@ -107,7 +95,8 @@ describe('resolveHref', () => {
         serialize: (v) => String(v),
       },
       q: {
-        parse: (v: string | string[] | undefined): string | null => (typeof v === 'string' ? v : null),
+        parse: (v: string | string[] | undefined): string | null =>
+          typeof v === 'string' ? v : null,
         serialize: (v: string | null): string | null => v,
       },
     });
@@ -140,16 +129,21 @@ describe('resolveHref', () => {
   it('combines params and searchParams', () => {
     const def = createSearchParams({
       tab: {
-        parse: (v: string | string[] | undefined): string => (typeof v === 'string' ? v : 'overview'),
+        parse: (v: string | string[] | undefined): string =>
+          typeof v === 'string' ? v : 'overview',
         serialize: (v: string): string | null => v,
       },
     });
 
     expect(
-      resolveHref('/products/[id]', { id: '42' }, {
-        definition: def as any,
-        values: { tab: 'reviews' },
-      })
+      resolveHref(
+        '/products/[id]',
+        { id: '42' },
+        {
+          definition: def as any,
+          values: { tab: 'reviews' },
+        }
+      )
     ).toBe('/products/42?tab=reviews');
   });
 
@@ -228,7 +222,8 @@ describe('buildLinkProps', () => {
         serialize: (v) => String(v),
       },
       sort: {
-        parse: (v: string | string[] | undefined): string => (typeof v === 'string' ? v : 'popular'),
+        parse: (v: string | string[] | undefined): string =>
+          typeof v === 'string' ? v : 'popular',
         serialize: (v: string): string | null => v,
       },
     });
@@ -245,9 +240,7 @@ describe('buildLinkProps', () => {
   });
 
   it('security — rejects dangerous schemes after params interpolation', () => {
-    expect(() =>
-      buildLinkProps({ href: 'javascript:alert(1)' })
-    ).toThrow('dangerous href');
+    expect(() => buildLinkProps({ href: 'javascript:alert(1)' })).toThrow('dangerous href');
   });
 
   it('external links do not get data-timber-link', () => {

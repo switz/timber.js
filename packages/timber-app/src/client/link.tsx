@@ -43,7 +43,10 @@ export interface LinkPropsWithHref extends LinkBaseProps {
    * Typed search params — serialized via the route's SearchParamsDefinition.
    * Mutually exclusive with an inline query string in href.
    */
-  searchParams?: { definition: SearchParamsDefinition<Record<string, unknown>>; values: Record<string, unknown> };
+  searchParams?: {
+    definition: SearchParamsDefinition<Record<string, unknown>>;
+    values: Record<string, unknown>;
+  };
 }
 
 /**
@@ -58,7 +61,10 @@ export interface LinkPropsWithParams extends LinkBaseProps {
   /**
    * Typed search params — serialized via the route's SearchParamsDefinition.
    */
-  searchParams?: { definition: SearchParamsDefinition<Record<string, unknown>>; values: Record<string, unknown> };
+  searchParams?: {
+    definition: SearchParamsDefinition<Record<string, unknown>>;
+    values: Record<string, unknown>;
+  };
 }
 
 export type LinkProps = LinkPropsWithHref | LinkPropsWithParams;
@@ -111,51 +117,52 @@ export function interpolateParams(
   pattern: string,
   params: Record<string, string | string[]>
 ): string {
-  return pattern.replace(
-    /\[\[\.\.\.(\w+)\]\]|\[\.\.\.(\w+)\]|\[(\w+)\]/g,
-    (_match, optionalCatchAll, catchAll, single) => {
-      if (optionalCatchAll) {
-        const value = params[optionalCatchAll];
-        if (value === undefined || (Array.isArray(value) && value.length === 0)) {
-          return '';
-        }
-        const segments = Array.isArray(value) ? value : [value];
-        return segments.map(encodeURIComponent).join('/');
-      }
+  return (
+    pattern
+      .replace(
+        /\[\[\.\.\.(\w+)\]\]|\[\.\.\.(\w+)\]|\[(\w+)\]/g,
+        (_match, optionalCatchAll, catchAll, single) => {
+          if (optionalCatchAll) {
+            const value = params[optionalCatchAll];
+            if (value === undefined || (Array.isArray(value) && value.length === 0)) {
+              return '';
+            }
+            const segments = Array.isArray(value) ? value : [value];
+            return segments.map(encodeURIComponent).join('/');
+          }
 
-      if (catchAll) {
-        const value = params[catchAll];
-        if (value === undefined) {
-          throw new Error(
-            `<Link> missing required catch-all param "${catchAll}" for pattern "${pattern}".`
-          );
-        }
-        const segments = Array.isArray(value) ? value : [value];
-        if (segments.length === 0) {
-          throw new Error(
-            `<Link> catch-all param "${catchAll}" must have at least one segment for pattern "${pattern}".`
-          );
-        }
-        return segments.map(encodeURIComponent).join('/');
-      }
+          if (catchAll) {
+            const value = params[catchAll];
+            if (value === undefined) {
+              throw new Error(
+                `<Link> missing required catch-all param "${catchAll}" for pattern "${pattern}".`
+              );
+            }
+            const segments = Array.isArray(value) ? value : [value];
+            if (segments.length === 0) {
+              throw new Error(
+                `<Link> catch-all param "${catchAll}" must have at least one segment for pattern "${pattern}".`
+              );
+            }
+            return segments.map(encodeURIComponent).join('/');
+          }
 
-      // single dynamic segment
-      const value = params[single];
-      if (value === undefined) {
-        throw new Error(
-          `<Link> missing required param "${single}" for pattern "${pattern}".`
-        );
-      }
-      if (Array.isArray(value)) {
-        throw new Error(
-          `<Link> param "${single}" expected a string but received an array for pattern "${pattern}".`
-        );
-      }
-      return encodeURIComponent(value);
-    }
-  )
-    // Clean up trailing slash from empty optional catch-all
-    .replace(/\/+$/, '') || '/';
+          // single dynamic segment
+          const value = params[single];
+          if (value === undefined) {
+            throw new Error(`<Link> missing required param "${single}" for pattern "${pattern}".`);
+          }
+          if (Array.isArray(value)) {
+            throw new Error(
+              `<Link> param "${single}" expected a string but received an array for pattern "${pattern}".`
+            );
+          }
+          return encodeURIComponent(value);
+        }
+      )
+      // Clean up trailing slash from empty optional catch-all
+      .replace(/\/+$/, '') || '/'
+  );
 }
 
 // ─── Resolve Href ───────────────────────────────────────────────
@@ -171,7 +178,10 @@ export function interpolateParams(
 export function resolveHref(
   href: string,
   params?: Record<string, string | string[]>,
-  searchParams?: { definition: SearchParamsDefinition<Record<string, unknown>>; values: Record<string, unknown> }
+  searchParams?: {
+    definition: SearchParamsDefinition<Record<string, unknown>>;
+    values: Record<string, unknown>;
+  }
 ): string {
   let resolvedPath = href;
 
@@ -215,7 +225,10 @@ interface LinkOutputProps {
 export function buildLinkProps(
   props: Pick<LinkPropsWithHref, 'href' | 'prefetch' | 'scroll'> & {
     params?: Record<string, string | string[]>;
-    searchParams?: { definition: SearchParamsDefinition<Record<string, unknown>>; values: Record<string, unknown> };
+    searchParams?: {
+      definition: SearchParamsDefinition<Record<string, unknown>>;
+      values: Record<string, unknown>;
+    };
   }
 ): LinkOutputProps {
   const resolvedHref = resolveHref(props.href, props.params, props.searchParams);
@@ -253,7 +266,15 @@ export function buildLinkProps(
  * - `params` prop interpolates dynamic segments in the href pattern
  * - `searchParams` prop serializes query parameters via a SearchParamsDefinition
  */
-export function Link({ href, prefetch, scroll, params, searchParams, children, ...rest }: LinkProps) {
+export function Link({
+  href,
+  prefetch,
+  scroll,
+  params,
+  searchParams,
+  children,
+  ...rest
+}: LinkProps) {
   const linkProps = buildLinkProps({ href, prefetch, scroll, params, searchParams });
 
   return (

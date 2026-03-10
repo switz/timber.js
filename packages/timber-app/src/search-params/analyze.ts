@@ -123,7 +123,9 @@ function stripComments(source: string): string {
  */
 function extractDefaultExport(source: string): string | undefined {
   // Match `export default` followed by the expression
-  const match = source.match(/export\s+default\s+([\s\S]+?)(?:;|\n(?=export|import|const|let|var|function|class|type|interface|declare))/);
+  const match = source.match(
+    /export\s+default\s+([\s\S]+?)(?:;|\n(?=export|import|const|let|var|function|class|type|interface|declare))/
+  );
   if (match) {
     return match[1];
   }

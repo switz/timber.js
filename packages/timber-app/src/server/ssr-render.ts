@@ -27,9 +27,11 @@ import { renderToReadableStream } from 'react-dom/server';
  * @returns A ReadableStream of HTML bytes with hydration markers
  */
 export async function renderSsrStream(
-  element: ReactNode
+  element: ReactNode,
+  options?: { bootstrapScriptContent?: string }
 ): Promise<ReadableStream<Uint8Array>> {
   const stream = await renderToReadableStream(element, {
+    bootstrapScriptContent: options?.bootstrapScriptContent,
     onError(error: unknown) {
       console.error('[timber] SSR render error:', error);
     },

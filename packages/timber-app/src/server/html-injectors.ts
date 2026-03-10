@@ -67,18 +67,6 @@ export function injectHead(
   return createInjector(stream, headHtml, '</head>');
 }
 
-/**
- * Inject client bootstrap scripts before </body> in the HTML stream.
- *
- * Returns the stream unchanged if scriptsHtml is empty (noJS mode).
- * If no </body> is found, the buffer is emitted as-is.
- */
-export function injectScripts(
-  stream: ReadableStream<Uint8Array>,
-  scriptsHtml: string
-): ReadableStream<Uint8Array> {
-  return createInjector(stream, scriptsHtml, '</body>');
-}
 
 /**
  * Inline the RSC Flight payload into the HTML stream for client-side hydration.
@@ -171,32 +159,3 @@ export function injectRscPayload(
   );
 }
 
-/**
- * Build client bootstrap script tags based on runtime config.
- *
- * Returns an empty string when `output: 'static'` + `noJS: true`,
- * which produces zero-JS output. In dev mode, includes the Vite
- * HMR client script.
- */
-export function buildClientScripts(runtimeConfig: {
-  output: string;
-  noJS: boolean;
-  dev: boolean;
-}): string {
-  if (runtimeConfig.output === 'static' && runtimeConfig.noJS) {
-    return '';
-  }
-
-  let scripts = '';
-  if (runtimeConfig.dev) {
-    scripts += '<script type="module" src="/@vite/client"></script>';
-  }
-  // In dev mode, use /@id/ prefix so Vite's dev middleware resolves the
-  // virtual module through the plugin pipeline. In production, the build
-  // step resolves it to a real chunk path.
-  const browserEntryPath = runtimeConfig.dev
-    ? '/@id/virtual:timber-browser-entry'
-    : '/virtual:timber-browser-entry';
-  scripts += `<script type="module" src="${browserEntryPath}"></script>`;
-  return scripts;
-}

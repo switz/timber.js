@@ -30,7 +30,6 @@ import type { ManifestSegmentNode } from './route-matcher.js';
 import { resolveMetadata, renderMetadataToElements } from './metadata.js';
 import type { Metadata } from './types.js';
 import { DenySignal } from './primitives.js';
-import { buildClientScripts } from './html-injectors.js';
 import { resolveManifestStatusFile } from './manifest-status-resolver.js';
 
 import type { NavContext } from './ssr-entry.js';
@@ -44,15 +43,14 @@ import type { NavContext } from './ssr-entry.js';
 function createRequestHandler(manifest: typeof routeManifest, runtimeConfig: typeof config) {
   const matchRoute = createRouteMatcher(manifest);
 
-  // Build the client bootstrap script tags.
-  // In noJS mode (output: static + noJS: true), no scripts are injected.
-  const scriptsHtml = buildClientScripts(runtimeConfig);
+  // noJS mode: output: static + noJS: true — skip all client scripts.
+  const noJS = runtimeConfig.output === 'static' && runtimeConfig.noJS;
 
   const pipelineConfig: PipelineConfig = {
     proxy: manifest.proxy?.load,
     matchRoute,
     render: async (req: Request, match: RouteMatch, responseHeaders: Headers) => {
-      return renderRoute(req, match, responseHeaders, scriptsHtml);
+      return renderRoute(req, match, responseHeaders, noJS);
     },
   };
 
@@ -86,7 +84,7 @@ async function renderRoute(
   _req: Request,
   match: RouteMatch,
   responseHeaders: Headers,
-  scriptsHtml: string
+  noJS: boolean
 ): Promise<Response> {
   const segments = match.segments as unknown as ManifestSegmentNode[];
 
@@ -240,7 +238,7 @@ async function renderRoute(
       _req,
       match,
       responseHeaders,
-      scriptsHtml
+      noJS
     );
   }
 
@@ -275,7 +273,7 @@ async function renderRoute(
     statusCode: 200,
     responseHeaders,
     headHtml,
-    scriptsHtml,
+    noJS,
     rscStream: inlineStream,
   };
 
@@ -316,7 +314,7 @@ async function renderDenyPage(
   req: Request,
   match: RouteMatch,
   responseHeaders: Headers,
-  scriptsHtml: string
+  noJS: boolean
 ): Promise<Response> {
   const resolution = resolveManifestStatusFile(deny.status, segments);
 
@@ -386,7 +384,7 @@ async function renderDenyPage(
     statusCode: deny.status,
     responseHeaders,
     headHtml,
-    scriptsHtml,
+    noJS,
     rscStream: inlineStream,
   };
 

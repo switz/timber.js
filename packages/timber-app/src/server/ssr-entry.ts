@@ -1,3 +1,5 @@
+/// <reference types="@vitejs/plugin-rsc/types" />
+
 /**
  * SSR Entry — Receives RSC stream and renders HTML with hydration markers.
  *
@@ -12,12 +14,10 @@
  * Design docs: 18-build-system.md §"Entry Files", 02-rendering-pipeline.md
  */
 
-// @ts-expect-error — virtual module provided by timber-entries plugin
-import config from 'virtual:timber-config';
 import { createFromReadableStream } from '@vitejs/plugin-rsc/ssr';
 
 import { renderSsrStream, buildSsrResponse } from './ssr-render.js';
-import { injectHead, injectScripts, injectRscPayload } from './html-injectors.js';
+import { injectHead, injectRscPayload } from './html-injectors.js';
 
 /**
  * Navigation context passed from the RSC environment to SSR.
@@ -38,8 +38,8 @@ export interface NavContext {
   responseHeaders: Headers;
   /** Pre-rendered metadata HTML to inject before </head> */
   headHtml: string;
-  /** Client bootstrap script tags to inject before </body> */
-  scriptsHtml: string;
+  /** When true, skip all client bootstrap scripts (zero-JS output) */
+  noJS: boolean;
   /** Tee'd RSC stream for client-side hydration (inlined into HTML) */
   rscStream?: ReadableStream<Uint8Array>;
 }
@@ -52,7 +52,7 @@ export interface NavContext {
  *    (resolves "use client" references to actual component modules for SSR)
  * 2. Render the decoded tree to HTML via renderToReadableStream (streaming)
  * 3. Wait for onShellReady before flushing (handled by renderSsrStream)
- * 4. Inject metadata into <head> and client scripts before </body>
+ * 4. Inject metadata into <head> and RSC payload for hydration
  * 5. Return Response with navContext.statusCode and navContext.responseHeaders
  *
  * DenySignal handling is done entirely in the RSC entry (rsc-entry.ts).
@@ -68,23 +68,27 @@ export async function handleSsr(
   rscStream: ReadableStream<Uint8Array>,
   navContext: NavContext
 ): Promise<Response> {
-  const _runtimeConfig = config;
-
   // Decode the RSC stream into a React element tree.
   // createFromReadableStream resolves client component references
   // (from "use client" modules) using the SSR environment's module
   // map, importing the actual components for server-side rendering.
   const element = createFromReadableStream(rscStream) as React.ReactNode;
 
-  // Render to HTML stream (waits for onShellReady).
-  const htmlStream = await renderSsrStream(element);
+  // Load bootstrap script from the RSC plugin. In production this resolves
+  // to `import("/assets/index-<hash>.js")`; in dev it dynamically imports
+  // the browser entry through Vite's module runner. React's
+  // renderToReadableStream injects it as an inline <script> automatically.
+  const bootstrapScriptContent = navContext.noJS
+    ? undefined
+    : await import.meta.viteRsc.loadBootstrapScriptContent('index');
 
-  // Inject metadata into <head>, RSC payload for hydration, and
-  // client scripts before </body>.
+  // Render to HTML stream (waits for onShellReady).
+  const htmlStream = await renderSsrStream(element, { bootstrapScriptContent });
+
+  // Inject metadata into <head> and RSC payload for hydration.
   // The layout renders <html><head>...</head><body>...</body></html>.
   let outputStream = injectHead(htmlStream, navContext.headHtml);
   outputStream = injectRscPayload(outputStream, navContext.rscStream);
-  outputStream = injectScripts(outputStream, navContext.scriptsHtml);
 
   // Build and return the Response.
   return buildSsrResponse(outputStream, navContext.statusCode, navContext.responseHeaders);

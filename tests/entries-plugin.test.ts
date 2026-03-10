@@ -188,7 +188,6 @@ describe('timber-entries plugin', () => {
     it('ssr entry handles RSC stream', async () => {
       const { readFileSync } = await import('node:fs');
       const content = readFileSync(resolve(SRC_DIR, 'server/ssr-entry.ts'), 'utf-8');
-      expect(content).toContain("from 'virtual:timber-config'");
       expect(content).toContain('handleSsr');
       expect(content).toContain('rscStream');
       expect(content).toContain('navContext');

@@ -44,6 +44,48 @@ describe('headers()', () => {
       expect(h.has('x-missing')).toBe(false);
     });
   });
+
+  it('rejects .set() mutation at runtime', () => {
+    const req = new Request('http://localhost/test', {
+      headers: { 'X-Custom': 'value' },
+    });
+
+    runWithRequestContext(req, () => {
+      const h = headers() as Headers;
+      expect(() => h.set('X-Evil', 'injected')).toThrow('read-only');
+    });
+  });
+
+  it('rejects .append() mutation at runtime', () => {
+    const req = new Request('http://localhost/test');
+
+    runWithRequestContext(req, () => {
+      const h = headers() as Headers;
+      expect(() => h.append('X-Evil', 'injected')).toThrow('read-only');
+    });
+  });
+
+  it('rejects .delete() mutation at runtime', () => {
+    const req = new Request('http://localhost/test', {
+      headers: { 'Authorization': 'Bearer token' },
+    });
+
+    runWithRequestContext(req, () => {
+      const h = headers() as Headers;
+      expect(() => h.delete('Authorization')).toThrow('read-only');
+    });
+  });
+
+  it('mutations do not affect original request headers', () => {
+    const req = new Request('http://localhost/test', {
+      headers: { 'X-Original': 'value' },
+    });
+
+    runWithRequestContext(req, () => {
+      // The store holds a copy, so the original request is never affected
+      expect(req.headers.get('X-Original')).toBe('value');
+    });
+  });
 });
 
 // ─── cookies() ──────────────────────────────────────────────────

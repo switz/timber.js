@@ -27,6 +27,7 @@ import { renderToReadableStream } from '@vitejs/plugin-rsc/rsc';
 
 import { createPipeline } from './pipeline.js';
 import type { PipelineConfig, RouteMatch } from './pipeline.js';
+import { logRenderError } from './logger.js';
 import { createRouteMatcher } from './route-matcher.js';
 import type { ManifestSegmentNode } from './route-matcher.js';
 import { resolveMetadata, renderMetadataToElements } from './metadata.js';
@@ -284,7 +285,7 @@ async function renderRoute(
             denySignal = error;
             return;
           }
-          console.error('[timber] RSC render error:', error);
+          logRenderError({ method: _req.method, path: new URL(_req.url).pathname, error });
         },
         debugChannel: createDebugChannelSink(),
       },
@@ -465,7 +466,7 @@ async function renderDenyPage(
   // the error is logged and the stream may be incomplete.
   const rscStream = renderToReadableStream(element, {
     onError(error: unknown) {
-      console.error('[timber] Error page RSC render error:', error);
+      logRenderError({ method: req.method, path: new URL(req.url).pathname, error });
     },
     debugChannel: createDebugChannelSink(),
   });

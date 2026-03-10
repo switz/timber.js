@@ -478,9 +478,15 @@ The dev logger is implemented as a Vite plugin and stripped entirely from produc
 - OTEL span helpers: `withSpan()`, `addSpanEvent()`, `getOtelTraceId()`, `getTracer()`
 - `@opentelemetry/api` dependency (no-op by default, active when SDK initialized in `register()`)
 
+**Implemented (pipeline wiring):**
+- Per-request `traceId` established at pipeline entry via `runWithTraceId()` — available from first line of `proxy.ts`
+- OTEL SDK auto-detection: `getOtelTraceId()` + `replaceTraceId()` wired after root span creation
+- Framework-emitted spans: `http.server.request` (root), `timber.proxy`, `timber.middleware`, `timber.render` via `withSpan()`
+- Production logger calls wired into pipeline: `logRequestReceived`, `logRequestCompleted`, `logSlowRequest`, `logProxyError`, `logMiddlewareError`, `logMiddlewareShortCircuit`, `logRenderError`
+- `onRequestError()` hook invoked for unhandled errors in proxy, middleware, and render phases
+- `slowRequestMs` config support (default 3000ms, 0 to disable)
+
 **Not yet implemented:**
-- OTEL SDK auto-detection and `replaceTraceId()` wiring in pipeline (hook span creation to replace fallback ID)
-- Framework-emitted spans wired into pipeline stages (`timber.proxy`, `timber.render`, etc. — helpers exist, need pipeline integration)
-- Production logger calls wired into pipeline (`logRequestCompleted`, etc. — emitters exist, need pipeline integration)
 - Dev logging (grouped indented tree output to stderr)
-- `slowRequestMs` / `slowPhaseMs` threshold warnings
+- `slowPhaseMs` per-phase threshold warnings (dev mode only)
+- `timber.access`, `timber.ssr`, `timber.action`, `timber.metadata` spans (access gates and SSR run inside the render phase)

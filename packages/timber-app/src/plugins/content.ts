@@ -62,7 +62,7 @@ export function timberContent(ctx: PluginContext): Plugin {
           '  pnpm add -D @content-collections/mdx',
           '',
           'Content collections are activated because a content-collections.ts file exists.',
-        ].join('\n'),
+        ].join('\n')
       );
     }
 
@@ -95,6 +95,30 @@ export function timberContent(ctx: PluginContext): Plugin {
       if (typeof innerPlugin.buildStart === 'function') {
         await (innerPlugin.buildStart as Function).call(this, options);
       }
+    },
+
+    async resolveId(source: string, importer: string | undefined, options: unknown) {
+      if (!innerPlugin) return null;
+      if (typeof innerPlugin.resolveId === 'function') {
+        return (innerPlugin.resolveId as Function).call(this, source, importer, options);
+      }
+      return null;
+    },
+
+    async load(id: string) {
+      if (!innerPlugin) return null;
+      if (typeof innerPlugin.load === 'function') {
+        return (innerPlugin.load as Function).call(this, id);
+      }
+      return null;
+    },
+
+    async transform(code: string, id: string) {
+      if (!innerPlugin) return null;
+      if (typeof innerPlugin.transform === 'function') {
+        return (innerPlugin.transform as Function).call(this, code, id);
+      }
+      return null;
     },
 
     async configureServer(server) {

@@ -49,4 +49,77 @@ describe('timber-content', () => {
     // Should not throw even if inner plugin wasn't created
     await (plugin.configureServer as Function)?.({});
   });
+
+  // -------------------------------------------------------------------------
+  // resolveId hook
+  // -------------------------------------------------------------------------
+
+  describe('resolveId', () => {
+    it('returns null when not activated', async () => {
+      const plugin = timberContent(createCtx());
+      const result = await (plugin.resolveId as Function)?.('content-collections', undefined, {});
+      expect(result).toBeNull();
+    });
+
+    it('exposes resolveId as a function', () => {
+      const plugin = timberContent(createCtx());
+      expect(typeof plugin.resolveId).toBe('function');
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // load hook
+  // -------------------------------------------------------------------------
+
+  describe('load', () => {
+    it('returns null when not activated', async () => {
+      const plugin = timberContent(createCtx());
+      const result = await (plugin.load as Function)?.('\0content-collections');
+      expect(result).toBeNull();
+    });
+
+    it('exposes load as a function', () => {
+      const plugin = timberContent(createCtx());
+      expect(typeof plugin.load).toBe('function');
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // transform hook
+  // -------------------------------------------------------------------------
+
+  describe('transform', () => {
+    it('returns null when not activated', async () => {
+      const plugin = timberContent(createCtx());
+      const result = await (plugin.transform as Function)?.('export default {}', '/some/file.ts');
+      expect(result).toBeNull();
+    });
+
+    it('exposes transform as a function', () => {
+      const plugin = timberContent(createCtx());
+      expect(typeof plugin.transform).toBe('function');
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // All hooks are present
+  // -------------------------------------------------------------------------
+
+  describe('hook completeness', () => {
+    it('delegates all required hooks', () => {
+      const plugin = timberContent(createCtx());
+      const requiredHooks = [
+        'config',
+        'configResolved',
+        'buildStart',
+        'resolveId',
+        'load',
+        'transform',
+        'configureServer',
+      ];
+      for (const hook of requiredHooks) {
+        expect(typeof (plugin as unknown as Record<string, unknown>)[hook]).toBe('function');
+      }
+    });
+  });
 });

@@ -43,7 +43,12 @@
       "Read(//private/tmp/cc-inspect/package/dist/**)",
       "Bash(node /tmp/filter_tasks.js)",
       "Bash(pnpm add -D acorn acorn-jsx)",
-      "Bash(grep -r \"resolveId\\\\|load\\\\|transform\" packages/timber-app/src/plugins/*.ts)"
+      "Bash(grep -r \"resolveId\\\\|load\\\\|transform\" packages/timber-app/src/plugins/*.ts)",
+      "Bash(git status -u)",
+      "Bash(ls -la /Users/dsaewitz/y/timber-js-fresh/node_modules/.pnpm/@vitejs*rsc*)",
+      "Read(//Users/dsaewitz/y/**)",
+      "Read(//Users/dsaewitz/**)",
+      "Bash(npx playwright test)"
     ],
     "additionalDirectories": [
       "/Users/dsaewitz/y/timber-js-fresh/tests/e2e",

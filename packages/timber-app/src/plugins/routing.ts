@@ -19,7 +19,8 @@ const RESOLVED_VIRTUAL_ID = `\0${VIRTUAL_MODULE_ID}`;
 /**
  * File convention names we track for changes that require manifest regeneration.
  */
-const ROUTE_FILE_PATTERNS = /\/(page|layout|middleware|access|route|error|default|denied|\d{3}|[45]xx|not-found|forbidden|unauthorized)\./;
+const ROUTE_FILE_PATTERNS =
+  /\/(page|layout|middleware|access|route|error|default|denied|\d{3}|[45]xx|not-found|forbidden|unauthorized)\./;
 
 /**
  * Create the timber-routing Vite plugin.
@@ -176,35 +177,51 @@ function generateManifestModule(tree: RouteTree): string {
     // File conventions — absolute paths as lazy imports
     if (node.page) {
       const v = addImport(node.page);
-      parts.push(`${nextIndent}page: { load: ${v}, filePath: ${JSON.stringify(node.page.filePath)} },`);
+      parts.push(
+        `${nextIndent}page: { load: ${v}, filePath: ${JSON.stringify(node.page.filePath)} },`
+      );
     }
     if (node.layout) {
       const v = addImport(node.layout);
-      parts.push(`${nextIndent}layout: { load: ${v}, filePath: ${JSON.stringify(node.layout.filePath)} },`);
+      parts.push(
+        `${nextIndent}layout: { load: ${v}, filePath: ${JSON.stringify(node.layout.filePath)} },`
+      );
     }
     if (node.middleware) {
       const v = addImport(node.middleware);
-      parts.push(`${nextIndent}middleware: { load: ${v}, filePath: ${JSON.stringify(node.middleware.filePath)} },`);
+      parts.push(
+        `${nextIndent}middleware: { load: ${v}, filePath: ${JSON.stringify(node.middleware.filePath)} },`
+      );
     }
     if (node.access) {
       const v = addImport(node.access);
-      parts.push(`${nextIndent}access: { load: ${v}, filePath: ${JSON.stringify(node.access.filePath)} },`);
+      parts.push(
+        `${nextIndent}access: { load: ${v}, filePath: ${JSON.stringify(node.access.filePath)} },`
+      );
     }
     if (node.route) {
       const v = addImport(node.route);
-      parts.push(`${nextIndent}route: { load: ${v}, filePath: ${JSON.stringify(node.route.filePath)} },`);
+      parts.push(
+        `${nextIndent}route: { load: ${v}, filePath: ${JSON.stringify(node.route.filePath)} },`
+      );
     }
     if (node.error) {
       const v = addImport(node.error);
-      parts.push(`${nextIndent}error: { load: ${v}, filePath: ${JSON.stringify(node.error.filePath)} },`);
+      parts.push(
+        `${nextIndent}error: { load: ${v}, filePath: ${JSON.stringify(node.error.filePath)} },`
+      );
     }
     if (node.default) {
       const v = addImport(node.default);
-      parts.push(`${nextIndent}default: { load: ${v}, filePath: ${JSON.stringify(node.default.filePath)} },`);
+      parts.push(
+        `${nextIndent}default: { load: ${v}, filePath: ${JSON.stringify(node.default.filePath)} },`
+      );
     }
     if (node.denied) {
       const v = addImport(node.denied);
-      parts.push(`${nextIndent}denied: { load: ${v}, filePath: ${JSON.stringify(node.denied.filePath)} },`);
+      parts.push(
+        `${nextIndent}denied: { load: ${v}, filePath: ${JSON.stringify(node.denied.filePath)} },`
+      );
     }
 
     // Status-code files
@@ -212,7 +229,9 @@ function generateManifestModule(tree: RouteTree): string {
       const statusEntries: string[] = [];
       for (const [code, file] of node.statusFiles) {
         const v = addImport(file);
-        statusEntries.push(`${nextIndent}    ${JSON.stringify(code)}: { load: ${v}, filePath: ${JSON.stringify(file.filePath)} }`);
+        statusEntries.push(
+          `${nextIndent}    ${JSON.stringify(code)}: { load: ${v}, filePath: ${JSON.stringify(file.filePath)} }`
+        );
       }
       parts.push(`${nextIndent}statusFiles: {\n${statusEntries.join(',\n')}\n${nextIndent}},`);
     }
@@ -222,9 +241,13 @@ function generateManifestModule(tree: RouteTree): string {
       const legacyEntries: string[] = [];
       for (const [name, file] of node.legacyStatusFiles) {
         const v = addImport(file);
-        legacyEntries.push(`${nextIndent}    ${JSON.stringify(name)}: { load: ${v}, filePath: ${JSON.stringify(file.filePath)} }`);
+        legacyEntries.push(
+          `${nextIndent}    ${JSON.stringify(name)}: { load: ${v}, filePath: ${JSON.stringify(file.filePath)} }`
+        );
       }
-      parts.push(`${nextIndent}legacyStatusFiles: {\n${legacyEntries.join(',\n')}\n${nextIndent}},`);
+      parts.push(
+        `${nextIndent}legacyStatusFiles: {\n${legacyEntries.join(',\n')}\n${nextIndent}},`
+      );
     }
 
     // Children
@@ -239,7 +262,9 @@ function generateManifestModule(tree: RouteTree): string {
     if (node.slots.size > 0) {
       const slotEntries: string[] = [];
       for (const [slotName, slotNode] of node.slots) {
-        slotEntries.push(`${nextIndent}    ${JSON.stringify(slotName)}: ${serializeNode(slotNode, nextIndent + '  ')}`);
+        slotEntries.push(
+          `${nextIndent}    ${JSON.stringify(slotName)}: ${serializeNode(slotNode, nextIndent + '  ')}`
+        );
       }
       parts.push(`${nextIndent}slots: {\n${slotEntries.join(',\n')}\n${nextIndent}},`);
     } else {

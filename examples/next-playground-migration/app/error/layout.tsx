@@ -1,7 +1,7 @@
 import db from '#/lib/db';
 import { Boundary } from '#/ui/boundary';
 import { Tabs } from '#/ui/tabs';
-import { type Metadata } from 'next';
+import type { Metadata } from '@timber/app/server';
 import React from 'react';
 import Readme from './readme.mdx';
 import { Mdx } from '#/ui/codehike';

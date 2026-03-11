@@ -1,7 +1,20 @@
+// MIGRATION: cacheTag() from next/cache is replaced by timber.cache() tags option.
+// In Next.js, cacheTag() inside 'use cache' functions sets invalidation tags.
+// In timber, tags are passed as options to timber.cache().
+//
+// Before (Next.js):
+//   async function getProducts() {
+//     'use cache';
+//     cacheTag('products');
+//     ...
+//   }
+//
+// After (timber):
+//   const getProducts = cache(async () => { ... }, { tags: ['products'] })
 import db from '#/lib/db';
 import { Boundary } from '#/ui/boundary';
 import { ProductCard } from '#/ui/product-card';
-import { cacheTag } from 'next/cache';
+import { cache } from '@timber/app/cache';
 import Link from 'next/link';
 import SessionButton from './session-button';
 import ProductLink from './product-link';
@@ -32,7 +45,7 @@ export async function ProductList() {
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           {products.map((product, index) => {
             // First half uses private cache (with runtime prefetch)
-            // Second half uses remote cache (no prefetch)
+            // Second half uses regular cache (no prefetch)
             const privateCache = index < products.length / 2;
 
             return (
@@ -81,19 +94,19 @@ export function ProductListSkeleton() {
   );
 }
 
-async function getProducts() {
-  'use cache';
-  cacheTag('products');
-
-  // DEMO: Add a delay to simulate a slow data request
-  await new Promise((resolve) => setTimeout(resolve, 1000));
-
-  const products = await db.product.findMany({ limit: 4 });
-
-  // Tag each product for targeted invalidation
-  for (const product of products) {
-    cacheTag(`product-${product.id}`);
-  }
-
-  return products;
-}
+// MIGRATION: 'use cache' + cacheTag() → timber.cache() with tags option
+const getProducts = cache(
+  async () => {
+    // DEMO: Add a delay to simulate a slow data request
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    return db.product.findMany({ limit: 4 });
+  },
+  {
+    // Tags from cacheTag('products') + per-product tags
+    // Note: timber.cache tags are static here; for per-item tags use the
+    // tags function form: tags: (result) => result.map(p => `product-${p.id}`)
+    // However, timber.cache tags run at call time, not after execution.
+    // Per-product tags could be added by wrapping individual product fetches.
+    tags: ['products'],
+  },
+);

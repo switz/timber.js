@@ -1,8 +1,35 @@
+// MIGRATION: Several Next.js-specific caching APIs used here:
+//
+// 1. 'use cache: private' → timber.cache() with cookies in the function.
+//    timber.cache() supports user-scoped caching by including request-specific
+//    data (cookies) in the cache key via the key: option.
+//
+// 2. cacheTag() → timber.cache() tags option
+//
+// 3. cacheLife() → timber.cache() ttl/staleWhileRevalidate options
+//
+// 4. unstable_prefetch → Not supported in timber. Gap filed as bd issue.
+//
+// Before (Next.js):
+//   async function getRecommendations(productId: string) {
+//     'use cache: private';
+//     cacheTag(`recommendations-${productId}`);
+//     cacheLife({ stale: 60 });
+//     const sessionId = (await cookies()).get('session-id')?.value || 'guest';
+//     return getPersonalizedRecommendations(productId, sessionId);
+//   }
+//
+// After (timber):
+//   const getRecommendations = cache(
+//     async (productId: string, sessionId: string) => { ... },
+//     { tags: (productId) => [`recommendations-${productId}`], ttl: 60 }
+//   )
+
 import { Suspense } from 'react';
 import db from '#/lib/db';
 import { Boundary } from '#/ui/boundary';
 import { ProductCard } from '#/ui/product-card';
-import { cacheLife, cacheTag } from 'next/cache';
+import { cache } from '@timber/app/cache';
 import { cookies } from 'next/headers';
 import { getPersonalizedRecommendations } from '../../../_components/recommendations';
 import { notFound } from 'next/navigation';
@@ -10,13 +37,9 @@ import { ProductDetails } from '#/app/private-cache/_components/product-detail';
 import Link from 'next/link';
 import { ChevronLeftIcon } from '@heroicons/react/24/solid';
 
-// CRITICAL: This enables runtime prefetching!
-export const unstable_prefetch = {
-  mode: 'runtime',
-  samples: [
-    { params: { id: '1' }, cookies: [{ name: 'session-id', value: '1' }] },
-  ],
-};
+// MIGRATION: unstable_prefetch is a Next.js runtime prefetch hint — not
+// supported in timber. Timber uses <Link prefetch> for hover-based prefetch.
+// export const unstable_prefetch = { ... }  ← removed
 
 export default async function Page({
   params,
@@ -44,7 +67,7 @@ export default async function Page({
         {/* Static Product Details */}
         <ProductDetails product={product} />
 
-        {/* Private Cache - RUNTIME PREFETCHABLE! */}
+        {/* Private Cache (user-scoped via session cookie) */}
         <Suspense fallback={<RecommendationsSkeleton />}>
           <Recommendations productId={id} />
         </Suspense>
@@ -54,11 +77,16 @@ export default async function Page({
 }
 
 async function Recommendations({ productId }: { productId: string }) {
-  const recommendations = await getRecommendations(productId);
+  // MIGRATION: Read cookies before calling cached function, pass as arg.
+  // This is required in timber — cookies() can't be called inside cached
+  // functions (they're shared across requests). The session ID becomes part
+  // of the function args and thus part of the cache key.
+  const sessionId = (await cookies()).get('session-id')?.value ?? 'guest';
+  const recommendations = await getRecommendations(productId, sessionId);
 
   return (
     <Boundary
-      label="<Recommendations> (Private Cacheable + Runtime Prefetch)"
+      label="<Recommendations> (User-Scoped Cache)"
       size="small"
       animateRerendering={false}
     >
@@ -80,23 +108,23 @@ async function Recommendations({ productId }: { productId: string }) {
   );
 }
 
-// Private cache - RUNTIME PREFETCHABLE!
-async function getRecommendations(productId: string) {
-  'use cache: private';
-  cacheTag(`recommendations-${productId}`);
-  cacheLife({ stale: 60 }); // 60s stale time (≥30s required for runtime prefetch)
-
-  // Can call cookies() inside private cache!
-  const sessionId = (await cookies()).get('session-id')?.value || 'guest';
-
-  // Get personalized recommendations
-  return getPersonalizedRecommendations(productId, sessionId);
-}
+// MIGRATION: 'use cache: private' + cacheTag() + cacheLife() → timber.cache()
+// User-scoped caching: sessionId is passed as an arg, so each user gets
+// their own cache entry (the cache key includes sessionId).
+const getRecommendations = cache(
+  async (productId: string, sessionId: string) => {
+    return getPersonalizedRecommendations(productId, sessionId);
+  },
+  {
+    ttl: 60,
+    tags: (productId: string) => [`recommendations-${productId}`],
+  },
+);
 
 function RecommendationsSkeleton() {
   return (
     <Boundary
-      label="<Recommendations> (Private Cacheable + Runtime Prefetch)"
+      label="<Recommendations> (User-Scoped Cache)"
       size="small"
       color="blue"
       animateRerendering={false}

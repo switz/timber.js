@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 import db from '#/lib/db';
 import { Boundary } from '#/ui/boundary';
 import { Tabs } from '#/ui/tabs';
-import { Metadata } from 'next';
+import type { Metadata } from '@timber/app/server';
 
 export async function generateMetadata(): Promise<Metadata> {
   const demo = db.demo.find({ where: { slug: 'error' } });

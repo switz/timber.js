@@ -1,12 +1,16 @@
 'use cache';
 
+// MIGRATION: loading.tsx is not a file convention in timber.
+// Instead, wrap {children} in <Suspense fallback={<Loading />}> in the layout.
+import { Suspense } from 'react';
 import db from '#/lib/db';
 import { Boundary } from '#/ui/boundary';
 import { Tabs } from '#/ui/tabs';
-import { type Metadata } from 'next';
+import type { Metadata } from '@timber/app/server';
 import React from 'react';
 import Readme from './readme.mdx';
 import { Mdx } from '#/ui/codehike';
+import Loading from './loading';
 
 export async function generateMetadata(): Promise<Metadata> {
   const demo = db.demo.find({ where: { slug: 'use-link-status' } });
@@ -44,7 +48,7 @@ export default async function Layout({
           ]}
         />
 
-        {children}
+        <Suspense fallback={<Loading />}>{children}</Suspense>
       </Boundary>
     </>
   );

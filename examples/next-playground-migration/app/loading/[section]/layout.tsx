@@ -1,7 +1,11 @@
 'use cache';
 
+// MIGRATION: loading.tsx is not a file convention in timber.
+// Instead, wrap {children} in <Suspense fallback={<Loading />}> in the layout.
+import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
 import db from '#/lib/db';
+import Loading from './loading';
 import { Boundary } from '#/ui/boundary';
 import { Tabs } from '#/ui/tabs';
 
@@ -31,7 +35,7 @@ export default async function Layout({
         ]}
       />
 
-      <div>{children}</div>
+      <div><Suspense fallback={<Loading />}>{children}</Suspense></div>
     </Boundary>
   );
 }

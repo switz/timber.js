@@ -3,7 +3,10 @@ import '#/styles/globals.css';
 import db from '#/lib/db';
 import Byline from '#/ui/byline';
 import { GlobalNav } from '#/ui/global-nav';
-import { Metadata } from 'next';
+// MIGRATION: Replaced 'next' Metadata type with timber's Metadata type
+import type { Metadata } from '@timber/app/server';
+// MIGRATION: next/font/google is shimmed by timber — Geist fonts render
+// as CSS variable declarations; className and variable props are preserved.
 import { Geist, Geist_Mono } from 'next/font/google';
 
 const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] });
@@ -14,17 +17,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: { default: 'Next.js Playground', template: '%s | Next.js Playground' },
-  metadataBase: new URL('https://app-router.vercel.app'),
+  title: { default: 'timber.js Playground', template: '%s | timber.js Playground' },
   description:
-    'A playground to explore Next.js features such as nested layouts, instant loading states, streaming, and component level data fetching.',
-  openGraph: {
-    title: 'Next.js Playground',
-    description:
-      'A playground to explore Next.js features such as nested layouts, instant loading states, streaming, and component level data fetching.',
-    images: [`/api/og?title=Next.js Playground`],
-  },
-  twitter: { card: 'summary_large_image' },
+    'A playground to explore timber.js features such as nested layouts, instant loading states, streaming, and component level data fetching.',
 };
 
 export default function RootLayout({

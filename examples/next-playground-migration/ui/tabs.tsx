@@ -1,9 +1,14 @@
 'use client';
 
-import Link, { useLinkStatus } from 'next/link';
+// MIGRATION: useLinkStatus from next/link is not available in timber.
+// Replaced with useNavigationPending() which is timber's global navigation
+// pending hook. Behavioral difference: timber's hook tracks any navigation,
+// not just the specific link being clicked.
+import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import clsx from 'clsx';
 import { Suspense } from 'react';
+import { useNavigationPending } from '@timber/app/client';
 
 export type Item = { text: string; slug?: string; segment?: string };
 
@@ -28,11 +33,6 @@ export function Tab({
 
   return (
     <Link href={href} className="text-sm font-semibold">
-      {/*
-       * `useSelectedLayoutSegment` suspends, so we place a Suspense boundary
-       * as deep as possible to allow the route's fallback shell to include
-       * these elements
-       */}
       <Suspense fallback={<TabContent>{item.text}</TabContent>}>
         <DynamicTabContent href={href}>{item.text}</DynamicTabContent>
       </Suspense>
@@ -40,8 +40,6 @@ export function Tab({
   );
 }
 
-// Note: We create an additional component because useLinkStatus should be
-// called from a component that is rendered inside a `<Link>`
 function DynamicTabContent({
   children,
   href,
@@ -51,7 +49,8 @@ function DynamicTabContent({
 }) {
   const pathname = usePathname();
   const isActive = pathname === href;
-  const { pending: isPending } = useLinkStatus();
+  // MIGRATION: useNavigationPending is global; not per-link like useLinkStatus
+  const isPending = useNavigationPending();
 
   return (
     <TabContent isActive={isActive} isPending={isPending}>

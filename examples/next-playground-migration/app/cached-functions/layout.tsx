@@ -1,4 +1,4 @@
-import { Metadata } from 'next';
+import type { Metadata } from '@timber/app/server';
 import db from '#/lib/db';
 import { Boundary } from '#/ui/boundary';
 import { Mdx } from '#/ui/codehike';

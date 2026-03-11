@@ -15,10 +15,13 @@ import { useRouter } from 'next/navigation';
  *   View Product
  * </TransitionLink>
  */
+// MIGRATION: Link.onNavigate is a Next.js-specific prop for hooking into
+// navigations. In timber, use onClick with e.preventDefault() and router.push()
+// to achieve the same effect.
 export function TransitionLink({ type, ...props }: TransitionLinkProps) {
   const router = useRouter();
 
-  const handleNavigate: TransitionLinkProps['onNavigate'] = (event) => {
+  const handleClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
     event.preventDefault();
 
     startTransition(() => {
@@ -27,7 +30,7 @@ export function TransitionLink({ type, ...props }: TransitionLinkProps) {
     });
   };
 
-  return <Link onNavigate={handleNavigate} {...props} />;
+  return <Link onClick={handleClick} {...props} />;
 }
 
 /**
@@ -197,11 +200,9 @@ type TransitionId = (typeof transitionIds)[number] | `product-${string}`;
  * Props for TransitionLink component
  * Extends Next.js Link props with transition type
  */
-type TransitionLinkProps = Omit<React.ComponentProps<typeof Link>, 'href'> & {
+// MIGRATION: Removed onNavigate from type (Next.js-specific prop).
+// timber's Link uses standard onClick instead.
+type TransitionLinkProps = Omit<React.ComponentProps<typeof Link>, 'href' | 'onClick'> & {
   type: TransitionType;
-  /**
-   * Target URL for navigation
-   * Overwite Next's href that can also be an object
-   */
   href: string;
 };

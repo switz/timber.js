@@ -1,5 +1,5 @@
 import React from 'react';
-import { type Metadata } from 'next';
+import type { Metadata } from '@timber/app/server';
 import db from '#/lib/db';
 import { Boundary } from '#/ui/boundary';
 import Readme from './readme.mdx';

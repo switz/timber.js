@@ -1,7 +1,10 @@
 'use cache';
 
+// MIGRATION: loading.tsx wrapping via explicit Suspense in layout
+import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
 import db from '#/lib/db';
+import Loading from '../loading';
 import { Boundary } from '#/ui/boundary';
 import { Tabs } from '#/ui/tabs';
 
@@ -31,7 +34,7 @@ export default async function Layout({
         ]}
       />
 
-      <div>{children}</div>
+      <div><Suspense fallback={<Loading />}>{children}</Suspense></div>
     </Boundary>
   );
 }

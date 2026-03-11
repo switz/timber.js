@@ -90,6 +90,14 @@ export interface PipelineConfig {
    * Undefined in production — no emitter is created, zero overhead.
    */
   onDevLog?: (emitter: DevLogEmitter) => void;
+  /**
+   * Dev pipeline error callback — called when a pipeline phase (proxy,
+   * middleware, render) catches an unhandled error. Used to wire the error
+   * into the Vite browser error overlay in dev mode.
+   *
+   * Undefined in production — zero overhead.
+   */
+  onPipelineError?: (error: Error, phase: string) => void;
 }
 
 // ─── Pipeline ──────────────────────────────────────────────────────────────
@@ -109,6 +117,7 @@ export function createPipeline(config: PipelineConfig): (req: Request) => Promis
     stripTrailingSlash = true,
     slowRequestMs = 3000,
     onDevLog,
+    onPipelineError,
   } = config;
 
   return async (req: Request): Promise<Response> => {
@@ -236,6 +245,7 @@ export function createPipeline(config: PipelineConfig): (req: Request) => Promis
       // Uncaught proxy.ts error → bare HTTP 500
       logProxyError({ error });
       await fireOnRequestError(error, req, 'proxy');
+      if (onPipelineError && error instanceof Error) onPipelineError(error, 'proxy');
       return new Response(null, { status: 500 });
     }
   }
@@ -329,6 +339,7 @@ export function createPipeline(config: PipelineConfig): (req: Request) => Promis
         // no error boundary to catch it)
         logMiddlewareError({ method, path, error });
         await fireOnRequestError(error, req, 'handler');
+        if (onPipelineError && error instanceof Error) onPipelineError(error, 'middleware');
         return new Response(null, { status: 500 });
       }
     }
@@ -351,6 +362,7 @@ export function createPipeline(config: PipelineConfig): (req: Request) => Promis
       }
       logRenderError({ method, path, error });
       await fireOnRequestError(error, req, 'render');
+      if (onPipelineError && error instanceof Error) onPipelineError(error, 'render');
       return new Response(null, { status: 500 });
     }
   }

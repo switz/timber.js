@@ -85,6 +85,20 @@ function createDebugChannelSink(): { readable: ReadableStream; writable: Writabl
   };
 }
 
+// Dev-only pipeline error handler, set by the dev server after import.
+// In production this is always undefined — no overhead.
+let _devPipelineErrorHandler: ((error: Error, phase: string) => void) | undefined;
+
+/**
+ * Set the dev pipeline error handler.
+ *
+ * Called by the dev server after importing this module to wire pipeline
+ * errors into the Vite browser error overlay. No-op in production.
+ */
+export function setDevPipelineErrorHandler(handler: (error: Error, phase: string) => void): void {
+  _devPipelineErrorHandler = handler;
+}
+
 /**
  * Create the RSC request handler from the route manifest.
  *
@@ -134,6 +148,11 @@ function createRequestHandler(manifest: typeof routeManifest, runtimeConfig: typ
             });
           }
         : undefined,
+    onPipelineError: isDev
+      ? (error: Error, phase: string) => {
+          if (_devPipelineErrorHandler) _devPipelineErrorHandler(error, phase);
+        }
+      : undefined,
   };
 
   const pipeline = createPipeline(pipelineConfig);

@@ -139,6 +139,17 @@ function createTimberMiddleware(server: ViteDevServer, projectRoot: string) {
       }
       const rscModule = await rscEnv.runner.import(RSC_ENTRY_ID);
       handler = rscModule.default as (req: Request) => Promise<Response>;
+
+      // Wire pipeline errors into the browser error overlay.
+      // setDevPipelineErrorHandler is only defined in dev (rsc-entry.ts exports it).
+      const setHandler = rscModule.setDevPipelineErrorHandler as
+        | ((fn: (error: Error, phase: string) => void) => void)
+        | undefined;
+      if (typeof setHandler === 'function') {
+        setHandler((error) => {
+          sendErrorToOverlay(server, error, classifyErrorPhase(error, projectRoot), projectRoot);
+        });
+      }
     } catch (error) {
       // Module transform error — syntax error, missing import, etc.
       // Vite may already show its own overlay for these, but we still

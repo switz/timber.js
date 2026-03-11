@@ -168,6 +168,63 @@ describe('typed params codegen', () => {
   });
 });
 
+describe('useParams generic overload and codegen alignment', () => {
+  it('base module exports generic overload using Routes interface', () => {
+    // The useParams function should accept a route string argument
+    // and return params — runtime behavior is the same regardless
+    setCurrentParams({ id: '42' });
+
+    // With route argument (for type narrowing)
+    expect(useParams('/products/[id]')).toEqual({ id: '42' });
+
+    // Without route argument (fallback)
+    expect(useParams()).toEqual({ id: '42' });
+  });
+
+  it('codegen overloads align with base generic for all param types', () => {
+    const root = createApp({
+      'products/[id]/page.tsx': '',
+      'docs/[...slug]/page.tsx': '',
+      'help/[[...topic]]/page.tsx': '',
+      'orgs/[orgId]/repos/[repoId]/page.tsx': '',
+    });
+
+    const tree = scanRoutes(root);
+    const output = generateRouteMap(tree);
+
+    // Codegen generates per-route overloads in @timber/app/client
+    // These work alongside the base generic overload in use-params.ts
+
+    // Single param
+    expect(output).toMatch(
+      /useParams\(route:\s*'\/products\/\[id\]'\)\s*:\s*\{\s*id\s*:\s*string\s*\}/
+    );
+
+    // Catch-all
+    expect(output).toMatch(
+      /useParams\(route:\s*'\/docs\/\[\.\.\.slug\]'\)\s*:\s*\{\s*slug\s*:\s*string\[\]\s*\}/
+    );
+
+    // Optional catch-all
+    expect(output).toMatch(
+      /useParams\(route:\s*'\/help\/\[\[\.\.\.topic\]\]'\)\s*:\s*\{\s*topic\s*:\s*string\[\]\s*\|\s*undefined\s*\}/
+    );
+
+    // Nested params
+    expect(output).toMatch(
+      /useParams\(route:\s*'\/orgs\/\[orgId\]\/repos\/\[repoId\]'\)\s*:\s*\{\s*orgId\s*:\s*string;\s*repoId\s*:\s*string\s*\}/
+    );
+
+    // Fallback overload
+    expect(output).toMatch(/useParams\(\)\s*:\s*Record<string,\s*string\s*\|\s*string\[\]>/);
+
+    // Routes interface also has matching params (consistency check)
+    expect(output).toMatch(
+      /['"]\/products\/\[id\]['"]\s*:\s*\{[^}]*params\s*:\s*\{\s*id\s*:\s*string\s*\}/
+    );
+  });
+});
+
 describe('useParams runtime', () => {
   it('returns current params set by framework', () => {
     setCurrentParams({ id: '42' });

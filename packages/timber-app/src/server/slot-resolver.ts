@@ -13,6 +13,7 @@
 
 import type { ManifestSegmentNode } from './route-matcher.js';
 import type { RouteMatch } from './pipeline.js';
+import { SlotAccessGate } from './access-gate.js';
 
 type CreateElementFn = (...args: unknown[]) => React.ReactElement;
 
@@ -34,7 +35,55 @@ export async function resolveSlotElement(
     const mod = (await matchedPage.load()) as Record<string, unknown>;
     if (mod.default) {
       const SlotPage = mod.default as (...args: unknown[]) => unknown;
-      return h(SlotPage, { params: paramsPromise, searchParams: {} });
+      let element: React.ReactElement = h(SlotPage, {
+        params: paramsPromise,
+        searchParams: {},
+      });
+
+      // Wrap in SlotAccessGate if slot has access.ts.
+      // On denial: denied.tsx → default.tsx → null (graceful degradation).
+      // See design/04-authorization.md §"Slot-Level Auth".
+      if (slotNode.access) {
+        const accessMod = (await slotNode.access.load()) as Record<string, unknown>;
+        const accessFn = accessMod.default as
+          | ((ctx: { params: Record<string, string>; searchParams: unknown }) => unknown)
+          | undefined;
+        if (accessFn) {
+          // Load denied.tsx fallback
+          let deniedFallback: React.ReactElement | null = null;
+          if (slotNode.denied) {
+            const deniedMod = (await slotNode.denied.load()) as Record<string, unknown>;
+            const DeniedComponent = deniedMod.default as
+              | ((...args: unknown[]) => unknown)
+              | undefined;
+            if (DeniedComponent) {
+              deniedFallback = h(DeniedComponent, {});
+            }
+          }
+
+          // Load default.tsx fallback
+          let defaultFallback: React.ReactElement | null = null;
+          if (slotNode.default) {
+            const defaultMod = (await slotNode.default.load()) as Record<string, unknown>;
+            const DefaultComp = defaultMod.default as ((...args: unknown[]) => unknown) | undefined;
+            if (DefaultComp) {
+              defaultFallback = h(DefaultComp, { params: paramsPromise, searchParams: {} });
+            }
+          }
+
+          const params = await paramsPromise;
+          element = h(SlotAccessGate, {
+            accessFn,
+            params,
+            searchParams: {},
+            deniedFallback,
+            defaultFallback,
+            children: element,
+          });
+        }
+      }
+
+      return element;
     }
   }
 

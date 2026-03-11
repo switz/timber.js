@@ -1,9 +1,9 @@
 // Nitro adapter — multi-platform deployment
 //
-// Covers Vercel, Netlify, AWS Amplify, Deno Deploy, Azure, and any
-// other platform Nitro supports. Community platforms that don't have
-// a first-party adapter should use this.
-// See design/11-platform.md §"Nitro".
+// Covers everything except Cloudflare Workers: Node.js, Bun, Vercel,
+// Netlify, AWS Lambda, Deno Deploy, Azure Functions. Nitro handles
+// compression, graceful shutdown, static file serving, and platform quirks.
+// See design/11-platform.md and design/25-production-deployments.md.
 
 import { writeFile, mkdir, cp } from 'node:fs/promises';
 import { join, relative } from 'node:path';
@@ -25,7 +25,8 @@ export type NitroPreset =
   | 'aws-lambda'
   | 'deno-deploy'
   | 'azure-functions'
-  | 'node-server';
+  | 'node-server'
+  | 'bun';
 
 /** Preset-specific Nitro configuration. */
 interface PresetConfig {
@@ -78,6 +79,11 @@ const PRESET_CONFIGS: Record<NitroPreset, PresetConfig> = {
   },
   'node-server': {
     nitroPreset: 'node-server',
+    outputDir: '.output',
+    supportsWaitUntil: true,
+  },
+  'bun': {
+    nitroPreset: 'bun',
     outputDir: '.output',
     supportsWaitUntil: true,
   },

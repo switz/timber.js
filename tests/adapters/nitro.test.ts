@@ -115,6 +115,7 @@ describe('preset config', () => {
       expect(config.nitroPreset).toBeTruthy();
       expect(config.outputDir).toBeTruthy();
       expect(typeof config.supportsWaitUntil).toBe('boolean');
+      expect(config.runtimeName).toBeTruthy();
     }
   });
 });
@@ -214,27 +215,42 @@ describe('buildOutput', () => {
 
 describe('generateNitroEntry', () => {
   it('generates entry importing from server entry', () => {
-    const entry = generateNitroEntry('/tmp/build', '/tmp/build/nitro');
+    const entry = generateNitroEntry('/tmp/build', '/tmp/build/nitro', 'node-server');
     expect(entry).toContain('server/entry.js');
   });
 
   it('uses h3 event handler', () => {
-    const entry = generateNitroEntry('/tmp/build', '/tmp/build/nitro');
+    const entry = generateNitroEntry('/tmp/build', '/tmp/build/nitro', 'node-server');
     expect(entry).toContain('defineEventHandler');
     expect(entry).toContain('toWebRequest');
     expect(entry).toContain('sendWebResponse');
   });
 
   it('imports from h3', () => {
-    const entry = generateNitroEntry('/tmp/build', '/tmp/build/nitro');
+    const entry = generateNitroEntry('/tmp/build', '/tmp/build/nitro', 'node-server');
     expect(entry).toContain("from 'h3'");
   });
 
   it('converts web request and sends web response', () => {
-    const entry = generateNitroEntry('/tmp/build', '/tmp/build/nitro');
+    const entry = generateNitroEntry('/tmp/build', '/tmp/build/nitro', 'node-server');
     expect(entry).toContain('toWebRequest(event)');
     expect(entry).toContain('handler(webRequest)');
     expect(entry).toContain('sendWebResponse(event, webResponse)');
+  });
+
+  it('sets TIMBER_RUNTIME for node-server preset', () => {
+    const entry = generateNitroEntry('/tmp/build', '/tmp/build/nitro', 'node-server');
+    expect(entry).toContain("process.env.TIMBER_RUNTIME = 'node-server'");
+  });
+
+  it('sets TIMBER_RUNTIME for vercel preset', () => {
+    const entry = generateNitroEntry('/tmp/build', '/tmp/build/nitro', 'vercel');
+    expect(entry).toContain("process.env.TIMBER_RUNTIME = 'vercel'");
+  });
+
+  it('sets TIMBER_RUNTIME for bun preset', () => {
+    const entry = generateNitroEntry('/tmp/build', '/tmp/build/nitro', 'bun');
+    expect(entry).toContain("process.env.TIMBER_RUNTIME = 'bun'");
   });
 });
 

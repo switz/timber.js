@@ -114,6 +114,11 @@ export function generateWorkerEntry(buildDir: string, outDir: string): string {
 import { wrapWithExecutionContext } from '@timber/app/adapters/cloudflare'
 import { handler, adapter } from '${serverEntryRelative}'
 
+// Set TIMBER_RUNTIME for instrumentation.ts conditional SDK initialization.
+// See design/25-production-deployments.md §"TIMBER_RUNTIME".
+globalThis.process ??= { env: {} }
+process.env.TIMBER_RUNTIME = 'cloudflare'
+
 export default wrapWithExecutionContext(adapter, handler)
 `;
 }

@@ -1,4 +1,4 @@
-'use cache';
+// MIGRATION: removed file-level 'use cache' — cannot cache components that receive params as Promise (timber-abu workaround)
 
 // MIGRATION: loading.tsx wrapping via explicit Suspense in layout
 import { Suspense } from 'react';

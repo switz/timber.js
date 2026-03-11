@@ -1,20 +1,14 @@
+// MIGRATION: removed file-level 'use cache' — cannot cache components that receive params as Promise (timber-abu workaround)
 import { notFound } from 'next/navigation';
 import db from '#/lib/db';
 import { Boundary } from '#/ui/boundary';
 import { ProductCard } from '#/ui/product-card';
-
-export async function generateStaticParams() {
-  const categories = db.category.findMany();
-  return categories.map(({ section, slug }) => ({ section, category: slug }));
-}
 
 export default async function Page({
   params,
 }: {
   params: Promise<{ section: string; category: string }>;
 }) {
-  'use cache';
-
   const { category: categorySlug } = await params;
   const category = db.category.find({ where: { slug: categorySlug } });
   if (!category) {

@@ -1,4 +1,4 @@
-'use cache';
+// MIGRATION: removed file-level 'use cache' — cannot cache components that receive params as Promise (timber-abu workaround)
 
 import db from '#/lib/db';
 import {

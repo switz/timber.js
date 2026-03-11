@@ -1,4 +1,4 @@
-'use cache';
+// MIGRATION: removed file-level 'use cache' — cannot cache components that receive params as Promise (timber-abu workaround)
 
 // MIGRATION: loading.tsx is not a file convention in timber.
 // Instead, wrap {children} in <Suspense fallback={<Loading />}> in the layout.

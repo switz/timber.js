@@ -5,8 +5,7 @@ import type searchParamsDef from './search-params';
 
 // The rsc-entry auto-parses search-params.ts before rendering this page and
 // stores the typed result in ALS. searchParams() returns that parsed object.
-// Once codegen is wired into the build pipeline it will narrow the return type
-// automatically — for now we assert the type from the definition.
+// Once codegen generates per-route searchParams() overloads this cast can be removed.
 type Params = NonNullable<(typeof searchParamsDef)['_type']>;
 
 export const metadata = { title: 'Search Params Test' };

@@ -185,6 +185,35 @@ test.describe('API route: streaming SSE', () => {
     expect(JSON.parse(events[0].replace('data: ', ''))).toEqual({ n: 1 });
     expect(JSON.parse(events[2].replace('data: ', ''))).toEqual({ n: 3 });
   });
+
+  test('SSE events arrive incrementally, not buffered', async ({ page, baseURL }) => {
+    // Use page.evaluate with native fetch to verify events stream
+    // incrementally rather than arriving all at once when the response ends.
+    await page.goto('/');
+    const timestamps = await page.evaluate(async (url) => {
+      const res = await fetch(url);
+      const reader = res.body!.getReader();
+      const decoder = new TextDecoder();
+      const arrivals: number[] = [];
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const text = decoder.decode(value, { stream: true });
+        if (text.includes('data:')) {
+          arrivals.push(performance.now());
+        }
+      }
+      return arrivals;
+    }, `${baseURL}/api/stream`);
+
+    // We expect 3 events with ~100ms intervals.
+    // If buffered, all timestamps would be within a few ms of each other.
+    // Verify that at least 2 events have >50ms gap (allowing for timing slack).
+    expect(timestamps.length).toBeGreaterThanOrEqual(2);
+    const totalSpan = timestamps[timestamps.length - 1] - timestamps[0];
+    expect(totalSpan).toBeGreaterThan(50);
+  });
 });
 
 // ─── Error handling ──────────────────────────────────────────────────────

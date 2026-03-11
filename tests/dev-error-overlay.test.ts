@@ -430,6 +430,7 @@ describe('dev server integration', () => {
       statusCode: 200,
       headersSent: false,
       setHeader: vi.fn(),
+      flushHeaders: vi.fn(),
       write: vi.fn(),
       end: vi.fn(),
     } as unknown as ServerResponse;

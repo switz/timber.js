@@ -10,13 +10,11 @@ Third-party components that use Suspense internally work fine. The framework doe
 
 Anything outside a `<Suspense>` boundary can affect the status code. Anything inside a regular `<Suspense>` boundary cannot — the status is committed before inside-Suspense content resolves.
 
-Wrapping content in any Suspense boundary — `<Suspense>` or `<DeferredSuspense>` — is a declaration that nothing inside it needs to affect the status code. A login/dashboard button in a header, a list of reviews, a feed of tweets — none of these change whether the page is a 200 or 404. That's why they belong inside a boundary.
+Wrapping content in a `<Suspense>` boundary is a declaration that nothing inside it needs to affect the status code. A login/dashboard button in a header, a list of reviews, a feed of tweets — none of these change whether the page is a 200 or 404. That's why they belong inside a boundary.
 
-`<DeferredSuspense ms={ms}>` has the same contract as `<Suspense>`: content inside it does not participate in the status code decision. If the children happen to resolve before `ms` and before the status commits, they technically become part of the shell — but that's a side effect of the implementation, not the design intent. Don't rely on it for correctness. If content *must* affect the status code, fetch it outside any boundary.
+`deny()` called inside a Suspense boundary will not reliably produce the correct HTTP status code — the status may already be committed. In this case, `deny()` triggers the nearest error boundary and injects a `<meta name="robots" content="noindex">` tag into the page. The page returns 200. The framework warns in dev mode when this is detected.
 
-`deny()` called inside a Suspense boundary (including `<DeferredSuspense>`) will not reliably produce the correct HTTP status code — the status may already be committed. In this case, `deny()` triggers the nearest error boundary and injects a `<meta name="robots" content="noindex">` tag into the page. The page returns 200. The framework warns in dev mode when this is detected.
-
-`redirect()` called inside a Suspense boundary (including `<DeferredSuspense>`) performs a client-side redirect. The HTTP status is already 200, so the framework cannot send a 3xx — instead it emits a client-side navigation to the target URL. Dev-mode warning is emitted.
+`redirect()` called inside a Suspense boundary performs a client-side redirect. The HTTP status is already 200, so the framework cannot send a 3xx — instead it emits a client-side navigation to the target URL. Dev-mode warning is emitted.
 
 ## The Layout Suspense Footgun
 
@@ -41,14 +39,18 @@ The correct pattern for navigation loading state is the framework-provided `useN
 
 ---
 
-## `<DeferredSuspense>` — Holding the Flush Before Streaming
+## `deferSuspenseFor` — Holding the SSR Stream
 
-By default, Suspense boundaries stream after the status commits — the fallback is sent immediately and the content streams in when ready. `<DeferredSuspense>` tells the server: **wait up to `ms` milliseconds for this boundary to resolve before flushing the fallback.** If the content resolves within the deadline, it renders inline — no skeleton, no spinner, no layout shift. If the deadline expires, the fallback flushes and the content streams in later.
+By default, Suspense boundaries stream after the status commits — the fallback is sent immediately and the content streams in when ready. `deferSuspenseFor` tells the server: **wait up to N milliseconds before reading the HTML stream, giving fast-resolving Suspense boundaries time to resolve inline.** If all boundaries resolve within the deadline, their content renders inline — no skeleton, no spinner, no layout shift. If the deadline expires, remaining fallbacks flush and content streams in later.
 
 This is the "it's okay to wait a bit before flushing, but if it goes too long just flush and we'll stream" primitive.
 
 ```tsx
-import { DeferredSuspense } from '@timber/app'
+import { Suspense } from 'react'
+
+// Hold the SSR stream for up to 200ms. Fast-resolving Suspense
+// boundaries render inline without ever showing a fallback.
+export const deferSuspenseFor = 200
 
 export default async function ProductPage({ params }) {
   const product = await getProduct(params.id)
@@ -57,115 +59,87 @@ export default async function ProductPage({ params }) {
   return (
     <div>
       <ProductHeader product={product} />
-      <DeferredSuspense ms={200} fallback={<ReviewsSkeleton />}>
+      <Suspense fallback={<ReviewsSkeleton />}>
         <ProductReviews productId={product.id} />
-      </DeferredSuspense>
+      </Suspense>
     </div>
   )
 }
 ```
 
-If `<ProductReviews>` resolves within 200ms, the reviews render inline — no fallback ever shown. If it takes longer than 200ms, the fallback flushes and reviews stream in when ready.
+If `<ProductReviews>` resolves within 200ms, the reviews render inline — no fallback ever emitted in the HTML. If it takes longer than 200ms, the fallback flushes and reviews stream in when ready.
 
-### Implementation: Nested Suspense Boundaries
+### How It Works
 
-`<DeferredSuspense>` is a pure React component — no framework internals, no stream parsing. It works by composing two Suspense boundaries with a `<Delay>` component that itself suspends:
+`deferSuspenseFor` operates at the SSR level, not in the React component tree. React's `renderToReadableStream` generates HTML **lazily on pull** — if we delay reading the stream, React has time to resolve pending Suspense boundaries and inline their content instead of serializing fallbacks.
+
+The implementation in `ssr-render.ts`:
+
+```ts
+// Race allReady against the deferSuspenseFor timeout
+const deferMs = options?.deferSuspenseFor;
+if (deferMs && deferMs > 0) {
+  await Promise.race([
+    stream.allReady,
+    new Promise<void>((resolve) => setTimeout(resolve, deferMs)),
+  ]);
+}
+```
+
+The `Promise.race` ensures we don't wait longer than necessary — if all Suspense boundaries resolve before the timeout, the stream flushes immediately with all content inlined. If the timeout expires first, we start reading and any unresolved boundaries flush their fallbacks.
+
+```
+Timeline — reviews resolve at 80ms, deferSuspenseFor=200:
+
+t=0ms   → renderToReadableStream resolves (shell ready)
+          Start hold: race allReady vs 200ms timeout
+t=80ms  → Reviews resolve → allReady resolves
+          Hold ends early (allReady won the race)
+          First read: reviews inlined in HTML, no fallback ✓
+
+Timeline — reviews resolve at 500ms, deferSuspenseFor=200:
+
+t=0ms   → renderToReadableStream resolves (shell ready)
+          Start hold: race allReady vs 200ms timeout
+t=200ms → Timeout fires, hold ends (allReady still pending)
+          First read: fallback in HTML, reviews still pending
+t=500ms → Reviews resolve
+          React streams replacement content ✓
+```
+
+### The Export Convention
+
+`deferSuspenseFor` is a **page-level or layout-level export**, like `metadata`. The framework collects it during module loading (before rendering) and takes the **maximum** across all segments in the route chain. It's passed from the RSC environment to SSR via `NavContext.deferSuspenseFor`.
 
 ```tsx
-import { Suspense, use, cache } from 'react'
-
-const getDelay = cache((ms: number) =>
-  new Promise<void>(resolve => setTimeout(resolve, ms))
-)
-
-function Delay({ ms, children }: { ms: number; children: React.ReactNode }) {
-  use(getDelay(ms))
-  return children
-}
-
-export function DeferredSuspense({
-  ms,
-  fallback,
-  children,
-}: {
-  ms: number
-  fallback?: React.ReactNode
-  children: React.ReactNode
-}) {
-  return (
-    <Suspense fallback={fallback}>
-      <Suspense fallback={<Delay ms={ms}>{fallback}</Delay>}>
-        {children}
-      </Suspense>
-    </Suspense>
-  )
-}
+// page.tsx
+export const deferSuspenseFor = 200  // ms
 ```
 
-The nested structure creates a natural race without any `Promise.race` in userland — it falls out of React's own boundary resolution logic:
-
-1. Children suspend → inner boundary catches it, tries to render its fallback (`<Delay>`)
-2. `<Delay>` itself suspends for `ms` → outer boundary catches it, renders nothing
-3. **If children resolve before `ms`:** inner boundary resolves, `<Delay>` never renders, content appears inline
-4. **If `ms` expires first:** `<Delay>` resolves, inner fallback commits, real fallback UI appears — children stream in later
-
-```
-Timeline — children resolve at 80ms, ms=200:
-
-t=0ms   → Children suspend
-          Inner boundary catches, starts rendering <Delay ms={200}>
-          <Delay> suspends → outer boundary catches
-t=80ms  → Children resolve
-          Inner boundary resolves directly with content
-          <Delay> never commits — outer boundary resolves too
-          Content appears inline, no fallback ever shown ✓
-
-Timeline — children resolve at 500ms, ms=200:
-
-t=0ms   → Children suspend
-          Inner boundary catches, starts rendering <Delay ms={200}>
-          <Delay> suspends → outer boundary catches
-t=200ms → <Delay> resolves
-          Inner boundary commits its fallback (the real fallback UI)
-          Outer boundary resolves — fallback now visible to user
-t=500ms → Children resolve
-          Inner boundary swaps fallback for content
-          Content streams in, replaces fallback ✓
-```
-
-**`cache()` is critical.** Without it, `new Promise` in render creates a fresh promise on every React retry, resetting the timer forever. React 19's `cache()` is per-request on the server and per-render on the client — exactly the right scoping.
-
-**Server behavior:** the delay genuinely holds the stream. React waits for the outer boundary to resolve before flushing that section.
-
-**Client behavior:** `use()` with a pending promise causes a re-render cycle but the component tree stays interactive. The hold isn't a hard block — just a deferred commit. Arguably better UX on the client.
-
-### Props
-
-- `ms` — milliseconds to wait before showing the fallback. This is a latency budget, not a guarantee.
-- `fallback` — the fallback UI, same as `<Suspense fallback={...}>`. Shown only after `ms` expires.
+Layouts can also export it — the framework uses the max value from all loaded modules.
 
 ### Rules
 
-- `ms` is in milliseconds. No string durations — this is a latency budget, not a cache TTL.
-- If the boundary resolves before its deadline, it renders immediately — it does not wait for the remaining time.
-- Nested `<DeferredSuspense>` boundaries are valid. Each has its own independent deadline.
-- `<DeferredSuspense ms={0}>` is equivalent to a regular `<Suspense>` — just use `<Suspense>` directly.
-- Dev-mode warning if `<DeferredSuspense>` wraps `{children}` in a layout (same footgun as regular Suspense wrapping children, but worse because it adds latency).
+- `deferSuspenseFor` is in milliseconds. No string durations.
+- If all boundaries resolve before the deadline, the stream flushes immediately — it does not wait for the remaining time.
+- `deferSuspenseFor = 0` (or omitting the export) means no hold — standard streaming behavior.
+- Users write plain `<Suspense>` boundaries. The hold is invisible to the component tree.
+- **SSR only (for now).** `deferSuspenseFor` delays the first read of the HTML stream on the server. On client-side navigation, React renders new Suspense boundaries immediately — fallbacks show while content resolves. A future enhancement may use `startTransition` or a custom mechanism to defer fallbacks during client navigation, but this requires solving the "new boundary has no old content" problem (React can only defer reveals for boundaries that already have committed content).
 
-### When to Use `<DeferredSuspense>`
+### When to Use `deferSuspenseFor`
 
 - A secondary data fetch is usually fast (< 200ms) and you'd rather wait than flash a skeleton.
 - You want to avoid layout shift from a spinner that appears for 50ms then disappears.
 - A slow DB query *might* be fast — give it a grace period, but don't block the page on it.
 
-### When Not to Use `<DeferredSuspense>`
+### When Not to Use `deferSuspenseFor`
 
-- The content needs to affect the status code. Fetch it outside any Suspense boundary. Wrapping something in `<DeferredSuspense>` is a declaration that it doesn't drive denials, redirects, or headers.
-- The content is known to be slow (> 1s). Just use `<Suspense>` — the user should see the fallback immediately.
+- The content needs to affect the status code. Fetch it outside any Suspense boundary.
+- All content is known to be slow (> 1s). Just let the fallback show immediately.
 - You're wrapping `{children}` in a layout. Use `useNavigationPending()` instead.
 
-### `<DeferredSuspense>` and the Hold Window
+### `deferSuspenseFor` and the Hold Window
 
-`<DeferredSuspense>` extends the hold window. The hold window is defined by whether the HTTP status has committed, not by component structure. If the status has not committed yet and a signal (`deny()`, `redirect()`, etc.) is thrown inside a `<DeferredSuspense>`, the signal is promoted to pre-flush semantics — the framework can still send the correct HTTP status code.
+`deferSuspenseFor` extends the hold window. The hold window is defined by whether the HTTP status has committed, not by component structure. If the status has not committed yet and a signal (`deny()`, `redirect()`, etc.) is thrown inside a Suspense boundary during the hold, the signal is promoted to pre-flush semantics — the framework can still send the correct HTTP status code.
 
-This means a `<DeferredSuspense ms={500}>` can produce a correct 404 if `deny(404)` fires at t=200ms (status not yet committed), but a degraded 200 if it fires at t=600ms (status already committed and shell flushed). The behavior is timing-dependent by design — the hold window promotion applies equally to regular `<Suspense>` and `<DeferredSuspense>`. The contract remains: **do not rely on Suspense-wrapped content to affect the status code.** If content must drive the status code, fetch it outside any boundary.
+The contract remains: **do not rely on Suspense-wrapped content to affect the status code.** If content must drive the status code, fetch it outside any boundary.

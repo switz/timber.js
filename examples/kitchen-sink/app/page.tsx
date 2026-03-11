@@ -17,7 +17,7 @@ export default function HomePage() {
             <Link href="/streaming/suspense">Suspense boundary</Link>
           </li>
           <li>
-            <Link href="/streaming/deferred">DeferredSuspense</Link>
+            <Link href="/streaming/deferred">Deferred Suspense</Link>
           </li>
           <li>
             <Link href="/streaming/deny-inside">deny() inside Suspense</Link>

@@ -12,7 +12,7 @@ The shortest version: **if Rails or PHP could do it, so can we.** Correct HTTP s
 | [Rendering Pipeline](02-rendering-pipeline.md) | The flush point, single-pass rendering, AccessGate, parallel slots, element tree |
 | [Data Fetching](03-data-fetching.md) | Components own their data, React.cache deduplication, async layouts, waterfall elimination |
 | [Authorization](04-authorization.md) | `access.ts`, AccessGate, slot-level auth, composable auth functions |
-| [Streaming](05-streaming.md) | Suspense rules, DeferredSuspense, the status code contract, layout Suspense footgun |
+| [Streaming](05-streaming.md) | Suspense rules, `deferSuspenseFor`, the status code contract, layout Suspense footgun |
 | [Caching](06-caching.md) | `timber.cache`, `"use cache"` (two spellings, one system), singleflight, output modes (`server`, `static`) |
 | [Routing & Middleware](07-routing.md) | `proxy.ts`, `middleware.ts`, `<Link>`, navigation, prefetching, layout state preservation, `route.ts` API endpoints, i18n |
 | [Forms & Server Actions](08-forms-and-actions.md) | `createActionClient`, ActionError, validation, revalidation, progressive enhancement, static mode actions |

@@ -1,10 +1,10 @@
 /**
- * E2E tests for Suspense and DeferredSuspense streaming behavior.
+ * E2E tests for Suspense streaming behavior and deferSuspenseFor.
  *
  * Validates:
  * - <Suspense> boundaries show fallback then stream content
- * - <DeferredSuspense> renders inline when child resolves before deadline
- * - <DeferredSuspense> shows fallback when child exceeds deadline
+ * - deferSuspenseFor inlines fast-resolving boundaries (no fallback in HTML)
+ * - deferSuspenseFor shows fallback when child exceeds deadline
  * - deny() inside Suspense returns HTTP 200
  *
  * Design docs: design/05-streaming.md
@@ -35,15 +35,12 @@ test.describe('Suspense streaming', () => {
   });
 });
 
-test.describe('DeferredSuspense', () => {
-  // TODO: Restore "renders inline when child resolves before deadline" test once
-  // the nested-Suspense hold-delay behavior is re-enabled (blocked on
-  // @vitejs/plugin-rsc Flight→Fizz nested boundary bug).
-
-  test('DeferredSuspense streams content after async resolve', async ({ page }) => {
+test.describe('deferSuspenseFor', () => {
+  test('inlines fast-resolving Suspense boundary (no fallback visible)', async ({ page }) => {
     await page.goto('/streaming/deferred');
 
-    // Fast content resolves quickly — should appear
+    // Fast content resolves in 50ms, deferSuspenseFor is 500ms.
+    // The SSR stream is held — content renders inline without fallback.
     await expect(page.locator('[data-testid="deferred-fast-content"]')).toBeVisible({
       timeout: 5_000,
     });
@@ -51,7 +48,20 @@ test.describe('DeferredSuspense', () => {
       'Fast content (resolved before deadline)'
     );
 
-    // Slow content streams in after ~2000ms
+    // The fast fallback should NOT be visible — it was never in the HTML
+    await expect(page.locator('[data-testid="deferred-fast-fallback"]')).not.toBeVisible();
+  });
+
+  test('shows fallback then streams content when child exceeds deadline', async ({ page }) => {
+    await page.goto('/streaming/deferred');
+
+    // Slow content takes 2000ms, deferSuspenseFor is 500ms.
+    // The fallback should appear first, then content streams in.
+    await expect(page.locator('[data-testid="deferred-slow-fallback"]')).toBeVisible({
+      timeout: 2_000,
+    });
+
+    // Then content streams in and replaces the fallback
     await expect(page.locator('[data-testid="deferred-slow-content"]')).toBeVisible({
       timeout: 10_000,
     });

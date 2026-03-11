@@ -337,7 +337,7 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
 }
 ```
 
-Secondary content — like "related posts" or "recent articles" sidebar — can be wrapped in `<Suspense>` or `<DeferredSuspense>`.
+Secondary content — like "related posts" or "recent articles" sidebar — can be wrapped in `<Suspense>`.
 
 ### Metadata from Content
 

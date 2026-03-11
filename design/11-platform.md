@@ -264,7 +264,6 @@ All `TIMBER_*` variables are framework-owned. Application-level env vars are the
 - **Vite HMR for components.** Server components, client components, layouts, and pages use Vite's existing HMR infrastructure via the three-environment model (RSC/SSR/browser).
 - **Dev-mode warnings.** The framework emits warnings in dev mode for common footguns:
   - `<Suspense>` wrapping `{children}` in a layout
-  - `<DeferredSuspense>` wrapping `{children}` in a layout
   - `cookies()`/`headers()` called during a static build pass
   - Slot access calling `redirect()` (only `deny()` is valid in slot access)
   - `deny()`/`redirect()` called inside a post-flush `<Suspense>` boundary

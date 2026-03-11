@@ -42,6 +42,11 @@ export interface NavContext {
   bootstrapScriptContent: string;
   /** Tee'd RSC stream for client-side hydration (inlined into HTML) */
   rscStream?: ReadableStream<Uint8Array>;
+  /** Max Suspense hold window (ms). SSR delays the first flush by this
+   *  duration, racing allReady so that fast-resolving boundaries render inline
+   *  without ever showing a fallback. Derived from route `deferSuspenseFor` exports.
+   *  See design/05-streaming.md §"deferSuspenseFor". */
+  deferSuspenseFor?: number;
 }
 
 /**
@@ -84,6 +89,7 @@ export async function handleSsr(
   // loading via dynamic import() so hydration can start early.
   const htmlStream = await renderSsrStream(element, {
     bootstrapScriptContent: navContext.bootstrapScriptContent || undefined,
+    deferSuspenseFor: navContext.deferSuspenseFor,
   });
 
   // Inject metadata into <head>, then interleave RSC payload chunks

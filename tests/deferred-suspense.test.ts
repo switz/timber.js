@@ -1,19 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-// We test DeferredSuspense as a pure React component using react-dom/server.
-// The component is a composition of nested Suspense boundaries with a Delay primitive.
+// We test the deferSuspenseFor SSR hold mechanism using react-dom/server.
+// The hold delays the first read of the HTML stream, allowing fast-resolving
+// Suspense boundaries to render inline without fallbacks ever appearing.
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-/**
- * Since DeferredSuspense is a React component that relies on React.Suspense,
- * we test its behavior through renderToReadableStream to validate streaming
- * semantics: inline resolve, fallback shown, and signal promotion.
- */
-
 import React from 'react';
 import { renderToReadableStream } from 'react-dom/server';
-import { DeferredSuspense } from '../packages/timber-app/src/server/deferred-suspense';
 
 /** Collect a ReadableStream into a string. */
 async function streamToString(stream: ReadableStream<Uint8Array>): Promise<string> {
@@ -44,9 +38,28 @@ function SyncContent({ text }: { text: string }) {
   return React.createElement('div', { 'data-testid': 'content' }, text);
 }
 
-// ─── Inline Resolve ──────────────────────────────────────────────────────────
+/**
+ * Simulate the SSR hold from ssr-render.ts: race allReady against deferSuspenseFor.
+ * This delays the first read so React can resolve pending Suspense boundaries
+ * before the shell HTML is consumed.
+ */
+async function holdStream(
+  stream: ReadableStream<Uint8Array>,
+  deferMs: number
+): Promise<ReadableStream<Uint8Array>> {
+  // Prevent unhandled rejection
+  const allReady = (stream as ReadableStream<Uint8Array> & { allReady: Promise<void> }).allReady;
+  allReady.catch(() => {});
 
-describe('DeferredSuspense', () => {
+  if (deferMs > 0) {
+    await Promise.race([allReady, new Promise<void>((r) => setTimeout(r, deferMs))]);
+  }
+  return stream;
+}
+
+// ─── deferSuspenseFor — Inline Resolve ──────────────────────────────────────
+
+describe('deferSuspenseFor', () => {
   beforeEach(() => {
     vi.useFakeTimers();
   });
@@ -56,25 +69,28 @@ describe('DeferredSuspense', () => {
   });
 
   describe('inline resolve', () => {
-    it('renders children inline when they resolve before the hold window', async () => {
+    it('inlines fast-resolving Suspense when hold window covers resolution', async () => {
       vi.useRealTimers();
-      // Children resolve in 50ms, hold window is 200ms
+      // Children resolve in 50ms, hold is 200ms — should inline
       const AsyncChild = createAsyncComponent(50, 'Fast content');
 
       const element = React.createElement(
-        DeferredSuspense,
-        { ms: 200, fallback: React.createElement('div', null, 'Loading...') },
-        React.createElement(AsyncChild, null)
+        'div',
+        null,
+        React.createElement('h1', null, 'Page'),
+        React.createElement(
+          React.Suspense,
+          { fallback: React.createElement('div', null, 'Loading...') },
+          React.createElement(AsyncChild, null)
+        )
       );
 
       const stream = await renderToReadableStream(element);
-      await stream.allReady;
+      await holdStream(stream, 200);
       const html = await streamToString(stream);
 
-      // Content should be present, fallback should not
+      // Content should be inlined — no fallback in the HTML
       expect(html).toContain('Fast content');
-      // The fallback text "Loading..." should not appear in the final output
-      // when children resolve within the hold window
       expect(html).not.toContain('Loading...');
     });
 
@@ -82,13 +98,18 @@ describe('DeferredSuspense', () => {
       vi.useRealTimers();
 
       const element = React.createElement(
-        DeferredSuspense,
-        { ms: 200, fallback: React.createElement('div', null, 'Loading...') },
-        React.createElement(SyncContent, { text: 'Sync content' })
+        'div',
+        null,
+        React.createElement('h1', null, 'Page'),
+        React.createElement(
+          React.Suspense,
+          { fallback: React.createElement('div', null, 'Loading...') },
+          React.createElement(SyncContent, { text: 'Sync content' })
+        )
       );
 
       const stream = await renderToReadableStream(element);
-      await stream.allReady;
+      await holdStream(stream, 200);
       const html = await streamToString(stream);
 
       expect(html).toContain('Sync content');
@@ -101,22 +122,36 @@ describe('DeferredSuspense', () => {
   describe('fallback shown', () => {
     it('shows fallback when children exceed the hold window', async () => {
       vi.useRealTimers();
-      // Children resolve in 500ms, hold window is 100ms
+      // Children resolve in 500ms, hold is 100ms — fallback should show
       const SlowChild = createAsyncComponent(500, 'Slow content');
 
       const element = React.createElement(
-        DeferredSuspense,
-        { ms: 100, fallback: React.createElement('div', null, 'Skeleton') },
-        React.createElement(SlowChild, null)
+        'div',
+        null,
+        React.createElement('h1', null, 'Page'),
+        React.createElement(
+          React.Suspense,
+          { fallback: React.createElement('div', null, 'Skeleton') },
+          React.createElement(SlowChild, null)
+        )
       );
 
       const stream = await renderToReadableStream(element);
-      await stream.allReady;
-      const html = await streamToString(stream);
+      await holdStream(stream, 100);
 
-      // Both should eventually be in the stream output (fallback first, then content replaces)
-      // In server streaming, the fallback HTML is sent first, then the content streams in
-      expect(html).toContain('Slow content');
+      // Read the shell chunk — should contain the fallback
+      const reader = stream.getReader();
+      const { value: shellChunk } = await reader.read();
+      const shell = new TextDecoder().decode(shellChunk);
+      expect(shell).toContain('Skeleton');
+
+      // Release the reader so allReady can finish
+      reader.releaseLock();
+      await stream.allReady;
+      const rest = await streamToString(stream);
+
+      // The streamed replacement content should contain the resolved children
+      expect(rest).toContain('Slow content');
     });
 
     it('renders with no fallback prop when children are slow', async () => {
@@ -124,12 +159,13 @@ describe('DeferredSuspense', () => {
       const SlowChild = createAsyncComponent(300, 'Eventually');
 
       const element = React.createElement(
-        DeferredSuspense,
-        { ms: 50 },
+        React.Suspense,
+        { fallback: null },
         React.createElement(SlowChild, null)
       );
 
       const stream = await renderToReadableStream(element);
+      await holdStream(stream, 50);
       await stream.allReady;
       const html = await streamToString(stream);
 
@@ -137,68 +173,70 @@ describe('DeferredSuspense', () => {
     });
   });
 
-  // ─── Props Validation ────────────────────────────────────────────────────────
+  // ─── No hold (deferSuspenseFor = 0) ───────────────────────────────────────
 
-  describe('props', () => {
-    it('accepts ms as a number in milliseconds', async () => {
-      vi.useRealTimers();
-
-      const element = React.createElement(
-        DeferredSuspense,
-        { ms: 100, fallback: React.createElement('span', null, 'wait') },
-        React.createElement(SyncContent, { text: 'done' })
-      );
-
-      const stream = await renderToReadableStream(element);
-      await stream.allReady;
-      const html = await streamToString(stream);
-
-      expect(html).toContain('done');
-    });
-
-    it('ms=0 behaves like regular Suspense', async () => {
+  describe('no hold', () => {
+    it('deferSuspenseFor=0 behaves like regular Suspense', async () => {
       vi.useRealTimers();
       const SlowChild = createAsyncComponent(100, 'Deferred');
 
       const element = React.createElement(
-        DeferredSuspense,
-        { ms: 0, fallback: React.createElement('div', null, 'Fallback') },
-        React.createElement(SlowChild, null)
+        'div',
+        null,
+        React.createElement('h1', null, 'Page'),
+        React.createElement(
+          React.Suspense,
+          { fallback: React.createElement('div', null, 'Fallback') },
+          React.createElement(SlowChild, null)
+        )
       );
 
       const stream = await renderToReadableStream(element);
-      await stream.allReady;
-      const html = await streamToString(stream);
+      // No hold — read immediately
+      await holdStream(stream, 0);
 
-      // With ms=0, should behave like regular Suspense — fallback should show immediately
-      expect(html).toContain('Deferred');
+      // Read shell — should contain fallback since no hold
+      const reader = stream.getReader();
+      const { value: shellChunk } = await reader.read();
+      const shell = new TextDecoder().decode(shellChunk);
+      expect(shell).toContain('Fallback');
+
+      reader.releaseLock();
+      await stream.allReady;
+      const rest = await streamToString(stream);
+      expect(rest).toContain('Deferred');
     });
   });
 
-  // ─── Nested DeferredSuspense ─────────────────────────────────────────────────
+  // ─── Nested Suspense ──────────────────────────────────────────────────────
 
   describe('nesting', () => {
-    it('nested DeferredSuspense boundaries work independently', async () => {
+    it('nested Suspense boundaries work independently with hold', async () => {
       vi.useRealTimers();
       const FastChild = createAsyncComponent(30, 'Fast');
 
       const element = React.createElement(
-        DeferredSuspense,
-        { ms: 200, fallback: React.createElement('div', null, 'Outer loading') },
+        'div',
+        null,
+        React.createElement('h1', null, 'Page'),
         React.createElement(
-          'div',
-          null,
-          React.createElement(SyncContent, { text: 'Outer content' }),
+          React.Suspense,
+          { fallback: React.createElement('div', null, 'Outer loading') },
           React.createElement(
-            DeferredSuspense,
-            { ms: 100, fallback: React.createElement('div', null, 'Inner loading') },
-            React.createElement(FastChild, null)
+            'div',
+            null,
+            React.createElement(SyncContent, { text: 'Outer content' }),
+            React.createElement(
+              React.Suspense,
+              { fallback: React.createElement('div', null, 'Inner loading') },
+              React.createElement(FastChild, null)
+            )
           )
         )
       );
 
       const stream = await renderToReadableStream(element);
-      await stream.allReady;
+      await holdStream(stream, 200);
       const html = await streamToString(stream);
 
       expect(html).toContain('Outer content');
@@ -206,22 +244,99 @@ describe('DeferredSuspense', () => {
     });
   });
 
-  // ─── Component Structure ────────────────────────────────────────────────────
+  // ─── SSR Hold ──────────────────────────────────────────────────────────────
 
-  describe('component structure', () => {
-    it('exports DeferredSuspense as a named export', () => {
-      expect(DeferredSuspense).toBeDefined();
-      expect(typeof DeferredSuspense).toBe('function');
+  describe('SSR stream hold', () => {
+    it('inlines fast-resolving children when hold delays the first read', async () => {
+      vi.useRealTimers();
+      // Children resolve in 50ms, hold is 200ms
+      const AsyncChild = createAsyncComponent(50, 'Inlined content');
+
+      const element = React.createElement(
+        'div',
+        null,
+        React.createElement('h1', null, 'Page'),
+        React.createElement(
+          React.Suspense,
+          { fallback: React.createElement('div', null, 'Fallback') },
+          React.createElement(AsyncChild, null)
+        )
+      );
+
+      const stream = await renderToReadableStream(element);
+      await holdStream(stream, 200);
+      const html = await streamToString(stream);
+
+      // Content should be inlined — no fallback in the HTML at all
+      expect(html).toContain('Inlined content');
+      expect(html).not.toContain('Fallback');
     });
 
-    it('renders a valid React element', () => {
+    it('shows fallback for slow children even with hold', async () => {
+      vi.useRealTimers();
+      // Children resolve in 500ms, hold is 200ms
+      const SlowChild = createAsyncComponent(500, 'Slow content');
+
       const element = React.createElement(
-        DeferredSuspense,
-        { ms: 100 },
-        React.createElement('div', null, 'child')
+        'div',
+        null,
+        React.createElement('h1', null, 'Page'),
+        React.createElement(
+          React.Suspense,
+          { fallback: React.createElement('div', null, 'Skeleton') },
+          React.createElement(SlowChild, null)
+        )
       );
-      expect(element).toBeDefined();
-      expect(element.type).toBe(DeferredSuspense);
+
+      const stream = await renderToReadableStream(element);
+      await holdStream(stream, 200);
+
+      // Read the shell — should contain fallback since child is still pending
+      const reader = stream.getReader();
+      const { value: shellChunk } = await reader.read();
+      const shell = new TextDecoder().decode(shellChunk);
+      expect(shell).toContain('Skeleton');
+
+      // Let the rest stream in
+      reader.releaseLock();
+      await stream.allReady;
+      const rest = await streamToString(stream);
+      expect(rest).toContain('Slow content');
+    });
+
+    it('flushes early if all Suspense boundaries resolve before deferSuspenseFor expires', async () => {
+      vi.useRealTimers();
+      // Children resolve in 30ms, hold is 5000ms
+      // The hold should race allReady — once allReady resolves at ~30ms,
+      // the stream should be readable immediately, not waiting 5s.
+      const FastChild = createAsyncComponent(30, 'Quick content');
+
+      const element = React.createElement(
+        'div',
+        null,
+        React.createElement('h1', null, 'Page'),
+        React.createElement(
+          React.Suspense,
+          { fallback: React.createElement('div', null, 'Fallback') },
+          React.createElement(FastChild, null)
+        )
+      );
+
+      const stream = await renderToReadableStream(element);
+
+      const startTime = Date.now();
+      await holdStream(stream, 5000);
+      const holdDuration = Date.now() - startTime;
+
+      const html = await streamToString(stream);
+
+      // Content should be inlined
+      expect(html).toContain('Quick content');
+      expect(html).not.toContain('Fallback');
+
+      // The hold should have resolved in ~30ms (allReady wins the race),
+      // NOT the full 5000ms timeout
+      expect(holdDuration).toBeLessThan(1000);
     });
   });
 });

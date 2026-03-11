@@ -11,7 +11,7 @@
  * - Access check outcomes (PASS/DENY) from span attributes
  * - Server action formatting
  * - trace_id shown on request line
- * - TIMBER_DEV_QUIET, TIMBER_DEV_LOG env vars, and verbose mode
+ * - TIMBER_DEV_QUIET, TIMBER_DEV_LOG env vars, verbose and json modes
  *
  * Design ref: 21-dev-server.md §"Dev Logging", 17-logging.md §"Dev Logging"
  */
@@ -20,7 +20,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import {
   formatSpanTree,
   formatSpanSummary,
-  formatVerbose,
+  formatJson,
   resolveLogMode,
 } from '../packages/timber-app/src/server/dev-logger';
 import type { ReadableSpan } from '@opentelemetry/sdk-trace-base';
@@ -178,6 +178,12 @@ describe('resolveLogMode', () => {
     expect(resolveLogMode()).toBe('verbose');
   });
 
+  it('json mode', () => {
+    delete process.env.TIMBER_DEV_QUIET;
+    process.env.TIMBER_DEV_LOG = 'json';
+    expect(resolveLogMode()).toBe('json');
+  });
+
   it('TIMBER_DEV_QUIET takes precedence over TIMBER_DEV_LOG', () => {
     process.env.TIMBER_DEV_QUIET = '1';
     process.env.TIMBER_DEV_LOG = 'tree';
@@ -258,10 +264,10 @@ describe('summary mode', () => {
 
 // ─── Verbose Mode ───────────────────────────────────────────────────────
 
-describe('verbose mode', () => {
+describe('json mode', () => {
   it('produces NDJSON output with one span per line', () => {
     const spans = createBasicRequestSpans();
-    const output = formatVerbose(spans);
+    const output = formatJson(spans);
     const lines = output.trim().split('\n');
     expect(lines.length).toBe(spans.length);
     // Each line should be valid JSON
@@ -275,7 +281,7 @@ describe('verbose mode', () => {
 
   it('sorts spans by start time', () => {
     const spans = createBasicRequestSpans();
-    const output = formatVerbose(spans);
+    const output = formatJson(spans);
     const lines = output
       .trim()
       .split('\n')
@@ -309,7 +315,7 @@ describe('verbose mode', () => {
         },
       }),
     ];
-    const output = formatVerbose(spans);
+    const output = formatJson(spans);
     expect(output).toContain('timber.cache.hit');
     expect(output).toContain('getUser()');
   });

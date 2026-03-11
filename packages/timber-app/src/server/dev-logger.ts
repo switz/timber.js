@@ -4,10 +4,11 @@
  * Formats OTEL span trees into indented tree output for stderr. Spans are
  * the single source of truth — no separate event system needed.
  *
- * Supports four modes:
- * - tree (default) — full indented tree per request
+ * Supports five modes:
+ * - tree (default) — indented tree per request
+ * - verbose — detailed tree showing every component render
  * - summary — one line per request
- * - verbose — chronological JSON dump of all spans
+ * - json — chronological NDJSON dump of all spans
  * - quiet — no output
  *
  * Design doc: 21-dev-server.md §"Dev Logging", 17-logging.md §"Dev Logging"
@@ -17,7 +18,7 @@ import type { ReadableSpan } from '@opentelemetry/sdk-trace-base';
 
 // ─── Configuration ──────────────────────────────────────────────────────────
 
-export type DevLogMode = 'tree' | 'summary' | 'verbose' | 'quiet';
+export type DevLogMode = 'tree' | 'verbose' | 'summary' | 'json' | 'quiet';
 
 export interface DevLoggerConfig {
   /** Logging mode. Default: 'tree'. */
@@ -144,7 +145,8 @@ function buildSpanTree(spans: ReadableSpan[]): {
 export function resolveLogMode(config?: DevLoggerConfig): DevLogMode {
   if (process.env.TIMBER_DEV_QUIET === '1') return 'quiet';
   const envMode = process.env.TIMBER_DEV_LOG;
-  if (envMode === 'summary' || envMode === 'tree' || envMode === 'verbose') return envMode;
+  if (envMode === 'summary' || envMode === 'tree' || envMode === 'verbose' || envMode === 'json')
+    return envMode;
   return config?.mode ?? 'tree';
 }
 
@@ -281,12 +283,12 @@ export function formatSpanSummary(spans: ReadableSpan[], _config?: DevLoggerConf
 }
 
 /**
- * Format spans as chronological NDJSON for verbose mode.
+ * Format spans as chronological NDJSON for json mode.
  *
- * Each span is one JSON line, ordered by start time. Useful for debugging
- * when the tree view hides too much detail.
+ * Each span is one JSON line, ordered by start time. Useful for piping
+ * to jq or feeding into external trace analysis tools.
  */
-export function formatVerbose(spans: ReadableSpan[]): string {
+export function formatJson(spans: ReadableSpan[]): string {
   const root = spans.find((s) => s.name === 'http.server.request');
   const rootStart = root?.startTime ?? ([0, 0] as HrTime);
 

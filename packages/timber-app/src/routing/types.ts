@@ -41,8 +41,10 @@ export interface SegmentNode {
   route?: RouteFile;
   error?: RouteFile;
   default?: RouteFile;
-  /** Status-code files: 4xx.tsx, 5xx.tsx, {status}.tsx */
+  /** Status-code files: 4xx.tsx, 5xx.tsx, {status}.tsx (component format) */
   statusFiles?: Map<string, RouteFile>;
+  /** JSON status-code files: 4xx.json, 5xx.json, {status}.json */
+  jsonStatusFiles?: Map<string, RouteFile>;
   /** denied.tsx — slot-only denial rendering */
   denied?: RouteFile;
   /** Legacy compat: not-found.tsx (maps to 404), forbidden.tsx (403), unauthorized.tsx (401) */

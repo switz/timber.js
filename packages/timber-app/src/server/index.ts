@@ -79,6 +79,7 @@ export { resolveStatusFile, resolveSlotDenied } from './status-code-resolver';
 export type {
   StatusFileResolution,
   StatusFileKind,
+  StatusFileFormat,
   SlotDeniedResolution,
   SlotDeniedKind,
 } from './status-code-resolver';

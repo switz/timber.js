@@ -18,7 +18,7 @@ import type { Span, Context } from '@opentelemetry/api';
 import {
   formatSpanTree,
   formatSpanSummary,
-  formatVerbose,
+  formatJson,
   type DevLogMode,
   type DevLoggerConfig,
 } from './dev-logger.js';
@@ -60,8 +60,11 @@ export class DevSpanProcessor implements SpanProcessor {
 
   private format(spans: ReadableSpan[]): string {
     if (this.mode === 'quiet') return '';
-    if (this.mode === 'verbose') return formatVerbose(spans);
+    if (this.mode === 'json') return formatJson(spans);
     if (this.mode === 'summary') return formatSpanSummary(spans, this.config);
+    // Both 'tree' and 'verbose' use the tree formatter.
+    // verbose will show additional detail (every component render) once
+    // component-level spans are wired.
     return formatSpanTree(spans, this.config);
   }
 

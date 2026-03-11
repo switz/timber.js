@@ -2,8 +2,15 @@
  * Deny page rendering — renders status-code pages for DenySignal errors.
  *
  * Extracted from rsc-entry.ts to keep file sizes under 500 lines.
- * Handles both full HTML rendering (via SSR) and raw RSC Flight stream
- * rendering (for client navigation).
+ * Handles three rendering paths:
+ * 1. Component (TSX/MDX) with shell — full RSC→SSR through layout chain
+ * 2. Component (TSX/MDX) without shell — RSC→SSR standalone (no layouts)
+ * 3. JSON — raw file contents returned verbatim, no React pipeline
+ *
+ * Format selection:
+ * - Route handlers (route.ts) prefer JSON variants
+ * - Page routes prefer component variants
+ * - Accept: application/json on page routes falls back to JSON if no component exists
  *
  * See design/10-error-handling.md §"Status-Code Files"
  */
@@ -15,6 +22,7 @@ import { DenySignal } from './primitives.js';
 import { logRenderError } from './logger.js';
 import { resolveMetadata, renderMetadataToElements } from './metadata.js';
 import { resolveManifestStatusFile } from './manifest-status-resolver.js';
+import type { ManifestStatusFileFormat } from './manifest-status-resolver.js';
 import type { ManifestSegmentNode } from './route-matcher.js';
 import type { RouteMatch } from './pipeline.js';
 import type { NavContext } from './ssr-entry.js';
@@ -43,14 +51,37 @@ export type CallSsrFn = (
 ) => Promise<Response>;
 
 /**
+ * Determine the preferred status file format based on request context.
+ *
+ * - Route handlers (route.ts in leaf segment) → 'json'
+ * - Accept: application/json → 'json'
+ * - Everything else → 'component'
+ */
+export function selectDenyFormat(
+  req: Request,
+  segments: ReadonlyArray<ManifestSegmentNode>
+): ManifestStatusFileFormat {
+  // If the leaf segment has route.ts, this is an API route → prefer JSON
+  const leaf = segments[segments.length - 1];
+  if (leaf?.route) {
+    return 'json';
+  }
+
+  // Check Accept header for explicit JSON preference
+  const accept = req.headers.get('accept') ?? '';
+  if (accept.includes('application/json')) {
+    return 'json';
+  }
+
+  return 'component';
+}
+
+/**
  * Render a status-code error page for a DenySignal.
  *
- * Resolves the appropriate status-code file (e.g. 404.tsx, 403.tsx) from the
- * segment chain, renders it through a fresh RSC→SSR pipeline, and returns
- * an HTML Response with the correct status code.
- *
- * Falls back to a bare Response(null, { status }) when no status-code page
- * exists in the segment chain.
+ * Resolves the appropriate status-code file from the segment chain based
+ * on format preference. Returns an HTML Response (component), JSON Response,
+ * or bare fallback Response.
  */
 export async function renderDenyPage(
   deny: DenySignal,
@@ -63,7 +94,19 @@ export async function renderDenyPage(
   createDebugChannelSink: DebugChannelFactory,
   callSsr: CallSsrFn
 ): Promise<Response> {
-  const resolution = resolveManifestStatusFile(deny.status, segments);
+  const format = selectDenyFormat(req, segments);
+
+  // JSON format — try JSON chain first
+  if (format === 'json') {
+    const jsonResponse = await renderDenyPageJson(deny, segments, responseHeaders);
+    if (jsonResponse) return jsonResponse;
+
+    // No JSON status file found — return bare JSON
+    return bareJsonResponse(deny.status, responseHeaders);
+  }
+
+  // Component format — resolve from component chain
+  const resolution = resolveManifestStatusFile(deny.status, segments, 'component');
 
   // No status-code page found — fall back to bare response
   if (!resolution) {
@@ -79,6 +122,9 @@ export async function renderDenyPage(
   const ErrorPageComponent = mod.default as (...args: unknown[]) => unknown;
   const h = createElement as (...args: unknown[]) => React.ReactElement;
 
+  // Check shell opt-out: export const shell = false
+  const shellEnabled = mod.shell !== false;
+
   // 4xx status-code pages receive { status, dangerouslyPassData }
   // per design/10-error-handling.md §"Status-Code File Props"
   let element = h(ErrorPageComponent, {
@@ -86,14 +132,23 @@ export async function renderDenyPage(
     dangerouslyPassData: deny.data,
   });
 
-  // Wrap in layouts from root up to the segment where the status file was found.
-  // Compare by segment index in the original segments array, not layoutComponents index
-  // (not every segment has a layout, so indices don't align).
-  const resolvedSegments = new Set(segments.slice(0, resolution.segmentIndex + 1));
-  const layoutsToWrap = layoutComponents.filter((lc) => resolvedSegments.has(lc.segment));
-  for (let i = layoutsToWrap.length - 1; i >= 0; i--) {
-    const { component } = layoutsToWrap[i];
-    element = h(component, null, element);
+  // Wrap in layouts unless shell is explicitly disabled
+  if (shellEnabled) {
+    const resolvedSegments = new Set(segments.slice(0, resolution.segmentIndex + 1));
+    const layoutsToWrap = layoutComponents.filter((lc) => resolvedSegments.has(lc.segment));
+    for (let i = layoutsToWrap.length - 1; i >= 0; i--) {
+      const { component } = layoutsToWrap[i];
+      element = h(component, null, element);
+    }
+  } else if (process.env.NODE_ENV !== 'production') {
+    // Dev-mode: warn if shell=false might conflict with Suspense
+    // The actual Suspense boundary check happens at render time in the pipeline.
+    // This is a preemptive log for developer awareness.
+    console.warn(
+      `[timber] Status-code file ${resolution.file.filePath} exports shell = false. ` +
+        'If deny() fires inside a Suspense boundary, layouts are already committed and ' +
+        'cannot be unwrapped. The shell opt-out will be ignored in that case.'
+    );
   }
 
   // Build head HTML from error page metadata (if any)
@@ -114,8 +169,6 @@ export async function renderDenyPage(
   }
 
   // Render the error page to a fresh RSC Flight stream.
-  // The error page component should not call deny() — if it does,
-  // the error is logged and the stream may be incomplete.
   const rscStream = renderToReadableStream(element, {
     onError(error: unknown) {
       logRenderError({ method: req.method, path: new URL(req.url).pathname, error });
@@ -152,7 +205,7 @@ export async function renderDenyPageAsRsc(
   responseHeaders: Headers,
   createDebugChannelSink: DebugChannelFactory
 ): Promise<Response> {
-  const resolution = resolveManifestStatusFile(deny.status, segments);
+  const resolution = resolveManifestStatusFile(deny.status, segments, 'component');
 
   if (!resolution) {
     responseHeaders.set('content-type', `${RSC_CONTENT_TYPE}; charset=utf-8`);
@@ -168,17 +221,22 @@ export async function renderDenyPageAsRsc(
   const ErrorPageComponent = mod.default as (...args: unknown[]) => unknown;
   const h = createElement as (...args: unknown[]) => React.ReactElement;
 
+  // Check shell opt-out
+  const shellEnabled = mod.shell !== false;
+
   let element = h(ErrorPageComponent, {
     status: deny.status,
     dangerouslyPassData: deny.data,
   });
 
-  // Wrap in layouts up to the segment where the status file was found
-  const resolvedSegments = new Set(segments.slice(0, resolution.segmentIndex + 1));
-  const layoutsToWrap = layoutComponents.filter((lc) => resolvedSegments.has(lc.segment));
-  for (let i = layoutsToWrap.length - 1; i >= 0; i--) {
-    const { component } = layoutsToWrap[i];
-    element = h(component, null, element);
+  // Wrap in layouts unless shell is explicitly disabled
+  if (shellEnabled) {
+    const resolvedSegments = new Set(segments.slice(0, resolution.segmentIndex + 1));
+    const layoutsToWrap = layoutComponents.filter((lc) => resolvedSegments.has(lc.segment));
+    for (let i = layoutsToWrap.length - 1; i >= 0; i--) {
+      const { component } = layoutsToWrap[i];
+      element = h(component, null, element);
+    }
   }
 
   const rscStream = renderToReadableStream(element, {
@@ -192,6 +250,52 @@ export async function renderDenyPageAsRsc(
   responseHeaders.set('Vary', 'Accept');
   return new Response(rscStream, {
     status: deny.status,
+    headers: responseHeaders,
+  });
+}
+
+// ─── JSON Rendering ─────────────────────────────────────────────────────────
+
+/**
+ * Render a JSON status-code file for a DenySignal.
+ *
+ * JSON status files are returned verbatim with Content-Type: application/json.
+ * No React rendering pipeline, no layout wrapping.
+ *
+ * Returns null if no JSON status file is found (caller should use bare JSON fallback).
+ */
+async function renderDenyPageJson(
+  deny: DenySignal,
+  segments: ManifestSegmentNode[],
+  responseHeaders: Headers
+): Promise<Response | null> {
+  const resolution = resolveManifestStatusFile(deny.status, segments, 'json');
+
+  if (!resolution) {
+    return null;
+  }
+
+  // JSON status files are loaded as modules that export the JSON content.
+  // The manifest's load() imports the .json file, which Vite handles as a
+  // default export of the parsed JSON object.
+  const mod = (await resolution.file.load()) as Record<string, unknown>;
+  const jsonContent = mod.default ?? mod;
+
+  responseHeaders.set('content-type', 'application/json; charset=utf-8');
+  return new Response(JSON.stringify(jsonContent), {
+    status: deny.status,
+    headers: responseHeaders,
+  });
+}
+
+/**
+ * Return a bare JSON error response when no JSON status file exists.
+ * This is the framework default for JSON format requests.
+ */
+function bareJsonResponse(status: number, responseHeaders: Headers): Response {
+  responseHeaders.set('content-type', 'application/json; charset=utf-8');
+  return new Response(JSON.stringify({ error: true, status }), {
+    status,
     headers: responseHeaders,
   });
 }

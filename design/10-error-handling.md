@@ -166,6 +166,7 @@ File conventions named by HTTP status code. Co-located with route segments. The 
 app/
   error.tsx        ← root-level error boundary (catches all errors)
   404.tsx          ← root-level 404 fallback
+  404.mdx          ← MDX variant (when "mdx" in pageExtensions)
   dashboard/
     403.tsx        ← renders when deny() or deny(403) in this segment
     404.tsx        ← renders when deny(404) in this segment
@@ -173,6 +174,10 @@ app/
     4xx.tsx        ← catches any other 4xx in this segment
     5xx.tsx        ← server errors with 5xx status in this segment
     error.tsx      ← error boundary for this segment (catches anything not matched above)
+  api/
+    401.json       ← JSON response for deny(401) in API routes
+    4xx.json       ← catch-all JSON for any 4xx in API routes
+    route.ts
 ```
 
 ### Fallback Chain
@@ -226,6 +231,66 @@ export default function ErrorBoundary({ error, reset }: { error: Error; reset: (
 }
 ```
 
+### Status-Code File Variants
+
+Status-code files support three formats: **component** (`.tsx`/`.jsx`/`.ts`/`.js`), **MDX** (`.mdx`/`.md`), and **static JSON** (`.json`). The format determines how the file is rendered and whether the app shell (layouts) wraps the output.
+
+```
+app/
+  404.tsx          ← React component (rendered inside app shell)
+  404.mdx          ← MDX content (rendered as RSC, inside app shell)
+  api/
+    401.json       ← static JSON (returned verbatim, no shell)
+    4xx.json       ← catch-all JSON for API errors
+    route.ts
+```
+
+**MDX status files** follow the same gate as `page.mdx`: only recognized when `"mdx"` (or `"md"`) is in `pageExtensions`. MDX status files are server components by default — zero client JS. They receive the same props as TSX status files (`{ status, dangerouslyPassData }` for 4xx).
+
+**JSON status files** (`.json` extension) return the file contents verbatim with `Content-Type: application/json`. No React rendering pipeline. No layout wrapping. The JSON file is read and returned as-is. JSON status files are always recognized regardless of `pageExtensions` — `.json` is not a page extension, it's a data format.
+
+### Format Selection for `deny()`
+
+When `deny()` fires, the framework selects the response format based on context:
+
+- **Route handlers (`route.ts`)** — prefer `.json` variant if available. API consumers expect structured data, not HTML.
+- **Page routes (`page.tsx`/`page.mdx`)** — prefer component variant (`.tsx`/`.mdx`). Only use `.json` if the request's `Accept` header explicitly includes `application/json` and no component variant exists at the same priority level.
+
+**No cross-format fallback.** If the JSON format is selected but no `.json` status file exists in the segment chain, the framework returns a bare JSON response: `{"error": true, "status": <N>}` with the correct HTTP status code. It does not fall back to rendering a TSX/MDX component for an API consumer. Similarly, a page route never falls back to a `.json` file when a component variant is expected.
+
+### Format-Aware Fallback Chains
+
+Fallback chains operate **within the same format family**. Component files (`.tsx`/`.jsx`/`.mdx`) form one chain; JSON files form another. The chains never cross.
+
+**Component chain (page routes, default):**
+`401.tsx` → `4xx.tsx` → walk up segments → legacy compat → `error.tsx` → framework default HTML.
+
+**JSON chain (route handlers, Accept: application/json):**
+`401.json` → `4xx.json` → walk up segments → framework default JSON (`{"error": true, "status": <N>}`).
+
+The JSON chain has no `error.json` equivalent — `error.tsx` is a React error boundary concept with `reset()` that has no JSON counterpart. JSON fallback terminates at the category catch-all level.
+
+### Shell Opt-Out (`export const shell`)
+
+By default, TSX/MDX status-code files render inside the app shell — root layout, segment layouts, etc. This preserves navigation, sidebars, and other layout chrome around error pages.
+
+Status-code files can opt out of the shell by exporting `shell = false`:
+
+```tsx
+// app/api/401.tsx
+export const shell = false;  // render without root/segment layouts
+
+export default function Unauthorized({ status }: { status: number }) {
+  return <html><body><h1>401 Unauthorized</h1></body></html>
+}
+```
+
+When `shell = false`, the status-code component renders standalone — no layouts wrap it. The component is responsible for its own `<html>` and `<body>` tags if needed.
+
+**Default:** `shell` defaults to `true` for TSX/MDX status files (backwards compatible). JSON files always skip the shell regardless — there is no `shell` export for JSON.
+
+**Suspense boundary constraint:** `shell = false` is incompatible with Suspense boundaries in the route tree. Once streaming has started through the shell, layouts are already committed to the response and cannot be unwrapped. If a status-code file exports `shell = false` and the deny signal originates from within a Suspense boundary, the framework emits a dev-mode runtime error and falls back to rendering with the shell in production (silent degradation to safe behavior).
+
 ### Slot `denied.tsx`
 
 Slots use `denied.tsx` instead of status-code files because slot denial has no HTTP status on the wire — it's graceful degradation, not a page-level error. The `denied.tsx` file is co-located with the slot directory. Fallback chain: `denied.tsx` → `default.tsx` → `null`.
@@ -252,6 +317,8 @@ export default function AdminDenied({ slot, dangerouslyPassData }: { slot: strin
 | Unhandled throw | 500 | `5xx.tsx` → `error.tsx` | Unexpected crash |
 
 `deny(401)` vs `redirect('/login')`: Use `deny(401)` when the client should know the request was rejected due to missing auth (API consumers, `curl`, CDNs that cache by status code). Use `redirect('/login')` when the user should be seamlessly sent to a login page (browser-facing pages).
+
+For API routes (`route.ts`), `deny()` automatically selects `.json` status files when available, returning structured JSON errors instead of HTML error pages. This means a single `deny(401)` call produces the correct response format for both page and API consumers.
 
 ---
 

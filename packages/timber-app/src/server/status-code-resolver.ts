@@ -5,15 +5,23 @@
  * correct file to render by walking the fallback chain described in
  * design/10-error-handling.md §"Status-Code Files".
  *
- * Fallback chains:
+ * Supports two format families:
+ * - 'component' (default): .tsx/.jsx/.mdx status files → React rendering pipeline
+ * - 'json': .json status files → raw JSON response, no React
  *
- * **4xx (deny()):**
+ * Fallback chains operate within the same format family (no cross-format fallback).
+ *
+ * **Component chain (4xx):**
  *   Pass 1 — status files (leaf → root): {status}.tsx → 4xx.tsx
  *   Pass 2 — legacy compat (leaf → root): not-found.tsx / forbidden.tsx / unauthorized.tsx
  *   Pass 3 — error.tsx (leaf → root)
  *   Pass 4 — framework default (returns null)
  *
- * **5xx (RenderError / unhandled):**
+ * **JSON chain (4xx):**
+ *   Pass 1 — json status files (leaf → root): {status}.json → 4xx.json
+ *   Pass 2 — framework default JSON (returns null, caller provides bare JSON)
+ *
+ * **5xx (component only):**
  *   Per-segment (leaf → root): {status}.tsx → 5xx.tsx → error.tsx
  *   Then global-error.tsx (future)
  *   Then framework default (returns null)
@@ -29,6 +37,9 @@ export type StatusFileKind =
   | 'category' // e.g. 4xx.tsx matched status 403
   | 'legacy' // e.g. not-found.tsx matched status 404
   | 'error'; // error.tsx as last resort
+
+/** Response format family for status-code resolution. */
+export type StatusFileFormat = 'component' | 'json';
 
 /** Result of resolving a status-code file for a segment chain. */
 export interface StatusFileResolution {
@@ -59,7 +70,7 @@ export interface SlotDeniedResolution {
 
 /**
  * Maps legacy file convention names to their corresponding HTTP status codes.
- * Only used in the 4xx fallback chain.
+ * Only used in the 4xx component fallback chain.
  */
 const LEGACY_FILE_TO_STATUS: Record<string, number> = {
   'not-found': 404,
@@ -78,22 +89,25 @@ const LEGACY_FILE_TO_STATUS: Record<string, number> = {
  *
  * @param status - The HTTP status code (4xx or 5xx).
  * @param segments - The matched segment chain from root (index 0) to leaf (last).
+ * @param format - The response format family ('component' or 'json'). Defaults to 'component'.
  */
 export function resolveStatusFile(
   status: number,
-  segments: ReadonlyArray<SegmentNode>
+  segments: ReadonlyArray<SegmentNode>,
+  format: StatusFileFormat = 'component'
 ): StatusFileResolution | null {
   if (status >= 400 && status <= 499) {
-    return resolve4xx(status, segments);
+    return format === 'json' ? resolve4xxJson(status, segments) : resolve4xx(status, segments);
   }
   if (status >= 500 && status <= 599) {
-    return resolve5xx(status, segments);
+    // JSON format for 5xx uses the same json chain pattern
+    return format === 'json' ? resolve5xxJson(status, segments) : resolve5xx(status, segments);
   }
   return null;
 }
 
 /**
- * 4xx fallback chain (three separate passes):
+ * 4xx component fallback chain (three separate passes):
  *   Pass 1 — status files (leaf → root): {status}.tsx → 4xx.tsx
  *   Pass 2 — legacy compat (leaf → root): not-found.tsx / forbidden.tsx / unauthorized.tsx
  *   Pass 3 — error.tsx (leaf → root)
@@ -148,7 +162,38 @@ function resolve4xx(
 }
 
 /**
- * 5xx fallback chain (single pass, per-segment):
+ * 4xx JSON fallback chain (single pass):
+ *   Pass 1 — json status files (leaf → root): {status}.json → 4xx.json
+ *   No legacy compat, no error.tsx — JSON chain terminates at category catch-all.
+ */
+function resolve4xxJson(
+  status: number,
+  segments: ReadonlyArray<SegmentNode>
+): StatusFileResolution | null {
+  const statusStr = String(status);
+
+  for (let i = segments.length - 1; i >= 0; i--) {
+    const segment = segments[i];
+    if (!segment.jsonStatusFiles) continue;
+
+    // Exact match first
+    const exact = segment.jsonStatusFiles.get(statusStr);
+    if (exact) {
+      return { file: exact, status, kind: 'exact', segmentIndex: i };
+    }
+
+    // Category catch-all
+    const category = segment.jsonStatusFiles.get('4xx');
+    if (category) {
+      return { file: category, status, kind: 'category', segmentIndex: i };
+    }
+  }
+
+  return null;
+}
+
+/**
+ * 5xx component fallback chain (single pass, per-segment):
  *   At each segment (leaf → root): {status}.tsx → 5xx.tsx → error.tsx
  */
 function resolve5xx(
@@ -177,6 +222,35 @@ function resolve5xx(
     // error.tsx at this segment level (for 5xx, checked per-segment)
     if (segment.error) {
       return { file: segment.error, status, kind: 'error', segmentIndex: i };
+    }
+  }
+
+  return null;
+}
+
+/**
+ * 5xx JSON fallback chain (single pass):
+ *   At each segment (leaf → root): {status}.json → 5xx.json
+ *   No error.tsx equivalent — JSON chain terminates at category catch-all.
+ */
+function resolve5xxJson(
+  status: number,
+  segments: ReadonlyArray<SegmentNode>
+): StatusFileResolution | null {
+  const statusStr = String(status);
+
+  for (let i = segments.length - 1; i >= 0; i--) {
+    const segment = segments[i];
+    if (!segment.jsonStatusFiles) continue;
+
+    const exact = segment.jsonStatusFiles.get(statusStr);
+    if (exact) {
+      return { file: exact, status, kind: 'exact', segmentIndex: i };
+    }
+
+    const category = segment.jsonStatusFiles.get('5xx');
+    if (category) {
+      return { file: category, status, kind: 'category', segmentIndex: i };
     }
   }
 

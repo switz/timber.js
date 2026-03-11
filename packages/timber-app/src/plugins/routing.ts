@@ -289,6 +289,18 @@ function generateManifestModule(tree: RouteTree): string {
       parts.push(`${nextIndent}statusFiles: {\n${statusEntries.join(',\n')}\n${nextIndent}},`);
     }
 
+    // JSON status-code files
+    if (node.jsonStatusFiles && node.jsonStatusFiles.size > 0) {
+      const jsonEntries: string[] = [];
+      for (const [code, file] of node.jsonStatusFiles) {
+        const v = addImport(file);
+        jsonEntries.push(
+          `${nextIndent}    ${JSON.stringify(code)}: { load: ${v}, filePath: ${JSON.stringify(file.filePath)} }`
+        );
+      }
+      parts.push(`${nextIndent}jsonStatusFiles: {\n${jsonEntries.join(',\n')}\n${nextIndent}},`);
+    }
+
     // Legacy status files
     if (node.legacyStatusFiles && node.legacyStatusFiles.size > 0) {
       const legacyEntries: string[] = [];

@@ -5,7 +5,59 @@
 
 import { writeFile, mkdir, cp } from 'node:fs/promises';
 import { join, relative } from 'node:path';
+import { AsyncLocalStorage } from 'node:async_hooks';
 import type { TimberPlatformAdapter, TimberConfig } from './types';
+
+// ─── Bindings passthrough ─────────────────────────────────────────────────
+// ALS stores the env object per-request so server components and middleware
+// can access KV, D1, DO, R2, Queues, etc. via getCloudflareBindings().
+// No global fallback — if called outside a request, it throws.
+// See design/11-platform.md §"Platform Target" and design/25-production-deployments.md.
+
+const bindingsAls = new AsyncLocalStorage<Record<string, unknown>>();
+
+/**
+ * Get Cloudflare Worker bindings for the current request.
+ *
+ * Returns the `env` object passed to the Worker's `fetch` handler,
+ * giving direct access to KV, D1, Durable Objects, R2, Queues, and
+ * any other bindings configured in `wrangler.jsonc`.
+ *
+ * Must be called within a request context (server component, middleware,
+ * server action). Throws outside a request.
+ *
+ * @example
+ * ```ts
+ * import { getCloudflareBindings } from '@timber/app/adapters/cloudflare'
+ *
+ * export default async function Page() {
+ *   const { MY_KV, MY_DB } = getCloudflareBindings()
+ *   const data = await MY_KV.get('key')
+ *   return <div>{data}</div>
+ * }
+ * ```
+ */
+export function getCloudflareBindings<
+  T extends Record<string, unknown> = Record<string, unknown>,
+>(): T {
+  const env = bindingsAls.getStore();
+  if (!env) {
+    throw new Error(
+      'getCloudflareBindings() called outside a Cloudflare Workers request context. ' +
+        'It can only be called from server components, middleware, or server actions ' +
+        'when running on the Cloudflare adapter.'
+    );
+  }
+  return env as T;
+}
+
+/**
+ * Run a function with Cloudflare bindings available via getCloudflareBindings().
+ * @internal Used by wrapWithExecutionContext.
+ */
+export function runWithBindings<T>(env: Record<string, unknown>, fn: () => T): T {
+  return bindingsAls.run(env, fn);
+}
 
 /** Options for the Cloudflare Workers adapter. */
 export interface CloudflareAdapterOptions {
@@ -74,7 +126,12 @@ export function cloudflare(options: CloudflareAdapterOptions = {}): TimberPlatfo
 
 /**
  * Wrap a timber request handler to bind the Cloudflare execution context
- * for `waitUntil()` support. Called from the generated worker entry.
+ * for `waitUntil()` support and env bindings passthrough.
+ * Called from the generated worker entry.
+ *
+ * This function:
+ * 1. Binds `adapter.waitUntil()` to `ctx.waitUntil()` per-request
+ * 2. Makes `env` accessible via `getCloudflareBindings()` per-request via ALS
  */
 export function wrapWithExecutionContext(
   adapter: TimberPlatformAdapter,
@@ -83,7 +140,7 @@ export function wrapWithExecutionContext(
   return {
     async fetch(
       request: Request,
-      _env: Record<string, unknown>,
+      env: Record<string, unknown>,
       ctx: ExecutionContext
     ): Promise<Response> {
       // Bind the adapter's waitUntil to the Workers execution context
@@ -93,7 +150,8 @@ export function wrapWithExecutionContext(
       };
 
       try {
-        return await handler(request);
+        // Run the handler within ALS so getCloudflareBindings() works
+        return await runWithBindings(env, () => handler(request));
       } finally {
         // Restore (in case adapter is reused across isolate resets)
         adapter.waitUntil = originalWaitUntil;

@@ -64,9 +64,38 @@ All framework-internal endpoints (RSC payload delivery, etc.) are subject to `pr
 
 ---
 
+## Config-Level Redirects and Rewrites
+
+`timber.config.ts` supports declarative `redirects` and `rewrites` arrays. These are evaluated after URL canonicalization and before route matching — they run before middleware, access checks, and rendering.
+
+```typescript
+// timber.config.ts
+export default {
+  redirects: [
+    { source: '/old/:slug', destination: '/new/:slug', permanent: true },
+    { source: '/legacy', destination: '/modern' },
+  ],
+  rewrites: [
+    { source: '/api/v1/:path*', destination: '/api/v2/:path*' },
+  ],
+}
+```
+
+**Patterns:** `:param` matches a single segment, `:param*` matches one or more segments (catch-all). Static segments are matched literally.
+
+**Redirects** return an HTTP redirect response (307 temporary or 308 permanent). The request never reaches route matching.
+
+**Rewrites** transparently change the pathname for route matching. The client URL does not change.
+
+**Execution order:** `proxy.ts` → canonicalize → **redirects/rewrites** → route match → middleware → access → render.
+
+For complex redirect logic (header-based conditions, async checks, database lookups), use `middleware.ts` or `proxy.ts` instead. Config redirects are for simple, declarative cases.
+
+---
+
 ## Route Matching
 
-After URL canonicalization, the canonical pathname is matched against the segment tree built by the route scanner. The route matcher (`server/route-matcher.ts`) walks the tree depth-first with the following priority at each level:
+After URL canonicalization (and any config-level rewrites), the canonical pathname is matched against the segment tree built by the route scanner. The route matcher (`server/route-matcher.ts`) walks the tree depth-first with the following priority at each level:
 
 1. **Static segments** — exact match on directory name
 2. **Route groups** — transparent (don't consume URL segments), children checked recursively

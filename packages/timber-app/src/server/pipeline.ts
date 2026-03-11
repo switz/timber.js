@@ -2,7 +2,7 @@
  * Request pipeline — the central dispatch for all timber.js requests.
  *
  * Pipeline stages (in order):
- *   proxy.ts → canonicalize → route match → 103 Early Hints → middleware.ts → render
+ *   proxy.ts → canonicalize → redirects/rewrites → route match → 103 Early Hints → middleware.ts → render
  *
  * Each stage is a pure function or returns a Response to short-circuit.
  * Each request gets a trace ID, structured logging, and OTEL spans.
@@ -12,6 +12,7 @@
  */
 
 import { canonicalize } from './canonicalize.js';
+import { createRedirectMatcher } from './redirects.js';
 import { runProxy, type ProxyExport } from './proxy.js';
 import { runMiddleware, type MiddlewareFn } from './middleware-runner.js';
 import { runWithRequestContext, applyRequestHeaderOverlay } from './request-context.js';
@@ -84,6 +85,10 @@ export interface PipelineConfig {
   stripTrailingSlash?: boolean;
   /** Slow request threshold in ms. Requests exceeding this emit a warning. 0 to disable. Default: 3000. */
   slowRequestMs?: number;
+  /** Config-level redirect rules. Evaluated after canonicalization, before route matching. */
+  redirects?: import('../index.js').RedirectRule[];
+  /** Config-level rewrite rules. Evaluated after canonicalization, before route matching. */
+  rewrites?: import('../index.js').RewriteRule[];
   /**
    * Dev pipeline error callback — called when a pipeline phase (proxy,
    * middleware, render) catches an unhandled error. Used to wire the error
@@ -112,6 +117,9 @@ export function createPipeline(config: PipelineConfig): (req: Request) => Promis
     slowRequestMs = 3000,
     onPipelineError,
   } = config;
+
+  // Compile redirect/rewrite rules once at startup
+  const matchRedirect = createRedirectMatcher(config.redirects, config.rewrites);
 
   return async (req: Request): Promise<Response> => {
     const url = new URL(req.url);
@@ -190,9 +198,22 @@ export function createPipeline(config: PipelineConfig): (req: Request) => Promis
     if (!result.ok) {
       return new Response(null, { status: result.status });
     }
-    const canonicalPathname = result.pathname;
+    let canonicalPathname = result.pathname;
 
-    // Stage 2: Route matching
+    // Stage 2: Config-level redirects and rewrites
+    const redirectResult = matchRedirect(canonicalPathname);
+    if (redirectResult) {
+      if (redirectResult.type === 'redirect') {
+        return new Response(null, {
+          status: redirectResult.status,
+          headers: { Location: redirectResult.destination },
+        });
+      }
+      // Rewrite: transparently change the pathname for route matching
+      canonicalPathname = redirectResult.destination;
+    }
+
+    // Stage 3: Route matching
     const match = matchRoute(canonicalPathname);
     if (!match) {
       // No route matched — render 404.tsx in root layout if available,

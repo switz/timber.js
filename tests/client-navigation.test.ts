@@ -2,7 +2,12 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // ─── Segment Cache ───────────────────────────────────────────────
 
-import { SegmentCache, type SegmentNode } from '../packages/timber-app/src/client/segment-cache';
+import {
+  SegmentCache,
+  type SegmentNode,
+  buildSegmentTree,
+  type SegmentInfo,
+} from '../packages/timber-app/src/client/segment-cache';
 
 describe('SegmentCache', () => {
   let cache: SegmentCache;
@@ -867,6 +872,201 @@ describe('Link', () => {
       const props = buildLinkProps({ href: '/tabs/1' });
       expect(props['data-timber-scroll']).toBeUndefined();
     });
+  });
+});
+
+// ─── buildSegmentTree ────────────────────────────────────────────
+
+describe('buildSegmentTree', () => {
+  it('builds tree from flat segment list', () => {
+    const segments: SegmentInfo[] = [
+      { path: '/', isAsync: false },
+      { path: '/dashboard', isAsync: false },
+      { path: '/dashboard/settings', isAsync: false },
+    ];
+    const tree = buildSegmentTree(segments);
+    expect(tree).toBeDefined();
+    expect(tree!.segment).toBe('/');
+    expect(tree!.isAsync).toBe(false);
+    // Leaf (page) excluded — only root and dashboard are layout nodes
+    expect(tree!.children.size).toBe(1);
+    const dash = tree!.children.get('/dashboard');
+    expect(dash).toBeDefined();
+    expect(dash!.segment).toBe('/dashboard');
+  });
+
+  it('excludes leaf segment (page)', () => {
+    const segments: SegmentInfo[] = [
+      { path: '/', isAsync: false },
+      { path: '/projects', isAsync: false },
+    ];
+    const tree = buildSegmentTree(segments);
+    expect(tree).toBeDefined();
+    expect(tree!.segment).toBe('/');
+    // /projects is the leaf (page) — excluded from layout tree
+    expect(tree!.children.size).toBe(0);
+  });
+
+  it('preserves async flag on segments', () => {
+    const segments: SegmentInfo[] = [
+      { path: '/', isAsync: false },
+      { path: '/dashboard', isAsync: true },
+      { path: '/dashboard/page', isAsync: false },
+    ];
+    const tree = buildSegmentTree(segments);
+    const dash = tree!.children.get('/dashboard');
+    expect(dash!.isAsync).toBe(true);
+  });
+
+  it('returns undefined for empty segments', () => {
+    expect(buildSegmentTree([])).toBeUndefined();
+  });
+
+  it('single segment treated as root (not excluded as leaf)', () => {
+    const segments: SegmentInfo[] = [{ path: '/', isAsync: false }];
+    const tree = buildSegmentTree(segments);
+    expect(tree).toBeDefined();
+    expect(tree!.segment).toBe('/');
+  });
+});
+
+// ─── State tree population ───────────────────────────────────────
+
+describe('state tree populated on hydration', () => {
+  it('initSegmentCache populates the segment cache', () => {
+    const mockFetch = vi.fn();
+    const router = createRouter({
+      fetch: mockFetch,
+      pushState: vi.fn(),
+      replaceState: vi.fn(),
+      scrollTo: vi.fn(),
+      getCurrentUrl: () => '/',
+      getScrollY: () => 0,
+    });
+
+    router.initSegmentCache([
+      { path: '/', isAsync: false },
+      { path: '/dashboard', isAsync: false },
+      { path: '/dashboard/settings', isAsync: false },
+    ]);
+
+    const stateTree = router.segmentCache.serializeStateTree();
+    expect(stateTree.segments).toContain('/');
+    expect(stateTree.segments).toContain('/dashboard');
+    // Leaf excluded from tree → not in state tree
+    expect(stateTree.segments).not.toContain('/dashboard/settings');
+  });
+});
+
+describe('state tree updated after navigation', () => {
+  it('segment cache updated from X-Timber-Segments header after navigate', async () => {
+    const mockFetch = vi.fn();
+    const router = createRouter({
+      fetch: mockFetch,
+      pushState: vi.fn(),
+      replaceState: vi.fn(),
+      scrollTo: vi.fn(),
+      getCurrentUrl: () => '/',
+      getScrollY: () => 0,
+    });
+
+    const segmentInfo = [
+      { path: '/', isAsync: false },
+      { path: '/projects', isAsync: false },
+      { path: '/projects/123', isAsync: false },
+    ];
+    mockFetch.mockResolvedValueOnce(
+      new Response('payload', {
+        headers: {
+          'content-type': 'text/x-component',
+          'X-Timber-Segments': JSON.stringify(segmentInfo),
+        },
+      })
+    );
+
+    await router.navigate('/projects/123');
+
+    const stateTree = router.segmentCache.serializeStateTree();
+    expect(stateTree.segments).toContain('/');
+    expect(stateTree.segments).toContain('/projects');
+  });
+});
+
+describe('excludes async segments from state tree', () => {
+  it('async segments not included in serialized state tree after navigation', async () => {
+    const mockFetch = vi.fn();
+    const router = createRouter({
+      fetch: mockFetch,
+      pushState: vi.fn(),
+      replaceState: vi.fn(),
+      scrollTo: vi.fn(),
+      getCurrentUrl: () => '/',
+      getScrollY: () => 0,
+    });
+
+    const segmentInfo = [
+      { path: '/', isAsync: false },
+      { path: '/dashboard', isAsync: true },
+      { path: '/dashboard/settings', isAsync: false },
+    ];
+    mockFetch.mockResolvedValueOnce(
+      new Response('payload', {
+        headers: {
+          'content-type': 'text/x-component',
+          'X-Timber-Segments': JSON.stringify(segmentInfo),
+        },
+      })
+    );
+
+    await router.navigate('/dashboard/settings');
+
+    const stateTree = router.segmentCache.serializeStateTree();
+    expect(stateTree.segments).toContain('/');
+    // Async layout excluded from state tree
+    expect(stateTree.segments).not.toContain('/dashboard');
+  });
+});
+
+describe('includes X-Timber-State-Tree header for segment diff skip sync', () => {
+  it('sends non-empty state tree after cache is populated', async () => {
+    const mockFetch = vi.fn();
+    const router = createRouter({
+      fetch: mockFetch,
+      pushState: vi.fn(),
+      replaceState: vi.fn(),
+      scrollTo: vi.fn(),
+      getCurrentUrl: () => '/dashboard',
+      getScrollY: () => 0,
+    });
+
+    // Populate segment cache (simulating hydration)
+    router.initSegmentCache([
+      { path: '/', isAsync: false },
+      { path: '/dashboard', isAsync: false },
+      { path: '/dashboard/page', isAsync: false },
+    ]);
+
+    // Navigate — the state tree header should now contain segments
+    mockFetch.mockResolvedValueOnce(
+      new Response('payload', {
+        headers: {
+          'content-type': 'text/x-component',
+          'X-Timber-Segments': JSON.stringify([
+            { path: '/', isAsync: false },
+            { path: '/projects', isAsync: false },
+          ]),
+        },
+      })
+    );
+
+    await router.navigate('/projects');
+
+    const [, init] = mockFetch.mock.calls[0] as [string, RequestInit];
+    const headers = init.headers as Record<string, string>;
+    const stateTree = JSON.parse(headers['X-Timber-State-Tree']);
+    expect(stateTree.segments).toContain('/');
+    expect(stateTree.segments).toContain('/dashboard');
+    expect(stateTree.segments.length).toBeGreaterThan(0);
   });
 });
 

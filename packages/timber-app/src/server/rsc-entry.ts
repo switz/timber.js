@@ -142,6 +142,34 @@ function createRequestHandler(manifest: typeof routeManifest, runtimeConfig: typ
 const RSC_CONTENT_TYPE = 'text/x-component';
 
 /**
+ * Build segment metadata for the X-Timber-Segments response header.
+ * Describes the rendered segment chain with async status, enabling
+ * the client to populate its segment cache for state tree diffing.
+ *
+ * Async detection: server components defined as `async function` have
+ * constructor.name === 'AsyncFunction'. These layouts always re-render
+ * on navigation (they may depend on request context like cookies/params).
+ * See design/07-routing.md §"Server Diffing Rules".
+ */
+function buildSegmentInfo(
+  segments: ManifestSegmentNode[],
+  layoutComponents: Array<{
+    component: (...args: unknown[]) => unknown;
+    segment: ManifestSegmentNode;
+  }>
+): Array<{ path: string; isAsync: boolean }> {
+  const layoutBySegment = new Map(
+    layoutComponents.map(({ component, segment }) => [segment, component])
+  );
+
+  return segments.map((segment) => {
+    const component = layoutBySegment.get(segment);
+    const isAsync = component?.constructor?.name === 'AsyncFunction';
+    return { path: segment.urlPath, isAsync };
+  });
+}
+
+/**
  * Check if a request is asking for an RSC payload (client navigation)
  * rather than full HTML. Client-side navigation sends Accept: text/x-component.
  */
@@ -536,6 +564,12 @@ async function renderRoute(
       responseHeaders.set('X-Timber-Head', encoded);
     }
 
+    // Send segment metadata so the client can populate its segment cache
+    // for state tree diffing on subsequent navigations.
+    // See design/19-client-navigation.md §"X-Timber-State-Tree Header"
+    const segmentInfo = buildSegmentInfo(segments, layoutComponents);
+    responseHeaders.set('X-Timber-Segments', JSON.stringify(segmentInfo));
+
     return new Response(rscStream!, {
       status: 200,
       headers: responseHeaders,
@@ -562,13 +596,19 @@ async function renderRoute(
   // the other is inlined in the HTML for client-side hydration.
   const [ssrStream, inlineStream] = rscStream!.tee();
 
+  // Embed segment metadata in HTML for initial hydration.
+  // The client reads this to populate its segment cache before the
+  // first navigation, enabling state tree diffing from the start.
+  const segmentInfo = buildSegmentInfo(segments, layoutComponents);
+  const segmentScript = `<script>self.__timber_segments=${JSON.stringify(segmentInfo)}</script>`;
+
   const navContext: NavContext = {
     pathname: new URL(_req.url).pathname,
     params: match.params,
     searchParams: Object.fromEntries(new URL(_req.url).searchParams),
     statusCode: 200,
     responseHeaders,
-    headHtml: headHtml + clientBootstrap.preloadLinks,
+    headHtml: headHtml + clientBootstrap.preloadLinks + segmentScript,
     bootstrapScriptContent: clientBootstrap.bootstrapScriptContent,
     rscStream: inlineStream,
   };

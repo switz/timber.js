@@ -177,9 +177,10 @@ test.describe('segment diff', () => {
     const parsed = JSON.parse(stateTree!);
     expect(parsed).toHaveProperty('segments');
     expect(Array.isArray(parsed.segments)).toBe(true);
-    // Segment cache population is not yet implemented — segments will be
-    // empty until initial hydration populates the cache with mounted layouts.
-    // This test verifies the header is sent with valid structure.
+    // After hydration, the segment cache is populated from the server-embedded
+    // __timber_segments data. The state tree should contain at least the root segment.
+    expect(parsed.segments.length).toBeGreaterThan(0);
+    expect(parsed.segments).toContain('/');
   });
 
   test('sync layout is NOT re-rendered during sibling navigation', async ({ page }) => {

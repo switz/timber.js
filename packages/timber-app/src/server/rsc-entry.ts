@@ -46,11 +46,10 @@ import {
   collectRouteModulepreloads,
   buildCssLinkTags,
   buildFontPreloadTags,
-  buildFontLinkHeaders,
-  buildLinkHeaders,
   buildModulepreloadTags,
 } from './build-manifest.js';
 import type { BuildManifest } from './build-manifest.js';
+import { collectEarlyHintHeaders } from './early-hints.js';
 import type { NavContext } from './ssr-entry.js';
 import { resolveSlotElement } from './slot-resolver.js';
 import { SegmentProvider } from '../client/segment-context.js';
@@ -123,9 +122,25 @@ function createRequestHandler(manifest: typeof routeManifest, runtimeConfig: typ
   const devLogMode = isDev ? resolveLogMode() : 'quiet';
   const slowPhaseMs = (runtimeConfig as Record<string, unknown>).slowPhaseMs as number | undefined;
 
+  const typedBuildManifest = buildManifest as BuildManifest;
+
   const pipelineConfig: PipelineConfig = {
     proxy: manifest.proxy?.load,
     matchRoute,
+    // 103 Early Hints — fires after route match, before middleware.
+    // Collects CSS, font, and JS chunk Link headers from the build manifest
+    // so the browser starts fetching critical resources while the server renders.
+    // In dev mode the manifest is empty — no hints are sent.
+    earlyHints: (match: RouteMatch, _req: Request, responseHeaders: Headers) => {
+      const segments = match.segments as unknown as Array<{
+        layout?: { filePath: string };
+        page?: { filePath: string };
+      }>;
+      const headers = collectEarlyHintHeaders(segments, typedBuildManifest);
+      for (const h of headers) {
+        responseHeaders.append('Link', h);
+      }
+    },
     render: async (req: Request, match: RouteMatch, responseHeaders: Headers) => {
       return renderRoute(req, match, responseHeaders, clientBootstrap);
     },
@@ -378,28 +393,23 @@ async function renderRoute(
   // Build head HTML for injection into the SSR output
   let headHtml = '';
 
-  // Collect CSS from the build manifest for matched segments.
-  // In dev mode buildManifest.css is empty — Vite HMR handles CSS.
+  // Collect CSS, fonts, and modulepreload from the build manifest for matched segments.
+  // In dev mode the manifest is empty — Vite HMR handles CSS/JS.
+  //
+  // Link headers (for 103 Early Hints) are emitted by the earlyHints pipeline
+  // stage before middleware runs. Here we only emit the <head> HTML fallback tags
+  // — these ensure resources load even on platforms without Early Hints support.
   const typedManifest = buildManifest as BuildManifest;
   const cssUrls = collectRouteCss(segments, typedManifest);
   if (cssUrls.length > 0) {
     headHtml += buildCssLinkTags(cssUrls);
-    // Add Link preload headers — Cloudflare CDN converts these to 103 Early Hints.
-    const linkHeader = buildLinkHeaders(cssUrls);
-    responseHeaders.append('Link', linkHeader);
   }
 
-  // Collect font preloads from the build manifest for matched segments.
-  // Font Link headers enable 103 Early Hints; <link rel="preload"> in <head>
-  // is the fallback for platforms without Early Hints support.
   const fontEntries = collectRouteFonts(segments, typedManifest);
   if (fontEntries.length > 0) {
     headHtml += buildFontPreloadTags(fontEntries);
-    responseHeaders.append('Link', buildFontLinkHeaders(fontEntries));
   }
 
-  // Collect modulepreload hints for route-specific JS chunks.
-  // In dev mode modulepreload is empty — Vite HMR handles module loading.
   const preloadUrls = collectRouteModulepreloads(segments, typedManifest);
   if (preloadUrls.length > 0) {
     headHtml += buildModulepreloadTags(preloadUrls);

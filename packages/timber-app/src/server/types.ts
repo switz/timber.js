@@ -1,11 +1,15 @@
 // Server-side type definitions
 
+import type { EarlyHint } from './early-hints.js';
+
 export interface MiddlewareContext {
   req: Request;
   requestHeaders: Headers;
   headers: Headers;
   params: Record<string, string | string[]>;
   searchParams: unknown;
+  /** Declare early hints for critical resources. Appends Link headers. */
+  earlyHints: (hints: EarlyHint[]) => void;
 }
 
 export interface RouteContext {

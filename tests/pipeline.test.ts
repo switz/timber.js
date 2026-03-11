@@ -358,6 +358,7 @@ describe('runMiddleware()', () => {
       headers: new Headers(),
       params: {},
       searchParams: new URLSearchParams(),
+      earlyHints: () => {},
     };
     const result = await runMiddleware(fn, ctx);
     expect(result).toBeUndefined();
@@ -371,6 +372,7 @@ describe('runMiddleware()', () => {
       headers: new Headers(),
       params: {},
       searchParams: new URLSearchParams(),
+      earlyHints: () => {},
     };
     const result = await runMiddleware(fn, ctx);
     expect(result).toBeInstanceOf(Response);

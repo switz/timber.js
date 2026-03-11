@@ -19,9 +19,12 @@ import { renderToReadableStream } from 'react-dom/server';
  * The returned stream begins yielding after onShellReady — everything
  * outside <Suspense> boundaries is in the shell.
  *
- * DenySignal handling is done entirely in the RSC entry (rsc-entry.ts).
- * By the time this function is called, the element tree contains either
- * the normal page or a rendered error page — no deny errors should appear.
+ * With progressive streaming, the RSC stream is piped directly to SSR
+ * without buffering. If deny() was called outside a Suspense boundary,
+ * the RSC stream encodes an error in the shell — renderToReadableStream
+ * rejects, and the RSC entry catches this to render a deny page with
+ * the correct HTTP status code. If deny() was inside Suspense, the shell
+ * succeeds (200 committed) and the error streams as an error boundary.
  *
  * @param element - The React element tree decoded from the RSC stream
  * @returns A ReadableStream of HTML bytes with hydration markers
@@ -33,11 +36,69 @@ export async function renderSsrStream(element: ReactNode): Promise<ReadableStrea
     },
   });
 
+  // Prevent unhandled promise rejection from streaming-phase errors.
+  // React DOM Server exposes `allReady` — a promise that resolves when
+  // ALL content (including Suspense boundaries) has been rendered. If a
+  // streaming-phase error occurs (e.g. React boundary flush failure),
+  // `allReady` rejects independently of the stream. Without this catch,
+  // the rejection becomes an unhandled promise rejection that crashes
+  // the Node.js process.
+  stream.allReady.catch(() => {});
+
   // renderToReadableStream resolves after onShellReady by default.
   // The stream is ready to read — the shell (everything outside
   // Suspense boundaries) is available. Suspense content streams
   // into the open connection as it resolves.
-  return stream;
+  //
+  // Wrap the stream in an error-resilient transform. With progressive
+  // streaming, errors inside Suspense boundaries (e.g. deny() or throws
+  // in async components) cause React's stream to error during the flush
+  // phase. The onError callback logs the error, but the stream error
+  // would become an unhandled promise rejection and crash the process.
+  // The transform catches these post-shell streaming errors and closes
+  // the stream cleanly — the shell (with correct status code) has
+  // already been sent.
+  return wrapStreamWithErrorHandling(stream);
+}
+
+/**
+ * Wrap an HTML stream with error handling for the streaming phase.
+ *
+ * During progressive RSC→SSR streaming, errors in Suspense boundaries
+ * (e.g. deny() inside Suspense, throws in async components) cause
+ * React DOM's renderToReadableStream to error after the shell has been
+ * flushed. Without this wrapper, the stream error becomes an unhandled
+ * promise rejection that crashes the process.
+ *
+ * The wrapper catches streaming-phase errors, logs them, and closes
+ * the output stream cleanly. The shell (headers, status code, content
+ * outside Suspense) has already been sent to the client.
+ */
+function wrapStreamWithErrorHandling(
+  stream: ReadableStream<Uint8Array>
+): ReadableStream<Uint8Array> {
+  const reader = stream.getReader();
+
+  return new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      try {
+        const { done, value } = await reader.read();
+        if (done) {
+          controller.close();
+          return;
+        }
+        controller.enqueue(value);
+      } catch (error) {
+        // Streaming-phase error (e.g. React boundary flush failure).
+        // The shell has already been sent. Log and close cleanly.
+        console.error('[timber] SSR streaming error (post-shell):', error);
+        controller.close();
+      }
+    },
+    cancel() {
+      reader.cancel().catch(() => {});
+    },
+  });
 }
 
 /**

@@ -11,6 +11,7 @@
  */
 
 import type { SegmentNode, RouteFile } from '../routing/types.js';
+import { TimberErrorBoundary } from '../client/error-boundary.js';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -300,7 +301,7 @@ async function wrapWithErrorBoundaries(
           const mod = await loadModule(file);
           const Component = mod.default;
           if (Component) {
-            element = createElement('timber:error-boundary', {
+            element = createElement(TimberErrorBoundary, {
               fallbackComponent: Component,
               status,
               children: element,
@@ -316,7 +317,7 @@ async function wrapWithErrorBoundaries(
         const mod = await loadModule(file);
         const Component = mod.default;
         if (Component) {
-          element = createElement('timber:error-boundary', {
+          element = createElement(TimberErrorBoundary, {
             fallbackComponent: Component,
             status: key === '4xx' ? 400 : 500, // category marker
             children: element,
@@ -331,7 +332,7 @@ async function wrapWithErrorBoundaries(
     const errorModule = await loadModule(segment.error);
     const ErrorComponent = errorModule.default;
     if (ErrorComponent) {
-      element = createElement('timber:error-boundary', {
+      element = createElement(TimberErrorBoundary, {
         fallbackComponent: ErrorComponent,
         children: element,
       } satisfies ErrorBoundaryProps);

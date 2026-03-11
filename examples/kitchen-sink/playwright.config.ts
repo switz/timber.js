@@ -1,7 +1,12 @@
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { defineConfig, devices } from '@playwright/test';
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const repoRoot = resolve(__dirname, '../..');
+
 export default defineConfig({
-  testDir: './e2e',
+  testDir: resolve(__dirname, 'e2e'),
   timeout: 60_000,
   retries: 1,
   use: {
@@ -18,6 +23,6 @@ export default defineConfig({
     port: 3003,
     reuseExistingServer: !process.env.CI,
     timeout: 30_000,
-    cwd: '../..',
+    cwd: repoRoot,
   },
 });

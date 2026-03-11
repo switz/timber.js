@@ -1,7 +1,8 @@
 // Segment Router — manages client-side navigation and RSC payload fetching
 // See design/19-client-navigation.md for the full architecture.
 
-import { SegmentCache, PrefetchCache } from './segment-cache';
+import { SegmentCache, PrefetchCache, buildSegmentTree } from './segment-cache';
+import type { SegmentInfo } from './segment-cache';
 import { HistoryStack } from './history';
 import type { HeadElement } from './head';
 
@@ -53,10 +54,12 @@ export interface RouterDeps {
   applyHead?: (elements: HeadElement[]) => void;
 }
 
-/** Result of fetching an RSC payload — includes head elements from X-Timber-Head header. */
+/** Result of fetching an RSC payload — includes head elements and segment metadata. */
 interface FetchResult {
   payload: unknown;
   headElements: HeadElement[] | null;
+  /** Segment metadata from X-Timber-Segments header for populating the segment cache. */
+  segmentInfo: SegmentInfo[] | null;
 }
 
 export interface RouterInstance {
@@ -72,6 +75,11 @@ export interface RouterInstance {
   onPendingChange(listener: (pending: boolean) => void): () => void;
   /** Prefetch an RSC payload for a URL (used by Link hover) */
   prefetch(url: string): void;
+  /**
+   * Populate the segment cache from server-provided segment metadata.
+   * Called on initial hydration with segment info embedded in the HTML.
+   */
+  initSegmentCache(segments: SegmentInfo[]): void;
   /** The segment cache (exposed for tests and <Link> prefetch) */
   segmentCache: SegmentCache;
   /** The prefetch cache (exposed for tests and <Link> prefetch) */
@@ -144,6 +152,24 @@ function extractHeadElements(response: Response): HeadElement[] | null {
 }
 
 /**
+ * Extract segment metadata from the X-Timber-Segments response header.
+ * Returns null if the header is missing or malformed.
+ *
+ * Format: JSON array of {path, isAsync} objects describing the rendered
+ * segment chain from root to leaf. Used to populate the client-side
+ * segment cache for state tree diffing on subsequent navigations.
+ */
+function extractSegmentInfo(response: Response): SegmentInfo[] | null {
+  const header = response.headers.get('X-Timber-Segments');
+  if (!header) return null;
+  try {
+    return JSON.parse(header);
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Fetch an RSC payload from the server. If a decodeRsc function is provided,
  * the response is decoded into a React element tree via createFromFetch.
  * Otherwise, the raw response text is returned (test mode).
@@ -167,6 +193,7 @@ async function fetchRscPayload(
     // consumes the body. Reading headers does NOT consume the body stream.
     const fetchPromise = deps.fetch(rscUrl, { headers, redirect: 'manual' });
     let headElements: HeadElement[] | null = null;
+    let segmentInfo: SegmentInfo[] | null = null;
     const wrappedPromise = fetchPromise.then((response) => {
       // Detect server-side redirects via 3xx status + Location header.
       // RSC fetches use redirect: "manual" so the browser doesn't auto-follow
@@ -180,14 +207,15 @@ async function fetchRscPayload(
         }
       }
       headElements = extractHeadElements(response);
+      segmentInfo = extractSegmentInfo(response);
       return response;
     });
-    // Await so headElements is populated before we return.
+    // Await so headElements/segmentInfo are populated before we return.
     // Also await the decoded payload — createFromFetch returns a thenable
     // that resolves to the React element tree.
     await wrappedPromise;
     const payload = await deps.decodeRsc(wrappedPromise);
-    return { payload, headElements };
+    return { payload, headElements, segmentInfo };
   }
   // Test/fallback path: return raw text
   const response = await deps.fetch(rscUrl, { headers, redirect: 'manual' });
@@ -198,7 +226,11 @@ async function fetchRscPayload(
       throw new RedirectError(location);
     }
   }
-  return { payload: await response.text(), headElements: extractHeadElements(response) };
+  return {
+    payload: await response.text(),
+    headElements: extractHeadElements(response),
+    segmentInfo: extractSegmentInfo(response),
+  };
 }
 
 // ─── Router Factory ──────────────────────────────────────────────
@@ -221,6 +253,15 @@ export function createRouter(deps: RouterDeps): RouterInstance {
       for (const listener of pendingListeners) {
         listener(value);
       }
+    }
+  }
+
+  /** Update the segment cache from server-provided segment metadata. */
+  function updateSegmentCache(segmentInfo: SegmentInfo[] | null | undefined): void {
+    if (!segmentInfo || segmentInfo.length === 0) return;
+    const tree = buildSegmentTree(segmentInfo);
+    if (tree) {
+      segmentCache.set('/', tree);
     }
   }
 
@@ -284,6 +325,11 @@ export function createRouter(deps: RouterDeps): RouterInstance {
         headElements: result.headElements,
       });
 
+      // Update the segment cache with the new route's segment tree.
+      // This must happen before the next navigation so the state tree
+      // header reflects the currently mounted segments.
+      updateSegmentCache(result.segmentInfo);
+
       // Render the decoded RSC tree into the DOM.
       // React's render() on the document root can cause the browser to
       // reset scroll to 0 during DOM reconciliation. We must actively
@@ -332,6 +378,9 @@ export function createRouter(deps: RouterDeps): RouterInstance {
         headElements: result.headElements,
       });
 
+      // Update segment cache with fresh segment info from full render
+      updateSegmentCache(result.segmentInfo);
+
       // Render the fresh RSC tree and update head elements
       renderPayload(result.payload);
       applyHead(result.headElements);
@@ -358,6 +407,7 @@ export function createRouter(deps: RouterDeps): RouterInstance {
       try {
         const stateTree = segmentCache.serializeStateTree();
         const result = await fetchRscPayload(url, deps, stateTree);
+        updateSegmentCache(result.segmentInfo);
         historyStack.push(url, {
           payload: result.payload,
           scrollY: savedScrollY,
@@ -403,6 +453,7 @@ export function createRouter(deps: RouterDeps): RouterInstance {
       return () => pendingListeners.delete(listener);
     },
     prefetch,
+    initSegmentCache: (segments: SegmentInfo[]) => updateSegmentCache(segments),
     segmentCache,
     prefetchCache,
     historyStack,

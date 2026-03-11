@@ -5,10 +5,12 @@ import type { HeadElement } from './head';
 
 // ─── Types ───────────────────────────────────────────────────────
 
-/** A prefetched RSC result with optional head elements for metadata updates. */
+/** A prefetched RSC result with optional head elements and segment metadata. */
 export interface PrefetchResult {
   payload: unknown;
   headElements: HeadElement[] | null;
+  /** Segment metadata from X-Timber-Segments header for populating the segment cache. */
+  segmentInfo?: SegmentInfo[] | null;
 }
 
 /**
@@ -86,6 +88,61 @@ function collectSyncSegments(node: SegmentNode, out: string[]): void {
   for (const child of node.children.values()) {
     collectSyncSegments(child, out);
   }
+}
+
+// ─── Segment Tree Builder ────────────────────────────────────────
+
+/**
+ * Segment metadata from the server, sent via X-Timber-Segments header.
+ * Describes a rendered segment's path and whether it's async.
+ */
+export interface SegmentInfo {
+  path: string;
+  isAsync: boolean;
+}
+
+/**
+ * Build a SegmentNode tree from flat segment metadata.
+ *
+ * Takes an ordered list of segment descriptors (root → leaf) from the
+ * server's X-Timber-Segments header and constructs the hierarchical
+ * tree structure that SegmentCache expects.
+ *
+ * Each segment is nested as a child of the previous one, forming a
+ * linear chain from root to leaf. The leaf segment (page) is excluded
+ * from the tree — pages are never cached across navigations.
+ */
+export function buildSegmentTree(segments: SegmentInfo[]): SegmentNode | undefined {
+  // Need at least a root segment to build a tree
+  if (segments.length === 0) return undefined;
+
+  // Exclude the leaf (page) — pages always re-render on navigation.
+  // Only layouts are cached in the segment tree.
+  const layouts = segments.length > 1 ? segments.slice(0, -1) : segments;
+
+  let root: SegmentNode | undefined;
+  let parent: SegmentNode | undefined;
+
+  for (const info of layouts) {
+    const node: SegmentNode = {
+      segment: info.path,
+      payload: null,
+      isAsync: info.isAsync,
+      children: new Map(),
+    };
+
+    if (!root) {
+      root = node;
+    }
+
+    if (parent) {
+      parent.children.set(info.path, node);
+    }
+
+    parent = node;
+  }
+
+  return root;
 }
 
 // ─── Prefetch Cache ──────────────────────────────────────────────

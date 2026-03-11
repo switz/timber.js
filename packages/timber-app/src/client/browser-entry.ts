@@ -216,6 +216,15 @@ function bootstrap(runtimeConfig: typeof config): void {
     headElements: null, // SSR already set the correct head
   });
 
+  // Populate the segment cache from server-embedded segment metadata.
+  // This enables state tree diffing from the very first client navigation.
+  // See design/19-client-navigation.md §"X-Timber-State-Tree Header"
+  const timberSegments = (self as unknown as Record<string, unknown>).__timber_segments;
+  if (Array.isArray(timberSegments)) {
+    router.initSegmentCache(timberSegments);
+    delete (self as unknown as Record<string, unknown>).__timber_segments;
+  }
+
   // Register popstate handler for back/forward navigation
   window.addEventListener('popstate', () => {
     void router.handlePopState(window.location.href);

@@ -32,7 +32,7 @@ const LEGACY_STATUS_FILES: Record<string, number> = {
 /**
  * File convention names that are always .ts/.tsx (never .mdx etc.)
  */
-const FIXED_CONVENTIONS = new Set(['middleware', 'access', 'route', 'prerender']);
+const FIXED_CONVENTIONS = new Set(['middleware', 'access', 'route', 'prerender', 'search-params']);
 
 /**
  * Status-code file patterns:
@@ -204,6 +204,9 @@ function scanSegmentFiles(dirPath: string, node: SegmentNode, extSet: Set<string
           break;
         case 'prerender':
           node.prerender = file;
+          break;
+        case 'search-params':
+          node.searchParams = file;
           break;
       }
       continue;

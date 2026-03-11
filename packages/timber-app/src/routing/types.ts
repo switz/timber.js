@@ -49,6 +49,8 @@ export interface SegmentNode {
   legacyStatusFiles?: Map<string, RouteFile>;
   /** prerender.ts — signals build-time pre-rendering for this segment's shell */
   prerender?: RouteFile;
+  /** search-params.ts — typed search params definition for this route */
+  searchParams?: RouteFile;
 
   // --- Children ---
   children: SegmentNode[];

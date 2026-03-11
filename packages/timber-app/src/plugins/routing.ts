@@ -20,7 +20,7 @@ const RESOLVED_VIRTUAL_ID = `\0${VIRTUAL_MODULE_ID}`;
  * File convention names we track for changes that require manifest regeneration.
  */
 const ROUTE_FILE_PATTERNS =
-  /\/(page|layout|middleware|access|route|error|default|denied|\d{3}|[45]xx|not-found|forbidden|unauthorized)\./;
+  /\/(page|layout|middleware|access|route|error|default|denied|search-params|\d{3}|[45]xx|not-found|forbidden|unauthorized)\./;
 
 /**
  * Create the timber-routing Vite plugin.
@@ -221,6 +221,12 @@ function generateManifestModule(tree: RouteTree): string {
       const v = addImport(node.denied);
       parts.push(
         `${nextIndent}denied: { load: ${v}, filePath: ${JSON.stringify(node.denied.filePath)} },`
+      );
+    }
+    if (node.searchParams) {
+      const v = addImport(node.searchParams);
+      parts.push(
+        `${nextIndent}searchParams: { load: ${v}, filePath: ${JSON.stringify(node.searchParams.filePath)} },`
       );
     }
 

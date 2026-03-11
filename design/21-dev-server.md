@@ -94,9 +94,9 @@ When a file changes, the correct environment(s) must be invalidated:
 
 Timber does **not** implement custom HMR logic. Vite's module graph already tracks dependencies and invalidates on change. The key behaviors:
 
-1. **RSC environment**: Vite invalidates the module when the file changes. On the next request, `ssrLoadModule` re-evaluates the module and its transitive dependencies. No explicit invalidation code needed in `timber-dev-server` — Vite handles it.
+1. **RSC environment**: Vite invalidates the module when the file changes. On the next request, `ssrLoadModule` re-evaluates the module and its transitive dependencies. No explicit invalidation code needed in `timber-dev-server` — Vite handles it. When a server component is edited, `@vitejs/plugin-rsc` sends an `rsc:update` custom HMR event over WebSocket. The browser entry listens for this event and calls `router.refresh()` to re-fetch the RSC payload with updated server code — avoiding a full page reload.
 
-2. **Client environment**: Vite sends HMR updates over WebSocket. React Fast Refresh (via `@vitejs/plugin-react`) handles component state preservation. Timber does not interfere.
+2. **Client environment**: Vite sends HMR updates over WebSocket. React Fast Refresh (via `@vitejs/plugin-react`) handles component state preservation. Timber does not interfere. `@vitejs/plugin-react` is placed **before** `@vitejs/plugin-rsc` in the plugin array. The RSC plugin's `virtual:vite-rsc/entry-browser` module sets up Fast Refresh globals (`$RefreshReg$`, `$RefreshSig$`) before dynamically importing timber's browser entry. The dev bootstrap script imports this RSC entry module — not `virtual:timber-browser-entry` directly — so the preamble is established before any client component modules evaluate.
 
 3. **Config restart**: `timber-dev-server` watches `timber.config.ts` (and `timber.config.js`, `timber.config.mjs`) via `server.watcher`. On change, it calls `server.restart()` to trigger a full Vite dev server restart.
 

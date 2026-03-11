@@ -487,7 +487,11 @@ describe('buildClientScripts', () => {
     // Must use dynamic import() — not <script type="module"> which is deferred
     // and blocks hydration behind Suspense boundaries during streaming
     expect(result.bootstrapScriptContent).toContain('import("/@vite/client")');
-    expect(result.bootstrapScriptContent).toContain('import("/@id/virtual:timber-browser-entry")');
+    // Dev mode imports the RSC plugin's virtual browser entry, which sets up
+    // React Fast Refresh preamble before dynamically importing our browser entry.
+    expect(result.bootstrapScriptContent).toContain(
+      'import("/@id/__x00__virtual:vite-rsc/entry-browser")'
+    );
     expect(result.bootstrapScriptContent).not.toContain('<script');
   });
 

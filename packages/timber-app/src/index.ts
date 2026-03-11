@@ -1,5 +1,6 @@
 import type { Plugin, PluginOption } from 'vite';
 import { join } from 'node:path';
+import react from '@vitejs/plugin-react';
 import { cacheTransformPlugin } from './plugins/cache-transform';
 import { timberContent } from './plugins/content';
 import { timberDevServer } from './plugins/dev-server';
@@ -106,15 +107,31 @@ export function timber(config?: TimberUserConfig): PluginOption[] {
   //
   // serverHandler: false — timber has its own dev server (timber-dev-server)
   // customBuildApp: true — timber controls its own build pipeline
+  // entries — tells the RSC plugin about timber's virtual entry modules so
+  //   it correctly wires up the browser entry (needed for React Fast Refresh
+  //   preamble coordination with @vitejs/plugin-react)
+  // customClientEntry: true — timber manages its own browser entry and
+  //   preloading; skips RSC plugin's default "index" client entry convention
   const rscPluginsPromise = import('@vitejs/plugin-rsc').then(({ default: vitePluginRsc }) =>
     vitePluginRsc({
       serverHandler: false,
       customBuildApp: true,
+      customClientEntry: true,
+      entries: {
+        rsc: 'virtual:timber-rsc-entry',
+        ssr: 'virtual:timber-ssr-entry',
+        client: 'virtual:timber-browser-entry',
+      },
     })
   );
 
   return [
     rootSync,
+    // @vitejs/plugin-react provides React Fast Refresh (state-preserving HMR)
+    // for client components via Babel transform. Placed before @vitejs/plugin-rsc
+    // following Vinext's convention — the RSC plugin's virtual browser entry
+    // coordinates with plugin-react via __vite_plugin_react_preamble_installed__.
+    react(),
     rscPluginsPromise,
     timberShims(ctx),
     timberRouting(ctx),

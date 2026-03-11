@@ -16,12 +16,12 @@ import { test, expect, type Page } from '@playwright/test';
 
 /**
  * Wait for timber's client runtime to initialize (hydration + router setup).
- * The browser entry sets data-timber-ready on <html> after bootstrap completes.
- * Without this, clicks may trigger full page navigations instead of SPA nav
- * because the event delegation listener isn't attached yet.
+ * The browser entry appends a <meta name="timber-ready"> tag after bootstrap
+ * completes. Without this, clicks may trigger full page navigations instead
+ * of SPA nav because the event delegation listener isn't attached yet.
  */
 async function waitForHydration(page: Page): Promise<void> {
-  await page.waitForSelector('html[data-timber-ready]', { timeout: 15_000 });
+  await page.waitForSelector('meta[name="timber-ready"]', { state: 'attached', timeout: 15_000 });
 }
 
 // ─── Link Navigation: DOM State Preserved ────────────────────────────────────

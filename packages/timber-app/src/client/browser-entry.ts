@@ -245,6 +245,21 @@ function bootstrap(runtimeConfig: typeof config): void {
     },
     true // capture phase — mouseenter doesn't bubble
   );
+
+  // Dev-only: Listen for RSC module invalidation events from @vitejs/plugin-rsc.
+  // When a server component is edited, the RSC plugin sends an "rsc:update"
+  // event. We trigger a router.refresh() to re-fetch the RSC payload with
+  // the updated server code. This avoids a full page reload while still
+  // picking up server-side changes.
+  // See design/21-dev-server.md §"HMR Wiring"
+  // Vite injects import.meta.hot in dev mode. Cast to access it without
+  // requiring vite/client types in the package tsconfig.
+  const hot = (import.meta as unknown as { hot?: { on(event: string, cb: () => void): void } }).hot;
+  if (hot) {
+    hot.on('rsc:update', () => {
+      void router.refresh();
+    });
+  }
 }
 
 // ─── Link Click Interception ─────────────────────────────────────
@@ -314,4 +329,11 @@ bootstrap(config);
 
 // Signal that the client runtime has been initialized.
 // Used by E2E tests to wait for hydration before interacting.
-document.documentElement.dataset.timberReady = '';
+// We append a <meta name="timber-ready"> tag rather than setting a
+// data attribute on <html>. Since React owns the entire document
+// via hydrateRoot(document, ...), mutating <html> attributes causes
+// hydration mismatch warnings. Dynamically-added <meta> tags don't
+// conflict because React doesn't reconcile them.
+const readyMeta = document.createElement('meta');
+readyMeta.name = 'timber-ready';
+document.head.appendChild(readyMeta);

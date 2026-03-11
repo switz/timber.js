@@ -16,6 +16,7 @@
 
 import type { CacheHandler } from '../cache/index';
 import { RedirectSignal } from './primitives';
+import { withSpan } from './tracing';
 
 // ─── Types ───────────────────────────────────────────────────────────────
 
@@ -134,7 +135,8 @@ export function revalidateTag(tag: string): void {
 export async function executeAction(
   actionFn: (...args: unknown[]) => Promise<unknown>,
   args: unknown[],
-  config: ActionHandlerConfig = {}
+  config: ActionHandlerConfig = {},
+  spanMeta?: { actionFile?: string; actionName?: string }
 ): Promise<ActionHandlerResult> {
   const state: RevalidationState = { paths: [], tags: [] };
   _setRevalidationState(state);
@@ -144,7 +146,14 @@ export async function executeAction(
   let redirectStatus: number | undefined;
 
   try {
-    actionResult = await actionFn(...args);
+    actionResult = await withSpan(
+      'timber.action',
+      {
+        ...(spanMeta?.actionFile ? { 'timber.action_file': spanMeta.actionFile } : {}),
+        ...(spanMeta?.actionName ? { 'timber.action_name': spanMeta.actionName } : {}),
+      },
+      () => actionFn(...args)
+    );
   } catch (error) {
     if (error instanceof RedirectSignal) {
       redirectTo = error.location;

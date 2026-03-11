@@ -3,6 +3,7 @@ import type { CacheHandler, CacheOptions } from './index';
 import { stableStringify } from './stable-stringify';
 import { createSingleflight } from './singleflight';
 import { getDevLogEmitter } from '../server/dev-log-context.js';
+import { addSpanEvent } from '../server/tracing.js';
 
 const singleflight = createSingleflight();
 
@@ -65,6 +66,11 @@ export function createCache<Fn extends (...args: any[]) => Promise<any>>(
           meta: { cacheType: 'timber.cache', durationMs: performance.now() - cacheStart },
         });
       }
+      // Record as OTEL span event on enclosing span (not a child span)
+      await addSpanEvent('timber.cache.hit', {
+        key,
+        duration_ms: Math.round(performance.now() - cacheStart),
+      });
       return cached.value as Awaited<ReturnType<Fn>>;
     }
 
@@ -84,6 +90,12 @@ export function createCache<Fn extends (...args: any[]) => Promise<any>>(
           },
         });
       }
+      // Record as OTEL span event on enclosing span
+      await addSpanEvent('timber.cache.hit', {
+        key,
+        duration_ms: Math.round(performance.now() - cacheStart),
+        stale: true,
+      });
       // Serve stale immediately, trigger background refetch
       singleflight
         .do(`swr:${key}`, async () => {
@@ -118,6 +130,11 @@ export function createCache<Fn extends (...args: any[]) => Promise<any>>(
         meta: { cacheType: 'timber.cache', durationMs: performance.now() - cacheStart },
       });
     }
+    // Record as OTEL span event on enclosing span
+    await addSpanEvent('timber.cache.miss', {
+      key,
+      duration_ms: Math.round(performance.now() - cacheStart),
+    });
 
     return result as Awaited<ReturnType<Fn>>;
   };

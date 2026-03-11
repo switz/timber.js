@@ -16,6 +16,7 @@
 import { DenySignal, RedirectSignal } from './primitives.js';
 import type { AccessGateProps, SlotAccessGateProps, ReactElement } from './tree-builder.js';
 import { getDevLogEmitter } from './dev-log-context.js';
+import { withSpan, setSpanAttribute } from './tracing.js';
 
 // Counter for generating unique dev log event IDs when no segment name is available.
 let accessGateCounter = 0;
@@ -38,11 +39,25 @@ export async function AccessGate(props: AccessGateProps): Promise<ReactElement> 
   const label = `AccessGate (${segmentName ?? 'segment'})`;
   const eventId = `access-${segmentName ?? String(accessGateCounter++)}`;
 
-  // Call access.ts. If it calls deny() or redirect(), a DenySignal or
-  // RedirectSignal is thrown — React catches it and the flush controller
-  // produces the correct HTTP response.
+  // Call access.ts wrapped in an OTEL span. If it calls deny() or redirect(),
+  // a DenySignal or RedirectSignal is thrown — React catches it and the flush
+  // controller produces the correct HTTP response.
+  // The timber.result attribute is set after execution via setSpanAttribute
+  // since the outcome is not known at span creation time.
   try {
-    await accessFn({ params, searchParams });
+    await withSpan('timber.access', { 'timber.segment': segmentName ?? 'unknown' }, async () => {
+      try {
+        await accessFn({ params, searchParams });
+        await setSpanAttribute('timber.result', 'pass');
+      } catch (error: unknown) {
+        if (error instanceof DenySignal) {
+          await setSpanAttribute('timber.result', 'deny');
+        } else if (error instanceof RedirectSignal) {
+          await setSpanAttribute('timber.result', 'redirect');
+        }
+        throw error;
+      }
+    });
   } catch (error: unknown) {
     // Emit access-result dev log event on denial
     const devEmitter = getDevLogEmitter();

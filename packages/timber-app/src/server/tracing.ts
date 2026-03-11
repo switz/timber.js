@@ -183,6 +183,23 @@ export async function withSpan<T>(
 }
 
 /**
+ * Set an attribute on the current active span (if any).
+ * Used for setting span attributes after span creation (e.g. timber.result on access spans).
+ */
+export async function setSpanAttribute(
+  key: string,
+  value: string | number | boolean
+): Promise<void> {
+  const api = await getOtelApi();
+  if (!api) return;
+
+  const activeSpan = api.trace.getActiveSpan();
+  if (activeSpan) {
+    activeSpan.setAttribute(key, value);
+  }
+}
+
+/**
  * Add a span event to the current active span (if any).
  * Used for timber.cache HIT/MISS events — recorded as span events, not child spans.
  */

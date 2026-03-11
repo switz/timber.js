@@ -26,6 +26,7 @@ import { createElement } from 'react';
 import { renderToReadableStream } from '@vitejs/plugin-rsc/rsc';
 
 import { createPipeline } from './pipeline.js';
+import { withSpan } from './tracing.js';
 import type { PipelineConfig, RouteMatch } from './pipeline.js';
 import { logRenderError } from './logger.js';
 import { createRequestCollector, resolveLogMode } from './dev-logger.js';
@@ -313,12 +314,14 @@ async function renderRoute(
       if (mod.metadata) {
         metadataEntries.push({ metadata: mod.metadata as Metadata, isPage: true });
       }
-      // Dynamic generateMetadata function
+      // Dynamic generateMetadata function — wrapped in OTEL span
       if (typeof mod.generateMetadata === 'function') {
         type MetadataFn = (props: Record<string, unknown>) => Promise<Metadata>;
-        const generated = await (mod.generateMetadata as MetadataFn)({
-          params: paramsPromise,
-        });
+        const generated = await withSpan(
+          'timber.metadata',
+          { 'timber.segment': segment.segmentName ?? segment.urlPath },
+          () => (mod.generateMetadata as MetadataFn)({ params: paramsPromise })
+        );
         if (generated) {
           metadataEntries.push({ metadata: generated, isPage: true });
         }
@@ -432,7 +435,18 @@ async function renderRoute(
   // React's built-in element type overloads — use the untyped form.
   const h = createElement as (...args: unknown[]) => React.ReactElement;
 
-  let element = h(PageComponent, {
+  // Wrap the page component in an OTEL span. The wrapper is an async server
+  // component that React calls during rendering — the span captures the full
+  // page render duration including any async data fetching.
+  const TracedPage = async (props: Record<string, unknown>) => {
+    return withSpan(
+      'timber.page',
+      { 'timber.route': match.segments[match.segments.length - 1]?.urlPath ?? '/' },
+      () => (PageComponent as (props: Record<string, unknown>) => unknown)(props)
+    );
+  };
+
+  let element = h(TracedPage, {
     params: paramsPromise,
     searchParams: {},
   });
@@ -479,7 +493,7 @@ async function renderRoute(
       }
     }
 
-    // Wrap with layout if this segment has one
+    // Wrap with layout if this segment has one — traced with OTEL span
     const layoutComponent = layoutBySegment.get(segment);
     if (layoutComponent) {
       // Resolve parallel slots for this layout
@@ -497,10 +511,20 @@ async function renderRoute(
       const segmentPath = segment.urlPath.split('/');
       const parallelRouteKeys = Object.keys(segment.slots ?? {});
 
+      // Wrap the layout component in an OTEL span. The wrapper is an async
+      // server component — the span captures the full layout render duration.
+      const segmentForSpan = segment;
+      const layoutComponentForSpan = layoutComponent;
+      const TracedLayout = async (props: Record<string, unknown>) => {
+        return withSpan('timber.layout', { 'timber.segment': segmentForSpan.urlPath }, () =>
+          (layoutComponentForSpan as (props: Record<string, unknown>) => unknown)(props)
+        );
+      };
+
       element = h(SegmentProvider, {
         segments: segmentPath,
         parallelRouteKeys,
-        children: h(layoutComponent, {
+        children: h(TracedLayout, {
           ...slotProps,
           params: paramsPromise,
           searchParams: {},

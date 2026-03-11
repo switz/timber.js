@@ -19,6 +19,7 @@ import { createFromReadableStream } from '@vitejs/plugin-rsc/ssr';
 import { renderSsrStream, buildSsrResponse } from './ssr-render.js';
 import { injectHead, injectRscPayload } from './html-injectors.js';
 import { withNuqsSsrAdapter } from './nuqs-ssr-provider.js';
+import { withSpan } from './tracing.js';
 
 /**
  * Navigation context passed from the RSC environment to SSR.
@@ -75,38 +76,40 @@ export async function handleSsr(
   rscStream: ReadableStream<Uint8Array>,
   navContext: NavContext
 ): Promise<Response> {
-  const _runtimeConfig = config;
+  return withSpan('timber.ssr', { 'timber.environment': 'ssr' }, async () => {
+    const _runtimeConfig = config;
 
-  // Decode the RSC stream into a React element tree.
-  // createFromReadableStream resolves client component references
-  // (from "use client" modules) using the SSR environment's module
-  // map, importing the actual components for server-side rendering.
-  const element = createFromReadableStream(rscStream) as React.ReactNode;
+    // Decode the RSC stream into a React element tree.
+    // createFromReadableStream resolves client component references
+    // (from "use client" modules) using the SSR environment's module
+    // map, importing the actual components for server-side rendering.
+    const element = createFromReadableStream(rscStream) as React.ReactNode;
 
-  // Wrap with a server-safe nuqs adapter so that 'use client' components
-  // that call nuqs hooks (useQueryStates, useQueryState) can SSR correctly.
-  // The client-side TimberNuqsAdapter (injected by browser-entry.ts) takes
-  // over after hydration. This provider supplies the request's search params
-  // as a static snapshot so nuqs renders the right initial values on the server.
-  const wrappedElement = withNuqsSsrAdapter(navContext.searchParams, element);
+    // Wrap with a server-safe nuqs adapter so that 'use client' components
+    // that call nuqs hooks (useQueryStates, useQueryState) can SSR correctly.
+    // The client-side TimberNuqsAdapter (injected by browser-entry.ts) takes
+    // over after hydration. This provider supplies the request's search params
+    // as a static snapshot so nuqs renders the right initial values on the server.
+    const wrappedElement = withNuqsSsrAdapter(navContext.searchParams, element);
 
-  // Render to HTML stream (waits for onShellReady).
-  // Pass bootstrapScriptContent so React injects a non-deferred <script>
-  // in the shell HTML. This executes immediately during parsing — even
-  // while Suspense boundaries are still streaming — triggering module
-  // loading via dynamic import() so hydration can start early.
-  const htmlStream = await renderSsrStream(wrappedElement, {
-    bootstrapScriptContent: navContext.bootstrapScriptContent || undefined,
-    deferSuspenseFor: navContext.deferSuspenseFor,
+    // Render to HTML stream (waits for onShellReady).
+    // Pass bootstrapScriptContent so React injects a non-deferred <script>
+    // in the shell HTML. This executes immediately during parsing — even
+    // while Suspense boundaries are still streaming — triggering module
+    // loading via dynamic import() so hydration can start early.
+    const htmlStream = await renderSsrStream(wrappedElement, {
+      bootstrapScriptContent: navContext.bootstrapScriptContent || undefined,
+      deferSuspenseFor: navContext.deferSuspenseFor,
+    });
+
+    // Inject metadata into <head>, then interleave RSC payload chunks
+    // into the body as they arrive from the tee'd RSC stream.
+    let outputStream = injectHead(htmlStream, navContext.headHtml);
+    outputStream = injectRscPayload(outputStream, navContext.rscStream);
+
+    // Build and return the Response.
+    return buildSsrResponse(outputStream, navContext.statusCode, navContext.responseHeaders);
   });
-
-  // Inject metadata into <head>, then interleave RSC payload chunks
-  // into the body as they arrive from the tee'd RSC stream.
-  let outputStream = injectHead(htmlStream, navContext.headHtml);
-  outputStream = injectRscPayload(outputStream, navContext.rscStream);
-
-  // Build and return the Response.
-  return buildSsrResponse(outputStream, navContext.statusCode, navContext.responseHeaders);
 }
 
 export default handleSsr;

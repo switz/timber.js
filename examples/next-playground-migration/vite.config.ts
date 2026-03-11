@@ -1,12 +1,27 @@
 import { defineConfig } from 'vite';
 import { resolve } from 'node:path';
 import { timber } from '../../packages/timber-app/src/index';
+import type { CodeHikeConfig } from 'codehike/mdx';
 
 // Workspace root — two levels up from examples/next-playground-migration/
 const root = resolve(import.meta.dirname, '../..');
 
+const codeHikeConfig = {
+  components: { code: 'MyCode', inlineCode: 'MyInlineCode' },
+} satisfies CodeHikeConfig;
+
 export default defineConfig({
-  plugins: [timber()],
+  plugins: [
+    // MDX config must be passed inline (not via timber.config.ts) because the
+    // MDX plugin reads ctx.config at build time, before timber.config.ts is loaded.
+    timber({
+      pageExtensions: ['tsx', 'ts', 'jsx', 'js', 'mdx'],
+      mdx: {
+        remarkPlugins: [['remark-codehike', codeHikeConfig]],
+        recmaPlugins: [['recma-codehike', codeHikeConfig]],
+      },
+    }),
+  ],
   root: import.meta.dirname,
   server: {
     port: 3004,

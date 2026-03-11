@@ -9,6 +9,7 @@
  */
 
 import type { RouteMatch } from './pipeline.js';
+import type { MiddlewareFn } from './middleware-runner.js';
 
 // ─── Manifest Types ───────────────────────────────────────────────────────
 // The virtual module manifest has a slightly different shape than SegmentNode:
@@ -84,12 +85,26 @@ function matchPathname(root: ManifestSegmentNode, pathname: string): RouteMatch 
   // The pipeline and tree builder use SegmentNode which has RouteFile references,
   // but we pass the manifest nodes directly — they're structurally compatible
   // for the fields the pipeline cares about (segments array + params).
+  // Resolve the leaf segment's middleware.ts if present.
+  // Only the leaf route's middleware runs — no chain, no inheritance.
+  const leafSegment = segments[segments.length - 1];
+  let middleware: MiddlewareFn | undefined;
+  if (leafSegment?.middleware) {
+    const loader = leafSegment.middleware.load;
+    middleware = async (ctx) => {
+      const mod = (await loader()) as { default?: MiddlewareFn };
+      if (mod.default) {
+        return mod.default(ctx);
+      }
+    };
+  }
+
   return {
     // The pipeline uses segments as opaque objects passed to the renderer.
     // Cast is safe — the renderer receives what the manifest provides.
     segments: segments as unknown as RouteMatch['segments'],
     params,
-    middleware: undefined, // Middleware is loaded lazily by the renderer
+    middleware,
   };
 }
 

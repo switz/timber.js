@@ -31,7 +31,7 @@ describe('timber-content', () => {
     const plugin = timberContent(createCtx());
 
     // config hook should return undefined when no config file found
-    const result = await (plugin.config as Function)?.(
+    const result = await (plugin.config as (...args: unknown[]) => unknown)?.(
       { root: '/nonexistent-project' },
       { mode: 'development', command: 'serve' }
     );
@@ -42,14 +42,14 @@ describe('timber-content', () => {
     const plugin = timberContent(createCtx());
 
     // Should not throw even if inner plugin wasn't created
-    await (plugin.buildStart as Function)?.({});
+    await (plugin.buildStart as (...args: unknown[]) => unknown)?.({});
   });
 
   it('configureServer is a no-op when not activated', async () => {
     const plugin = timberContent(createCtx());
 
     // Should not throw even if inner plugin wasn't created
-    await (plugin.configureServer as Function)?.({});
+    await (plugin.configureServer as (...args: unknown[]) => unknown)?.({});
   });
 
   // -------------------------------------------------------------------------
@@ -59,7 +59,11 @@ describe('timber-content', () => {
   describe('resolveId', () => {
     it('returns null when not activated', async () => {
       const plugin = timberContent(createCtx());
-      const result = await (plugin.resolveId as Function)?.('content-collections', undefined, {});
+      const result = await (plugin.resolveId as (...args: unknown[]) => unknown)?.(
+        'content-collections',
+        undefined,
+        {}
+      );
       expect(result).toBeNull();
     });
 
@@ -76,7 +80,9 @@ describe('timber-content', () => {
   describe('load', () => {
     it('returns null when not activated', async () => {
       const plugin = timberContent(createCtx());
-      const result = await (plugin.load as Function)?.('\0content-collections');
+      const result = await (plugin.load as (...args: unknown[]) => unknown)?.(
+        '\0content-collections'
+      );
       expect(result).toBeNull();
     });
 
@@ -93,7 +99,10 @@ describe('timber-content', () => {
   describe('transform', () => {
     it('returns null when not activated', async () => {
       const plugin = timberContent(createCtx());
-      const result = await (plugin.transform as Function)?.('export default {}', '/some/file.ts');
+      const result = await (plugin.transform as (...args: unknown[]) => unknown)?.(
+        'export default {}',
+        '/some/file.ts'
+      );
       expect(result).toBeNull();
     });
 

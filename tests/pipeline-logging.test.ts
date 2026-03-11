@@ -151,9 +151,7 @@ describe('request received', () => {
     const handler = createPipeline(makeConfig());
     await handler(makeRequest('/test'));
 
-    const call = mockLogger.debug.mock.calls.find(
-      (c: unknown[]) => c[0] === 'request received'
-    );
+    const call = mockLogger.debug.mock.calls.find((c: unknown[]) => c[0] === 'request received');
     expect(call).toBeDefined();
     expect((call![1] as Record<string, unknown>).trace_id).toMatch(/^[0-9a-f]{32}$/);
   });
@@ -184,9 +182,7 @@ describe('request completed', () => {
 
     await handler(makeRequest('/notfound'));
 
-    const call = mockLogger.info.mock.calls.find(
-      (c: unknown[]) => c[0] === 'request completed'
-    );
+    const call = mockLogger.info.mock.calls.find((c: unknown[]) => c[0] === 'request completed');
     expect((call![1] as Record<string, unknown>).status).toBe(404);
   });
 
@@ -194,9 +190,7 @@ describe('request completed', () => {
     const handler = createPipeline(makeConfig());
     await handler(makeRequest('/test'));
 
-    const call = mockLogger.info.mock.calls.find(
-      (c: unknown[]) => c[0] === 'request completed'
-    );
+    const call = mockLogger.info.mock.calls.find((c: unknown[]) => c[0] === 'request completed');
     expect((call![1] as Record<string, unknown>).durationMs).toBeGreaterThanOrEqual(0);
   });
 });

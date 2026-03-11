@@ -17,6 +17,7 @@ const REQUEST_SPECIFIC_PROPS = new Set([
   'headers',
 ]);
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface RegisterCachedFunctionOptions<Fn extends (...args: any[]) => any> {
   ttl: number;
   id: string;
@@ -36,6 +37,7 @@ function generateKey(id: string, args: unknown[]): string {
 /**
  * Resolve tags from options — supports static array or function form.
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function resolveTags<Fn extends (...args: any[]) => any>(
   opts: RegisterCachedFunctionOptions<Fn>,
   args: Parameters<Fn>
@@ -69,6 +71,7 @@ function warnRequestSpecificProps(id: string, props: unknown): void {
  * The stable `id` (file path + function name) ensures cache keys are consistent
  * across builds. Args/props are hashed with SHA-256 for the per-call key.
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function registerCachedFunction<Fn extends (...args: any[]) => Promise<any>>(
   fn: Fn,
   opts: RegisterCachedFunctionOptions<Fn>,

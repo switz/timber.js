@@ -452,7 +452,7 @@ For HTML responses, the RSC stream is tee'd into two copies:
 
 1. **SSR stream** — decoded via `createFromReadableStream` from `@vitejs/plugin-rsc/ssr`, resolving `"use client"` references to actual component modules. The decoded element tree is rendered to HTML via `renderToReadableStream`.
 
-2. **Inline stream** — passed to `injectRscPayload()`, which progressively interleaves RSC Flight chunks into the HTML stream as inline `<script>` tags. Each chunk pushes into `self.__timber_f`, and a final `self.__timber_f_done=1` signal marks completion. The browser entry sets up a `ReadableStream` controller on `self.__timber_f.push` so chunks feed into `createFromReadableStream` progressively — hydration can start before all Suspense boundaries resolve.
+2. **Inline stream** — passed to `injectRscPayload()`, which uses a three-stage TransformStream pipeline: (a) `createInlinedRscStream` transforms RSC binary chunks into `<script>` tags using pull-based reads and JSON-encoded typed tuples (`[0]` bootstrap, `[1, data]` Flight data), (b) `createFlightInjectionTransform` merges RSC script tags into the HTML stream between HTML chunks, and (c) `createMoveSuffixStream` captures `</body></html>` and re-emits it at the very end so RSC scripts appear before the closing tags. The browser entry patches `self.__timber_f.push` to feed chunks into `createFromReadableStream` progressively, and uses `DOMContentLoaded` to close the stream — hydration can start before all Suspense boundaries resolve.
 
 ### RSC Payload Requests
 

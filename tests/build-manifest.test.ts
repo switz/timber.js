@@ -93,9 +93,7 @@ describe('collectRouteCss()', () => {
   });
 
   it('skips files not in manifest', () => {
-    const segments = [
-      { layout: { filePath: '/app/unknown/layout.tsx' } },
-    ];
+    const segments = [{ layout: { filePath: '/app/unknown/layout.tsx' } }];
 
     const result = collectRouteCss(segments, manifest);
     expect(result).toEqual([]);
@@ -109,7 +107,7 @@ describe('buildCssLinkTags()', () => {
     const result = buildCssLinkTags(['/assets/root.css', '/assets/page.css']);
     expect(result).toBe(
       '<link rel="stylesheet" href="/assets/root.css">' +
-      '<link rel="stylesheet" href="/assets/page.css">'
+        '<link rel="stylesheet" href="/assets/page.css">'
     );
   });
 

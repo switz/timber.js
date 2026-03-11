@@ -17,6 +17,7 @@ function defaultKeyGenerator(fnId: string, args: unknown[]): string {
 /**
  * Resolve tags from the options — supports static array or function form.
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function resolveTags<Fn extends (...args: any[]) => any>(
   opts: CacheOptions<Fn>,
   args: Parameters<Fn>
@@ -38,6 +39,7 @@ let fnIdCounter = 0;
  * - Tags as string[] or function of args
  * - No ALS dependency
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function createCache<Fn extends (...args: any[]) => Promise<any>>(
   fn: Fn,
   opts: CacheOptions<Fn>,

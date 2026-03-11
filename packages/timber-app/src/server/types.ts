@@ -96,7 +96,9 @@ export interface Metadata {
   other?: Record<string, string | string[]>;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace MetadataRoute {
+  // eslint-disable-next-line @typescript-eslint/no-empty-object-type
   export interface Sitemap extends Array<SitemapEntry> {}
   export interface SitemapEntry {
     url: string;

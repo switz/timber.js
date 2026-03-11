@@ -25,7 +25,7 @@ test.describe('Suspense streaming', () => {
       timeout: 10_000,
     });
     await expect(page.locator('[data-testid="streamed-content"]')).toHaveText(
-      'Content loaded after delay',
+      'Content loaded after delay'
     );
   });
 
@@ -48,7 +48,7 @@ test.describe('DeferredSuspense', () => {
       timeout: 5_000,
     });
     await expect(page.locator('[data-testid="deferred-fast-content"]')).toHaveText(
-      'Fast content (resolved before deadline)',
+      'Fast content (resolved before deadline)'
     );
 
     // Slow content streams in after ~2000ms
@@ -56,7 +56,7 @@ test.describe('DeferredSuspense', () => {
       timeout: 10_000,
     });
     await expect(page.locator('[data-testid="deferred-slow-content"]')).toHaveText(
-      'Slow content (streamed after deadline)',
+      'Slow content (streamed after deadline)'
     );
   });
 });

@@ -204,7 +204,7 @@ describe('buildModulepreloadTags()', () => {
 
     expect(result).toBe(
       '<link rel="modulepreload" href="/assets/react-vendor.js">' +
-      '<link rel="modulepreload" href="/assets/utils.js">'
+        '<link rel="modulepreload" href="/assets/utils.js">'
     );
   });
 
@@ -269,7 +269,9 @@ describe('buildClientScripts() — production', () => {
       buildManifest: manifest,
     });
 
-    expect(result.preloadLinks).toContain('<link rel="modulepreload" href="/assets/react-vendor.js">');
+    expect(result.preloadLinks).toContain(
+      '<link rel="modulepreload" href="/assets/react-vendor.js">'
+    );
     expect(result.preloadLinks).toContain('<link rel="modulepreload" href="/assets/router.js">');
   });
 

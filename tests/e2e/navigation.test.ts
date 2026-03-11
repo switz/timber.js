@@ -68,7 +68,9 @@ test.describe('dom state preserved', () => {
 
     // Wait for scroll restoration (afterPaint callback restores position).
     // Use a generous timeout — double-rAF can be slow under CI load.
-    await page.waitForFunction(() => Math.abs(window.scrollY - 300) < 10, null, { timeout: 10_000 });
+    await page.waitForFunction(() => Math.abs(window.scrollY - 300) < 10, null, {
+      timeout: 10_000,
+    });
     const scrollY = await page.evaluate(() => window.scrollY);
     expect(scrollY).toBeGreaterThanOrEqual(290);
     expect(scrollY).toBeLessThanOrEqual(310);

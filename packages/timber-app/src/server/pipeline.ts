@@ -144,11 +144,9 @@ export function createPipeline(config: PipelineConfig): (req: Request) => Promis
         }
 
         const runPipeline = async (): Promise<Response> => {
-          let response: Response;
-
           // Wrap everything in an OTEL root span if a tracer is available.
           // The root span covers the entire request lifecycle.
-          response = await withSpan(
+          const response = await withSpan(
             'http.server.request',
             { 'http.request.method': method, 'url.path': path },
             async () => {

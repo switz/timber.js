@@ -321,6 +321,7 @@ describe('typed link', () => {
       href: '/products/[id]',
       params: { id: '42' },
       searchParams: {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         definition: def as any,
         values: { tab: 'reviews', page: 2 },
       },
@@ -343,6 +344,7 @@ describe('typed link', () => {
     const result = buildLinkProps({
       href: '/products',
       searchParams: {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         definition: def as any,
         values: { page: 1, sort: 'popular' },
       },
@@ -466,6 +468,7 @@ describe('query states', () => {
     const linkResult = buildLinkProps({
       href: '/products',
       searchParams: {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         definition: def as any,
         values: { search: 'sneakers', category: 'shoes' },
       },
@@ -558,6 +561,7 @@ export default createSearchParams({
     const href = resolveHref(
       '/products/[id]',
       { id: '99' },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       { definition: def as any, values: { page: 3, q: 'sneakers' } }
     );
 
@@ -600,6 +604,7 @@ export default createSearchParams({
 
     // These should produce the same URL
     const linkHref = resolveHref('/products', undefined, {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       definition: def as any,
       values,
     });

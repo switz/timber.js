@@ -30,7 +30,7 @@ test.describe('deny() status codes', () => {
     expect(response?.status()).toBe(404);
     await expect(page.locator('[data-testid="segment-not-found-page"]')).toBeVisible();
     await expect(page.locator('[data-testid="segment-not-found-heading"]')).toHaveText(
-      '404 — Not Found (Segment)',
+      '404 — Not Found (Segment)'
     );
   });
 
@@ -44,7 +44,7 @@ test.describe('deny() status codes', () => {
     expect(response?.status()).toBe(404);
     await expect(page.locator('[data-testid="not-found-page"]')).toBeVisible();
     await expect(page.locator('[data-testid="not-found-heading"]')).toHaveText(
-      '404 — Page Not Found',
+      '404 — Page Not Found'
     );
   });
 });
@@ -78,9 +78,11 @@ test.describe('client-side navigation between error pages', () => {
 
     // Client-navigate to 404
     await page.click('[data-testid="link-errors-deny-404"]');
-    await expect(page.locator('[data-testid="segment-not-found-page"]')).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('[data-testid="segment-not-found-page"]')).toBeVisible({
+      timeout: 10_000,
+    });
     await expect(page.locator('[data-testid="segment-not-found-heading"]')).toHaveText(
-      '404 — Not Found (Segment)',
+      '404 — Not Found (Segment)'
     );
     // 403 page should be gone
     await expect(page.locator('[data-testid="forbidden-page"]')).not.toBeVisible();
@@ -105,7 +107,9 @@ test.describe('client-side navigation between error pages', () => {
     // Client-navigate to home
     await page.click('[data-testid="link-home"]');
     // Error boundary should clear, normal page renders
-    await expect(page.locator('[data-testid="forbidden-page"]')).not.toBeVisible({ timeout: 5_000 });
+    await expect(page.locator('[data-testid="forbidden-page"]')).not.toBeVisible({
+      timeout: 5_000,
+    });
   });
 });
 
@@ -116,7 +120,7 @@ test.describe('error.tsx boundary', () => {
     await expect(page.locator('[data-testid="error-boundary"]')).toBeVisible();
     await expect(page.locator('[data-testid="error-heading"]')).toHaveText('Something went wrong');
     await expect(page.locator('[data-testid="error-message"]')).toHaveText(
-      'Intentional crash for E2E testing',
+      'Intentional crash for E2E testing'
     );
   });
 
@@ -131,9 +135,7 @@ test.describe('error.tsx boundary', () => {
     expect(response?.status()).toBe(500);
     await expect(page.locator('[data-testid="error-boundary"]')).toBeVisible();
     await expect(page.locator('[data-testid="error-digest"]')).toBeVisible();
-    await expect(page.locator('[data-testid="error-digest-code"]')).toHaveText(
-      'PRODUCT_NOT_FOUND',
-    );
+    await expect(page.locator('[data-testid="error-digest-code"]')).toHaveText('PRODUCT_NOT_FOUND');
     const data = await page.locator('[data-testid="error-digest-data"]').textContent();
     const parsed = JSON.parse(data!);
     expect(parsed).toEqual({ title: 'Product not found', resourceId: 'abc-123' });

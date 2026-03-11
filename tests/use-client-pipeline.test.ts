@@ -94,6 +94,7 @@ describe('module ID consistency across environments', () => {
   });
 
   it('client module map exists for SSR reference resolution', () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { existsSync } = require('node:fs');
     expect(existsSync(resolve(SRC_DIR, 'server/client-module-map.ts'))).toBe(true);
   });

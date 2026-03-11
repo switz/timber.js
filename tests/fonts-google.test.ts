@@ -151,12 +151,8 @@ describe('parses Google Fonts CSS response', () => {
 
   it('extracts font URLs', () => {
     const faces = parseGoogleFontsCss(SAMPLE_CSS);
-    expect(faces[0].url).toBe(
-      'https://fonts.gstatic.com/s/inter/v13/latinext.woff2'
-    );
-    expect(faces[1].url).toBe(
-      'https://fonts.gstatic.com/s/inter/v13/latin.woff2'
-    );
+    expect(faces[0].url).toBe('https://fonts.gstatic.com/s/inter/v13/latinext.woff2');
+    expect(faces[1].url).toBe('https://fonts.gstatic.com/s/inter/v13/latin.woff2');
   });
 
   it('extracts unicode-range', () => {
@@ -234,7 +230,12 @@ describe('generates content-hashed filename', () => {
   });
 
   it('handles multi-word family names', () => {
-    const face = makeFontFace({ family: 'JetBrains Mono', subset: 'latin', weight: '400', style: 'normal' });
+    const face = makeFontFace({
+      family: 'JetBrains Mono',
+      subset: 'latin',
+      weight: '400',
+      style: 'normal',
+    });
     const data = Buffer.from('font-data');
     const filename = hashedFontFilename(face, data);
     expect(filename).toMatch(/^jetbrains-mono-latin-400-normal-[a-f0-9]{8}\.woff2$/);
@@ -318,10 +319,7 @@ describe('skips download when cache hit', () => {
 
   it('reuses cached fonts on subsequent builds', async () => {
     const fakeData = Buffer.from('cached-font-data');
-    const filename = hashedFontFilename(
-      makeFontFace({ subset: 'latin' }),
-      fakeData
-    );
+    const filename = hashedFontFilename(makeFontFace({ subset: 'latin' }), fakeData);
 
     // Pre-populate cache
     const cacheDir = join(tempDir, 'node_modules/.cache/timber-fonts');
@@ -378,9 +376,7 @@ describe('uses CDN URLs in dev mode', () => {
   });
 
   it('preserves all face metadata in dev mode', () => {
-    const faces = [
-      makeFontFace({ weight: '700', style: 'italic' }),
-    ];
+    const faces = [makeFontFace({ weight: '700', style: 'italic' })];
 
     const descriptors = generateDevFontFaces(faces, 'swap');
     expect(descriptors[0].weight).toBe('700');
@@ -405,9 +401,7 @@ describe('emits font files in build output', () => {
 
     const descriptors = generateProductionFontFaces(cachedFonts, 'swap');
     expect(descriptors).toHaveLength(1);
-    expect(descriptors[0].src).toContain(
-      '/_timber/fonts/inter-latin-400-normal-abc12345.woff2'
-    );
+    expect(descriptors[0].src).toContain('/_timber/fonts/inter-latin-400-normal-abc12345.woff2');
     expect(descriptors[0].src).toContain("format('woff2')");
     expect(descriptors[0].family).toBe('Inter');
     expect(descriptors[0].weight).toBe('400');

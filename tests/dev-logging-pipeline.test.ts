@@ -125,7 +125,7 @@ describe('dev logging pipeline', () => {
       expect(end).toBeDefined();
       expect(end!.meta?.status).toBe(200);
       expect(typeof end!.meta?.durationMs).toBe('number');
-      expect((end!.meta?.durationMs as number)).toBeGreaterThanOrEqual(0);
+      expect(end!.meta?.durationMs as number).toBeGreaterThanOrEqual(0);
     });
 
     it('request-end reflects 404 status for no-match', async () => {

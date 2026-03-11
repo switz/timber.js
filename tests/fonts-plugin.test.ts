@@ -23,8 +23,18 @@ import {
   generateAllFontCss,
   type FontRegistry,
 } from '../packages/timber-app/src/plugins/fonts.js';
-import { generateFontFace, generateFontFaces, generateVariableClass, generateFontFamilyClass } from '../packages/timber-app/src/fonts/css.js';
-import { generateFallbackCss, hasFallbackMetrics, buildFontStack, getGenericFamily } from '../packages/timber-app/src/fonts/fallbacks.js';
+import {
+  generateFontFace,
+  generateFontFaces,
+  generateVariableClass,
+  generateFontFamilyClass,
+} from '../packages/timber-app/src/fonts/css.js';
+import {
+  generateFallbackCss,
+  hasFallbackMetrics,
+  buildFontStack,
+  getGenericFamily,
+} from '../packages/timber-app/src/fonts/fallbacks.js';
 import { timberFonts } from '../packages/timber-app/src/plugins/fonts.js';
 import type { PluginContext } from '../packages/timber-app/src/index.js';
 
@@ -86,7 +96,7 @@ describe('extracts font config from static calls', () => {
   });
 
   it('extracts preload boolean', () => {
-    const config = extractFontConfig("({ preload: true })");
+    const config = extractFontConfig('({ preload: true })');
     expect(config).not.toBeNull();
     expect(config!.preload).toBe(true);
   });
@@ -183,26 +193,17 @@ describe('handles multi-line config', () => {
 
 describe('errors on dynamic font config', () => {
   it('detects variable argument', () => {
-    const result = detectDynamicFontCall(
-      'const inter = Inter(fontConfig);',
-      ['Inter']
-    );
+    const result = detectDynamicFontCall('const inter = Inter(fontConfig);', ['Inter']);
     expect(result).toBe('Inter(fontConfig)');
   });
 
   it('allows static object argument', () => {
-    const result = detectDynamicFontCall(
-      "const inter = Inter({ subsets: ['latin'] });",
-      ['Inter']
-    );
+    const result = detectDynamicFontCall("const inter = Inter({ subsets: ['latin'] });", ['Inter']);
     expect(result).toBeNull();
   });
 
   it('detects spread in function call', () => {
-    const result = detectDynamicFontCall(
-      'const inter = Inter(...args);',
-      ['Inter']
-    );
+    const result = detectDynamicFontCall('const inter = Inter(...args);', ['Inter']);
     expect(result).toBe('Inter(...args)');
   });
 });
@@ -211,9 +212,7 @@ describe('errors on dynamic font config', () => {
 
 describe('parses Google font imports', () => {
   it('parses single import', () => {
-    const names = parseGoogleFontImports(
-      "import { Inter } from '@timber/fonts/google'"
-    );
+    const names = parseGoogleFontImports("import { Inter } from '@timber/fonts/google'");
     expect(names).toEqual(['Inter']);
   });
 
@@ -225,25 +224,19 @@ describe('parses Google font imports', () => {
   });
 
   it('handles aliased imports', () => {
-    const names = parseGoogleFontImports(
-      "import { Inter as MyFont } from '@timber/fonts/google'"
-    );
+    const names = parseGoogleFontImports("import { Inter as MyFont } from '@timber/fonts/google'");
     expect(names).toEqual(['MyFont']);
   });
 
   it('returns empty for no matching imports', () => {
-    const names = parseGoogleFontImports(
-      "import { useState } from 'react'"
-    );
+    const names = parseGoogleFontImports("import { useState } from 'react'");
     expect(names).toEqual([]);
   });
 });
 
 describe('parses Google font families', () => {
   it('maps local name to family name', () => {
-    const families = parseGoogleFontFamilies(
-      "import { Inter } from '@timber/fonts/google'"
-    );
+    const families = parseGoogleFontFamilies("import { Inter } from '@timber/fonts/google'");
     expect(families.get('Inter')).toBe('Inter');
   });
 
@@ -517,7 +510,11 @@ export default function Layout() { return null }
     const plugin = timberFonts(createPluginContext());
     const transform = plugin.transform as (code: string, id: string) => null;
 
-    const result = transform.call({ error: () => {} }, "import React from 'react'", '/app/page.tsx');
+    const result = transform.call(
+      { error: () => {} },
+      "import React from 'react'",
+      '/app/page.tsx'
+    );
     expect(result).toBeNull();
   });
 

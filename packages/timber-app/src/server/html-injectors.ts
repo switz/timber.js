@@ -96,40 +96,205 @@ export function injectScripts(
 }
 
 /**
- * Escape a string for safe embedding inside a `<script>` tag as a
- * single-quoted string literal.
+ * Escape a string for safe embedding inside a `<script>` tag within
+ * a JSON-encoded value.
  *
- * Escapes backslashes, single quotes, newlines (`\n`, `\r`), `<`
- * (prevents `</script>` from closing the tag early), and U+2028/U+2029
- * (line/paragraph separators that are valid in JSON but invalid in JS
- * string literals).
+ * Only needs to prevent `</script>` from closing the tag early and
+ * handle U+2028/U+2029 (line/paragraph separators valid in JSON but
+ * historically problematic in JS). Since we use JSON.stringify for the
+ * outer encoding, we only escape `<` and the line separators.
  */
-function escapeForScript(str: string): string {
+function htmlEscapeJsonString(str: string): string {
   return str
-    .replace(/\\/g, '\\\\')
-    .replace(/'/g, "\\'")
-    .replace(/\n/g, '\\n')
-    .replace(/\r/g, '\\r')
-    .replace(/</g, '\\x3c')
+    .replace(/</g, '\\u003c')
     .replace(/\u2028/g, '\\u2028')
     .replace(/\u2029/g, '\\u2029');
 }
 
 /**
+ * Transform an RSC Flight stream into a stream of inline `<script>` tags.
+ *
+ * Uses a **pull-based** ReadableStream — the consumer (the injection
+ * transform) drives reads from the RSC stream on demand. No background
+ * reader, no shared mutable arrays, no race conditions.
+ *
+ * Each RSC chunk becomes:
+ *   <script>(self.__timber_f=self.__timber_f||[]).push([1,"escaped_chunk"])</script>
+ *
+ * The first chunk emitted is the bootstrap signal [0] which the client
+ * uses to initialize its buffer.
+ *
+ * Uses JSON-encoded typed tuples matching the pattern from Next.js:
+ *   [0]        — bootstrap signal
+ *   [1, data]  — RSC Flight data chunk (UTF-8 string)
+ */
+export function createInlinedRscStream(
+  rscStream: ReadableStream<Uint8Array>
+): ReadableStream<Uint8Array> {
+  const encoder = new TextEncoder();
+  const rscReader = rscStream.getReader();
+  const decoder = new TextDecoder('utf-8', { fatal: true });
+
+  return new ReadableStream<Uint8Array>({
+    start(controller) {
+      // Emit bootstrap signal — tells the client that __timber_f is active
+      const bootstrap = `<script>(self.__timber_f=self.__timber_f||[]).push(${htmlEscapeJsonString(JSON.stringify([0]))})</script>`;
+      controller.enqueue(encoder.encode(bootstrap));
+    },
+    async pull(controller) {
+      try {
+        const { done, value } = await rscReader.read();
+        if (done) {
+          controller.close();
+          return;
+        }
+        if (value) {
+          const decoded = decoder.decode(value, { stream: true });
+          const escaped = htmlEscapeJsonString(JSON.stringify([1, decoded]));
+          controller.enqueue(encoder.encode(`<script>self.__timber_f.push(${escaped})</script>`));
+        }
+      } catch (error) {
+        controller.error(error);
+      }
+    },
+  });
+}
+
+/**
+ * Merge an RSC script stream into the HTML stream.
+ *
+ * This is a TransformStream that passes HTML chunks through and
+ * interleaves RSC `<script>` tag chunks between them. The RSC stream
+ * is pulled on demand — when an HTML chunk arrives, we yield it, then
+ * give the RSC stream a chance to produce script tags that get appended.
+ *
+ * On flush (HTML stream ends), we drain remaining RSC script chunks
+ * so nothing is lost when Suspense boundaries resolve after the shell.
+ *
+ * Inspired by Next.js createFlightDataInjectionTransformStream.
+ */
+function createFlightInjectionTransform(
+  rscScriptStream: ReadableStream<Uint8Array>
+): TransformStream<Uint8Array, Uint8Array> {
+  let pull: Promise<void> | null = null;
+  let donePulling = false;
+
+  function startOrContinuePulling(
+    controller: TransformStreamDefaultController<Uint8Array>
+  ): Promise<void> {
+    if (!pull) {
+      pull = pullLoop(controller);
+    }
+    return pull;
+  }
+
+  async function pullLoop(controller: TransformStreamDefaultController<Uint8Array>): Promise<void> {
+    const reader = rscScriptStream.getReader();
+
+    // Wait one microtask before starting to read RSC data.
+    // This ensures the HTML shell chunk flushes first, so the browser
+    // can start parsing HTML and executing the bootstrap script before
+    // RSC data script tags arrive.
+    await new Promise<void>((r) => setTimeout(r, 0));
+
+    try {
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) {
+          donePulling = true;
+          return;
+        }
+        controller.enqueue(value);
+      }
+    } catch (err) {
+      controller.error(err);
+    }
+  }
+
+  return new TransformStream<Uint8Array, Uint8Array>({
+    transform(chunk, controller) {
+      // Pass HTML chunk through immediately
+      controller.enqueue(chunk);
+      // Start pulling RSC data if not already started
+      startOrContinuePulling(controller);
+    },
+    flush(controller) {
+      // HTML stream is done — drain remaining RSC chunks
+      if (donePulling) return;
+      return startOrContinuePulling(controller);
+    },
+  });
+}
+
+/**
+ * Move `</body></html>` suffix to the end of the stream.
+ *
+ * React's renderToReadableStream emits `</body></html>` as part of
+ * the shell, but Suspense replacement scripts and RSC data arrive
+ * after it. This transform captures the suffix and re-emits it at
+ * the very end so the final HTML is well-formed:
+ *
+ *   <shell>...</shell>
+ *   <script>...suspense replacements...</script>
+ *   <script>...RSC data...</script>
+ *   </body></html>
+ *
+ * Without this, RSC script tags would appear after </html> which,
+ * while browsers handle it, is technically invalid HTML.
+ */
+function createMoveSuffixStream(): TransformStream<Uint8Array, Uint8Array> {
+  const encoder = new TextEncoder();
+  const decoder = new TextDecoder();
+  const suffix = '</body></html>';
+  const suffixBytes = encoder.encode(suffix);
+  let foundSuffix = false;
+
+  return new TransformStream<Uint8Array, Uint8Array>({
+    transform(chunk, controller) {
+      if (foundSuffix) {
+        controller.enqueue(chunk);
+        return;
+      }
+
+      const text = decoder.decode(chunk, { stream: true });
+      const idx = text.indexOf(suffix);
+      if (idx !== -1) {
+        foundSuffix = true;
+        // Emit everything before the suffix
+        const before = text.slice(0, idx);
+        const after = text.slice(idx + suffix.length);
+        if (before) controller.enqueue(encoder.encode(before));
+        // Emit any content after the suffix (shouldn't normally exist)
+        if (after) controller.enqueue(encoder.encode(after));
+      } else {
+        controller.enqueue(chunk);
+      }
+    },
+    flush(controller) {
+      // Re-emit the suffix at the very end
+      if (foundSuffix) {
+        controller.enqueue(suffixBytes);
+      }
+    },
+  });
+}
+
+/**
  * Progressively inline RSC Flight payload chunks into the HTML stream.
  *
- * Instead of buffering the entire RSC payload and injecting it as one
- * blob before </body>, this interleaves RSC chunks with HTML chunks as
- * they arrive. Each RSC chunk becomes an inline script tag:
+ * Architecture (3 TransformStream pipeline):
+ * 1. HTML stream → moveSuffix (captures </body></html>, re-emits at end)
+ * 2. → flightInjection (merges RSC <script> tags between HTML chunks)
+ * 3. → output (well-formed HTML with interleaved RSC data)
  *
- *   <script>self.__timber_f.push('escaped_chunk')</script>
+ * The RSC stream is transformed into <script> tags via createInlinedRscStream
+ * (pull-based, no shared mutable state) and merged into the HTML pipeline
+ * via createFlightInjectionTransform.
  *
- * The client-side browser entry sets up a ReadableStream controller on
- * `self.__timber_f.push` so chunks feed into `createFromReadableStream`
- * progressively, enabling hydration to start before all Suspense
- * boundaries have resolved.
- *
- * If no rscStream is provided, returns the HTML stream unchanged.
+ * The client reads these script tags via `self.__timber_f` and feeds
+ * them to `createFromReadableStream` for progressive hydration.
+ * Stream completion is signaled by the DOMContentLoaded event on the
+ * client side — no custom done flag needed.
  */
 export function injectRscPayload(
   htmlStream: ReadableStream<Uint8Array>,
@@ -137,95 +302,15 @@ export function injectRscPayload(
 ): ReadableStream<Uint8Array> {
   if (!rscStream) return htmlStream;
 
-  const encoder = new TextEncoder();
-  const htmlDecoder = new TextDecoder();
-  const rscReader = rscStream.getReader();
-  const rscDecoder = new TextDecoder();
+  // Transform RSC binary stream → stream of <script> tags
+  const rscScriptStream = createInlinedRscStream(rscStream);
 
-  // Pending RSC chunks that arrived between HTML chunks.
-  // Drained on every HTML transform call and on flush.
-  const pendingRsc: string[] = [];
-  let rscDone = false;
-
-  // Read the RSC stream in the background, accumulating chunks
-  // that will be flushed alongside the next HTML chunk.
-  const rscPromise = (async () => {
-    try {
-      for (;;) {
-        const { done, value } = await rscReader.read();
-        if (done) break;
-        pendingRsc.push(rscDecoder.decode(value, { stream: true }));
-      }
-      const final = rscDecoder.decode();
-      if (final) pendingRsc.push(final);
-    } catch {
-      // RSC stream errored — emit whatever chunks we collected.
-    }
-    rscDone = true;
-  })();
-
-  /** Build <script> tags for all pending RSC chunks and clear the queue. */
-  function drainPendingRsc(): string {
-    if (pendingRsc.length === 0) return '';
-    let scripts = '';
-    for (const chunk of pendingRsc) {
-      scripts += `<script>(self.__timber_f=self.__timber_f||[]).push('${escapeForScript(chunk)}')</script>`;
-    }
-    pendingRsc.length = 0;
-    return scripts;
-  }
-
-  const targetTag = '</body>';
-  let foundBody = false;
-  let doneEmitted = false;
-
-  return htmlStream.pipeThrough(
-    new TransformStream<Uint8Array, Uint8Array>({
-      transform(chunk, controller) {
-        if (foundBody) {
-          controller.enqueue(chunk);
-          return;
-        }
-
-        const text = htmlDecoder.decode(chunk, { stream: true });
-        const tagIndex = text.indexOf(targetTag);
-
-        if (tagIndex !== -1) {
-          // Found </body> — flush pending RSC + done signal before it.
-          const before = text.slice(0, tagIndex);
-          const after = text.slice(tagIndex);
-          const rscScripts = drainPendingRsc();
-          let doneSignal = '';
-          if (rscDone && !doneEmitted) {
-            doneSignal = '<script>self.__timber_f_done=1</script>';
-            doneEmitted = true;
-          }
-          controller.enqueue(encoder.encode(before + rscScripts + doneSignal + after));
-          foundBody = true;
-        } else {
-          // Pass HTML chunk through as-is, then append any pending
-          // RSC payload chunks that arrived since the last HTML chunk.
-          controller.enqueue(chunk);
-          const rscScripts = drainPendingRsc();
-          if (rscScripts) {
-            controller.enqueue(encoder.encode(rscScripts));
-          }
-        }
-      },
-      async flush(controller) {
-        // Wait for RSC stream to finish and flush any remaining chunks.
-        if (!rscDone) await rscPromise;
-        if (doneEmitted) return;
-        const rscScripts = drainPendingRsc();
-        const doneSignal = '<script>self.__timber_f_done=1</script>';
-        if (rscScripts) {
-          controller.enqueue(encoder.encode(rscScripts + doneSignal));
-        } else {
-          controller.enqueue(encoder.encode(doneSignal));
-        }
-      },
-    })
-  );
+  // Pipeline: inject RSC scripts → move suffix to end
+  // Order matters: flightInjection must flush remaining RSC scripts
+  // before moveSuffix re-emits </body></html> at the very end.
+  return htmlStream
+    .pipeThrough(createFlightInjectionTransform(rscScriptStream))
+    .pipeThrough(createMoveSuffixStream());
 }
 
 /**

@@ -138,7 +138,8 @@ export function timberMdx(ctx: PluginContext): Plugin {
     async resolveId(source, importer, options) {
       if (!innerPlugin) return null;
       if (typeof innerPlugin.resolveId === 'function') {
-        return (innerPlugin.resolveId as Function).call(this, source, importer, options);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return (innerPlugin.resolveId as any).call(this, source, importer, options);
       }
       return null;
     },
@@ -146,7 +147,8 @@ export function timberMdx(ctx: PluginContext): Plugin {
     async load(id) {
       if (!innerPlugin) return null;
       if (typeof innerPlugin.load === 'function') {
-        return (innerPlugin.load as Function).call(this, id);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return (innerPlugin.load as any).call(this, id);
       }
       return null;
     },
@@ -154,7 +156,8 @@ export function timberMdx(ctx: PluginContext): Plugin {
     async transform(code, id) {
       if (!innerPlugin) return null;
       if (typeof innerPlugin.transform === 'function') {
-        return (innerPlugin.transform as Function).call(this, code, id);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return (innerPlugin.transform as any).call(this, code, id);
       }
       return null;
     },

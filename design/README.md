@@ -47,7 +47,7 @@ The shortest version: **if Rails or PHP could do it, so can we.** Correct HTTP s
   * It largely amounts to a micro-optimization over poorly constructed data layers – fast, performant, and low latency data layers negate most benefits (not all!) of streaming
 * Open Source devs have long been anathema to making money
   * Not being profitable is just code for not being sustainable
-  * Companies building open source work often have perverse (or misaligned) incentives
+  * Companies building open source work often have perverse (or misaligned) incentives when their product is disparate from the open source project itself
   * Just because something is 'open source', doesn't mean you shouldn't be able to capture the value you create with it
   * Making money directly has better incentives for both parties than making money indirectly (e.g. selling servers/infra/cdn changes your design decisions)
 * All public sites (and most private ones) should largely work with or without javascript

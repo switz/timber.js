@@ -17,6 +17,8 @@
     "@content-collections/mdx": "^0.2.2",
     "@content-collections/vite": "^0.2.9",
     "@mdx-js/rollup": "^3.1.1",
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/context-async-hooks": "^2.6.0",
     "@opentelemetry/sdk-trace-base": "^2.6.0",
     "@playwright/test": "^1.58.2",
     "@switz/eslint-config": "^12.5.2",

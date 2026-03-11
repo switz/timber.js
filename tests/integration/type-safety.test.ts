@@ -26,8 +26,6 @@ import {
   formatAnalyzeError,
 } from '@timber/app/search-params';
 import { resolveHref, buildLinkProps, setCurrentParams, useParams } from '@timber/app/client';
-import { setQueryStatesDeps } from '../../packages/timber-app/src/client/use-query-states.js';
-import type { UseQueryStatesDeps } from '../../packages/timber-app/src/client/use-query-states.js';
 import { generateRouteMap } from '../../packages/timber-app/src/routing/codegen.js';
 import { scanRoutes } from '@timber/app/routing';
 
@@ -78,54 +76,6 @@ function mockArraySchema(defaultVal: string[] = []) {
         }
         return { value: [String(value)] };
       },
-    },
-  };
-}
-
-/** Create mock useQueryStates deps */
-function createMockDeps(initialSearch = ''): UseQueryStatesDeps & {
-  listeners: Set<() => void>;
-  setSearch: (search: string) => void;
-  navigateCalls: string[];
-  pushStateCalls: string[];
-  replaceStateCalls: string[];
-} {
-  let currentSearch = initialSearch;
-  const listeners = new Set<() => void>();
-  const navigateCalls: string[] = [];
-  const pushStateCalls: string[] = [];
-  const replaceStateCalls: string[] = [];
-
-  return {
-    listeners,
-    navigateCalls,
-    pushStateCalls,
-    replaceStateCalls,
-    setSearch(search: string) {
-      currentSearch = search;
-      for (const cb of listeners) cb();
-    },
-    getSearch() {
-      return currentSearch;
-    },
-    subscribe(callback: () => void) {
-      listeners.add(callback);
-      return () => listeners.delete(callback);
-    },
-    pushState(url: string) {
-      pushStateCalls.push(url);
-      const idx = url.indexOf('?');
-      currentSearch = idx >= 0 ? url.slice(idx) : '';
-      for (const cb of listeners) cb();
-    },
-    replaceState(url: string) {
-      replaceStateCalls.push(url);
-      const idx = url.indexOf('?');
-      currentSearch = idx >= 0 ? url.slice(idx) : '';
-      for (const cb of listeners) cb();
-    },
-    navigate(url: string) {
-      navigateCalls.push(url);
     },
   };
 }
@@ -463,46 +413,10 @@ export default createSearchParams({
   });
 });
 
-// ─── useQueryStates shallow:false navigation ────────────────────
-// Acceptance: useQueryStates shallow:false navigation
+// ─── Search params integration ───────────────────────────────────
+// Acceptance: useQueryStates shallow:false navigation (now tested in use-query-states.test.ts)
 
 describe('query states', () => {
-  it('shallow:false triggers navigate (server RSC navigation)', () => {
-    const deps = createMockDeps('');
-    setQueryStatesDeps(deps);
-
-    // Simulate what useQueryStates does internally for shallow:false
-    const newUrl = '/products?page=2&q=boots';
-    deps.pushState(newUrl);
-    deps.navigate(newUrl);
-
-    expect(deps.pushStateCalls).toHaveLength(1);
-    expect(deps.pushStateCalls[0]).toBe(newUrl);
-    expect(deps.navigateCalls).toHaveLength(1);
-    expect(deps.navigateCalls[0]).toBe(newUrl);
-  });
-
-  it('shallow:true updates URL without navigate', () => {
-    const deps = createMockDeps('');
-    setQueryStatesDeps(deps);
-
-    deps.pushState('/products?page=2');
-    // shallow: true → no navigate call
-
-    expect(deps.pushStateCalls).toHaveLength(1);
-    expect(deps.navigateCalls).toHaveLength(0);
-  });
-
-  it('history: replace uses replaceState instead of pushState', () => {
-    const deps = createMockDeps('');
-    setQueryStatesDeps(deps);
-
-    deps.replaceState('/products?page=2');
-
-    expect(deps.replaceStateCalls).toHaveLength(1);
-    expect(deps.pushStateCalls).toHaveLength(0);
-  });
-
   it('search params codec integration: parse → update → serialize round-trip', () => {
     const def = createSearchParams(
       {
@@ -525,7 +439,6 @@ describe('query states', () => {
     expect(qs).toContain('search=boots');
     expect(qs).toContain('page=3');
     expect(qs).toContain('sort=newest');
-    // page=1 is default but page=3 is not, so page is included
 
     // 4. href generation matches
     expect(def.href('/products', updated)).toBe('/products?page=3&search=boots&sort=newest');
@@ -540,11 +453,8 @@ describe('query states', () => {
       { urlKeys: { search: 'q', category: 'cat' } }
     );
 
-    const deps = createMockDeps('?q=boots&cat=footwear');
-    setQueryStatesDeps(deps);
-
     // Parse from aliased URL keys
-    const parsed = def.parse(new URLSearchParams(deps.getSearch()));
+    const parsed = def.parse(new URLSearchParams('q=boots&cat=footwear'));
     expect(parsed).toEqual({ search: 'boots', category: 'footwear' });
 
     // Serialize uses aliases
@@ -568,9 +478,6 @@ describe('query states', () => {
       page: fromSchema(mockNumberSchema(1)),
       q: fromSchema(mockNullableStringSchema()),
     });
-
-    const deps = createMockDeps('');
-    setQueryStatesDeps(deps);
 
     // All defaults → empty query string
     const qs = def.serialize({ page: 1, q: null });

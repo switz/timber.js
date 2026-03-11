@@ -42,5 +42,4 @@ export type { UseActionStateFn, UseActionStateReturn } from './form';
 export { useParams, setCurrentParams } from './use-params';
 
 // Query states (URL-synced search params)
-export { useQueryStates, setQueryStatesDeps, bindUseQueryStates } from './use-query-states';
-export type { UseQueryStatesDeps } from './use-query-states';
+export { useQueryStates, bindUseQueryStates } from './use-query-states';

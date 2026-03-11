@@ -2,7 +2,7 @@
 
 ## What This Is
 
-timber.js is a web framework built on Vite and React Server Components. It starts as a hard fork of Vinext (Cloudflare's implementation of Next.js on Vite) and redirects that work toward a different set of design values.
+timber.js is a web framework built on Vite and React Server Components, written from scratch. It shares design goals with Vinext (Cloudflare's implementation of Next.js on Vite) but is an independent implementation with a different set of design values.
 
 The shortest version: streaming should only be used for secondary or tertiary *slow* content. Data layers for primary content should be fast–rails and php could do this, so can we. This gets you: correct HTTP semantics, real status codes, pages that work without JavaScript, genuine middleware, and streaming only where you explicitly ask for it in leafy components.
 

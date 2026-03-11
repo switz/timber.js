@@ -2,7 +2,7 @@
 
 > **Note:** This README was generated with the help of AI (Claude) and may not perfectly reflect the current state of the project.
 
-A Vite-native React framework for Servers and Serverless (Vercel, Cloudflare Workers, etc.). Complete reimplementation from scratch of [Vinext](https://github.com/nicolo-ribaudo/vite-rsc-example) (Cloudflare's RSC-on-Vite implementation), redirected toward a different set of design values.
+A Vite-native React framework for Servers and Serverless (Vercel, Cloudflare Workers, etc.). Built from scratch with a fresh codebase, informed by the design space explored by [Vinext](https://github.com/cloudflare/vinext) (Cloudflare's RSC-on-Vite implementation) but with a different set of design values.
 
 ## Core Thesis
 
@@ -25,7 +25,7 @@ timber.js takes a different approach: **block the flush until the shell is ready
 - **Build-time font pipeline** — self-hosted Google Fonts downloaded at build, size-adjusted fallbacks, zero layout shift
 - **MDX as server components** — `.mdx` pages render on the server with zero client JavaScript
 - **Content collections** — typed, build-time validated content with `defineCollection()`
-- **`next/*` shim layer** — ecosystem compat with nuqs, next-themes, and other libraries without forking
+- **`next/*` shim layer** — ecosystem compat with nuqs, next-themes, and other libraries without modifying them
 - **Server action revalidation** — `revalidatePath()` piggybacks fresh RSC payload on the action response, no extra request
 - **Dynamic builds** – server-based builds are portable and deployable anywhere
 - **Static builds with NO javascript** - you can build a static site and ship genuinely zero JS. Or ship a static site with JS. It's a parlor trick, but it works.

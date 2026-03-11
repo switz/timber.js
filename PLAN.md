@@ -10,25 +10,14 @@ Design docs: [`design/`](design/README.md) — read these before implementing an
 
 ## Starting Point
 
-timber.js forks Vinext. The fork is at `switz/timber.js`.
+timber.js is a fresh implementation — all code is written from scratch against the design docs. Vinext and Next.js serve as reference for understanding the problem space, not as a codebase to fork or migrate from.
 
-- [x] Fork the Vinext repo under the timber.js name
-- [x] Remove `isr-cache.ts`, `tpr.ts`
-- [x] Remove the pages router (`pages-router.ts`, `dev-server.ts`, `api-handler.ts`)
-- [x] Remove the single global `middleware.ts` convention (Vinext used one file; timber.js uses `proxy.ts` + per-route `middleware.ts`)
-- [x] Create `@timber/app` package as thin re-export layer over vinext
-- [ ] Audit `cache-runtime.ts` — read and understand before Phase 4 rewrites it
+- [x] Set up fresh repo with `@timber/app` package
+- [x] Design docs written as the source of truth for all behavior
 
-### Upstream Strategy
+### Upstream Monitoring
 
-timber.js is **forked from vinext, not built on it**. The vinext package is scaffolding — useful code gets migrated into `@timber/app` and vinext is deleted before release.
-
-**During development:**
-- `packages/vinext/` is read-only scaffolding. Upstream cherry-picks merge cleanly here.
-- `packages/timber-app/` (`@timber/app`) currently re-exports from vinext as a starting point.
-- When working on a module, copy it into `packages/timber-app/src/` and stop re-exporting.
-- New code goes directly in `packages/timber-app/`.
-- Before release: delete `packages/vinext/` entirely.
+timber.js monitors Vinext and Next.js upstream for bug fixes and security patches. When an upstream fix addresses a vulnerability class that could also exist in timber.js's independent codebase, we evaluate and implement our own fix. See `/upstream-triage` and `/upstream-bugwatch` commands.
 
 ---
 
@@ -450,7 +439,7 @@ Bring `next/*` shims into the `@timber/app` namespace and audit compatibility wi
 
 **Dependencies:** Phases 1–5. Shim behavior depends on a complete request pipeline.
 
-- [ ] Audit all Vinext shims against their Next.js equivalents: `next/link`, `next/image`, `next/font`, `next/navigation`, `next/headers`
+- [ ] Audit all `next/*` shims against their Next.js equivalents: `next/link`, `next/image`, `next/font`, `next/navigation`, `next/headers`
 - [ ] Update shim import paths from `next/*` → `@timber/app/*` (or keep as `next/*` aliases — decide)
 - [ ] Test with ecosystem libraries: next-themes, nuqs, and any others identified during earlier phases
 - [ ] Establish upstream tracking process: document which shims track Next.js closely vs. are intentional divergences
@@ -463,7 +452,7 @@ Bring `next/*` shims into the `@timber/app` namespace and audit compatibility wi
 Adapters can be developed in parallel with any phase once the Phase 1 pipeline is stable.
 
 - [ ] Define `TimberPlatformAdapter` interface: `name`, `buildOutput(config, buildDir)`, `preview?(config, buildDir)`
-- [ ] `@timber/app/adapters/cloudflare` — Cloudflare Workers/Pages (primary target, port from Vinext)
+- [ ] `@timber/app/adapters/cloudflare` — Cloudflare Workers/Pages (primary target)
 - [ ] `@timber/app/adapters/node` — Node.js HTTP server with gzip/brotli compression
 - [ ] `@timber/app/adapters/bun` — Bun's native `Bun.serve()`
 - [ ] `@timber/app/adapters/nitro` — Vercel, Netlify, AWS, Deno Deploy, Azure via `nitro({ preset })`

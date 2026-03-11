@@ -1,6 +1,6 @@
 # timber.js — Design Documents
 
-timber.js is a web framework built on Vite and React Server Components. It starts as a hard fork of Vinext and redirects that work toward a different set of design values.
+timber.js is a web framework built on Vite and React Server Components. It is a fresh implementation from scratch, informed by the design space explored by Vinext but with a different set of design values.
 
 The shortest version: **if Rails or PHP could do it, so can we.** Correct HTTP semantics, real status codes, pages that work without JavaScript, genuine middleware, and streaming only where you explicitly ask for it.
 
@@ -18,11 +18,11 @@ The shortest version: **if Rails or PHP could do it, so can we.** Correct HTTP s
 | [Forms & Server Actions](08-forms-and-actions.md) | `createActionClient`, ActionError, validation, revalidation, progressive enhancement, static mode actions |
 | [TypeScript Integration](09-typescript.md) | Typed routes, `search-params.ts`, SearchParamCodec, `useQueryStates`, composition, ALS-backed `searchParams()` |
 | [Error Handling](10-error-handling.md) | Two-phase errors, `error.tsx`, status-code files (`4xx.tsx`, `5xx.tsx`), `deny()`, `RenderError`, `redirect()` contexts |
-| [Platform & Configuration](11-platform.md) | `timber.config.ts`, adapters, platform target, `waitUntil()`, dev mode, Vinext heritage |
+| [Platform & Configuration](11-platform.md) | `timber.config.ts`, adapters, platform target, `waitUntil()`, dev mode |
 | [Complete Examples](12-example.md) | Server-mode dashboard and public product page using the full system end-to-end |
 | [Security](13-security.md) | URL canonicalization, CSRF, redirect safety, cache key integrity, cross-request isolation, testing checklist |
 | [Ecosystem Compatibility](14-ecosystem.md) | Shim audit, `next/*` → timber mapping, import path strategy, ecosystem library compatibility (nuqs, next-themes) |
-| [Next.js Test Triage](14-nextjs-test-triage.md) | Systematic triage of all Next.js tests, broken feature fixes, vinext vs timber.js divergence, timber.js feature testing |
+| [Next.js Test Triage](14-nextjs-test-triage.md) | Systematic triage of all Next.js tests, broken feature fixes, Next.js vs timber.js divergence, timber.js feature testing |
 | [Future: Pre-Rendering](15-future-prerendering.md) | Deferred: static shell optimization for `server` mode, `'use dynamic'`, `prerender.ts` — not in v1 |
 | [Metadata](16-metadata.md) | `metadata` export, `generateMetadata()`, title templates, composition, metadata routes, error state metadata |
 | [Logging & Observability](17-logging.md) | `instrumentation.ts` convention (`register`, `onRequestError`), BYOL logger, OTEL spans and trace propagation, dev console tree with timing/cache/environment visibility |
@@ -61,3 +61,4 @@ We don't need to create docs for these now but future things that would be nice 
 - [ ] Full text search integration, perhaps with turbopuffer or alternative vector based search?
 - [ ] Better story around async (client) react, transitions, and so on
 - [ ] Unified API for fetching data for a page? all wrapped around react.cache? like `route.fetch<routetype>()` in a file called `loader.ts` - this lets you fetch it from anywhere and it'll de-duplicate the data across `access`/metadata and so on
+- [ ] AI debugging integration (maybe via MCP)? related: https://bsky.app/profile/jovidecroock.com/post/3mgprjjzebk2z

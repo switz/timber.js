@@ -336,16 +336,16 @@ Request B: receives same result from shared Promise
 
 Combined with `staleWhileRevalidate`: at most one execution per instance per key during a revalidation window. The stale value is served immediately while the single background execution runs.
 
-### What We Keep From vinext's `cache-runtime.ts`
+### Design Influences
 
-Per the audit in `audit-cache-runtime.md`:
+timber.js's caching system is informed by the design space explored by Vinext's `cache-runtime.ts`, but is a fresh implementation:
 
-**Keep:**
+**Concepts carried forward (reimplemented from scratch):**
 - RSC payload serialization for `"use cache"` (React Flight format)
 - SHA-256 key generation with `stableStringify`
 - The `registerCachedFunction` pattern
 
-**Discard:**
+**Concepts explicitly rejected:**
 - ISR integration (no ISR in timber.js)
 - `cacheLife` minimum-wins semantics (timber.js uses last-wins — the component's `cacheLife()` is authoritative)
 - `noStore()` / dynamic opt-out (timber.js has no implicit caching to opt out of)

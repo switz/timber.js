@@ -38,8 +38,8 @@ Well-Spec'd Docs (implementation-ready)
   - How "use cache" transforms work at the Vite plugin level. The doc says what it does but not how the
   build transform works. This is exactly what caused the cache-runtime.ts mess — the agent had to figure
   out the transform implementation with no guidance.
-  - Relationship to vinext's cache-runtime.ts. The doc doesn't say "here's what we keep from vinext and
-  here's what we discard." That knowledge lived only in people's heads until the audit (PR #28).
+  - Design influences and decisions. The doc didn't originally explain which concepts from the broader
+  RSC caching design space were adopted vs. rejected. This was addressed in the "Design Influences" section.
   - Where the runtime code lives. No file manifest. The agent put everything in one cache-runtime.ts file
   because there was no guidance on decomposition.
 
@@ -105,7 +105,7 @@ Well-Spec'd Docs (implementation-ready)
   │ 05-streaming          │ Good               │ None                                                  │
   ├───────────────────────┼────────────────────┼───────────────────────────────────────────────────────┤
   │ 06-caching            │ API good, impl     │ No transform architecture, no file decomposition, no  │
-  │                       │ missing            │ vinext migration guidance                             │
+  │                       │ missing            │ design influence guidance                             │
   ├───────────────────────┼────────────────────┼───────────────────────────────────────────────────────┤
   │ 07-routing            │ Good (behavior)    │ No client runtime spec                                │
   ├───────────────────────┼────────────────────┼───────────────────────────────────────────────────────┤
@@ -140,7 +140,7 @@ Well-Spec'd Docs (implementation-ready)
   - 03-data-fetching.md — Expanded with runtime integration, error handling, code organization, and
     waterfall/prefetching guidance.
   - 06-caching.md — Added implementation architecture section: file decomposition, "use cache" transform,
-    cache key generation, singleflight implementation, vinext migration guidance.
+    cache key generation, singleflight implementation, design influence guidance.
   - 08-forms-and-actions.md — Added client mechanics section: form submission interception, RSC payload
     piggyback, no-JS action flow, action response encoding.
   - 11-platform.md — Added Vite plugin architecture section: plugin decomposition, virtual module strategy,

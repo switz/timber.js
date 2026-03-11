@@ -213,7 +213,7 @@ Marketing page. Hero section with tagline and CTA. Feature grid highlighting tim
 | Correct HTTP | Real status codes, real headers. No more 200-for-everything. |
 | No loading spinners | Primary content renders before the shell flushes. Pages arrive complete. |
 | Vite-native | Built on Vite 7. ESM-first. Sub-second HMR. |
-| Cloudflare Workers | Edge-first deployment. Your code runs close to your users. |
+| Deploy anywhere | Servers, serverless, edge, or static. Adapters for Node, Cloudflare, Vercel, and more. |
 | Server actions | Forms that work without JavaScript. Progressive enhancement by default. |
 | React Server Components | Server-rendered by default. Client JS only where you ask for it. |
 
@@ -338,7 +338,7 @@ import './globals.css'
 export const metadata = {
   title: {
     template: '%s | timber.js',
-    default: 'timber.js — Vite-native React framework for Cloudflare Workers',
+    default: 'timber.js — Vite-native React framework',
   },
   description: 'A web framework built on Vite and React Server Components. Correct HTTP semantics, real status codes, pages that work without JavaScript.',
 }
@@ -619,7 +619,7 @@ All of these should include the AI header.
 
 - Create a docs page explaining _why timber_?
 - Create a docs page comparing timber to nextjs
-- Create a docs page comparing timber to vinext
+- Create a docs page comparing timber to other RSC frameworks (Vinext, Remix, etc.)
 
 ### Design Decisions
 

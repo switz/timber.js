@@ -20,7 +20,7 @@ This document consolidates timber.js's security model. Each section references t
 
 ## Vulnerability Classes Addressed
 
-These are the specific attack classes from the vinext security audit that timber.js's design mitigates:
+These are the specific attack classes that timber.js's design mitigates (identified through security analysis of the RSC-on-Vite design space):
 
 | # | Vulnerability Class | Mitigation | Design Doc |
 |---|---|---|---|

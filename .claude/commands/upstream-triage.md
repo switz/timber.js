@@ -1,4 +1,4 @@
-Pull the latest commits from upstream vinext and triage them against timber.js design docs.
+Monitor recent commits from Vinext (Cloudflare's RSC-on-Vite framework) and triage them against timber.js design docs. timber.js is an independent implementation, but we monitor Vinext for bug fixes and security patches that may apply to the same problem space.
 
 ## Design authority
 
@@ -29,15 +29,15 @@ git log main..vinext/main --oneline
 
 For each new upstream commit, `git show <sha>` and classify:
 
-- **APPLICABLE** — Infrastructure timber shares (Vite plugin core, RSC protocol, shims, security fixes, build tooling, @vitejs/plugin-rsc integration)
-- **DIVERGES** — Features timber removed (pages router, ISR, global middleware.ts, isr-cache, tpr)
-- **ALREADY-DONE** — Equivalent change already in timber.js
-- **NOT-APPLICABLE** — Irrelevant (vinext examples, CLI specific to vinext, removed feature tests)
+- **APPLICABLE** — Addresses a bug class or pattern that timber.js's independent codebase may also have (Vite plugin patterns, RSC protocol, shims, security fixes, build tooling)
+- **DIVERGES** — Features timber.js doesn't have (pages router, ISR, global middleware.ts, isr-cache, tpr)
+- **ALREADY-DONE** — Equivalent fix or feature already in timber.js
+- **NOT-APPLICABLE** — Irrelevant (vinext-specific examples, CLI, infrastructure)
 
 ### Step 3: File bd issues for APPLICABLE commits
 ```bash
 bd create "upstream: <description>" \
-  --description="Upstream vinext commit <sha>. <summary>. <why it applies>. <porting notes>" \
+  --description="Upstream Vinext commit <sha>. <summary>. <why it applies to timber.js>. <implementation notes>" \
   -t task -p 2 --json
 ```
 

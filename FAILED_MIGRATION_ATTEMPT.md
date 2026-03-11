@@ -1,9 +1,13 @@
 Timber.js Migration Retrospective & Fresh Start Analysis
 
+> **Historical document.** This describes a previous failed attempt to build timber.js by forking Vinext.
+> The lesson learned was clear: start fresh, write from scratch against the design docs.
+> The current timber.js codebase is a completely fresh implementation — not a fork.
+
  Context
 
- We're ~halfway through migrating timber.js from vinext scaffolding. The user wants to understand what
- went wrong and what we'd do differently if starting over.
+ An earlier attempt at timber.js tried to migrate from vinext scaffolding. This document captures what
+ went wrong and why we chose to start over with a fresh implementation.
 
  ---
  Current State Snapshot

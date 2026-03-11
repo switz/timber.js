@@ -1,4 +1,4 @@
-Scan recent bug-fix and security-patch commits from vinext and Next.js, then analyze whether timber.js is exposed to the same issues. Do NOT file bd issues or make code changes — present findings as integration questions for the user to decide on.
+Scan recent bug-fix and security-patch commits from Vinext and Next.js, then analyze whether timber.js (an independent implementation operating in the same design space) is exposed to the same vulnerability classes. Do NOT file bd issues or make code changes — present findings as integration questions for the user to decide on.
 
 $ARGUMENTS is an optional commit count (default: 50).
 

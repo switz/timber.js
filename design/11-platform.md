@@ -68,7 +68,7 @@ Adapters are small. They receive the build output directory and transform or cop
 
 ### First-Party Adapters
 
-**`@timber/app/adapters/cloudflare`** — Cloudflare Workers and Pages. Ported from Vinext's native Cloudflare support. Generates `wrangler.jsonc`, wraps the request handler in a Workers-compatible entry point. The primary first-party target.
+**`@timber/app/adapters/cloudflare`** — Cloudflare Workers and Pages. Generates `wrangler.jsonc`, wraps the request handler in a Workers-compatible entry point.
 
 **`@timber/app/adapters/node`** — Node.js HTTP server. Self-hosting, Docker, and any Node.js-based platform. Wraps the request handler in a `node:http` server. Supports gzip/brotli compression.
 
@@ -95,9 +95,9 @@ Any package that exports a `TimberPlatformAdapter` is a valid adapter. The inter
 
 Standard Web APIs first: `Request`, `Response`, `ReadableStream`, `crypto`. Node.js, Bun, Deno, and Cloudflare Workers are all viable targets.
 
-`AsyncLocalStorage` (`node:async_hooks`) is used narrowly — for `headers()`, `cookies()`, `params`, and `searchParams()`, which are already ALS-backed in Vinext (or follow the same pattern) and well-tested on Cloudflare. ALS is active for the entire request lifecycle: `proxy.ts`, `middleware.ts`, the React render pass, and server actions all run within the ALS scope. We do not expand ALS usage beyond these request-context accessors. The narrow existing surface stays narrow.
+`AsyncLocalStorage` (`node:async_hooks`) is used narrowly — for `headers()`, `cookies()`, `params`, and `searchParams()`. ALS is active for the entire request lifecycle: `proxy.ts`, `middleware.ts`, the React render pass, and server actions all run within the ALS scope. We do not expand ALS usage beyond these request-context accessors. The narrow existing surface stays narrow.
 
-**This narrow scope is a security decision.** Vinext's original codebase used a global `_fallbackState` object when `ALS.getStore()` returned `undefined` (e.g., on Cloudflare Workers). Concurrent requests sharing that fallback caused cross-request state pollution — User A could read User B's cookies, headers, and session data. timber.js has no global fallback. If the ALS store is unavailable, the call fails with an error rather than silently returning shared state. `React.cache` provides per-request, per-render-pass scoping within the render tree.
+**This narrow scope is a security decision.** Some frameworks use a global `_fallbackState` object when `ALS.getStore()` returns `undefined` (e.g., on Cloudflare Workers). Concurrent requests sharing that fallback can cause cross-request state pollution — User A could read User B's cookies, headers, and session data. timber.js has no global fallback. If the ALS store is unavailable, the call fails with an error rather than silently returning shared state. `React.cache` provides per-request, per-render-pass scoping within the render tree.
 
 ### `waitUntil()`
 
@@ -142,18 +142,20 @@ This warning appears once at startup, not per-call. It is not a build error — 
 
 ---
 
-## What We Keep From Vinext
+## Relationship to Vinext
 
-The Vite plugin architecture, RSC protocol, module shims, and build pipeline are retained. Specific files:
+timber.js is a fresh implementation, not a fork of Vinext. However, it operates in the same design space (Vite + RSC) and takes inspiration from concepts Vinext explored. Where applicable, we monitor Vinext and Next.js upstream for bug fixes and security patches that may apply to the same vulnerability classes in our independent codebase.
 
-- **Keep and track closely:** `next/link`, `next/image`, `next/font`, `next/navigation`, `next/headers` shims. These are the highest-value upstream targets.
-- **Keep and promote:** `waitUntil()` — maps directly to `ExtendableEvent.waitUntil()` on Cloudflare, framework-managed on Node.js. First-class `@timber/app/server` export.
-- **Keep and audit:** `rsc-html-stream`, client hydration, the three-environment model (rsc/ssr/browser)
-- **Replace:** `cache-runtime.ts` and `fetch-cache.ts` — replaced by `timber.cache` and `"use cache"` rewrite. No patched `fetch`.
-- **Rewrite:** `buildPageElement()`, `app-dev-server.ts` streaming pipeline, route discovery
-- **Remove:** `isr-cache.ts`, `tpr.ts`, pages router (`pages-router.ts`, `dev-server.ts`, `api-handler.ts`), single `middleware.ts` convention (replaced by `proxy.ts` for global middleware and `middleware.ts` per-route for route-scoped middleware)
+**What timber.js shares conceptually** (reimplemented independently):
+- The Vite plugin architecture pattern and three-environment model (RSC/SSR/browser)
+- `next/*` shim approach for ecosystem library compatibility
+- `waitUntil()` — maps directly to `ExtendableEvent.waitUntil()` on Cloudflare, framework-managed on Node.js
 
-After the first significant rewrite of the rendering pipeline, cherry-picking from upstream becomes "read their diff, understand the fix, reimplement in our architecture." That is the maintenance cost of a hard fork. The shims are the most tractable surface to keep in sync; the rendering pipeline is not.
+**Where timber.js intentionally diverges:**
+- No ISR, no patched `fetch`, no implicit caching — replaced by explicit `timber.cache` and `"use cache"`
+- No pages router — App Router only
+- `proxy.ts` for global middleware + per-route `middleware.ts` (not a single global `middleware.ts`)
+- Flush held until `onShellReady` for correct HTTP semantics
 
 ---
 
@@ -209,7 +211,7 @@ import routeManifest from 'virtual:timber-route-manifest'
 export default createRequestHandler(routeManifest)
 ```
 
-The route manifest is a virtual module generated by `timber-routing`. The entry file itself is a real TypeScript file that imports the virtual module. This avoids the string codegen antipattern from vinext's `app-dev-server.ts` (3,885 lines of template strings) and provides proper type checking, source maps, and IDE support.
+The route manifest is a virtual module generated by `timber-routing`. The entry file itself is a real TypeScript file that imports the virtual module. This avoids the string codegen antipattern (thousands of lines of template strings producing JavaScript) and provides proper type checking, source maps, and IDE support.
 
 ### Three-Environment Model
 
@@ -259,7 +261,7 @@ All `TIMBER_*` variables are framework-owned. Application-level env vars are the
 `timber dev` starts a Vite-based dev server. The following behaviors are implementation details rather than architectural decisions, but are documented here for completeness:
 
 - **Middleware re-runs on HMR.** When a `middleware.ts` file changes, the next request re-runs the middleware. This is a resolved design decision.
-- **Vite HMR for components.** Server components, client components, layouts, and pages use Vite's existing HMR infrastructure. The three-environment model (RSC/SSR/browser) from Vinext is retained.
+- **Vite HMR for components.** Server components, client components, layouts, and pages use Vite's existing HMR infrastructure via the three-environment model (RSC/SSR/browser).
 - **Dev-mode warnings.** The framework emits warnings in dev mode for common footguns:
   - `<Suspense>` wrapping `{children}` in a layout
   - `<DeferredSuspense>` wrapping `{children}` in a layout

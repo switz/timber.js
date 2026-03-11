@@ -1,12 +1,16 @@
 # Audit: Cache Runtime System
 
+> **Historical document.** This audited Vinext's cache runtime to understand the design space before
+> timber.js implemented its own cache system from scratch. Vinext code paths referenced here do not
+> exist in timber.js — they informed our independent implementation.
+
 **Task:** timber-b5n.3
 **Date:** 2026-03-09
-**Files audited:**
-- `packages/vinext/src/shims/cache-runtime.ts` (+ timber-app copy)
-- `packages/vinext/src/shims/cache.ts` (+ timber-app copy)
+**Vinext files analyzed (for reference only):**
+- `packages/vinext/src/shims/cache-runtime.ts`
+- `packages/vinext/src/shims/cache.ts`
 - `packages/vinext/src/server/isr-cache.ts`
-- `packages/vinext/src/cloudflare/kv-cache-handler.ts` (+ timber-app copy)
+- `packages/vinext/src/cloudflare/kv-cache-handler.ts`
 - `packages/vinext/src/shims/fetch-cache.ts`
 
 ---

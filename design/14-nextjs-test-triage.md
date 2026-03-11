@@ -2,11 +2,9 @@
 
 ## The Problem
 
-Vinext includes roughly 400 passing tests ported from Next.js, covering about 35 test files across 5 phases. The full Next.js `test/e2e/app-dir/` suite contains **~365 test directories** with thousands of individual test cases. We have ported a curated selection — the most impactful features — but the remaining ~330 directories are unexamined. Many contain tests for features vinext claims to support but has never validated against.
+The full Next.js `test/e2e/app-dir/` suite contains **~365 test directories** with thousands of individual test cases. We need to systematically evaluate which of these test behaviors timber.js should support, which it intentionally diverges from, and which are irrelevant.
 
-Worse, some features are broadly broken. Parallel routing renders basic `@slot` directories during SSR but fails in most real-world patterns: client-side navigation between slots, default.tsx fallback behavior, conditional slot rendering, nested parallel routes, and interaction with intercepting routes. These aren't edge cases — they are the core of what makes parallel routing useful.
-
-This document lays out the plan to systematically triage every Next.js test directory, fix broken features, and establish clear boundaries for what vinext must support (Next.js compatibility) versus where timber.js intentionally diverges.
+This document lays out the plan to systematically triage every Next.js test directory, implement needed features, and establish clear boundaries for where timber.js intentionally diverges from Next.js behavior.
 
 ---
 
@@ -70,17 +68,17 @@ Every directory gets one of four labels:
 
 | Label | Meaning | Action |
 |-------|---------|--------|
-| **Port** | Vinext/timber.js implements this feature. Tests should pass. | Write vinext-compat tests, fix failures. |
+| **Port** | timber.js implements this feature. Tests should pass. | Write compat tests, fix failures. |
 | **Partial** | Feature partially works. Some tests will pass, others expose real bugs. | Port what passes, file issues for failures, track in skip list. |
 | **N/A** | Tests are for webpack internals, build artifacts, HMR, Edge Runtime specifics, or Next.js-only infrastructure. | Skip permanently. Document why. |
-| **Won't Implement** | Feature exists in Next.js but is intentionally excluded from vinext/timber.js (e.g., PPR, AMP, `experimental.typedRoutes`). | Skip permanently. Document the decision. |
+| **Won't Implement** | Feature exists in Next.js but is intentionally excluded from timber.js (e.g., PPR, AMP, `experimental.typedRoutes`). | Skip permanently. Document the decision. |
 
 ### Step 3: Priority Ordering
 
 Within "Port" and "Partial", order by:
 
 1. **User-facing breakage** — Features that real apps use and that are broken (parallel routing, intercepting routes)
-2. **Confidence gap** — Features vinext claims to support but has zero test coverage for
+2. **Confidence gap** — Features timber.js claims to support but has zero test coverage for
 3. **Ecosystem compatibility** — Features required by popular libraries (next-intl, next-auth patterns, etc.)
 4. **Correctness** — Subtle behavioral differences that could cause silent bugs
 
@@ -88,8 +86,8 @@ Within "Port" and "Partial", order by:
 
 Work in batches of ~10 test directories. For each batch:
 1. Read the Next.js test source and fixtures
-2. Determine which assertions are testable in vinext's architecture (Vitest SSR vs Playwright)
-3. Port the test, adapting fixtures to vinext's test structure (`tests/fixtures/app-basic/app/nextjs-compat/`)
+2. Determine which assertions are testable in timber.js's architecture (Vitest SSR vs Playwright)
+3. Port the test, adapting fixtures to timber.js's test structure (`tests/fixtures/app-basic/app/nextjs-compat/`)
 4. Run the tests. Passing tests get added to TRACKING.md. Failing tests get root-caused and either fixed immediately or filed as issues with fix locations.
 
 ---
@@ -144,12 +142,10 @@ These are known bugs with documented fix locations. Each is a targeted fix:
 
 ### Tier 3: Missing Feature Implementation
 
-Features that real apps need but vinext doesn't implement or has incomplete:
+Features that real apps need but are not yet implemented or are incomplete:
 
 1. **`next/font/local` CSS variables** — The `className` approach works but `variable` mode (which sets CSS custom properties) doesn't. Many Tailwind setups use variable mode.
-2. **Partial Pre-Rendering (PPR)** — Experimental in Next.js but increasingly adopted. timber.js has a different philosophy here (see Divergence section), but vinext may need basic support.
-
-> **Note:** `useServerInsertedHTML` is fully implemented (`packages/vinext/src/shims/navigation.ts` lines 630-658, integrated in `app-dev-server.ts` lines 2505-2599) and tested (`tests/server-inserted-html.test.ts`). styled-components and @emotion/react should work — the `check.ts` support matrix should be updated from "partial" to "supported".
+2. **Partial Pre-Rendering (PPR)** — Experimental in Next.js but increasingly adopted. timber.js has a different philosophy here (see Divergence section).
 
 ### Tier 4: Expanded Test Coverage
 
@@ -164,9 +160,9 @@ After fixing broken features, systematically port tests from the remaining ~330 
 
 ---
 
-## Vinext vs Timber.js Divergence
+## Next.js vs Timber.js Divergence
 
-Some Next.js behaviors are intentionally different in timber.js. The test triage must account for this — tests that validate Next.js-specific behavior that timber.js rejects should be marked as "Won't Implement (timber.js divergence)" but may still need to pass in vinext mode.
+Some Next.js behaviors are intentionally different in timber.js. The test triage must account for this — tests that validate Next.js-specific behavior that timber.js rejects should be marked as "Won't Implement (timber.js divergence)".
 
 ### Where timber.js diverges
 
@@ -181,9 +177,8 @@ Some Next.js behaviors are intentionally different in timber.js. The test triage
 
 ### Implications for testing
 
-- **Vinext tests** should match Next.js behavior as closely as possible. Vinext is a compatibility layer — apps migrating from Next.js expect the same behavior.
-- **Timber.js tests** will fork from vinext tests where the frameworks diverge. A timber.js test for `loading.tsx` would verify that it does NOT auto-stream, while a vinext test would verify that it does.
-- Shared test infrastructure (fixtures, helpers, Playwright config) should work for both, with feature flags or separate fixture directories where behavior differs.
+- **Next.js compat tests** verify that timber.js matches Next.js behavior where compatibility is intended.
+- **Timber.js divergence tests** explicitly verify timber.js's intentional differences. For example, a timber.js test for `loading.tsx` would verify that it does NOT auto-stream, while a Next.js compat test would verify that standard rendering works.
 
 ---
 
@@ -228,7 +223,7 @@ As we port hundreds more tests, the current flat structure needs minor organizat
 - Priority ordering is established
 
 ### Phase 2: Parallel Routing Fixed
-- All Next.js parallel routing tests that are categorized as "Port" pass in vinext
+- All Next.js parallel routing tests that are categorized as "Port" pass
 - Client-side navigation, `default.tsx`, soft/hard navigation distinction all work
 - Playwright tests cover the full parallel routing lifecycle
 
@@ -245,15 +240,15 @@ As we port hundreds more tests, the current flat structure needs minor organizat
 ### Phase 5: Timber.js Fork
 - Timber.js test suite established with shared infrastructure
 - Divergence points have explicit tests proving timber.js's intentional differences
-- Both vinext and timber.js test suites run in CI
+- All test suites (compat + divergence) run in CI
 
 ---
 
 ## Appendix: Known Feature Support Matrix
 
-From `packages/vinext/src/check.ts` and code audit (updated March 2026 to reflect recent PRs #282, #290, #291, #294, #298, #301):
+Based on code audit and Next.js feature comparison:
 
-| Feature | Vinext | Broken/Missing Aspects |
+| Feature | Status | Broken/Missing Aspects |
 |---------|--------|----------------------|
 | App Router (pages, layouts, route groups) | Full | — |
 | Parallel routes (`@slot`) | Partial | Routing layer discovers slots and defaults correctly. Client nav, soft/hard nav distinction, and slot-level updates are not implemented. |
@@ -307,7 +302,7 @@ Beyond Next.js compatibility tests, timber.js introduces novel features that nee
 
 ### Infrastructure
 
-Timber.js tests should use the same infrastructure as vinext compat tests (Vitest HTTP for server-side, Playwright for client-side) but live in a separate directory:
+Timber.js-specific tests should use the same infrastructure as compat tests (Vitest HTTP for server-side, Playwright for client-side) but live in a separate directory:
 
 ```
 tests/

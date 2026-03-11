@@ -116,7 +116,7 @@ Entry modules are **real TypeScript files** with dynamic imports configured via 
 
 ### Why Not Codegen
 
-vinext's `app-dev-server.ts` generates entry modules as template strings — 3,885 lines of string concatenation producing JavaScript. This approach has critical problems:
+Some RSC-on-Vite frameworks generate entry modules as template strings — thousands of lines of string concatenation producing JavaScript. This approach has critical problems:
 
 - No type checking on generated code
 - No source maps — errors point to the generated string, not the source
@@ -214,4 +214,4 @@ No single source file should exceed 500 lines. When a file approaches this limit
 | `element-tree.ts` | ~300 lines | React element tree construction (AccessGates, error boundaries, slots) |
 | `metadata-resolver.ts` | ~200 lines | Metadata merge algorithm, title templates |
 
-The 500-line budget is a guideline, not a hard rule. The goal is to prevent god objects like vinext's `app-dev-server.ts` (3,885 lines). If a file is approaching the budget, it should be decomposed before it becomes unmanageable.
+The 500-line budget is a guideline, not a hard rule. The goal is to prevent god objects — multi-thousand-line files that combine unrelated responsibilities. If a file is approaching the budget, it should be decomposed before it becomes unmanageable.

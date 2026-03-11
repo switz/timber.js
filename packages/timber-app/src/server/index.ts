@@ -43,6 +43,10 @@ export type {
   EarlyHintsEmitter,
 } from './pipeline';
 
+// Early Hints
+export { collectEarlyHintHeaders, formatLinkHeader } from './early-hints';
+export type { EarlyHint } from './early-hints';
+
 // Canonicalization
 export { canonicalize } from './canonicalize';
 export type { CanonicalizeResult } from './canonicalize';

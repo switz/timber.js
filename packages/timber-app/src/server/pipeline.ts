@@ -62,7 +62,11 @@ export type RouteRenderer = (
 ) => Response | Promise<Response>;
 
 /** Function that sends 103 Early Hints for a matched route. */
-export type EarlyHintsEmitter = (match: RouteMatch, req: Request) => void | Promise<void>;
+export type EarlyHintsEmitter = (
+  match: RouteMatch,
+  req: Request,
+  responseHeaders: Headers
+) => void | Promise<void>;
 
 // ─── Pipeline Configuration ────────────────────────────────────────────────
 
@@ -276,20 +280,24 @@ export function createPipeline(config: PipelineConfig): (req: Request) => Promis
       return new Response(null, { status: 404 });
     }
 
+    // Response and request header containers — created before early hints so
+    // the emitter can append Link headers (e.g. for Cloudflare CDN → 103).
+    const responseHeaders = new Headers();
+    const requestHeaderOverlay = new Headers();
+
     // Stage 3: 103 Early Hints (before middleware, after match)
+    // Fires before middleware so the browser can begin fetching critical
+    // assets while middleware runs. Non-fatal — a failing emitter never
+    // blocks the request.
     if (earlyHints) {
-      // Fire-and-forget — don't block the pipeline
       try {
-        await earlyHints(match, req);
+        await earlyHints(match, req, responseHeaders);
       } catch {
         // Early hints failure is non-fatal
       }
     }
 
     // Stage 4: Leaf middleware.ts (only the leaf route's middleware runs)
-    const responseHeaders = new Headers();
-    const requestHeaderOverlay = new Headers();
-
     if (match.middleware) {
       const ctx: MiddlewareContext = {
         req,
@@ -297,6 +305,15 @@ export function createPipeline(config: PipelineConfig): (req: Request) => Promis
         headers: responseHeaders,
         params: match.params,
         searchParams: new URL(req.url).searchParams,
+        earlyHints: (hints) => {
+          for (const hint of hints) {
+            let value = `<${hint.href}>; rel=${hint.rel}`;
+            if (hint.as !== undefined) value += `; as=${hint.as}`;
+            if (hint.crossOrigin !== undefined) value += `; crossorigin=${hint.crossOrigin}`;
+            if (hint.fetchPriority !== undefined) value += `; fetchpriority=${hint.fetchPriority}`;
+            responseHeaders.append('Link', value);
+          }
+        },
       };
 
       if (devEmitter) {

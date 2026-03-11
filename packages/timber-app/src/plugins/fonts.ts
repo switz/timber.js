@@ -10,7 +10,6 @@
  * Does NOT handle (separate tasks):
  * - Google Fonts downloading/caching (timber-nk5)
  * - Build manifest / Early Hints integration (timber-qnx)
- * - Local font file resolution (timber-60p)
  *
  * Design doc: 24-fonts.md
  */
@@ -21,6 +20,8 @@ import type { ExtractedFont, GoogleFontConfig } from '../fonts/types.js';
 import type { ManifestFontEntry } from '../server/build-manifest.js';
 import { generateVariableClass, generateFontFamilyClass } from '../fonts/css.js';
 import { generateFallbackCss, buildFontStack } from '../fonts/fallbacks.js';
+import { extractLocalFontConfig, processLocalFont } from '../fonts/local.js';
+import { inferFontFormat } from '../fonts/local.js';
 
 const VIRTUAL_GOOGLE = '@timber/fonts/google';
 const VIRTUAL_LOCAL = '@timber/fonts/local';
@@ -313,6 +314,87 @@ export function generateAllFontCss(registry: FontRegistry): string {
 }
 
 /**
+ * Parse the local name used for the default import of `@timber/fonts/local`.
+ *
+ * Handles:
+ *   import localFont from '@timber/fonts/local'
+ *   import myLoader from '@timber/fonts/local'
+ */
+export function parseLocalFontImportName(source: string): string | null {
+  const match = source.match(
+    /import\s+(\w+)\s+from\s*['"]@timber\/fonts\/local['"]/
+  );
+  return match ? match[1] : null;
+}
+
+/**
+ * Transform local font calls in source code.
+ *
+ * Finds `localFont({ ... })` calls, extracts the config,
+ * registers the font, and replaces the call with a static FontResult.
+ */
+function transformLocalFonts(
+  transformedCode: string,
+  originalCode: string,
+  importerId: string,
+  registry: FontRegistry,
+  emitError: (msg: string) => void
+): string {
+  const localName = parseLocalFontImportName(originalCode);
+  if (!localName) return transformedCode;
+
+  // Check for dynamic calls
+  const dynamicCall = detectDynamicFontCall(originalCode, [localName]);
+  if (dynamicCall) {
+    emitError(
+      `Font function calls must be statically analyzable. ` +
+      `Found dynamic call: ${dynamicCall}. ` +
+      `Pass a literal object with string/array values instead.`
+    );
+  }
+
+  // Find all calls: const varName = localFont({ ... })
+  const callPattern = new RegExp(
+    `(?:const|let|var)\\s+(\\w+)\\s*=\\s*${localName}\\s*\\(\\s*(\\{[\\s\\S]*?\\})\\s*\\)`,
+    'g'
+  );
+
+  let callMatch;
+  while ((callMatch = callPattern.exec(originalCode)) !== null) {
+    const varName = callMatch[1];
+    const configSource = callMatch[2];
+    const fullMatch = callMatch[0];
+
+    const config = extractLocalFontConfig(`(${configSource})`);
+    if (!config) {
+      emitError(
+        `Could not statically analyze local font config. ` +
+        `Ensure src is a string or array of { path, weight?, style? } objects.`
+      );
+      return transformedCode;
+    }
+
+    const extracted = processLocalFont(config, importerId);
+    registry.set(extracted.id, extracted);
+
+    const resultObj = extracted.variable
+      ? `{ className: "${extracted.className}", style: { fontFamily: "${extracted.fontFamily}" }, variable: "${extracted.variable}" }`
+      : `{ className: "${extracted.className}", style: { fontFamily: "${extracted.fontFamily}" } }`;
+
+    const replacement = `const ${varName} = ${resultObj}`;
+    transformedCode = transformedCode.replace(fullMatch, replacement);
+  }
+
+  // Remove the import statement
+  transformedCode = transformedCode.replace(
+    /import\s+\w+\s+from\s*['"]@timber\/fonts\/local['"];?\s*\n?/g,
+    ''
+  );
+
+  return transformedCode;
+}
+
+/**
  * Create the timber-fonts Vite plugin.
  */
 export function timberFonts(ctx: PluginContext): Plugin {
@@ -353,86 +435,95 @@ export function timberFonts(ctx: PluginContext): Plugin {
       // Skip virtual modules and node_modules
       if (id.startsWith('\0') || id.includes('node_modules')) return null;
 
-      // Check if the file imports from @timber/fonts/google
       const hasGoogleImport = code.includes('@timber/fonts/google');
-      if (!hasGoogleImport) return null;
-
-      const families = parseGoogleFontFamilies(code);
-      if (families.size === 0) return null;
-
-      const importedNames = [...families.keys()];
-
-      // Check for dynamic calls that can't be statically analyzed
-      const dynamicCall = detectDynamicFontCall(code, importedNames);
-      if (dynamicCall) {
-        this.error(
-          `Font function calls must be statically analyzable. ` +
-          `Found dynamic call: ${dynamicCall}. ` +
-          `Pass a literal object with string/array values instead.`
-        );
-      }
+      const hasLocalImport = code.includes('@timber/fonts/local');
+      if (!hasGoogleImport && !hasLocalImport) return null;
 
       let transformedCode = code;
 
-      for (const [localName, family] of families) {
-        // Find all calls: FontName({ ... })
-        const callPattern = new RegExp(
-          `(?:const|let|var)\\s+(\\w+)\\s*=\\s*${localName}\\s*\\(\\s*(\\{[\\s\\S]*?\\})\\s*\\)`,
-          'g'
-        );
+      // ── Google font transform ──────────────────────────────────────────
+      if (hasGoogleImport) {
+        const families = parseGoogleFontFamilies(code);
+        if (families.size > 0) {
+          const importedNames = [...families.keys()];
 
-        let callMatch;
-        while ((callMatch = callPattern.exec(code)) !== null) {
-          const varName = callMatch[1];
-          const configSource = callMatch[2];
-          const fullMatch = callMatch[0];
-
-          const config = extractFontConfig(`(${configSource})`);
-          if (!config) {
+          const dynamicCall = detectDynamicFontCall(code, importedNames);
+          if (dynamicCall) {
             this.error(
-              `Could not statically analyze font config for ${family}. ` +
-              `Ensure all config values are string literals or arrays of string literals.`
+              `Font function calls must be statically analyzable. ` +
+              `Found dynamic call: ${dynamicCall}. ` +
+              `Pass a literal object with string/array values instead.`
             );
-            return null;
           }
 
-          const fontId = generateFontId(family, config);
-          const className = familyToClassName(family);
-          const fontStack = buildFontStack(family);
-          const display = config.display ?? 'swap';
+          for (const [localName, family] of families) {
+            const callPattern = new RegExp(
+              `(?:const|let|var)\\s+(\\w+)\\s*=\\s*${localName}\\s*\\(\\s*(\\{[\\s\\S]*?\\})\\s*\\)`,
+              'g'
+            );
 
-          const extracted: ExtractedFont = {
-            id: fontId,
-            family,
-            provider: 'google',
-            weights: normalizeToArray(config.weight),
-            styles: normalizeStyleArray(config.style),
-            subsets: config.subsets ?? ['latin'],
-            display,
-            variable: config.variable,
-            className,
-            fontFamily: fontStack,
-            importer: id,
-          };
+            let callMatch;
+            while ((callMatch = callPattern.exec(code)) !== null) {
+              const varName = callMatch[1];
+              const configSource = callMatch[2];
+              const fullMatch = callMatch[0];
 
-          registry.set(fontId, extracted);
+              const config = extractFontConfig(`(${configSource})`);
+              if (!config) {
+                this.error(
+                  `Could not statically analyze font config for ${family}. ` +
+                  `Ensure all config values are string literals or arrays of string literals.`
+                );
+                return null;
+              }
 
-          // Build the static replacement
-          const resultObj = config.variable
-            ? `{ className: "${className}", style: { fontFamily: "${fontStack}" }, variable: "${config.variable}" }`
-            : `{ className: "${className}", style: { fontFamily: "${fontStack}" } }`;
+              const fontId = generateFontId(family, config);
+              const className = familyToClassName(family);
+              const fontStack = buildFontStack(family);
+              const display = config.display ?? 'swap';
 
-          const replacement = `const ${varName} = ${resultObj}`;
-          transformedCode = transformedCode.replace(fullMatch, replacement);
+              const extracted: ExtractedFont = {
+                id: fontId,
+                family,
+                provider: 'google',
+                weights: normalizeToArray(config.weight),
+                styles: normalizeStyleArray(config.style),
+                subsets: config.subsets ?? ['latin'],
+                display,
+                variable: config.variable,
+                className,
+                fontFamily: fontStack,
+                importer: id,
+              };
+
+              registry.set(fontId, extracted);
+
+              const resultObj = config.variable
+                ? `{ className: "${className}", style: { fontFamily: "${fontStack}" }, variable: "${config.variable}" }`
+                : `{ className: "${className}", style: { fontFamily: "${fontStack}" } }`;
+
+              const replacement = `const ${varName} = ${resultObj}`;
+              transformedCode = transformedCode.replace(fullMatch, replacement);
+            }
+          }
+
+          transformedCode = transformedCode.replace(
+            /import\s*\{[^}]+\}\s*from\s*['"]@timber\/fonts\/google['"];?\s*\n?/g,
+            ''
+          );
         }
       }
 
-      // Remove the import statement (the virtual module is no longer needed
-      // after transform replaces all calls with static objects)
-      transformedCode = transformedCode.replace(
-        /import\s*\{[^}]+\}\s*from\s*['"]@timber\/fonts\/google['"];?\s*\n?/g,
-        ''
-      );
+      // ── Local font transform ───────────────────────────────────────────
+      if (hasLocalImport) {
+        transformedCode = transformLocalFonts(
+          transformedCode,
+          code,
+          id,
+          registry,
+          this.error.bind(this)
+        );
+      }
 
       if (transformedCode !== code) {
         return { code: transformedCode, map: null };
@@ -456,22 +547,35 @@ export function timberFonts(ctx: PluginContext): Plugin {
       const fontsByImporter = new Map<string, ManifestFontEntry[]>();
 
       for (const font of registry.values()) {
-        // Build font file entries for each weight × style × subset combination.
-        // Until the Google Fonts download task (timber-nk5) provides real
-        // content-hashed URLs, we generate deterministic placeholder paths
-        // that match the naming convention from design/24-fonts.md.
         const entries = fontsByImporter.get(font.importer) ?? [];
 
-        for (const weight of font.weights) {
-          for (const style of font.styles) {
-            for (const subset of font.subsets) {
-              const slug = font.family.toLowerCase().replace(/\s+/g, '-');
-              const href = `/_timber/fonts/${slug}-${subset}-${weight}-${style}.woff2`;
-              entries.push({
-                href,
-                format: 'woff2',
-                crossOrigin: 'anonymous',
-              });
+        if (font.provider === 'local' && font.localSources) {
+          // Local fonts: one entry per source file
+          for (const src of font.localSources) {
+            const filename = src.path.split('/').pop() ?? src.path;
+            const format = inferFontFormat(src.path);
+            entries.push({
+              href: `/_timber/fonts/${filename}`,
+              format,
+              crossOrigin: 'anonymous',
+            });
+          }
+        } else {
+          // Google fonts: entry per weight × style × subset combination.
+          // Until the Google Fonts download task (timber-nk5) provides real
+          // content-hashed URLs, we generate deterministic placeholder paths
+          // that match the naming convention from design/24-fonts.md.
+          for (const weight of font.weights) {
+            for (const style of font.styles) {
+              for (const subset of font.subsets) {
+                const slug = font.family.toLowerCase().replace(/\s+/g, '-');
+                const href = `/_timber/fonts/${slug}-${subset}-${weight}-${style}.woff2`;
+                entries.push({
+                  href,
+                  format: 'woff2',
+                  crossOrigin: 'anonymous',
+                });
+              }
             }
           }
         }

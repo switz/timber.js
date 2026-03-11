@@ -57,6 +57,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             <Link href="/middleware-test/short-circuit" data-testid="link-mw-short-circuit">
               MW: Short-Circuit
             </Link>
+            <Link href="/middleware-test/nav-target" data-testid="link-mw-nav-target">
+              MW: Nav Target
+            </Link>
             <Link href="/auth-test/denied" data-testid="link-auth-denied">
               Auth: Denied
             </Link>

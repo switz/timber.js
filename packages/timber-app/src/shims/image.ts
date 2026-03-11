@@ -6,6 +6,7 @@
  * that import next/image still render correctly.
  */
 
+import { createElement } from 'react';
 import type { ImgHTMLAttributes } from 'react';
 
 export type ImageProps = ImgHTMLAttributes<HTMLImageElement> & {
@@ -41,7 +42,7 @@ export function Image({
   blurDataURL: _blurDataURL,
   ...rest
 }: ImageProps) {
-  return rest as unknown;
+  return createElement('img', rest);
 }
 
 export default Image;

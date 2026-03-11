@@ -8,8 +8,8 @@
   },
   "dependencies": {
     "@timber/app": "workspace:*",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react": "19.3.0-canary-46103596-20260305",
+    "react-dom": "19.3.0-canary-46103596-20260305"
   },
   "devDependencies": {
     "@content-collections/core": "^0.14.2",

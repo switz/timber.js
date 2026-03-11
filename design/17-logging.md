@@ -488,16 +488,20 @@ The dev logger is implemented as a Vite plugin and stripped entirely from produc
 - `onRequestError()` hook invoked for unhandled errors in proxy, middleware, and render phases
 - `slowRequestMs` config support (default 3000ms, 0 to disable)
 
-**Implemented (dev logging wiring):**
-- Dev log event emission at pipeline stages: `request-start`, `phase-start`/`phase-end` for proxy, middleware, render, `request-end`
-- `DevLogEmitter` per-request via ALS (`dev-log-context.ts`) — zero overhead in production (no emitter created)
-- `PipelineConfig.onDevLog` callback — dev server subscribes `createRequestCollector` and writes formatted output to stderr
-- `cache-hit`/`cache-miss` events emitted from `timber.cache` call sites
-- `access-result` events emitted from `AccessGate` with segment name and result (PASS/DENY/REDIRECT)
-- `TIMBER_DEV_QUIET=1` and `TIMBER_DEV_LOG=summary` environment variable support
-- `slowPhaseMs` threshold support via `createRequestCollector` config
+**Implemented (dev logging — OTEL span-based):**
+- `DevSpanProcessor` — custom OTEL `SpanProcessor` that collects completed spans per-request by trace ID, formats when root span ends, writes to stderr
+- `initDevTracing()` — dev-mode OTEL SDK auto-init: creates `BasicTracerProvider` with `DevSpanProcessor`, sets global provider
+- Dev logger consumes OTEL spans directly — no parallel event system, spans are single source of truth
+- Four dev log modes: `tree` (default), `summary`, `verbose` (new — NDJSON dump), `quiet`
+- `formatSpanTree()` — builds span tree from `parentSpanContext` relationships, renders indented tree with timing and environment tags
+- `formatSpanSummary()` — one-line per request with method, path, status, duration
+- `formatVerbose()` — chronological NDJSON of all spans with full attributes and events
+- `resolveLogMode()` — resolves mode from `TIMBER_DEV_QUIET=1`, `TIMBER_DEV_LOG={tree,summary,verbose}`, or config
+- Span-to-label mapping: `timber.proxy` → `[proxy] proxy.ts`, `timber.access` → `[rsc] AccessGate(segment)`, etc.
+- Cache annotations from span events: `timber.cache.hit`/`timber.cache.miss` rendered as child annotations in tree mode
+- Access results from span attributes: `timber.result` (PASS/DENY/REDIRECT), `timber.deny_status`
+- `slowPhaseMs` threshold highlighting in tree mode (default 200ms)
+- Removed: `DevLogEmitter`, `DevLogEvents`, `dev-log-context.ts` ALS, `PipelineConfig.onDevLog`, all manual `devEmitter.emit()` calls
 
 **Not yet implemented:**
 - `slowPhaseMs` config wiring from `timber.config.ts` (infrastructure works, config option not added)
-- `timber.access`, `timber.ssr`, `timber.action`, `timber.metadata`, `timber.layout`, `timber.page` OTEL spans
-- `timber.cache` HIT/MISS span events on enclosing span

@@ -6,7 +6,7 @@ import { timber } from '../../packages/timber-app/src/index';
 const root = resolve(import.meta.dirname, '../..');
 
 export default defineConfig({
-  plugins: [timber()],
+  plugins: [timber({ pageExtensions: ['tsx', 'ts', 'jsx', 'js', 'mdx'] })],
   root: import.meta.dirname,
   server: {
     port: 3003,

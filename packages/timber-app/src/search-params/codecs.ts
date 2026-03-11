@@ -17,13 +17,36 @@ import type { SearchParamCodec } from './create.js';
 
 interface StandardSchemaV1<Output = unknown> {
   '~standard': {
-    validate(value: unknown): StandardSchemaResult<Output>;
+    validate(value: unknown): StandardSchemaResult<Output> | Promise<StandardSchemaResult<Output>>;
   };
 }
 
 type StandardSchemaResult<Output> =
   | { value: Output; issues?: undefined }
   | { value?: undefined; issues: ReadonlyArray<{ message: string }> };
+
+// ---------------------------------------------------------------------------
+// Sync validate helper
+// ---------------------------------------------------------------------------
+
+/**
+ * Zod v4's ~standard.validate() signature includes Promise in the return union
+ * to satisfy the Standard Schema spec, but in practice Zod always validates
+ * synchronously for the schema types we use. We assert the result is sync and
+ * throw if it isn't — search params parsing must be synchronous.
+ */
+function validateSync<Output>(
+  schema: StandardSchemaV1<Output>,
+  value: unknown
+): StandardSchemaResult<Output> {
+  const result = schema['~standard'].validate(value);
+  if (result instanceof Promise) {
+    throw new Error(
+      '[timber] fromSchema: schema returned a Promise — only sync schemas are supported for search params.'
+    );
+  }
+  return result;
+}
 
 // ---------------------------------------------------------------------------
 // fromSchema — bridge from Standard Schema to SearchParamCodec
@@ -53,13 +76,13 @@ export function fromSchema<T>(schema: StandardSchemaV1<T>): SearchParamCodec<T> 
       const input = Array.isArray(value) ? value[value.length - 1] : value;
 
       // Try parsing the raw value
-      const result = schema['~standard'].validate(input);
+      const result = validateSync(schema, input);
       if (!result.issues) {
         return result.value;
       }
 
       // On failure, try parsing undefined to get the default
-      const defaultResult = schema['~standard'].validate(undefined);
+      const defaultResult = validateSync(schema, undefined);
       if (!defaultResult.issues) {
         return defaultResult.value;
       }
@@ -103,13 +126,13 @@ export function fromArraySchema<T>(schema: StandardSchemaV1<T>): SearchParamCode
         input = undefined;
       }
 
-      const result = schema['~standard'].validate(input);
+      const result = validateSync(schema, input);
       if (!result.issues) {
         return result.value;
       }
 
       // On failure, try undefined for default
-      const defaultResult = schema['~standard'].validate(undefined);
+      const defaultResult = validateSync(schema, undefined);
       if (!defaultResult.issues) {
         return defaultResult.value;
       }

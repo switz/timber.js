@@ -18,6 +18,7 @@ import { createFromReadableStream } from '@vitejs/plugin-rsc/ssr';
 
 import { renderSsrStream, buildSsrResponse } from './ssr-render.js';
 import { injectHead, injectRscPayload } from './html-injectors.js';
+import { withNuqsSsrAdapter } from './nuqs-ssr-provider.js';
 
 /**
  * Navigation context passed from the RSC environment to SSR.
@@ -82,12 +83,19 @@ export async function handleSsr(
   // map, importing the actual components for server-side rendering.
   const element = createFromReadableStream(rscStream) as React.ReactNode;
 
+  // Wrap with a server-safe nuqs adapter so that 'use client' components
+  // that call nuqs hooks (useQueryStates, useQueryState) can SSR correctly.
+  // The client-side TimberNuqsAdapter (injected by browser-entry.ts) takes
+  // over after hydration. This provider supplies the request's search params
+  // as a static snapshot so nuqs renders the right initial values on the server.
+  const wrappedElement = withNuqsSsrAdapter(navContext.searchParams, element);
+
   // Render to HTML stream (waits for onShellReady).
   // Pass bootstrapScriptContent so React injects a non-deferred <script>
   // in the shell HTML. This executes immediately during parsing — even
   // while Suspense boundaries are still streaming — triggering module
   // loading via dynamic import() so hydration can start early.
-  const htmlStream = await renderSsrStream(element, {
+  const htmlStream = await renderSsrStream(wrappedElement, {
     bootstrapScriptContent: navContext.bootstrapScriptContent || undefined,
     deferSuspenseFor: navContext.deferSuspenseFor,
   });

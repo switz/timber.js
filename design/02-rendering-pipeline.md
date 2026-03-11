@@ -441,7 +441,7 @@ RSC renderToReactStream(tree)
   │
   ├── .tee() ──┬── SSR stream → createFromReadableStream → renderToReadableStream → HTML
   │             │
-  │             └── Inline stream → injectRscPayload → <script> before </body>
+  │             └── Inline stream → injectRscPayload → progressive <script> tags in HTML body
   │
   └── (RSC payload request from client navigation) → returned directly, no SSR
 ```
@@ -452,20 +452,34 @@ For HTML responses, the RSC stream is tee'd into two copies:
 
 1. **SSR stream** — decoded via `createFromReadableStream` from `@vitejs/plugin-rsc/ssr`, resolving `"use client"` references to actual component modules. The decoded element tree is rendered to HTML via `renderToReadableStream`.
 
-2. **Inline stream** — passed to `injectRscPayload()`, which reads it to completion, encodes the bytes as a comma-separated array, and injects a `<script>` before `</body>` that creates `window.__TIMBER_RSC_PAYLOAD` as a `ReadableStream`. The browser entry decodes this via `createFromReadableStream` from `@vitejs/plugin-rsc/browser` to hydrate the React tree without a second server round-trip.
+2. **Inline stream** — passed to `injectRscPayload()`, which progressively interleaves RSC Flight chunks into the HTML stream as inline `<script>` tags. Each chunk pushes into `self.__timber_f`, and a final `self.__timber_f_done=1` signal marks completion. The browser entry sets up a `ReadableStream` controller on `self.__timber_f.push` so chunks feed into `createFromReadableStream` progressively — hydration can start before all Suspense boundaries resolve.
 
 ### RSC Payload Requests
 
 For client-side navigation requests (`Accept: text/x-component`), the RSC stream is returned directly — no tee, no SSR, no HTML. The client decodes it via `createFromFetch` and renders it into the hydrated React root.
 
+### Bootstrap Scripts and Streaming Hydration
+
+The bootstrap script is injected via React's `bootstrapScriptContent` option on `renderToReadableStream`. This is critical for streaming:
+
+- **`<script type="module">` is deferred by the HTML spec** — it doesn't execute until the document finishes parsing. During streaming SSR, the HTML parser doesn't finish until all Suspense boundaries resolve and `</body>` arrives. This means module scripts block hydration behind Suspense.
+
+- **Dynamic `import()` in a regular inline script executes immediately** during HTML parsing, even while Suspense boundaries are still streaming. React injects the bootstrap as a non-deferred `<script>` in the shell HTML.
+
+In dev mode, the bootstrap imports both the Vite HMR client and the browser entry virtual module. In production, it imports the hashed chunk URL from the build manifest, with `<link rel="modulepreload">` hints injected into `<head>` for dependency preloading.
+
+> **Browser compat note:** Dynamic `import()` has the same browser support as `<script type="module">` — all modern browsers. If we need to target older browsers that support modules but not dynamic import (unlikely in practice), we may need to evaluate emitting IIFE/CJS bundles via Vite's `build.lib` options. Track this as a production validation item.
+
 ### Hydration Bootstrap
 
 On page load, the browser entry:
 
-1. Reads `window.__TIMBER_RSC_PAYLOAD` (the inlined RSC stream)
+1. Reads the progressive RSC payload from `self.__timber_f` (chunks arrive as inline scripts during streaming)
 2. Decodes it via `createFromReadableStream` into a React element tree
 3. Calls `hydrateRoot(document, element)` — React owns the full document since root layout renders `<html>`
 4. Stores the decoded element in the history stack for instant back/forward replay
 5. Initializes the client-side navigation router (link interception, popstate, prefetch)
+
+`createFromReadableStream` resolves its thenable when the first Flight row (the shell) is decoded, not when the stream closes. This means hydration can begin as soon as the shell arrives — Suspense boundaries resolve progressively as their RSC chunks stream in.
 
 If no RSC payload is available (e.g., `noJS` mode or incomplete inlining), a non-hydrated `createRoot(document)` is used as a fallback — the first client navigation will replace the SSR HTML with a React-managed tree.

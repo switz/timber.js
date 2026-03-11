@@ -36,6 +36,7 @@ import { resolveMetadata, renderMetadataToElements } from './metadata.js';
 import type { Metadata } from './types.js';
 import { DenySignal, RenderError } from './primitives.js';
 import { buildClientScripts } from './html-injectors.js';
+import type { ClientBootstrapConfig } from './html-injectors.js';
 import { renderDenyPage, renderDenyPageAsRsc } from './deny-renderer.js';
 import type { LayoutEntry } from './deny-renderer.js';
 import {
@@ -87,10 +88,10 @@ function createDebugChannelSink(): { readable: ReadableStream; writable: Writabl
 function createRequestHandler(manifest: typeof routeManifest, runtimeConfig: typeof config) {
   const matchRoute = createRouteMatcher(manifest);
 
-  // Build the client bootstrap script tags.
+  // Build the client bootstrap configuration.
   // In noJS mode (output: static + noJS: true), no scripts are injected.
   // In production, uses hashed chunk URLs from the build manifest.
-  const scriptsHtml = buildClientScripts({
+  const clientBootstrap = buildClientScripts({
     ...runtimeConfig,
     buildManifest: buildManifest as BuildManifest,
   });
@@ -106,10 +107,10 @@ function createRequestHandler(manifest: typeof routeManifest, runtimeConfig: typ
     proxy: manifest.proxy?.load,
     matchRoute,
     render: async (req: Request, match: RouteMatch, responseHeaders: Headers) => {
-      return renderRoute(req, match, responseHeaders, scriptsHtml);
+      return renderRoute(req, match, responseHeaders, clientBootstrap);
     },
     renderNoMatch: async (req: Request, responseHeaders: Headers) => {
-      return renderNoMatchPage(req, manifest.root, responseHeaders, scriptsHtml);
+      return renderNoMatchPage(req, manifest.root, responseHeaders, clientBootstrap);
     },
     onDevLog:
       isDev && devLogMode !== 'quiet'
@@ -159,7 +160,7 @@ async function renderRoute(
   _req: Request,
   match: RouteMatch,
   responseHeaders: Headers,
-  scriptsHtml: string
+  clientBootstrap: ClientBootstrapConfig
 ): Promise<Response> {
   const segments = match.segments as unknown as ManifestSegmentNode[];
 
@@ -406,7 +407,7 @@ async function renderRoute(
       _req,
       match,
       responseHeaders,
-      scriptsHtml,
+      clientBootstrap,
       createDebugChannelSink,
       callSsr
     );
@@ -453,8 +454,8 @@ async function renderRoute(
     searchParams: Object.fromEntries(new URL(_req.url).searchParams),
     statusCode: 200,
     responseHeaders,
-    headHtml,
-    scriptsHtml,
+    headHtml: headHtml + clientBootstrap.preloadLinks,
+    bootstrapScriptContent: clientBootstrap.bootstrapScriptContent,
     rscStream: inlineStream,
   };
 
@@ -473,7 +474,7 @@ async function renderRoute(
         _req,
         match,
         responseHeaders,
-        scriptsHtml,
+        clientBootstrap,
         createDebugChannelSink,
         callSsr
       );
@@ -493,7 +494,7 @@ async function renderRoute(
         _req,
         match,
         responseHeaders,
-        scriptsHtml
+        clientBootstrap
       );
     }
 
@@ -593,7 +594,7 @@ async function renderNoMatchPage(
   req: Request,
   rootSegment: ManifestSegmentNode,
   responseHeaders: Headers,
-  scriptsHtml: string
+  clientBootstrap: ClientBootstrapConfig
 ): Promise<Response> {
   const segments = [rootSegment];
 
@@ -619,7 +620,7 @@ async function renderNoMatchPage(
     req,
     match,
     responseHeaders,
-    scriptsHtml,
+    clientBootstrap,
     createDebugChannelSink,
     callSsr
   );
@@ -644,7 +645,7 @@ async function renderErrorPage(
   req: Request,
   match: RouteMatch,
   responseHeaders: Headers,
-  scriptsHtml: string
+  clientBootstrap: ClientBootstrapConfig
 ): Promise<Response> {
   const h = createElement as (...args: unknown[]) => React.ReactElement;
 
@@ -732,7 +733,7 @@ async function renderErrorPage(
     statusCode: status,
     responseHeaders,
     headHtml: '',
-    scriptsHtml,
+    bootstrapScriptContent: clientBootstrap.bootstrapScriptContent,
     rscStream: inlineStream,
   };
 

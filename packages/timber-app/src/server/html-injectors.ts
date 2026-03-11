@@ -19,7 +19,8 @@
 function createInjector(
   stream: ReadableStream<Uint8Array>,
   content: string,
-  targetTag: string
+  targetTag: string,
+  position: 'before' | 'after' = 'before'
 ): ReadableStream<Uint8Array> {
   if (!content) return stream;
 
@@ -44,8 +45,9 @@ function createInjector(
         const tagIndex = text.indexOf(targetTag);
 
         if (tagIndex !== -1) {
-          const before = text.slice(0, tagIndex);
-          const after = text.slice(tagIndex);
+          const splitPoint = position === 'before' ? tagIndex : tagIndex + targetTag.length;
+          const before = text.slice(0, splitPoint);
+          const after = text.slice(splitPoint);
           controller.enqueue(encoder.encode(before + content + after));
           injected = true;
           tail = '';
@@ -114,14 +116,18 @@ function escapeForScript(str: string): string {
 }
 
 /**
- * Inline the RSC Flight payload into the HTML stream for client-side hydration.
+ * Progressively inline RSC Flight payload chunks into the HTML stream.
  *
- * Reads the RSC stream in the background while passing HTML chunks through
- * immediately. When </body> is found, waits for the RSC stream to finish,
- * then injects a script with the escaped payload before </body>.
+ * Instead of buffering the entire RSC payload and injecting it as one
+ * blob before </body>, this interleaves RSC chunks with HTML chunks as
+ * they arrive. Each RSC chunk becomes an inline script tag:
  *
- * This preserves React's streaming behavior — Suspense boundary flushes
- * are sent to the client as they resolve, not buffered until the end.
+ *   <script>self.__timber_f.push('escaped_chunk')</script>
+ *
+ * The client-side browser entry sets up a ReadableStream controller on
+ * `self.__timber_f.push` so chunks feed into `createFromReadableStream`
+ * progressively, enabling hydration to start before all Suspense
+ * boundaries have resolved.
  *
  * If no rscStream is provided, returns the HTML stream unchanged.
  */
@@ -132,75 +138,90 @@ export function injectRscPayload(
   if (!rscStream) return htmlStream;
 
   const encoder = new TextEncoder();
-  const decoder = new TextDecoder();
-  const targetTag = '</body>';
-  const tailLen = targetTag.length - 1;
-
-  let tail = '';
-  let injected = false;
-  const rscChunks: string[] = [];
-  let rscDone = false;
+  const htmlDecoder = new TextDecoder();
   const rscReader = rscStream.getReader();
   const rscDecoder = new TextDecoder();
 
-  // Read the RSC stream to completion in the background.
-  // Errors are caught to prevent unhandled promise rejections —
-  // if the RSC stream errors (e.g. the tee'd source is cancelled),
-  // we still produce valid HTML (just without the inline RSC payload).
+  // Pending RSC chunks that arrived between HTML chunks.
+  // Drained on every HTML transform call and on flush.
+  const pendingRsc: string[] = [];
+  let rscDone = false;
+
+  // Read the RSC stream in the background, accumulating chunks
+  // that will be flushed alongside the next HTML chunk.
   const rscPromise = (async () => {
     try {
       for (;;) {
         const { done, value } = await rscReader.read();
         if (done) break;
-        rscChunks.push(rscDecoder.decode(value, { stream: true }));
+        pendingRsc.push(rscDecoder.decode(value, { stream: true }));
       }
       const final = rscDecoder.decode();
-      if (final) rscChunks.push(final);
+      if (final) pendingRsc.push(final);
     } catch {
-      // RSC stream errored — proceed with whatever chunks we collected.
+      // RSC stream errored — emit whatever chunks we collected.
     }
     rscDone = true;
   })();
 
+  /** Build <script> tags for all pending RSC chunks and clear the queue. */
+  function drainPendingRsc(): string {
+    if (pendingRsc.length === 0) return '';
+    let scripts = '';
+    for (const chunk of pendingRsc) {
+      scripts += `<script>(self.__timber_f=self.__timber_f||[]).push('${escapeForScript(chunk)}')</script>`;
+    }
+    pendingRsc.length = 0;
+    return scripts;
+  }
+
+  const targetTag = '</body>';
+  let foundBody = false;
+  let doneEmitted = false;
+
   return htmlStream.pipeThrough(
     new TransformStream<Uint8Array, Uint8Array>({
-      async transform(chunk, controller) {
-        if (injected) {
+      transform(chunk, controller) {
+        if (foundBody) {
           controller.enqueue(chunk);
           return;
         }
 
-        const text = tail + decoder.decode(chunk, { stream: true });
+        const text = htmlDecoder.decode(chunk, { stream: true });
         const tagIndex = text.indexOf(targetTag);
 
         if (tagIndex !== -1) {
-          // Wait for RSC stream to complete before injecting
-          if (!rscDone) await rscPromise;
-
-          const rscText = escapeForScript(rscChunks.join(''));
-          const script =
-            '<script>' +
-            `window.__TIMBER_RSC_PAYLOAD='${rscText}'` +
-            '</script>';
-
+          // Found </body> — flush pending RSC + done signal before it.
           const before = text.slice(0, tagIndex);
           const after = text.slice(tagIndex);
-          controller.enqueue(encoder.encode(before + script + after));
-          injected = true;
-          tail = '';
-        } else {
-          // Pass through everything except the trailing chars that
-          // might be the start of </body> split across chunks.
-          const safeEnd = Math.max(0, text.length - tailLen);
-          if (safeEnd > 0) {
-            controller.enqueue(encoder.encode(text.slice(0, safeEnd)));
+          const rscScripts = drainPendingRsc();
+          let doneSignal = '';
+          if (rscDone && !doneEmitted) {
+            doneSignal = '<script>self.__timber_f_done=1</script>';
+            doneEmitted = true;
           }
-          tail = text.slice(safeEnd);
+          controller.enqueue(encoder.encode(before + rscScripts + doneSignal + after));
+          foundBody = true;
+        } else {
+          // Pass HTML chunk through as-is, then append any pending
+          // RSC payload chunks that arrived since the last HTML chunk.
+          controller.enqueue(chunk);
+          const rscScripts = drainPendingRsc();
+          if (rscScripts) {
+            controller.enqueue(encoder.encode(rscScripts));
+          }
         }
       },
       async flush(controller) {
-        if (!injected && tail) {
-          controller.enqueue(encoder.encode(tail));
+        // Wait for RSC stream to finish and flush any remaining chunks.
+        if (!rscDone) await rscPromise;
+        if (doneEmitted) return;
+        const rscScripts = drainPendingRsc();
+        const doneSignal = '<script>self.__timber_f_done=1</script>';
+        if (rscScripts) {
+          controller.enqueue(encoder.encode(rscScripts + doneSignal));
+        } else {
+          controller.enqueue(encoder.encode(doneSignal));
         }
       },
     })
@@ -208,47 +229,76 @@ export function injectRscPayload(
 }
 
 /**
- * Build client bootstrap script tags based on runtime config.
+ * Client bootstrap configuration returned by buildClientScripts.
  *
- * Returns an empty string when `output: 'static'` + `noJS: true`,
- * which produces zero-JS output. In dev mode, includes the Vite
- * HMR client script. In production, uses hashed chunk URLs from the
- * build manifest and includes modulepreload hints for dependencies.
+ * - `bootstrapScriptContent`: Inline JS passed to React's renderToReadableStream
+ *   as `bootstrapScriptContent`. React injects this as a non-deferred `<script>`
+ *   in the shell HTML, so it executes immediately during parsing — even while
+ *   Suspense boundaries are still streaming. Uses dynamic `import()` to kick off
+ *   module loading, enabling hydration to start before the stream closes.
+ *
+ * - `preloadLinks`: `<link rel="modulepreload">` tags for production dependency
+ *   preloading. Injected into `<head>` via injectHead so the browser starts
+ *   downloading JS chunks early.
+ */
+export interface ClientBootstrapConfig {
+  bootstrapScriptContent: string;
+  preloadLinks: string;
+}
+
+/**
+ * Build client bootstrap configuration based on runtime config.
+ *
+ * Returns empty strings when `output: 'static'` + `noJS: true`,
+ * which produces zero-JS output. In dev mode, imports the Vite
+ * HMR client and virtual browser entry. In production, uses hashed
+ * chunk URLs from the build manifest.
+ *
+ * The bootstrap uses dynamic `import()` inside a regular (non-module)
+ * inline script so it executes immediately during HTML parsing. This
+ * is critical for streaming: `<script type="module">` is deferred
+ * until the document finishes parsing, which blocks hydration behind
+ * Suspense boundaries. Dynamic `import()` starts module loading and
+ * execution as soon as the shell HTML is parsed.
  */
 export function buildClientScripts(runtimeConfig: {
   output: string;
   noJS: boolean;
   dev: boolean;
   buildManifest?: import('./build-manifest.js').BuildManifest;
-}): string {
+}): ClientBootstrapConfig {
   if (runtimeConfig.output === 'static' && runtimeConfig.noJS) {
-    return '';
+    return { bootstrapScriptContent: '', preloadLinks: '' };
   }
 
-  let scripts = '';
-
   if (runtimeConfig.dev) {
-    // Dev mode: Vite HMR client + virtual module path
-    scripts += '<script type="module" src="/@vite/client"></script>';
-    scripts += '<script type="module" src="/@id/virtual:timber-browser-entry"></script>';
-    return scripts;
+    // Dev mode: Vite HMR client + virtual module path.
+    // Dynamic import() ensures both scripts start loading immediately,
+    // not deferred until document parsing completes.
+    return {
+      bootstrapScriptContent: 'import("/@vite/client");import("/@id/virtual:timber-browser-entry")',
+      preloadLinks: '',
+    };
   }
 
   // Production: resolve browser entry to hashed chunk URL from manifest
   const manifest = runtimeConfig.buildManifest;
   const browserEntryUrl = manifest?.js['virtual:timber-browser-entry'];
 
+  let preloadLinks = '';
+  let bootstrapScriptContent: string;
+
   if (browserEntryUrl) {
     // Modulepreload hints for browser entry dependencies
     const preloads = manifest?.modulepreload['virtual:timber-browser-entry'] ?? [];
     for (const url of preloads) {
-      scripts += `<link rel="modulepreload" href="${url}">`;
+      preloadLinks += `<link rel="modulepreload" href="${url}">`;
     }
-    scripts += `<script type="module" src="${browserEntryUrl}"></script>`;
+    bootstrapScriptContent = `import("${browserEntryUrl}")`;
   } else {
     // Fallback: no manifest entry (e.g. manifest not yet populated)
-    scripts += '<script type="module" src="/virtual:timber-browser-entry"></script>';
+    bootstrapScriptContent = 'import("/virtual:timber-browser-entry")';
   }
 
-  return scripts;
+  return { bootstrapScriptContent, preloadLinks };
 }

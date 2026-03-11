@@ -225,7 +225,7 @@ describe('buildEntryScriptTag()', () => {
 // ─── buildClientScripts (production) ───────────────────────────────────────
 
 describe('buildClientScripts() — production', () => {
-  it('HTML includes hashed script URLs (not virtual paths)', () => {
+  it('uses dynamic import() with hashed URL (not virtual paths)', () => {
     const manifest: BuildManifest = {
       css: {},
       js: {
@@ -244,10 +244,10 @@ describe('buildClientScripts() — production', () => {
       buildManifest: manifest,
     });
 
-    // Should use hashed URL, not virtual module path
-    expect(result).toContain('src="/assets/entry-abc123.js"');
-    expect(result).not.toContain('virtual:timber-browser-entry');
-    expect(result).not.toContain('/@id/');
+    // Should use dynamic import() with hashed URL
+    expect(result.bootstrapScriptContent).toBe('import("/assets/entry-abc123.js")');
+    expect(result.bootstrapScriptContent).not.toContain('virtual:timber-browser-entry');
+    expect(result.bootstrapScriptContent).not.toContain('/@id/');
   });
 
   it('includes modulepreload links for browser entry deps', () => {
@@ -269,29 +269,30 @@ describe('buildClientScripts() — production', () => {
       buildManifest: manifest,
     });
 
-    expect(result).toContain('<link rel="modulepreload" href="/assets/react-vendor.js">');
-    expect(result).toContain('<link rel="modulepreload" href="/assets/router.js">');
+    expect(result.preloadLinks).toContain('<link rel="modulepreload" href="/assets/react-vendor.js">');
+    expect(result.preloadLinks).toContain('<link rel="modulepreload" href="/assets/router.js">');
   });
 
-  it('dev mode uses virtual module path (not hashed)', () => {
+  it('dev mode uses dynamic import() with virtual module paths', () => {
     const result = buildClientScripts({
       output: 'server',
       noJS: false,
       dev: true,
     });
 
-    expect(result).toContain('/@id/virtual:timber-browser-entry');
-    expect(result).toContain('/@vite/client');
+    expect(result.bootstrapScriptContent).toContain('import("/@id/virtual:timber-browser-entry")');
+    expect(result.bootstrapScriptContent).toContain('import("/@vite/client")');
   });
 
-  it('noJS mode returns empty string', () => {
+  it('noJS mode returns empty config', () => {
     const result = buildClientScripts({
       output: 'static',
       noJS: true,
       dev: false,
     });
 
-    expect(result).toBe('');
+    expect(result.bootstrapScriptContent).toBe('');
+    expect(result.preloadLinks).toBe('');
   });
 
   it('falls back to virtual path when no manifest entry exists', () => {
@@ -309,7 +310,7 @@ describe('buildClientScripts() — production', () => {
       buildManifest: manifest,
     });
 
-    // Fallback to non-dev virtual path
-    expect(result).toContain('src="/virtual:timber-browser-entry"');
+    // Fallback to non-dev virtual path via dynamic import()
+    expect(result.bootstrapScriptContent).toContain('virtual:timber-browser-entry');
   });
 });

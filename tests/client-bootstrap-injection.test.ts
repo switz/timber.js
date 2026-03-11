@@ -119,7 +119,6 @@ describe('client bootstrap script injection', () => {
       const scripts = buildScriptTags({ isDev: false });
       const result = await runInjectScripts(html, scripts);
 
-      // Scripts should appear after body content, before </body>
       const bodyCloseIdx = result.indexOf('</body>');
       const scriptIdx = result.indexOf('<script type="module"');
       const headCloseIdx = result.indexOf('</head>');
@@ -222,22 +221,19 @@ describe('injectRscPayload', () => {
     expect(result).toBe(html);
   });
 
-  it('injects RSC payload as a UTF-8 string, not Uint8Array', async () => {
+  it('uses self.__timber_f=self.__timber_f||[]).push() pattern, not monolithic __TIMBER_RSC_PAYLOAD', async () => {
     const html = '<html><body><div>App</div></body></html>';
     const rscPayload = '0:D"$1"\n0:["$","div",null,{"children":"Hello"}]\n';
     const result = await runInjectRscPayload(html, rscPayload);
 
-    // Should contain a script tag with the payload as a string
-    expect(result).toContain('<script>');
-    expect(result).toContain('__TIMBER_RSC_PAYLOAD');
-    // Must NOT contain Uint8Array — that's the old format
-    expect(result).not.toContain('Uint8Array');
-    // Must NOT contain ReadableStream construction — client handles that now
-    expect(result).not.toContain('ReadableStream');
+    // Should use progressive push() pattern
+    expect(result).toContain('self.__timber_f=self.__timber_f||[]).push(');
+    // Must NOT use the old monolithic payload format
+    expect(result).not.toContain('__TIMBER_RSC_PAYLOAD');
     // Should be injected before </body>
-    const scriptIdx = result.indexOf('__TIMBER_RSC_PAYLOAD');
+    const pushIdx = result.indexOf('self.__timber_f=self.__timber_f||[]).push(');
     const bodyIdx = result.indexOf('</body>');
-    expect(scriptIdx).toBeLessThan(bodyIdx);
+    expect(pushIdx).toBeLessThan(bodyIdx);
   });
 
   it('escapes < to prevent script injection', async () => {
@@ -277,13 +273,13 @@ describe('injectRscPayload', () => {
 
     // Literal newlines in a JS string literal are a syntax error —
     // they must be escaped as \n
-    const scriptMatch = result.match(/<script>(.*)<\/script>/s);
-    expect(scriptMatch).not.toBeNull();
-    const scriptContent = scriptMatch![1];
-    // The script body should not contain literal newline characters
-    expect(scriptContent).not.toMatch(/\n/);
-    // But it should contain escaped newline sequences
-    expect(scriptContent).toContain('\\n');
+    const scriptMatches = result.match(/<script>\(self\.__timber_f=self\.__timber_f\|\|\[\]\)\.push\((.*?)\)<\/script>/gs);
+    expect(scriptMatches).not.toBeNull();
+    // No push() call should contain literal newline characters in the string arg
+    for (const m of scriptMatches!) {
+      const inner = m.replace(/<\/?script>/g, '').replace(/^self\.__timber_f\.push\(/, '').replace(/\)$/, '');
+      expect(inner).not.toMatch(/\n/);
+    }
   });
 
   it('preserves the payload content after escaping', async () => {
@@ -298,31 +294,185 @@ describe('injectRscPayload', () => {
   });
 });
 
+describe('progressive RSC payload chunking', () => {
+  /**
+   * Helper: run HTML and RSC streams through injectRscPayload with
+   * controlled timing, collecting output chunks separately.
+   */
+  async function runChunkedPayload(
+    htmlChunks: { text: string; delayMs: number }[],
+    rscChunks: { text: string; delayMs: number }[]
+  ): Promise<string[]> {
+    const { injectRscPayload } = await import(resolve(SRC_DIR, 'server/html-injectors.ts'));
+    const encoder = new TextEncoder();
+    const decoder = new TextDecoder();
+
+    const htmlStream = new ReadableStream<Uint8Array>({
+      async start(controller) {
+        for (const chunk of htmlChunks) {
+          if (chunk.delayMs > 0) await new Promise((r) => setTimeout(r, chunk.delayMs));
+          controller.enqueue(encoder.encode(chunk.text));
+        }
+        controller.close();
+      },
+    });
+
+    const rscStream = new ReadableStream<Uint8Array>({
+      async start(controller) {
+        for (const chunk of rscChunks) {
+          if (chunk.delayMs > 0) await new Promise((r) => setTimeout(r, chunk.delayMs));
+          controller.enqueue(encoder.encode(chunk.text));
+        }
+        controller.close();
+      },
+    });
+
+    const outputStream = injectRscPayload(htmlStream, rscStream);
+    const outputChunks: string[] = [];
+    const reader = outputStream.getReader();
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      outputChunks.push(decoder.decode(value));
+    }
+    return outputChunks;
+  }
+
+  it('injects RSC chunks as individual push() script tags, not one monolithic blob', async () => {
+    const outputChunks = await runChunkedPayload(
+      [
+        { text: '<html><head></head><body><div>Shell</div>', delayMs: 0 },
+        { text: '</body></html>', delayMs: 50 },
+      ],
+      [
+        { text: '0:D"$1"\n', delayMs: 0 },
+        { text: '0:["$","div",null,{"children":"Hello"}]\n', delayMs: 10 },
+      ]
+    );
+
+    const fullOutput = outputChunks.join('');
+
+    // Should use self.__timber_f=self.__timber_f||[]).push() pattern, not window.__TIMBER_RSC_PAYLOAD
+    expect(fullOutput).toContain('self.__timber_f=self.__timber_f||[]).push(');
+    expect(fullOutput).not.toContain('__TIMBER_RSC_PAYLOAD');
+
+    // Each RSC chunk should be a separate push() call
+    const pushCount = (fullOutput.match(/self\.__timber_f=self\.__timber_f\|\|\[\]\)\.push\(/g) || []).length;
+    expect(pushCount).toBeGreaterThanOrEqual(2);
+  });
+
+  it('emits __timber_f_done exactly once, not twice', async () => {
+    // When RSC stream finishes before </body> arrives, the done signal
+    // should only be emitted once (with </body>), not again in flush().
+    const outputChunks = await runChunkedPayload(
+      [
+        { text: '<html><head></head><body><div>Shell</div>', delayMs: 0 },
+        { text: '</body></html>', delayMs: 50 },
+      ],
+      [
+        // RSC finishes quickly — before </body> arrives
+        { text: '0:D"$1"\n', delayMs: 0 },
+      ]
+    );
+
+    const fullOutput = outputChunks.join('');
+    const doneCount = (fullOutput.match(/self\.__timber_f_done=1/g) || []).length;
+    expect(doneCount).toBe(1);
+  });
+
+  it('RSC chunks interleave with HTML — not all buffered at end', async () => {
+    // Simulate streaming: RSC chunk 1 arrives before HTML chunk 2
+    const outputChunks = await runChunkedPayload(
+      [
+        { text: '<html><head></head><body><div>Shell</div>', delayMs: 0 },
+        // Suspense boundary resolves after 60ms
+        { text: '<div>Resolved content</div>', delayMs: 60 },
+        { text: '</body></html>', delayMs: 20 },
+      ],
+      [
+        { text: '0:D"$1"\n', delayMs: 0 },
+        // RSC chunk for resolved boundary arrives at ~30ms
+        { text: '0:["$","div",null,{"children":"Resolved"}]\n', delayMs: 30 },
+      ]
+    );
+
+    // The RSC push() scripts should appear in intermediate chunks,
+    // not only in the final chunk that contains </body>.
+    const nonLastChunks = outputChunks.slice(0, -1).join('');
+
+    // At least one push() call should appear before the final chunk
+    expect(nonLastChunks).toContain('self.__timber_f=self.__timber_f||[]).push(');
+  });
+
+  it('properly escapes RSC chunk content in push() calls', async () => {
+    const outputChunks = await runChunkedPayload(
+      [
+        { text: '<html><body></body></html>', delayMs: 0 },
+      ],
+      [
+        { text: '0:["$","div",null,{"children":"<script>alert(1)</script>"}]\n', delayMs: 0 },
+      ]
+    );
+
+    const fullOutput = outputChunks.join('');
+
+    // Must escape < to prevent script injection
+    expect(fullOutput).not.toContain('<script>alert');
+    expect(fullOutput).toContain('\\x3c');
+    // Must use push() pattern
+    expect(fullOutput).toContain('self.__timber_f=self.__timber_f||[]).push(');
+  });
+});
+
 describe('buildClientScripts', () => {
-  it('returns empty string for static + noJS', async () => {
+  it('returns empty bootstrapScriptContent for static + noJS', async () => {
     const { buildClientScripts } = await import(resolve(SRC_DIR, 'server/html-injectors.ts'));
     const result = buildClientScripts({ output: 'static', noJS: true, dev: false });
-    expect(result).toBe('');
+    expect(result.bootstrapScriptContent).toBe('');
+    expect(result.preloadLinks).toBe('');
   });
 
-  it('includes vite client in dev mode', async () => {
+  it('uses dynamic import() in dev mode, not <script type="module">', async () => {
     const { buildClientScripts } = await import(resolve(SRC_DIR, 'server/html-injectors.ts'));
     const result = buildClientScripts({ output: 'server', noJS: false, dev: true });
-    expect(result).toContain('/@vite/client');
-    expect(result).toContain('/@id/virtual:timber-browser-entry');
+    // Must use dynamic import() — not <script type="module"> which is deferred
+    // and blocks hydration behind Suspense boundaries during streaming
+    expect(result.bootstrapScriptContent).toContain('import("/@vite/client")');
+    expect(result.bootstrapScriptContent).toContain('import("/@id/virtual:timber-browser-entry")');
+    expect(result.bootstrapScriptContent).not.toContain('<script');
   });
 
-  it('excludes vite client in production', async () => {
+  it('uses dynamic import() in production, not <script type="module">', async () => {
     const { buildClientScripts } = await import(resolve(SRC_DIR, 'server/html-injectors.ts'));
     const result = buildClientScripts({ output: 'server', noJS: false, dev: false });
-    expect(result).not.toContain('/@vite/client');
-    expect(result).toContain('virtual:timber-browser-entry');
+    expect(result.bootstrapScriptContent).toContain('import(');
+    expect(result.bootstrapScriptContent).toContain('virtual:timber-browser-entry');
+    expect(result.bootstrapScriptContent).not.toContain('<script');
+    expect(result.bootstrapScriptContent).not.toContain('/@vite/client');
   });
 
   it('includes scripts for static mode without noJS', async () => {
     const { buildClientScripts } = await import(resolve(SRC_DIR, 'server/html-injectors.ts'));
     const result = buildClientScripts({ output: 'static', noJS: false, dev: false });
-    expect(result).toContain('virtual:timber-browser-entry');
+    expect(result.bootstrapScriptContent).toContain('virtual:timber-browser-entry');
+  });
+
+  it('returns modulepreload links for production with build manifest', async () => {
+    const { buildClientScripts } = await import(resolve(SRC_DIR, 'server/html-injectors.ts'));
+    const result = buildClientScripts({
+      output: 'server',
+      noJS: false,
+      dev: false,
+      buildManifest: {
+        js: { 'virtual:timber-browser-entry': '/assets/entry-abc123.js' },
+        css: {},
+        modulepreload: { 'virtual:timber-browser-entry': ['/assets/chunk-1.js', '/assets/chunk-2.js'] },
+        fonts: {},
+      },
+    });
+    expect(result.bootstrapScriptContent).toBe('import("/assets/entry-abc123.js")');
+    expect(result.preloadLinks).toContain('<link rel="modulepreload" href="/assets/chunk-1.js">');
+    expect(result.preloadLinks).toContain('<link rel="modulepreload" href="/assets/chunk-2.js">');
   });
 });
 

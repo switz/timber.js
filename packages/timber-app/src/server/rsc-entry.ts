@@ -287,7 +287,7 @@ async function renderRoute(
     if (segment.access) {
       const accessMod = (await segment.access.load()) as Record<string, unknown>;
       const accessFn = accessMod.default as
-        | ((ctx: { params: Record<string, string>; searchParams: unknown }) => unknown)
+        | ((ctx: { params: Record<string, string | string[]>; searchParams: unknown }) => unknown)
         | undefined;
       if (accessFn) {
         try {
@@ -412,7 +412,7 @@ async function renderRoute(
     if (segment.access) {
       const accessMod = (await segment.access.load()) as Record<string, unknown>;
       const accessFn = accessMod.default as
-        | ((ctx: { params: Record<string, string>; searchParams: unknown }) => unknown)
+        | ((ctx: { params: Record<string, string | string[]>; searchParams: unknown }) => unknown)
         | undefined;
       if (accessFn) {
         element = h(AccessGate, {
@@ -772,7 +772,7 @@ async function handleApiRoute(
     if (segment.access) {
       const accessMod = (await segment.access.load()) as Record<string, unknown>;
       const accessFn = accessMod.default as
-        | ((ctx: { params: Record<string, string>; searchParams: unknown }) => unknown)
+        | ((ctx: { params: Record<string, string | string[]>; searchParams: unknown }) => unknown)
         | undefined;
       if (accessFn) {
         try {

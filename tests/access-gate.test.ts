@@ -44,7 +44,10 @@ describe('AccessGate', () => {
   it('calls access before layout', async () => {
     const callOrder: string[] = [];
 
-    const accessFn = async (ctx: { params: Record<string, string>; searchParams: unknown }) => {
+    const accessFn = async (ctx: {
+      params: Record<string, string | string[]>;
+      searchParams: unknown;
+    }) => {
       callOrder.push('access');
       // Verify context is passed correctly
       expect(ctx.params).toEqual(defaultParams);

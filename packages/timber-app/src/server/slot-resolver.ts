@@ -26,7 +26,7 @@ type CreateElementFn = (...args: unknown[]) => React.ReactElement;
 export async function resolveSlotElement(
   slotNode: ManifestSegmentNode,
   match: RouteMatch,
-  paramsPromise: Promise<Record<string, string>>,
+  paramsPromise: Promise<Record<string, string | string[]>>,
   h: CreateElementFn
 ): Promise<React.ReactElement | null> {
   const matchedPage = findSlotPage(slotNode, match);
@@ -46,7 +46,7 @@ export async function resolveSlotElement(
       if (slotNode.access) {
         const accessMod = (await slotNode.access.load()) as Record<string, unknown>;
         const accessFn = accessMod.default as
-          | ((ctx: { params: Record<string, string>; searchParams: unknown }) => unknown)
+          | ((ctx: { params: Record<string, string | string[]>; searchParams: unknown }) => unknown)
           | undefined;
         if (accessFn) {
           // Load denied.tsx fallback

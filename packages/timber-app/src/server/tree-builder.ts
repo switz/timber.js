@@ -47,8 +47,8 @@ export type SlotElements = Map<string, ReactElement>;
 export interface TreeBuilderConfig {
   /** The matched segment chain from root to leaf. */
   segments: SegmentNode[];
-  /** Route params extracted by the matcher. */
-  params: Record<string, string>;
+  /** Route params extracted by the matcher (catch-all segments produce string[]). */
+  params: Record<string, string | string[]>;
   /** Parsed search params (typed or URLSearchParams). */
   searchParams: unknown;
   /** Loads a route file's module. */
@@ -64,8 +64,8 @@ export interface TreeBuilderConfig {
  * Async server component that calls access.ts before rendering children.
  */
 export interface AccessGateProps {
-  accessFn: (ctx: { params: Record<string, string>; searchParams: unknown }) => unknown;
-  params: Record<string, string>;
+  accessFn: (ctx: { params: Record<string, string | string[]>; searchParams: unknown }) => unknown;
+  params: Record<string, string | string[]>;
   searchParams: unknown;
   /** Segment name for dev logging (e.g. "authenticated", "dashboard"). */
   segmentName?: string;
@@ -77,8 +77,8 @@ export interface AccessGateProps {
  * On denial, renders denied.tsx → default.tsx → null instead of failing the page.
  */
 export interface SlotAccessGateProps {
-  accessFn: (ctx: { params: Record<string, string>; searchParams: unknown }) => unknown;
-  params: Record<string, string>;
+  accessFn: (ctx: { params: Record<string, string | string[]>; searchParams: unknown }) => unknown;
+  params: Record<string, string | string[]>;
   searchParams: unknown;
   deniedFallback: ReactElement | null;
   defaultFallback: ReactElement | null;
@@ -212,7 +212,7 @@ export async function buildElementTree(config: TreeBuilderConfig): Promise<TreeB
  */
 async function buildSlotElement(
   slotNode: SegmentNode,
-  params: Record<string, string>,
+  params: Record<string, string | string[]>,
   searchParams: unknown,
   loadModule: ModuleLoader,
   createElement: CreateElement

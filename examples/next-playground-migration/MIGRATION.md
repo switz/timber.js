@@ -140,6 +140,7 @@ export default function Template({ children }: { children: React.ReactNode }) {
 **After** (timber — use `key={pathname}` in the parent layout instead)
 ```tsx
 // app/_hooks/layout.tsx
+'use client'; // or wrap a client component in layout if you need async server component
 import { usePathname } from 'next/navigation';
 
 export default function Layout({ children }: { children: React.ReactNode }) {

@@ -125,27 +125,37 @@ The `notFound()` shim in timber's `next/navigation` already calls `deny(404)`, s
 
 ---
 
-## 5. `template.tsx` → Pass-Through Stub
+## 5. `template.tsx` → Layout with `key` prop
 
-**Rule:** timber has no `template.tsx` convention. If you need the key-based remounting behavior, use a client component with a keyed wrapper. If the template was purely structural, replace it with a pass-through.
+**Rule:** timber has no `template.tsx` convention. `template.tsx` in Next.js remounts the subtree on every navigation by giving React a new key. In timber, achieve the same by passing `pathname` as a `key` to the layout or wrapper element.
 
-**Before** (`app/_hooks/template.tsx` — adds per-navigation key)
+**Before** (Next.js — `template.tsx` remounts on every navigation)
 ```tsx
+// app/_hooks/template.tsx
 export default function Template({ children }: { children: React.ReactNode }) {
   return <div>{children}</div>;
 }
 ```
 
-**After** (same content, timber ignores the filename)
+**After** (timber — use `key={pathname}` in the parent layout instead)
 ```tsx
-// timber does not support the template.tsx convention.
-// This file is kept as a layout-level wrapper but does NOT remount on navigation.
+// app/_hooks/layout.tsx
+import { usePathname } from 'next/navigation';
+
+export default function Layout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  // key={pathname} causes React to remount the subtree on every navigation,
+  // matching Next.js template.tsx semantics.
+  return <div key={pathname}>{children}</div>;
+}
+```
+
+If the template was purely structural (no remounting needed), replace it with a pass-through:
+```tsx
 export default function Template({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 ```
-
-**Gap filed:** [bd issue for template.tsx support]
 
 ---
 

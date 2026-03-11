@@ -49,6 +49,7 @@
   },
   "dependencies": {
     "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/context-async-hooks": "^2.6.0",
     "@opentelemetry/sdk-trace-base": "^2.6.0",
     "@vitejs/plugin-react": "^5.1.4",
     "@vitejs/plugin-rsc": "^0.5.19"

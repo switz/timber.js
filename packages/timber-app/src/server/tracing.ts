@@ -120,7 +120,16 @@ export async function initDevTracing(
 
   const { DevSpanProcessor } = await import('./dev-span-processor.js');
   const { BasicTracerProvider } = await import('@opentelemetry/sdk-trace-base');
+  const { AsyncLocalStorageContextManager } = await import('@opentelemetry/context-async-hooks');
   const processor = new DevSpanProcessor(config);
+
+  // Register a context manager so OTEL can propagate the active span
+  // across async boundaries. Without this, startActiveSpan can't make
+  // spans "active" — child spans get random trace IDs and getActiveSpan()
+  // returns undefined.
+  const contextManager = new AsyncLocalStorageContextManager();
+  contextManager.enable();
+  api.context.setGlobalContextManager(contextManager);
 
   // Create a minimal TracerProvider with our DevSpanProcessor.
   // If the user also configures an SDK in register(), their provider

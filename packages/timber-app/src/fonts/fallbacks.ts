@@ -35,14 +35,14 @@ interface FallbackMetrics {
  * Keyed by lowercase font family name.
  */
 const FALLBACK_METRICS: Record<string, FallbackMetrics> = {
-  inter: {
+  'inter': {
     fallbackFont: 'Arial',
     sizeAdjust: 107.64,
     ascentOverride: 90.49,
     descentOverride: 22.48,
     lineGapOverride: 0,
   },
-  roboto: {
+  'roboto': {
     fallbackFont: 'Arial',
     sizeAdjust: 100.3,
     ascentOverride: 92.77,
@@ -56,21 +56,21 @@ const FALLBACK_METRICS: Record<string, FallbackMetrics> = {
     descentOverride: 27.47,
     lineGapOverride: 0,
   },
-  lato: {
+  'lato': {
     fallbackFont: 'Arial',
     sizeAdjust: 112.5,
     ascentOverride: 100.22,
     descentOverride: 21.16,
     lineGapOverride: 0,
   },
-  montserrat: {
+  'montserrat': {
     fallbackFont: 'Arial',
     sizeAdjust: 112.17,
     ascentOverride: 85.13,
     descentOverride: 22.07,
     lineGapOverride: 0,
   },
-  poppins: {
+  'poppins': {
     fallbackFont: 'Arial',
     sizeAdjust: 112.76,
     ascentOverride: 96.31,
@@ -105,7 +105,7 @@ const FALLBACK_METRICS: Record<string, FallbackMetrics> = {
     descentOverride: 26.34,
     lineGapOverride: 0,
   },
-  nunito: {
+  'nunito': {
     fallbackFont: 'Arial',
     sizeAdjust: 103.62,
     ascentOverride: 99.45,
@@ -119,14 +119,14 @@ const FALLBACK_METRICS: Record<string, FallbackMetrics> = {
     descentOverride: 23.56,
     lineGapOverride: 0,
   },
-  merriweather: {
+  'merriweather': {
     fallbackFont: 'Georgia',
     sizeAdjust: 107.66,
     ascentOverride: 91.93,
     descentOverride: 27.6,
     lineGapOverride: 0,
   },
-  raleway: {
+  'raleway': {
     fallbackFont: 'Arial',
     sizeAdjust: 107.74,
     ascentOverride: 94.19,
@@ -163,10 +163,7 @@ const SERIF_FAMILIES = new Set([
 export function getGenericFamily(family: string): string {
   const lc = family.toLowerCase();
   if (lc.includes('mono') || lc.includes('code')) return 'monospace';
-  if (
-    (lc.includes('serif') && !lc.includes('sans')) ||
-    SERIF_FAMILIES.has(lc)
-  ) {
+  if ((lc.includes('serif') && !lc.includes('sans')) || SERIF_FAMILIES.has(lc)) {
     return 'serif';
   }
   return 'sans-serif';

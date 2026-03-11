@@ -47,7 +47,12 @@ export async function AccessGate(props: AccessGateProps): Promise<ReactElement> 
     // Emit access-result dev log event on denial
     const devEmitter = getDevLogEmitter();
     if (devEmitter) {
-      const result = error instanceof DenySignal ? 'DENY' : error instanceof RedirectSignal ? 'REDIRECT' : 'ERROR';
+      const result =
+        error instanceof DenySignal
+          ? 'DENY'
+          : error instanceof RedirectSignal
+            ? 'REDIRECT'
+            : 'ERROR';
       const status = error instanceof DenySignal ? error.status : undefined;
       devEmitter.emit({
         type: 'access-result',

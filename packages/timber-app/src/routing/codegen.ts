@@ -188,7 +188,9 @@ function formatDeclarationFile(routes: RouteEntry[]): string {
 
   if (dynamicRoutes.length > 0 || pageRoutes.length > 0) {
     lines.push("declare module '@timber/app/client' {");
-    lines.push("  import type { SearchParamsDefinition, SetParams, QueryStatesOptions, SearchParamCodec } from '@timber/app/search-params'");
+    lines.push(
+      "  import type { SearchParamsDefinition, SetParams, QueryStatesOptions, SearchParamCodec } from '@timber/app/search-params'"
+    );
     lines.push('');
 
     // useParams overloads

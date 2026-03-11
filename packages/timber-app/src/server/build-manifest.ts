@@ -38,7 +38,12 @@ export interface BuildManifest {
 }
 
 /** Empty build manifest used in dev mode. */
-export const EMPTY_BUILD_MANIFEST: BuildManifest = { css: {}, js: {}, modulepreload: {}, fonts: {} };
+export const EMPTY_BUILD_MANIFEST: BuildManifest = {
+  css: {},
+  js: {},
+  modulepreload: {},
+  fonts: {},
+};
 
 /** Segment shape expected by collectRouteCss (matches ManifestSegmentNode). */
 interface SegmentWithFiles {
@@ -52,10 +57,7 @@ interface SegmentWithFiles {
  * Walks segments root → leaf, collecting CSS for each layout and page.
  * Deduplicates while preserving order (root layout CSS first).
  */
-export function collectRouteCss(
-  segments: SegmentWithFiles[],
-  manifest: BuildManifest
-): string[] {
+export function collectRouteCss(segments: SegmentWithFiles[], manifest: BuildManifest): string[] {
   const seen = new Set<string>();
   const result: string[] = [];
 
@@ -83,9 +85,7 @@ export function collectRouteCss(
  * via injectHead() before </head>.
  */
 export function buildCssLinkTags(cssUrls: string[]): string {
-  return cssUrls
-    .map((url) => `<link rel="stylesheet" href="${url}">`)
-    .join('');
+  return cssUrls.map((url) => `<link rel="stylesheet" href="${url}">`).join('');
 }
 
 /**
@@ -98,9 +98,7 @@ export function buildCssLinkTags(cssUrls: string[]): string {
  * Example output: `</assets/root.css>; rel=preload; as=style, </assets/page.css>; rel=preload; as=style`
  */
 export function buildLinkHeaders(cssUrls: string[]): string {
-  return cssUrls
-    .map((url) => `<${url}>; rel=preload; as=style`)
-    .join(', ');
+  return cssUrls.map((url) => `<${url}>; rel=preload; as=style`).join(', ');
 }
 
 // ─── Font utilities ──────────────────────────────────────────────────────
@@ -143,7 +141,10 @@ export function collectRouteFonts(
  */
 export function buildFontPreloadTags(fonts: ManifestFontEntry[]): string {
   return fonts
-    .map((f) => `<link rel="preload" href="${f.href}" as="font" type="font/${f.format}" crossorigin="${f.crossOrigin}">`)
+    .map(
+      (f) =>
+        `<link rel="preload" href="${f.href}" as="font" type="font/${f.format}" crossorigin="${f.crossOrigin}">`
+    )
     .join('');
 }
 
@@ -155,9 +156,7 @@ export function buildFontPreloadTags(fonts: ManifestFontEntry[]): string {
  * Example: `</fonts/inter.woff2>; rel=preload; as=font; crossorigin`
  */
 export function buildFontLinkHeaders(fonts: ManifestFontEntry[]): string {
-  return fonts
-    .map((f) => `<${f.href}>; rel=preload; as=font; crossorigin`)
-    .join(', ');
+  return fonts.map((f) => `<${f.href}>; rel=preload; as=font; crossorigin`).join(', ');
 }
 
 // ─── JS chunk utilities ──────────────────────────────────────────────────

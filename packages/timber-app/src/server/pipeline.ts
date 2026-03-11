@@ -15,7 +15,14 @@ import { canonicalize } from './canonicalize.js';
 import { runProxy, type ProxyExport } from './proxy.js';
 import { runMiddleware, type MiddlewareFn } from './middleware-runner.js';
 import { runWithRequestContext } from './request-context.js';
-import { generateTraceId, runWithTraceId, getOtelTraceId, replaceTraceId, withSpan, traceId } from './tracing.js';
+import {
+  generateTraceId,
+  runWithTraceId,
+  getOtelTraceId,
+  replaceTraceId,
+  withSpan,
+  traceId,
+} from './tracing.js';
 import {
   logRequestReceived,
   logRequestCompleted,
@@ -192,23 +199,41 @@ export function createPipeline(config: PipelineConfig): (req: Request) => Promis
     });
   };
 
-  async function runProxyPhase(req: Request, method: string, path: string, devEmitter?: DevLogEmitter): Promise<Response> {
+  async function runProxyPhase(
+    req: Request,
+    method: string,
+    path: string,
+    devEmitter?: DevLogEmitter
+  ): Promise<Response> {
     if (devEmitter) {
-      devEmitter.emit({ type: 'phase-start', environment: 'proxy', label: 'proxy.ts', id: 'proxy' });
+      devEmitter.emit({
+        type: 'phase-start',
+        environment: 'proxy',
+        label: 'proxy.ts',
+        id: 'proxy',
+      });
     }
     try {
-      const result = await withSpan(
-        'timber.proxy',
-        {},
-        () => runProxy(config.proxy!, req, () => handleRequest(req, method, path, devEmitter))
+      const result = await withSpan('timber.proxy', {}, () =>
+        runProxy(config.proxy!, req, () => handleRequest(req, method, path, devEmitter))
       );
       if (devEmitter) {
-        devEmitter.emit({ type: 'phase-end', environment: 'proxy', label: 'proxy.ts', id: 'proxy' });
+        devEmitter.emit({
+          type: 'phase-end',
+          environment: 'proxy',
+          label: 'proxy.ts',
+          id: 'proxy',
+        });
       }
       return result;
     } catch (error) {
       if (devEmitter) {
-        devEmitter.emit({ type: 'phase-end', environment: 'proxy', label: 'proxy.ts', id: 'proxy' });
+        devEmitter.emit({
+          type: 'phase-end',
+          environment: 'proxy',
+          label: 'proxy.ts',
+          id: 'proxy',
+        });
       }
       // Uncaught proxy.ts error → bare HTTP 500
       logProxyError({ error });
@@ -217,7 +242,12 @@ export function createPipeline(config: PipelineConfig): (req: Request) => Promis
     }
   }
 
-  async function handleRequest(req: Request, method: string, path: string, devEmitter?: DevLogEmitter): Promise<Response> {
+  async function handleRequest(
+    req: Request,
+    method: string,
+    path: string,
+    devEmitter?: DevLogEmitter
+  ): Promise<Response> {
     // Stage 1: URL canonicalization
     const url = new URL(req.url);
     const result = canonicalize(url.pathname, stripTrailingSlash);
@@ -262,16 +292,24 @@ export function createPipeline(config: PipelineConfig): (req: Request) => Promis
       };
 
       if (devEmitter) {
-        devEmitter.emit({ type: 'phase-start', environment: 'rsc', label: 'middleware.ts', id: 'middleware' });
+        devEmitter.emit({
+          type: 'phase-start',
+          environment: 'rsc',
+          label: 'middleware.ts',
+          id: 'middleware',
+        });
       }
       try {
-        const middlewareResponse = await withSpan(
-          'timber.middleware',
-          {},
-          () => runMiddleware(match.middleware!, ctx)
+        const middlewareResponse = await withSpan('timber.middleware', {}, () =>
+          runMiddleware(match.middleware!, ctx)
         );
         if (devEmitter) {
-          devEmitter.emit({ type: 'phase-end', environment: 'rsc', label: 'middleware.ts', id: 'middleware' });
+          devEmitter.emit({
+            type: 'phase-end',
+            environment: 'rsc',
+            label: 'middleware.ts',
+            id: 'middleware',
+          });
         }
         if (middlewareResponse) {
           logMiddlewareShortCircuit({ method, path, status: middlewareResponse.status });
@@ -279,7 +317,12 @@ export function createPipeline(config: PipelineConfig): (req: Request) => Promis
         }
       } catch (error) {
         if (devEmitter) {
-          devEmitter.emit({ type: 'phase-end', environment: 'rsc', label: 'middleware.ts', id: 'middleware' });
+          devEmitter.emit({
+            type: 'phase-end',
+            environment: 'rsc',
+            label: 'middleware.ts',
+            id: 'middleware',
+          });
         }
         // Middleware throw → HTTP 500 (middleware runs before rendering,
         // no error boundary to catch it)
@@ -294,10 +337,8 @@ export function createPipeline(config: PipelineConfig): (req: Request) => Promis
       devEmitter.emit({ type: 'phase-start', environment: 'rsc', label: 'render', id: 'render' });
     }
     try {
-      const result = await withSpan(
-        'timber.render',
-        { 'http.route': canonicalPathname },
-        () => render(req, match, responseHeaders, requestHeaderOverlay)
+      const result = await withSpan('timber.render', { 'http.route': canonicalPathname }, () =>
+        render(req, match, responseHeaders, requestHeaderOverlay)
       );
       if (devEmitter) {
         devEmitter.emit({ type: 'phase-end', environment: 'rsc', label: 'render', id: 'render' });

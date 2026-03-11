@@ -22,10 +22,7 @@ import { generateVariableClass, generateFontFamilyClass } from '../fonts/css.js'
 import { generateFallbackCss, buildFontStack } from '../fonts/fallbacks.js';
 import { processLocalFont } from '../fonts/local.js';
 import { inferFontFormat } from '../fonts/local.js';
-import {
-  downloadAndCacheFonts,
-  type CachedFont,
-} from '../fonts/google.js';
+import { downloadAndCacheFonts, type CachedFont } from '../fonts/google.js';
 import {
   extractFontConfigAst,
   extractLocalFontConfigAst,
@@ -96,9 +93,7 @@ function normalizeStyleArray(value: string | string[] | undefined): string[] {
  * Uses acorn AST parsing for robust handling of comments, trailing commas,
  * and multi-line configs.
  */
-export function extractFontConfig(
-  callSource: string
-): GoogleFontConfig | null {
+export function extractFontConfig(callSource: string): GoogleFontConfig | null {
   return extractFontConfigAst(callSource);
 }
 
@@ -125,7 +120,10 @@ export function parseGoogleFontImports(source: string): string[] {
 
   let match;
   while ((match = importPattern.exec(source)) !== null) {
-    const specifiers = match[1].split(',').map((s) => s.trim()).filter(Boolean);
+    const specifiers = match[1]
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
     for (const spec of specifiers) {
       // Handle `Inter as MyInter` — we want the local name
       const parts = spec.split(/\s+as\s+/);
@@ -148,7 +146,10 @@ export function parseGoogleFontFamilies(source: string): Map<string, string> {
 
   let match;
   while ((match = importPattern.exec(source)) !== null) {
-    const specifiers = match[1].split(',').map((s) => s.trim()).filter(Boolean);
+    const specifiers = match[1]
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
     for (const spec of specifiers) {
       const parts = spec.split(/\s+as\s+/);
       const originalName = parts[0].trim();
@@ -264,9 +265,7 @@ export function generateAllFontCss(registry: FontRegistry): string {
  *   import myLoader from '@timber/fonts/local'
  */
 export function parseLocalFontImportName(source: string): string | null {
-  const match = source.match(
-    /import\s+(\w+)\s+from\s*['"]@timber\/fonts\/local['"]/
-  );
+  const match = source.match(/import\s+(\w+)\s+from\s*['"]@timber\/fonts\/local['"]/);
   return match ? match[1] : null;
 }
 
@@ -291,8 +290,8 @@ function transformLocalFonts(
   if (dynamicCall) {
     emitError(
       `Font function calls must be statically analyzable. ` +
-      `Found dynamic call: ${dynamicCall}. ` +
-      `Pass a literal object with string/array values instead.`
+        `Found dynamic call: ${dynamicCall}. ` +
+        `Pass a literal object with string/array values instead.`
     );
   }
 
@@ -312,7 +311,7 @@ function transformLocalFonts(
     if (!config) {
       emitError(
         `Could not statically analyze local font config. ` +
-        `Ensure src is a string or array of { path, weight?, style? } objects.`
+          `Ensure src is a string or array of { path, weight?, style? } objects.`
       );
       return transformedCode;
     }
@@ -376,9 +375,7 @@ export function timberFonts(ctx: PluginContext): Plugin {
     async buildStart() {
       if (ctx.dev) return;
 
-      const googleFonts = [...registry.values()].filter(
-        (f) => f.provider === 'google'
-      );
+      const googleFonts = [...registry.values()].filter((f) => f.provider === 'google');
       if (googleFonts.length === 0) return;
 
       cachedFonts = await downloadAndCacheFonts(googleFonts, ctx.root);
@@ -414,8 +411,8 @@ export function timberFonts(ctx: PluginContext): Plugin {
           if (dynamicCall) {
             this.error(
               `Font function calls must be statically analyzable. ` +
-              `Found dynamic call: ${dynamicCall}. ` +
-              `Pass a literal object with string/array values instead.`
+                `Found dynamic call: ${dynamicCall}. ` +
+                `Pass a literal object with string/array values instead.`
             );
           }
 
@@ -435,7 +432,7 @@ export function timberFonts(ctx: PluginContext): Plugin {
               if (!config) {
                 this.error(
                   `Could not statically analyze font config for ${family}. ` +
-                  `Ensure all config values are string literals or arrays of string literals.`
+                    `Ensure all config values are string literals or arrays of string literals.`
                 );
                 return null;
               }

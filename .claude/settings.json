@@ -51,7 +51,9 @@
       "WebFetch(domain:nuqs.47ng.com)",
       "WebFetch(domain:nuqs.dev)",
       "WebFetch(domain:github.com)",
-      "Bash(grep \"\\\\.test\\\\.ts$\")"
+      "Bash(grep \"\\\\.test\\\\.ts$\")",
+      "Bash(curl -s -N --max-time 5 http://localhost:3003/streaming/deferred)",
+      "Read(//tmp/**)"
     ],
     "additionalDirectories": [
       "/Users/dsaewitz/y/timber-js-fresh/tests/e2e",

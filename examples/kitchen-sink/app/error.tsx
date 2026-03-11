@@ -18,7 +18,7 @@ export default function ErrorBoundary(props: {
   if (props.status && props.status >= 400 && props.status < 500) {
     return (
       <div data-testid="denial-fallback">
-        <h1 data-testid="denial-heading">{props.status} — Access Denied (fallback)</h1>
+        <h1 data-testid="denial-heading">{props.status} — Access Denied (fallback)okay,</h1>
         <p data-testid="denial-status">Status: {props.status}</p>
         {props.dangerouslyPassData != null && (
           <pre data-testid="denial-data">{JSON.stringify(props.dangerouslyPassData)}</pre>

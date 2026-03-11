@@ -114,9 +114,7 @@ export class TimberErrorBoundary extends Component<
 
     // 5xx / RenderError / unhandled error
     const digest =
-      parsed?.type === 'render-error'
-        ? { code: parsed.code, data: parsed.data }
-        : null;
+      parsed?.type === 'render-error' ? { code: parsed.code, data: parsed.data } : null;
 
     return createElement(this.props.fallbackComponent as never, {
       error,

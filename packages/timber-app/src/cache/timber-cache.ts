@@ -75,7 +75,11 @@ export function createCache<Fn extends (...args: any[]) => Promise<any>>(
           environment: 'rsc',
           label: key,
           id: `cache-hit-${key}-${cacheStart}`,
-          meta: { cacheType: 'timber.cache', durationMs: performance.now() - cacheStart, stale: true },
+          meta: {
+            cacheType: 'timber.cache',
+            durationMs: performance.now() - cacheStart,
+            stale: true,
+          },
         });
       }
       // Serve stale immediately, trigger background refetch

@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { Suspense, type ReactNode } from 'react';
 import type { Metadata } from '@timber/app/server';
 import { Link } from '@timber/app/client';
 import Counter from './Counter';

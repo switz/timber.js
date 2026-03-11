@@ -63,9 +63,6 @@ export function generateVariableClass(
  * }
  * ```
  */
-export function generateFontFamilyClass(
-  className: string,
-  fontFamily: string
-): string {
+export function generateFontFamilyClass(className: string, fontFamily: string): string {
   return `.${className} {\n  font-family: ${fontFamily};\n}`;
 }

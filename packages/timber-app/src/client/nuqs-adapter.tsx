@@ -60,9 +60,7 @@ function useTimberAdapter(_watchKeys: string[]): AdapterInterface {
       if (options.shallow) {
         // Shallow: update URL only, no server roundtrip.
         const method =
-          options.history === 'push'
-            ? window.history.pushState
-            : window.history.replaceState;
+          options.history === 'push' ? window.history.pushState : window.history.replaceState;
         method.call(window.history, window.history.state, '', url.toString());
 
         // Update local state to reflect the new URL

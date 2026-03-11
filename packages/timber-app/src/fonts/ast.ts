@@ -296,10 +296,7 @@ export function extractLocalFontConfigAst(callSource: string): LocalFontConfig |
  * Uses acorn to parse the full source and inspect CallExpression nodes.
  * Returns the offending expression string if found, null if all calls are static.
  */
-export function detectDynamicFontCallAst(
-  source: string,
-  importedNames: string[]
-): string | null {
+export function detectDynamicFontCallAst(source: string, importedNames: string[]): string | null {
   if (importedNames.length === 0) return null;
 
   let ast;
@@ -323,11 +320,7 @@ export function detectDynamicFontCallAst(
  * the callee is one of the imported font names and the first argument
  * is not an ObjectExpression (i.e. it's dynamic).
  */
-function walkForDynamicCalls(
-  node: AstNode,
-  names: Set<string>,
-  source: string
-): string | null {
+function walkForDynamicCalls(node: AstNode, names: Set<string>, source: string): string | null {
   if (!node || typeof node !== 'object') return null;
 
   if (node.type === 'CallExpression') {

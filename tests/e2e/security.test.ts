@@ -34,7 +34,10 @@ test.describe('rsc payload source leak', () => {
     page,
   }) => {
     await page.goto('/');
-    await page.waitForSelector('a[data-timber-link]', { timeout: 10_000 });
+    // Wait for hydration so the click triggers SPA navigation (RSC fetch)
+    // rather than a full page reload. data-timber-ready is set by browser-entry.ts
+    // after the router is initialized and click delegation is active.
+    await page.waitForSelector('html[data-timber-ready]', { timeout: 15_000 });
 
     // Intercept the RSC payload response during client-side navigation
     const rscResponse = page.waitForResponse(

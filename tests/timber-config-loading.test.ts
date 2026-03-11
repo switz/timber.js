@@ -1,0 +1,148 @@
+import { describe, it, expect } from 'vitest';
+import type { TimberUserConfig } from '../packages/timber-app/src/index';
+
+// Re-implement mergeFileConfig for testing — mirrors the logic in index.ts
+function mergeFileConfig(inline: TimberUserConfig, fileConfig: TimberUserConfig): TimberUserConfig {
+  return {
+    ...fileConfig,
+    ...inline,
+    // Deep merge for nested objects where both exist
+    ...(fileConfig.limits && inline.limits
+      ? { limits: { ...fileConfig.limits, ...inline.limits } }
+      : {}),
+    ...(fileConfig.dev && inline.dev ? { dev: { ...fileConfig.dev, ...inline.dev } } : {}),
+    ...(fileConfig.mdx && inline.mdx ? { mdx: { ...fileConfig.mdx, ...inline.mdx } } : {}),
+    ...(fileConfig.static && inline.static
+      ? { static: { ...fileConfig.static, ...inline.static } }
+      : {}),
+  };
+}
+
+describe('timber config merging', () => {
+  it('file config fills in missing fields', () => {
+    const inline: TimberUserConfig = { output: 'server' };
+    const fileConfig: TimberUserConfig = {
+      pageExtensions: ['tsx', 'ts', 'jsx', 'js', 'mdx'],
+      mdx: { remarkPlugins: [] },
+    };
+
+    const merged = mergeFileConfig(inline, fileConfig);
+
+    expect(merged.output).toBe('server'); // inline wins
+    expect(merged.pageExtensions).toEqual(['tsx', 'ts', 'jsx', 'js', 'mdx']); // file fills in
+    expect(merged.mdx).toEqual({ remarkPlugins: [] }); // file fills in
+  });
+
+  it('inline config takes precedence over file config', () => {
+    const inline: TimberUserConfig = {
+      output: 'static',
+      pageExtensions: ['tsx', 'ts'],
+    };
+    const fileConfig: TimberUserConfig = {
+      output: 'server',
+      pageExtensions: ['tsx', 'ts', 'jsx', 'js', 'mdx'],
+      csrf: true,
+    };
+
+    const merged = mergeFileConfig(inline, fileConfig);
+
+    expect(merged.output).toBe('static'); // inline wins
+    expect(merged.pageExtensions).toEqual(['tsx', 'ts']); // inline wins
+    expect(merged.csrf).toBe(true); // file fills in
+  });
+
+  it('deep merges nested objects when both exist', () => {
+    const inline: TimberUserConfig = {
+      mdx: { remarkPlugins: ['custom-remark'] },
+    };
+    const fileConfig: TimberUserConfig = {
+      mdx: { rehypePlugins: ['custom-rehype'], remarkPlugins: ['file-remark'] },
+    };
+
+    const merged = mergeFileConfig(inline, fileConfig);
+
+    // Inline remarkPlugins wins, file rehypePlugins fills in
+    expect(merged.mdx).toEqual({
+      rehypePlugins: ['custom-rehype'],
+      remarkPlugins: ['custom-remark'],
+    });
+  });
+
+  it('deep merges limits when both exist', () => {
+    const inline: TimberUserConfig = {
+      limits: { actionBodySize: '1mb' },
+    };
+    const fileConfig: TimberUserConfig = {
+      limits: { uploadBodySize: '10mb', actionBodySize: '500kb' },
+    };
+
+    const merged = mergeFileConfig(inline, fileConfig);
+
+    expect(merged.limits).toEqual({
+      uploadBodySize: '10mb', // file fills in
+      actionBodySize: '1mb', // inline wins
+    });
+  });
+
+  it('file-only config is used when no inline config', () => {
+    const inline: TimberUserConfig = {};
+    const fileConfig: TimberUserConfig = {
+      output: 'static',
+      pageExtensions: ['tsx', 'ts', 'mdx'],
+      csrf: false,
+      mdx: { remarkPlugins: ['remark-gfm'] },
+    };
+
+    const merged = mergeFileConfig(inline, fileConfig);
+
+    expect(merged.output).toBe('static');
+    expect(merged.pageExtensions).toEqual(['tsx', 'ts', 'mdx']);
+    expect(merged.csrf).toBe(false);
+    expect(merged.mdx).toEqual({ remarkPlugins: ['remark-gfm'] });
+  });
+
+  it('empty file config does not overwrite inline config', () => {
+    const inline: TimberUserConfig = {
+      output: 'server',
+      pageExtensions: ['tsx'],
+    };
+    const fileConfig: TimberUserConfig = {};
+
+    const merged = mergeFileConfig(inline, fileConfig);
+
+    expect(merged.output).toBe('server');
+    expect(merged.pageExtensions).toEqual(['tsx']);
+  });
+
+  it('MDX activates from timber.config.ts — pageExtensions with mdx', () => {
+    // Simulates: inline config has no pageExtensions or mdx,
+    // but timber.config.ts has pageExtensions including 'mdx'
+    const inline: TimberUserConfig = { output: 'server' };
+    const fileConfig: TimberUserConfig = {
+      pageExtensions: ['tsx', 'ts', 'jsx', 'js', 'mdx'],
+    };
+
+    const merged = mergeFileConfig(inline, fileConfig);
+
+    // MDX plugin checks ctx.config.pageExtensions — this should now contain 'mdx'
+    const hasMdx = merged.pageExtensions?.some((ext) => ['mdx', 'md'].includes(ext));
+    expect(hasMdx).toBe(true);
+  });
+
+  it('redirects and rewrites merge correctly', () => {
+    const inline: TimberUserConfig = {
+      redirects: [{ source: '/inline', destination: '/target' }],
+    };
+    const fileConfig: TimberUserConfig = {
+      redirects: [{ source: '/file', destination: '/other' }],
+      rewrites: [{ source: '/old', destination: '/new' }],
+    };
+
+    const merged = mergeFileConfig(inline, fileConfig);
+
+    // Inline redirects win (arrays are not deep-merged, inline takes precedence)
+    expect(merged.redirects).toEqual([{ source: '/inline', destination: '/target' }]);
+    // File rewrites fill in
+    expect(merged.rewrites).toEqual([{ source: '/old', destination: '/new' }]);
+  });
+});

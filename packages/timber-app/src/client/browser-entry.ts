@@ -311,3 +311,7 @@ function handleLinkHover(event: MouseEvent, router: RouterInstance): void {
 }
 
 bootstrap(config);
+
+// Signal that the client runtime has been initialized.
+// Used by E2E tests to wait for hydration before interacting.
+document.documentElement.dataset.timberReady = '';

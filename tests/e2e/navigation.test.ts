@@ -12,13 +12,24 @@
  * Design docs: design/19-client-navigation.md, design/07-routing.md
  */
 
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
+
+/**
+ * Wait for timber's client runtime to initialize (hydration + router setup).
+ * The browser entry sets data-timber-ready on <html> after bootstrap completes.
+ * Without this, clicks may trigger full page navigations instead of SPA nav
+ * because the event delegation listener isn't attached yet.
+ */
+async function waitForHydration(page: Page): Promise<void> {
+  await page.waitForSelector('html[data-timber-ready]', { timeout: 15_000 });
+}
 
 // ─── Link Navigation: DOM State Preserved ────────────────────────────────────
 
 test.describe('dom state preserved', () => {
   test('input value in layout persists across client-side navigations', async ({ page }) => {
     await page.goto('/');
+    await waitForHydration(page);
 
     // Type into an input that lives in the root layout
     const layoutInput = page.locator('[data-testid="layout-input"]');
@@ -37,6 +48,7 @@ test.describe('dom state preserved', () => {
 
   test('focus state preserved in layout during navigation', async ({ page }) => {
     await page.goto('/dashboard');
+    await waitForHydration(page);
 
     // Focus an element in the persistent layout
     const layoutButton = page.locator('[data-testid="layout-button"]');
@@ -53,6 +65,7 @@ test.describe('dom state preserved', () => {
 
   test('scroll position in layout preserved across navigation', async ({ page }) => {
     await page.goto('/dashboard');
+    await waitForHydration(page);
 
     // Scroll the page down and wait for scroll to take effect
     await page.evaluate(() => window.scrollTo(0, 300));
@@ -82,6 +95,7 @@ test.describe('dom state preserved', () => {
 test.describe('history cached', () => {
   test('back button replays cached payload without server roundtrip', async ({ page }) => {
     await page.goto('/');
+    await waitForHydration(page);
 
     // Navigate forward to /dashboard
     await page.click('[data-testid="link-dashboard"]');
@@ -106,6 +120,7 @@ test.describe('history cached', () => {
 
   test('forward button after back replays cached payload', async ({ page }) => {
     await page.goto('/');
+    await waitForHydration(page);
     await page.click('[data-testid="link-dashboard"]');
     await page.waitForURL('/dashboard');
 
@@ -128,6 +143,7 @@ test.describe('history cached', () => {
 
   test('scroll position restored on back navigation', async ({ page }) => {
     await page.goto('/');
+    await waitForHydration(page);
 
     // Scroll down on home page and verify scroll took effect
     await page.evaluate(() => window.scrollTo(0, 500));
@@ -162,6 +178,7 @@ test.describe('history cached', () => {
 test.describe('segment diff', () => {
   test('navigation sends X-Timber-State-Tree header', async ({ page }) => {
     await page.goto('/dashboard');
+    await waitForHydration(page);
 
     // Intercept the RSC request on next navigation
     const rscRequest = page.waitForRequest(
@@ -185,6 +202,7 @@ test.describe('segment diff', () => {
 
   test('sync layout is NOT re-rendered during sibling navigation', async ({ page }) => {
     await page.goto('/dashboard');
+    await waitForHydration(page);
 
     // Mark the layout with a unique attribute via JS
     await page.evaluate(() => {
@@ -207,6 +225,7 @@ test.describe('segment diff', () => {
 
   test('router.refresh() sends full payload without state tree', async ({ page }) => {
     await page.goto('/dashboard');
+    await waitForHydration(page);
 
     // Intercept the refresh request
     const rscRequest = page.waitForRequest(
@@ -227,6 +246,7 @@ test.describe('segment diff', () => {
 test.describe('prefetch', () => {
   test('hovering a prefetch Link triggers RSC fetch', async ({ page }) => {
     await page.goto('/');
+    await waitForHydration(page);
 
     const rscRequest = page.waitForRequest(
       (req) => req.headers()['accept']?.includes('text/x-component') ?? false
@@ -241,6 +261,7 @@ test.describe('prefetch', () => {
 
   test('navigation after prefetch uses cached payload (no second fetch)', async ({ page }) => {
     await page.goto('/');
+    await waitForHydration(page);
 
     // Hover to trigger prefetch
     await page.hover('[data-testid="link-prefetch-dashboard"]');
@@ -272,6 +293,7 @@ test.describe('prefetch', () => {
 test.describe('navigation pending', () => {
   test('pending indicator shown during navigation', async ({ page }) => {
     await page.goto('/');
+    await waitForHydration(page);
 
     // The app should expose a pending indicator
     const pendingIndicator = page.locator('[data-testid="nav-pending"]');

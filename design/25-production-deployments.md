@@ -15,7 +15,7 @@ timber.js ships two first-party adapters. All deployment targets are covered by 
 | `vercel` | Vercel Serverless Functions | Yes | `maxDuration`, `regions` config passthrough. |
 | `vercel-edge` | Vercel Edge Functions | Yes | V8 isolate, similar constraints to Workers. |
 | `netlify` | Netlify Functions | No | Lambda-based. |
-| `netlify-edge` | Netlify Edge Functions | No | Deno-based. |
+| `netlify-edge` | Netlify Edge Functions | Yes | Deno-based, supports `waitUntil()`. |
 | `aws-lambda` | AWS Lambda (direct or via API Gateway) | No | Best-effort `waitUntil()`. |
 | `deno-deploy` | Deno Deploy | Yes | Web standard APIs. |
 | `azure-functions` | Azure Functions | No | Best-effort `waitUntil()`. |

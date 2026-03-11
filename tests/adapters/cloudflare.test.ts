@@ -150,6 +150,11 @@ describe('generateWorkerEntry', () => {
     const entry = generateWorkerEntry('/tmp/build', '/tmp/build/cloudflare');
     expect(entry).toContain('server/entry.js');
   });
+
+  it('sets TIMBER_RUNTIME to cloudflare', () => {
+    const entry = generateWorkerEntry('/tmp/build', '/tmp/build/cloudflare');
+    expect(entry).toContain("process.env.TIMBER_RUNTIME = 'cloudflare'");
+  });
 });
 
 describe('waitUntil maps to ctx.waitUntil()', () => {

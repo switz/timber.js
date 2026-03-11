@@ -202,8 +202,12 @@ Scroll to top via `afterPaint(() => scrollTo(0, 0))` after React reconciliation.
 
 Restore saved `scrollY`. The framework sets `history.scrollRestoration = 'manual'` and manages scroll position explicitly:
 
-1. On push (forward navigation): save `window.scrollY` with the current history entry
-2. On popstate (back/forward): replay cached payload, then `afterPaint(() => scrollTo(0, savedScrollY))`
+1. On push (forward navigation): save `window.scrollY` with the current history entry via `lastKnownUrl`
+2. On popstate (back/forward): save the departing page's scroll using `lastKnownUrl`, replay cached payload, then `afterPaint(() => scrollTo(0, savedScrollY))`
+
+**Why `lastKnownUrl`:** By the time the `popstate` event fires, `window.location.href` has already changed to the target URL. The router tracks the URL the user is currently viewing in `lastKnownUrl` so it can save the correct page's scroll position before processing the navigation.
+
+**URL normalization:** History stack keys use `pathname + search` (not full `href`) to match between `navigate()` (which receives relative URLs from links) and `handlePopState()` (which reads from `window.location`). This normalization happens at the browser-entry boundary.
 
 ### Opt-Out: `scroll={false}`
 
@@ -213,6 +217,20 @@ Restore saved `scrollY`. The framework sets `history.scrollRestoration = 'manual
 2. After `renderPayload()`, `afterPaint` restores the captured scroll position
 
 This active restoration is required because React's `render()` on the document root resets scroll to 0 during DOM reconciliation, even when layouts are preserved via React reconciliation. The scroll position cannot be passively preserved — it must be explicitly saved and restored.
+
+### Why Not Browser-Native Scroll Restoration?
+
+Next.js App Router uses `history.scrollRestoration = 'auto'` and lets the browser handle scroll restoration natively. This does NOT work for timber.js because:
+
+1. timber.js hydrates and renders from the `document` root (not a `<div id="root">`), so React's `render()` call replaces the entire DOM tree during reconciliation
+2. The browser restores scroll → then React commits the new tree → browser resets scroll to 0
+3. Browser-native restoration only works when the DOM update doesn't reset scroll, which is not the case with document-root rendering
+
+timber.js explicitly manages scroll via `history.scrollRestoration = 'manual'` + in-memory history stack.
+
+### `timber:scroll-restored` Event
+
+After every scroll operation (forward nav scroll-to-top, back/forward restore, scroll={false} preservation), the router dispatches a `timber:scroll-restored` event on `window`. This provides a deterministic signal for E2E tests to wait for instead of polling `window.scrollY`, which is unreliable due to the async afterPaint timing.
 
 ---
 

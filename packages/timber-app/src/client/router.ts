@@ -247,6 +247,12 @@ export function createRouter(deps: RouterDeps): RouterInstance {
   let pending = false;
   const pendingListeners = new Set<(pending: boolean) => void>();
 
+  // Track the URL the user is currently viewing. Updated after navigate()
+  // and handlePopState(). By the time popstate fires, window.location.href
+  // has already changed to the target URL — we use lastKnownUrl to identify
+  // the page we're departing so we can save its scroll position.
+  let lastKnownUrl = deps.getCurrentUrl();
+
   function setPending(value: boolean): void {
     if (pending !== value) {
       pending = value;
@@ -292,11 +298,10 @@ export function createRouter(deps: RouterDeps): RouterInstance {
     const scroll = options.scroll !== false;
     const replace = options.replace === true;
 
-    // Save current page to history stack before navigating away
-    const currentUrl = deps.getCurrentUrl();
+    // Save the departing page's scroll position and capture it for scroll={false}.
     const currentScrollY = deps.getScrollY();
-    if (historyStack.has(currentUrl)) {
-      historyStack.updateScroll(currentUrl, currentScrollY);
+    if (historyStack.has(lastKnownUrl)) {
+      historyStack.updateScroll(lastKnownUrl, currentScrollY);
     }
 
     setPending(true);
@@ -331,9 +336,6 @@ export function createRouter(deps: RouterDeps): RouterInstance {
       updateSegmentCache(result.segmentInfo);
 
       // Render the decoded RSC tree into the DOM.
-      // React's render() on the document root can cause the browser to
-      // reset scroll to 0 during DOM reconciliation. We must actively
-      // restore scroll after paint when scroll={false}.
       renderPayload(result.payload);
 
       // Update document.title and <meta> tags with the new page's metadata
@@ -344,13 +346,19 @@ export function createRouter(deps: RouterDeps): RouterInstance {
       // on this event so URL-bound inputs reflect the new URL after navigation.
       window.dispatchEvent(new Event('timber:navigation-end'));
 
+      // Scroll-to-top on forward navigation, or restore captured position
+      // for scroll={false}. React's render() on the document root can reset
+      // scroll during DOM reconciliation, so all scroll must be actively managed.
       afterPaint(() => {
         if (scroll) {
           deps.scrollTo(0, 0);
         } else {
           deps.scrollTo(0, currentScrollY);
         }
+        window.dispatchEvent(new Event('timber:scroll-restored'));
       });
+
+      lastKnownUrl = url;
     } catch (error) {
       // Server-side redirect during RSC fetch → soft router navigation.
       // access.ts called redirect() — the server returns X-Timber-Redirect
@@ -395,13 +403,24 @@ export function createRouter(deps: RouterDeps): RouterInstance {
   }
 
   async function handlePopState(url: string): Promise<void> {
+    // Save the departing page's scroll position. By the time popstate fires,
+    // window.location.href has already changed to the target URL, so we use
+    // lastKnownUrl to identify the page we're leaving.
+    if (historyStack.has(lastKnownUrl)) {
+      historyStack.updateScroll(lastKnownUrl, deps.getScrollY());
+    }
+    lastKnownUrl = url;
+
     const entry = historyStack.get(url);
 
     if (entry && entry.payload !== null) {
       // Replay cached payload — no server roundtrip
       renderPayload(entry.payload);
       applyHead(entry.headElements);
-      afterPaint(() => deps.scrollTo(0, entry.scrollY));
+      afterPaint(() => {
+        deps.scrollTo(0, entry.scrollY);
+        window.dispatchEvent(new Event('timber:scroll-restored'));
+      });
     } else {
       // No cached payload — fetch from server.
       // This happens when navigating back to the initial SSR'd page
@@ -420,7 +439,10 @@ export function createRouter(deps: RouterDeps): RouterInstance {
         });
         renderPayload(result.payload);
         applyHead(result.headElements);
-        afterPaint(() => deps.scrollTo(0, savedScrollY));
+        afterPaint(() => {
+          deps.scrollTo(0, savedScrollY);
+          window.dispatchEvent(new Event('timber:scroll-restored'));
+        });
       } finally {
         setPending(false);
       }

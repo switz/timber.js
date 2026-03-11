@@ -96,6 +96,15 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             <Link href="/meta-test/abc" data-testid="link-meta-dynamic">
               Meta: Dynamic
             </Link>
+            <Link href="/scroll-test/page-a" data-testid="link-scroll-page-a">
+              Scroll: Page A
+            </Link>
+            <Link href="/scroll-test/page-b" data-testid="link-scroll-page-b">
+              Scroll: Page B
+            </Link>
+            <Link href="/scroll-test/parallel" data-testid="link-scroll-parallel">
+              Scroll: Parallel
+            </Link>
             <Counter />
           </nav>
         </header>

@@ -20,9 +20,9 @@ export interface HistoryEntry {
  * Session-lived history stack keyed by URL. Enables instant back/forward
  * navigation without a server roundtrip.
  *
- * On forward navigation, the current page's payload (with scroll position)
- * is pushed onto the stack. On popstate, the cached payload is replayed
- * and the saved scrollY is restored.
+ * On forward navigation, the new page's payload is pushed onto the stack.
+ * On popstate, the cached payload is replayed and the saved scrollY is
+ * restored via afterPaint.
  *
  * Entries persist for the session duration (no expiry) and are cleared
  * when the tab is closed — matching browser back-button behavior.

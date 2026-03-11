@@ -149,25 +149,32 @@ test.describe('history cached', () => {
     await page.evaluate(() => window.scrollTo(0, 500));
     await page.waitForFunction(() => window.scrollY === 500);
 
-    // Navigate to dashboard. Use dispatchEvent to avoid Playwright
-    // auto-scrolling the link into view (which would reset scrollY).
-    await page.locator('[data-testid="link-dashboard"]').dispatchEvent('click');
+    // Navigate to dashboard. Use page.evaluate with el.click() to avoid
+    // Playwright auto-scrolling the link into view (which resets scrollY).
+    // Wait for timber:scroll-restored event instead of polling scrollY.
+    await page.evaluate(() =>
+      new Promise<void>((resolve) => {
+        window.addEventListener('timber:scroll-restored', () => resolve(), { once: true });
+        const el = document.querySelector('[data-testid="link-dashboard"]') as HTMLElement;
+        el.click();
+      })
+    );
     await page.waitForURL('/dashboard');
     await expect(page.locator('[data-testid="dashboard-content"]')).toBeVisible();
-
-    // Verify we scrolled to top on forward nav (afterPaint)
-    await page.waitForFunction(() => window.scrollY === 0, null, { timeout: 5000 });
     const topScroll = await page.evaluate(() => window.scrollY);
     expect(topScroll).toBe(0);
 
-    // Go back — router replays cached payload and restores saved scrollY
+    // Go back — router replays cached payload and restores saved scrollY.
+    // Wait for timber:scroll-restored event for deterministic assertion.
+    const scrollPromise = page.evaluate(() =>
+      new Promise<void>((resolve) => {
+        window.addEventListener('timber:scroll-restored', () => resolve(), { once: true });
+      })
+    );
     await page.goBack();
     await page.waitForURL('/');
     await expect(page.locator('[data-testid="home-content"]')).toBeVisible();
-
-    // Wait for scroll restoration (happens after render + afterPaint).
-    // Use a generous timeout — double-rAF can be slow under CI load.
-    await page.waitForFunction(() => window.scrollY > 0, null, { timeout: 10_000 });
+    await scrollPromise;
     const restoredScroll = await page.evaluate(() => window.scrollY);
     expect(restoredScroll).toBe(500);
   });

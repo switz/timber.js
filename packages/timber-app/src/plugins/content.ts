@@ -86,21 +86,22 @@ export function timberContent(ctx: PluginContext): Plugin {
     async configResolved(config) {
       if (!innerPlugin) return;
       if (typeof innerPlugin.configResolved === 'function') {
-        await (innerPlugin.configResolved as Function).call(this, config);
+        await (innerPlugin.configResolved as (...args: unknown[]) => unknown).call(this, config);
       }
     },
 
     async buildStart(options) {
       if (!innerPlugin) return;
       if (typeof innerPlugin.buildStart === 'function') {
-        await (innerPlugin.buildStart as Function).call(this, options);
+        await (innerPlugin.buildStart as (...args: unknown[]) => unknown).call(this, options);
       }
     },
 
     async resolveId(source: string, importer: string | undefined, options: unknown) {
       if (!innerPlugin) return null;
       if (typeof innerPlugin.resolveId === 'function') {
-        return (innerPlugin.resolveId as Function).call(this, source, importer, options);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return (innerPlugin.resolveId as any).call(this, source, importer, options);
       }
       return null;
     },
@@ -108,7 +109,8 @@ export function timberContent(ctx: PluginContext): Plugin {
     async load(id: string) {
       if (!innerPlugin) return null;
       if (typeof innerPlugin.load === 'function') {
-        return (innerPlugin.load as Function).call(this, id);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return (innerPlugin.load as any).call(this, id);
       }
       return null;
     },
@@ -116,7 +118,8 @@ export function timberContent(ctx: PluginContext): Plugin {
     async transform(code: string, id: string) {
       if (!innerPlugin) return null;
       if (typeof innerPlugin.transform === 'function') {
-        return (innerPlugin.transform as Function).call(this, code, id);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return (innerPlugin.transform as any).call(this, code, id);
       }
       return null;
     },
@@ -124,7 +127,7 @@ export function timberContent(ctx: PluginContext): Plugin {
     async configureServer(server) {
       if (!innerPlugin) return;
       if (typeof innerPlugin.configureServer === 'function') {
-        await (innerPlugin.configureServer as Function).call(this, server);
+        await (innerPlugin.configureServer as (...args: unknown[]) => unknown).call(this, server);
       }
     },
   };

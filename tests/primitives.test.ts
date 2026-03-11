@@ -53,8 +53,11 @@ describe('deny()', () => {
   });
 
   it('rejects non-4xx status codes', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expect(() => deny(500 as any)).toThrow();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expect(() => deny(200 as any)).toThrow();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expect(() => deny(301 as any)).toThrow();
   });
 
@@ -116,7 +119,9 @@ describe('redirect()', () => {
   });
 
   it('rejects URLs with other schemes', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expect(() => redirect('javascript:alert(1)' as any)).toThrow();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expect(() => redirect('data:text/html,<h1>hi</h1>' as any)).toThrow();
   });
 
@@ -137,7 +142,9 @@ describe('redirect()', () => {
   });
 
   it('rejects non-3xx status codes', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expect(() => redirect('/login', 200 as any)).toThrow();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expect(() => redirect('/login', 404 as any)).toThrow();
   });
 });
@@ -217,7 +224,9 @@ describe('RenderError', () => {
   });
 
   it('rejects non-error status codes', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expect(() => new RenderError('A', {}, { status: 200 as any })).toThrow();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expect(() => new RenderError('A', {}, { status: 301 as any })).toThrow();
   });
 
@@ -256,7 +265,9 @@ describe('waitUntil()', () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const adapter = {};
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     waitUntil(Promise.resolve(), adapter as any);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     waitUntil(Promise.resolve(), adapter as any);
 
     // Should warn only once
@@ -268,6 +279,7 @@ describe('waitUntil()', () => {
 
   it('does not throw when adapter is missing waitUntil', () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expect(() => waitUntil(Promise.resolve(), {} as any)).not.toThrow();
     warnSpy.mockRestore();
   });

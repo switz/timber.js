@@ -47,53 +47,93 @@ function bootstrap(runtimeConfig: typeof config): void {
   window.history.scrollRestoration = 'manual';
 
   // Hydrate the React tree from the RSC payload.
+  //
   // The RSC payload is embedded in the HTML as progressive inline script
-  // tags that call self.__timber_f.push(chunk) as RSC chunks arrive.
-  // We set up a ReadableStream that gets fed by those push() calls so
+  // tags that call self.__timber_f.push([type, data]) as RSC chunks arrive.
+  // Typed tuples: [0] = bootstrap signal, [1, string] = Flight data chunk.
+  //
+  // We set up a ReadableStream fed by those push() calls so
   // createFromReadableStream can decode the Flight protocol progressively.
   //
   // For the initial page load, the RSC payload is inlined in the HTML.
   // For subsequent navigations, it's fetched from the server.
-  const timberChunks = (self as unknown as Record<string, string[]>).__timber_f;
+  type FlightSegment = [isBootstrap: 0] | [isData: 1, data: string];
+
+  const timberChunks = (self as unknown as Record<string, FlightSegment[]>).__timber_f;
 
   let reactRoot: Root | null = null;
   let initialElement: unknown = null;
 
   if (timberChunks) {
     const encoder = new TextEncoder();
-    let streamController: ReadableStreamDefaultController<Uint8Array> | null = null;
+
+    // Buffer to hold string data until the stream writer is ready.
+    // Scripts that execute before hydration starts push data here.
+    let dataBuffer: string[] | undefined = [];
+    let streamWriter: ReadableStreamDefaultController<Uint8Array> | null = null;
+    let streamFlushed = false;
+
+    /** Process a typed tuple from __timber_f. */
+    function handleSegment(seg: FlightSegment): void {
+      if (seg[0] === 0) {
+        // Bootstrap signal — initialize buffer (already done above)
+        if (!dataBuffer) dataBuffer = [];
+      } else if (seg[0] === 1) {
+        // Flight data chunk
+        if (streamWriter) {
+          streamWriter.enqueue(encoder.encode(seg[1]));
+        } else if (dataBuffer) {
+          dataBuffer.push(seg[1]);
+        }
+      }
+    }
+
+    // Process any chunks that arrived before this script executed.
+    for (const seg of timberChunks) {
+      handleSegment(seg);
+    }
+    // Clear the array to release memory.
+    timberChunks.length = 0;
+
+    // Patch push() so subsequent script tags feed data in real time.
+    (timberChunks as unknown as { push: (seg: FlightSegment) => void }).push = handleSegment;
 
     const rscPayload = new ReadableStream<Uint8Array>({
       start(controller) {
-        streamController = controller;
-        // Flush any chunks that arrived before this script executed.
-        for (const chunk of timberChunks) {
-          controller.enqueue(encoder.encode(chunk));
+        streamWriter = controller;
+        // Flush buffered data into the stream.
+        if (dataBuffer) {
+          for (const data of dataBuffer) {
+            controller.enqueue(encoder.encode(data));
+          }
+          dataBuffer = undefined;
+        }
+        // If DOM already loaded (non-streaming or fast page), close now.
+        if (streamFlushed) {
+          controller.close();
         }
       },
     });
 
-    // Intercept future push() calls to feed the stream controller.
-    // Chunks arriving after hydration starts (from Suspense boundaries
-    // resolving) are piped directly into the ReadableStream.
-    (self as unknown as Record<string, { push: (chunk: string) => void }>).__timber_f = {
-      push(chunk: string) {
-        streamController?.enqueue(encoder.encode(chunk));
-      },
-    };
+    // Close the stream when the document finishes loading.
+    // DOMContentLoaded fires after the HTML parser has processed all
+    // inline scripts (including streamed Suspense replacements and
+    // RSC data), so all push() calls have completed by this point.
+    function onDOMContentLoaded(): void {
+      if (streamWriter && !streamFlushed) {
+        streamWriter.close();
+        streamFlushed = true;
+        dataBuffer = undefined;
+      }
+      streamFlushed = true;
+    }
 
-    // Listen for the stream to close when all chunks have arrived.
-    // The server signals completion by setting self.__timber_f_done.
-    // If it's already set (SSR completed before this script ran), close now.
-    if ((self as unknown as Record<string, boolean>).__timber_f_done) {
-      streamController!.close();
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', onDOMContentLoaded, false);
     } else {
-      Object.defineProperty(self, '__timber_f_done', {
-        set() {
-          streamController?.close();
-        },
-        configurable: true,
-      });
+      // DOM already parsed — close after a microtask to ensure
+      // any pending push() calls from inline scripts have executed.
+      setTimeout(onDOMContentLoaded);
     }
 
     const element = createFromReadableStream(rscPayload);

@@ -221,12 +221,12 @@ describe('injectRscPayload', () => {
     expect(result).toBe(html);
   });
 
-  it('uses self.__timber_f=self.__timber_f||[]).push() pattern, not monolithic __TIMBER_RSC_PAYLOAD', async () => {
+  it('uses self.__timber_f push() pattern with typed tuples', async () => {
     const html = '<html><body><div>App</div></body></html>';
     const rscPayload = '0:D"$1"\n0:["$","div",null,{"children":"Hello"}]\n';
     const result = await runInjectRscPayload(html, rscPayload);
 
-    // Should use progressive push() pattern
+    // Should use progressive push() pattern with typed tuples
     expect(result).toContain('self.__timber_f=self.__timber_f||[]).push(');
     // Must NOT use the old monolithic payload format
     expect(result).not.toContain('__TIMBER_RSC_PAYLOAD');
@@ -236,48 +236,66 @@ describe('injectRscPayload', () => {
     expect(pushIdx).toBeLessThan(bodyIdx);
   });
 
-  it('escapes < to prevent script injection', async () => {
+  it('emits bootstrap signal [0] as first push', async () => {
+    const html = '<html><body><div>App</div></body></html>';
+    const rscPayload = '0:D"$1"\n';
+    const result = await runInjectRscPayload(html, rscPayload);
+
+    // First push should be the bootstrap signal [0]
+    expect(result).toContain('.push([0])');
+  });
+
+  it('emits data chunks as [1, data] typed tuples', async () => {
+    const html = '<html><body><div>App</div></body></html>';
+    const rscPayload = '0:D"$1"\n';
+    const result = await runInjectRscPayload(html, rscPayload);
+
+    // Data chunks should be [1, "..."] tuples
+    expect(result).toMatch(/\.push\(\[1,"/);
+  });
+
+  it('escapes < in JSON to prevent script injection', async () => {
     const html = '<html><body></body></html>';
     const rscPayload = '0:["$","div",null,{"children":"<script>alert(1)</script>"}]\n';
     const result = await runInjectRscPayload(html, rscPayload);
 
     // The literal < should be escaped so it doesn't break the <script> tag
     expect(result).not.toContain('<script>alert');
-    // The payload should still be recoverable — escaped form
-    expect(result).toContain('\\x3c');
+    // Should use unicode escape for < inside JSON
+    expect(result).toContain('\\u003c');
   });
 
-  it('escapes single quotes in the payload', async () => {
+  it('handles single quotes safely via JSON encoding', async () => {
     const html = '<html><body></body></html>';
     const rscPayload = '0:["$","div",null,{"children":"it\'s a test"}]\n';
     const result = await runInjectRscPayload(html, rscPayload);
 
-    // Single quotes must be escaped so they don't break the string literal
-    expect(result).toContain("\\'");
+    // Single quotes are safe inside JSON strings (no escaping needed)
+    // The data should be recoverable
+    expect(result).toContain("it's a test");
   });
 
-  it('escapes backslashes in the payload', async () => {
+  it('handles backslashes via JSON encoding', async () => {
     const html = '<html><body></body></html>';
     const rscPayload = '0:["$","div",null,{"children":"path\\\\to\\\\file"}]\n';
     const result = await runInjectRscPayload(html, rscPayload);
 
-    // Backslashes should be doubled
+    // JSON.stringify handles backslash escaping
     expect(result).toContain('\\\\');
   });
 
-  it('escapes newlines in the payload', async () => {
+  it('handles newlines via JSON encoding', async () => {
     const html = '<html><body></body></html>';
     // RSC flight format uses newlines as row delimiters
     const rscPayload = '0:D"$1"\n0:["$","div",null,{"children":"Hello"}]\n';
     const result = await runInjectRscPayload(html, rscPayload);
 
-    // Literal newlines in a JS string literal are a syntax error —
-    // they must be escaped as \n
-    const scriptMatches = result.match(/<script>\(self\.__timber_f=self\.__timber_f\|\|\[\]\)\.push\((.*?)\)<\/script>/gs);
+    // All push() script tags should be parseable — no raw newlines in JSON
+    const scriptMatches = result.match(/<script>[^<]*<\/script>/g);
     expect(scriptMatches).not.toBeNull();
-    // No push() call should contain literal newline characters in the string arg
     for (const m of scriptMatches!) {
-      const inner = m.replace(/<\/?script>/g, '').replace(/^self\.__timber_f\.push\(/, '').replace(/\)$/, '');
+      const inner = m.replace(/<\/?script>/g, '');
+      // Should not contain literal newlines (JSON.stringify escapes them)
       expect(inner).not.toMatch(/\n/);
     }
   });
@@ -291,6 +309,28 @@ describe('injectRscPayload', () => {
     expect(result).toContain('<div>App</div>');
     // The payload text should be present (with escaping)
     expect(result).toContain('Hello World');
+  });
+
+  it('does not emit __timber_f_done — client uses DOMContentLoaded', async () => {
+    const html = '<html><body><div>App</div></body></html>';
+    const rscPayload = '0:D"$1"\n';
+    const result = await runInjectRscPayload(html, rscPayload);
+
+    // No done signal — the client uses DOMContentLoaded to close the stream
+    expect(result).not.toContain('__timber_f_done');
+  });
+
+  it('moves </body></html> to end of stream (after RSC scripts)', async () => {
+    const html = '<html><body><div>App</div></body></html>';
+    const rscPayload = '0:D"$1"\n';
+    const result = await runInjectRscPayload(html, rscPayload);
+
+    // RSC scripts should appear before </body></html>
+    const lastPushIdx = result.lastIndexOf('.push(');
+    const bodyIdx = result.indexOf('</body>');
+    expect(lastPushIdx).toBeLessThan(bodyIdx);
+    // </body></html> should be the very end
+    expect(result).toMatch(/<\/body><\/html>$/);
   });
 });
 
@@ -338,7 +378,7 @@ describe('progressive RSC payload chunking', () => {
     return outputChunks;
   }
 
-  it('injects RSC chunks as individual push() script tags, not one monolithic blob', async () => {
+  it('emits bootstrap [0] and data [1, ...] push() calls', async () => {
     const outputChunks = await runChunkedPayload(
       [
         { text: '<html><head></head><body><div>Shell</div>', delayMs: 0 },
@@ -352,32 +392,23 @@ describe('progressive RSC payload chunking', () => {
 
     const fullOutput = outputChunks.join('');
 
-    // Should use self.__timber_f=self.__timber_f||[]).push() pattern, not window.__TIMBER_RSC_PAYLOAD
-    expect(fullOutput).toContain('self.__timber_f=self.__timber_f||[]).push(');
+    // Should have bootstrap [0] and data [1, ...] push calls
+    expect(fullOutput).toContain('.push([0])');
+    expect(fullOutput).toMatch(/\.push\(\[1,"/);
     expect(fullOutput).not.toContain('__TIMBER_RSC_PAYLOAD');
-
-    // Each RSC chunk should be a separate push() call
-    const pushCount = (fullOutput.match(/self\.__timber_f=self\.__timber_f\|\|\[\]\)\.push\(/g) || []).length;
-    expect(pushCount).toBeGreaterThanOrEqual(2);
   });
 
-  it('emits __timber_f_done exactly once, not twice', async () => {
-    // When RSC stream finishes before </body> arrives, the done signal
-    // should only be emitted once (with </body>), not again in flush().
+  it('does not emit __timber_f_done — relies on DOMContentLoaded', async () => {
     const outputChunks = await runChunkedPayload(
       [
         { text: '<html><head></head><body><div>Shell</div>', delayMs: 0 },
         { text: '</body></html>', delayMs: 50 },
       ],
-      [
-        // RSC finishes quickly — before </body> arrives
-        { text: '0:D"$1"\n', delayMs: 0 },
-      ]
+      [{ text: '0:D"$1"\n', delayMs: 0 }]
     );
 
     const fullOutput = outputChunks.join('');
-    const doneCount = (fullOutput.match(/self\.__timber_f_done=1/g) || []).length;
-    expect(doneCount).toBe(1);
+    expect(fullOutput).not.toContain('__timber_f_done');
   });
 
   it('RSC chunks interleave with HTML — not all buffered at end', async () => {
@@ -401,26 +432,44 @@ describe('progressive RSC payload chunking', () => {
     const nonLastChunks = outputChunks.slice(0, -1).join('');
 
     // At least one push() call should appear before the final chunk
-    expect(nonLastChunks).toContain('self.__timber_f=self.__timber_f||[]).push(');
+    expect(nonLastChunks).toContain('self.__timber_f.push(');
   });
 
-  it('properly escapes RSC chunk content in push() calls', async () => {
+  it('properly escapes RSC chunk content via JSON encoding', async () => {
+    const outputChunks = await runChunkedPayload(
+      [{ text: '<html><body></body></html>', delayMs: 0 }],
+      [{ text: '0:["$","div",null,{"children":"<script>alert(1)</script>"}]\n', delayMs: 0 }]
+    );
+
+    const fullOutput = outputChunks.join('');
+
+    // Must escape < to prevent script injection (\\u003c in JSON)
+    expect(fullOutput).not.toContain('<script>alert');
+    expect(fullOutput).toContain('\\u003c');
+    // Must use push() pattern
+    expect(fullOutput).toContain('self.__timber_f.push(');
+  });
+
+  it('moves </body></html> to end of stream after RSC scripts', async () => {
     const outputChunks = await runChunkedPayload(
       [
-        { text: '<html><body></body></html>', delayMs: 0 },
+        { text: '<html><head></head><body><div>Shell</div>', delayMs: 0 },
+        { text: '</body></html>', delayMs: 30 },
       ],
       [
-        { text: '0:["$","div",null,{"children":"<script>alert(1)</script>"}]\n', delayMs: 0 },
+        { text: '0:D"$1"\n', delayMs: 0 },
+        { text: '0:["$","div",null,{"children":"Hello"}]\n', delayMs: 10 },
       ]
     );
 
     const fullOutput = outputChunks.join('');
 
-    // Must escape < to prevent script injection
-    expect(fullOutput).not.toContain('<script>alert');
-    expect(fullOutput).toContain('\\x3c');
-    // Must use push() pattern
-    expect(fullOutput).toContain('self.__timber_f=self.__timber_f||[]).push(');
+    // </body></html> should be at the very end
+    expect(fullOutput).toMatch(/<\/body><\/html>$/);
+    // RSC scripts should come before the closing tags
+    const lastPushIdx = fullOutput.lastIndexOf('.push(');
+    const bodyIdx = fullOutput.indexOf('</body>');
+    expect(lastPushIdx).toBeLessThan(bodyIdx);
   });
 });
 
@@ -466,7 +515,9 @@ describe('buildClientScripts', () => {
       buildManifest: {
         js: { 'virtual:timber-browser-entry': '/assets/entry-abc123.js' },
         css: {},
-        modulepreload: { 'virtual:timber-browser-entry': ['/assets/chunk-1.js', '/assets/chunk-2.js'] },
+        modulepreload: {
+          'virtual:timber-browser-entry': ['/assets/chunk-1.js', '/assets/chunk-2.js'],
+        },
         fonts: {},
       },
     });

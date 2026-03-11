@@ -41,10 +41,7 @@ describe('getSelectedSegment', () => {
   });
 
   it('returns active segment from deeply nested layout', () => {
-    const result = getSelectedSegment(
-      ['', 'dashboard', 'settings'],
-      '/dashboard/settings/profile'
-    );
+    const result = getSelectedSegment(['', 'dashboard', 'settings'], '/dashboard/settings/profile');
     expect(result).toBe('profile');
   });
 

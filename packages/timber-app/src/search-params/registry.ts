@@ -9,12 +9,14 @@
 
 import type { SearchParamsDefinition } from './create.js';
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const registry = new Map<string, SearchParamsDefinition<any>>();
 
 /**
  * Register a route's search params definition.
  * Called by the generated route manifest loader when a route's modules load.
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function registerSearchParams(route: string, definition: SearchParamsDefinition<any>): void {
   registry.set(route, definition);
 }
@@ -23,6 +25,7 @@ export function registerSearchParams(route: string, definition: SearchParamsDefi
  * Look up a route's search params definition.
  * Returns undefined if the route hasn't been loaded yet.
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function getSearchParams(route: string): SearchParamsDefinition<any> | undefined {
   return registry.get(route);
 }

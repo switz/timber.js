@@ -51,6 +51,7 @@ afterEach(() => {
 
 function renderSync(element: React.ReactNode) {
   // React 19's createRoot is async, but act() flushes synchronously
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { act } = require('react');
   act(() => {
     root.render(element);
@@ -63,18 +64,14 @@ function renderSync(element: React.ReactNode) {
 
 describe('TimberNuqsAdapter', () => {
   it('renders children', () => {
-    renderSync(
-      createElement(TimberNuqsAdapter, null, createElement('div', null, 'hello'))
-    );
+    renderSync(createElement(TimberNuqsAdapter, null, createElement('div', null, 'hello')));
     expect(container.textContent).toBe('hello');
   });
 
   it('provides nuqs adapter context without errors', () => {
     // If the adapter is misconfigured, nuqs throws during render
     expect(() =>
-      renderSync(
-        createElement(TimberNuqsAdapter, null, createElement('span', null, 'test'))
-      )
+      renderSync(createElement(TimberNuqsAdapter, null, createElement('span', null, 'test')))
     ).not.toThrow();
   });
 
@@ -97,10 +94,9 @@ describe('TimberNuqsAdapter', () => {
 
 describe('adapter event handling', () => {
   it('syncs with popstate events', () => {
-    renderSync(
-      createElement(TimberNuqsAdapter, null, createElement('div', null, 'content'))
-    );
+    renderSync(createElement(TimberNuqsAdapter, null, createElement('div', null, 'content')));
 
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { act } = require('react');
     act(() => {
       Object.defineProperty(window, 'location', {
@@ -116,10 +112,9 @@ describe('adapter event handling', () => {
   });
 
   it('syncs with timber:navigation-end events', () => {
-    renderSync(
-      createElement(TimberNuqsAdapter, null, createElement('div', null, 'content'))
-    );
+    renderSync(createElement(TimberNuqsAdapter, null, createElement('div', null, 'content')));
 
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { act } = require('react');
     act(() => {
       Object.defineProperty(window, 'location', {
@@ -139,6 +134,7 @@ describe('adapter event handling', () => {
     document.body.appendChild(testContainer);
     const testRoot = createRoot(testContainer);
 
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { act } = require('react');
     act(() => {
       testRoot.render(

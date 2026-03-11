@@ -103,6 +103,7 @@ describe('resolveHref', () => {
 
     expect(
       resolveHref('/products', undefined, {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         definition: def as any,
         values: { page: 2, q: 'boots' },
       })
@@ -120,6 +121,7 @@ describe('resolveHref', () => {
     // page=1 is the default — should be omitted
     expect(
       resolveHref('/products', undefined, {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         definition: def as any,
         values: { page: 1 },
       })
@@ -140,6 +142,7 @@ describe('resolveHref', () => {
         '/products/[id]',
         { id: '42' },
         {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           definition: def as any,
           values: { tab: 'reviews' },
         }
@@ -157,6 +160,7 @@ describe('resolveHref', () => {
 
     expect(() =>
       resolveHref('/products?existing=true', undefined, {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         definition: def as any,
         values: { page: 2 },
       })
@@ -186,6 +190,7 @@ describe('buildLinkProps', () => {
 
     const result = buildLinkProps({
       href: '/search',
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       searchParams: { definition: def as any, values: { q: 'boots' } },
     });
     expect(result.href).toBe('/search?q=boots');
@@ -210,6 +215,7 @@ describe('buildLinkProps', () => {
     expect(() =>
       buildLinkProps({
         href: '/products?page=1',
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         searchParams: { definition: def as any, values: { page: 2 } },
       })
     ).toThrow('mutually exclusive');
@@ -231,6 +237,7 @@ describe('buildLinkProps', () => {
     const result = buildLinkProps({
       href: '/products',
       searchParams: {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         definition: def as any,
         values: { page: 1, sort: 'popular' },
       },

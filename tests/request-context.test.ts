@@ -35,7 +35,7 @@ describe('headers()', () => {
 
   it('has() works correctly', () => {
     const req = new Request('http://localhost/test', {
-      headers: { 'Authorization': 'Bearer token' },
+      headers: { Authorization: 'Bearer token' },
     });
 
     runWithRequestContext(req, () => {
@@ -67,7 +67,7 @@ describe('headers()', () => {
 
   it('rejects .delete() mutation at runtime', () => {
     const req = new Request('http://localhost/test', {
-      headers: { 'Authorization': 'Bearer token' },
+      headers: { Authorization: 'Bearer token' },
     });
 
     runWithRequestContext(req, () => {

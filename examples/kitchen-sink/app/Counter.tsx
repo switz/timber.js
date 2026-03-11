@@ -13,5 +13,5 @@ export default function Counter() {
     return () => clearInterval(intervalId);
   }, []);
 
-  return state;
+  return <div>{state}</div>;
 }

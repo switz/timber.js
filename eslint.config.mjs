@@ -1,4 +1,19 @@
 import main from '@switz/eslint-config';
 import react from '@switz/eslint-config/react.mjs';
 
-export default [...main, ...react];
+export default [
+  ...main,
+  ...react,
+  {
+    rules: {
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_',
+        },
+      ],
+    },
+  },
+];

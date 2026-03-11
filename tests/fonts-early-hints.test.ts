@@ -21,7 +21,10 @@ import {
   buildFontPreloadTags,
   buildFontLinkHeaders,
 } from '../packages/timber-app/src/server/build-manifest.js';
-import type { BuildManifest, ManifestFontEntry } from '../packages/timber-app/src/server/build-manifest.js';
+import type {
+  BuildManifest,
+  ManifestFontEntry,
+} from '../packages/timber-app/src/server/build-manifest.js';
 import { timberFonts } from '../packages/timber-app/src/plugins/fonts.js';
 import type { PluginContext } from '../packages/timber-app/src/index.js';
 
@@ -198,7 +201,11 @@ const inter = Inter({ subsets: ['latin'], weight: '400', display: 'swap' })
 describe('collectRouteFonts', () => {
   it('collects fonts from matched segments', () => {
     const fonts: ManifestFontEntry[] = [
-      { href: '/_timber/fonts/inter-latin-400-normal.woff2', format: 'woff2', crossOrigin: 'anonymous' },
+      {
+        href: '/_timber/fonts/inter-latin-400-normal.woff2',
+        format: 'woff2',
+        crossOrigin: 'anonymous',
+      },
     ];
     const manifest = createManifest({ 'app/layout.tsx': fonts });
     const segments = [{ layout: { filePath: 'app/layout.tsx' } }];
@@ -263,17 +270,31 @@ describe('collectRouteFonts', () => {
 describe('emits font Link headers in Early Hints', () => {
   it('generates Link header with rel=preload as=font crossorigin', () => {
     const fonts: ManifestFontEntry[] = [
-      { href: '/_timber/fonts/inter-latin-400-normal.woff2', format: 'woff2', crossOrigin: 'anonymous' },
+      {
+        href: '/_timber/fonts/inter-latin-400-normal.woff2',
+        format: 'woff2',
+        crossOrigin: 'anonymous',
+      },
     ];
 
     const header = buildFontLinkHeaders(fonts);
-    expect(header).toBe('</_timber/fonts/inter-latin-400-normal.woff2>; rel=preload; as=font; crossorigin');
+    expect(header).toBe(
+      '</_timber/fonts/inter-latin-400-normal.woff2>; rel=preload; as=font; crossorigin'
+    );
   });
 
   it('joins multiple font entries with comma separator', () => {
     const fonts: ManifestFontEntry[] = [
-      { href: '/_timber/fonts/inter-latin-400-normal.woff2', format: 'woff2', crossOrigin: 'anonymous' },
-      { href: '/_timber/fonts/mono-latin-400-normal.woff2', format: 'woff2', crossOrigin: 'anonymous' },
+      {
+        href: '/_timber/fonts/inter-latin-400-normal.woff2',
+        format: 'woff2',
+        crossOrigin: 'anonymous',
+      },
+      {
+        href: '/_timber/fonts/mono-latin-400-normal.woff2',
+        format: 'woff2',
+        crossOrigin: 'anonymous',
+      },
     ];
 
     const header = buildFontLinkHeaders(fonts);
@@ -291,7 +312,11 @@ describe('emits font Link headers in Early Hints', () => {
 describe('renders font preload in head', () => {
   it('generates <link rel="preload"> tags with correct attributes', () => {
     const fonts: ManifestFontEntry[] = [
-      { href: '/_timber/fonts/inter-latin-400-normal.woff2', format: 'woff2', crossOrigin: 'anonymous' },
+      {
+        href: '/_timber/fonts/inter-latin-400-normal.woff2',
+        format: 'woff2',
+        crossOrigin: 'anonymous',
+      },
     ];
 
     const html = buildFontPreloadTags(fonts);
@@ -304,8 +329,16 @@ describe('renders font preload in head', () => {
 
   it('generates multiple preload tags', () => {
     const fonts: ManifestFontEntry[] = [
-      { href: '/_timber/fonts/inter-latin-400-normal.woff2', format: 'woff2', crossOrigin: 'anonymous' },
-      { href: '/_timber/fonts/mono-latin-400-normal.woff2', format: 'woff2', crossOrigin: 'anonymous' },
+      {
+        href: '/_timber/fonts/inter-latin-400-normal.woff2',
+        format: 'woff2',
+        crossOrigin: 'anonymous',
+      },
+      {
+        href: '/_timber/fonts/mono-latin-400-normal.woff2',
+        format: 'woff2',
+        crossOrigin: 'anonymous',
+      },
     ];
 
     const html = buildFontPreloadTags(fonts);

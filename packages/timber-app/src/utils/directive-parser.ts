@@ -70,6 +70,7 @@ export function detectFileDirective(
   code: string,
   directives: string[] = ['use client', 'use server']
 ): FileDirective | null {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let ast: any;
   try {
     ast = jsxParser.parse(code, {
@@ -183,6 +184,7 @@ export function findFunctionsWithDirective(
   code: string,
   directive: string
 ): FunctionWithDirective[] {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let ast: any;
   try {
     ast = jsxParser.parse(code, {
@@ -208,10 +210,12 @@ export function findFunctionsWithDirective(
  * Recursive AST walker that finds functions with a directive in their body.
  */
 function walkAst(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   node: any,
   code: string,
   directive: string,
   results: FunctionWithDirective[],
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ancestors: any[]
 ): void {
   if (!node || typeof node !== 'object') return;
@@ -250,10 +254,12 @@ function walkAst(
  * Check if a function's body starts with the target directive.
  */
 function checkFunctionBody(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   node: any,
   code: string,
   directive: string,
   results: FunctionWithDirective[],
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ancestors: any[]
 ): void {
   const body = node.type === 'ArrowFunctionExpression' ? node.body : node.body;

@@ -60,9 +60,7 @@ test.describe('parallel route initial load', () => {
 // ─── Client Navigation Updates Slots ─────────────────────────────────────────
 
 test.describe('updates slot on navigation', () => {
-  test('sidebar updates when navigating from /parallel to /parallel/projects', async ({
-    page,
-  }) => {
+  test('sidebar updates when navigating from /parallel to /parallel/projects', async ({ page }) => {
     await page.goto('/parallel');
     await expect(page.locator('[data-testid="sidebar-home"]')).toBeVisible();
 

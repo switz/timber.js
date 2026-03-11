@@ -34,10 +34,13 @@ describe('timber-mdx', () => {
     const plugin = timberMdx(ctx);
 
     // buildStart should be a no-op — no activation
-    await (plugin.buildStart as Function)?.({});
+    await (plugin.buildStart as (...args: unknown[]) => unknown)?.({});
 
     // transform should return null (inner plugin not loaded)
-    const result = await (plugin.transform as Function)?.('code', 'file.mdx');
+    const result = await (plugin.transform as (...args: unknown[]) => unknown)?.(
+      'code',
+      'file.mdx'
+    );
     expect(result).toBeNull();
   });
 
@@ -48,7 +51,7 @@ describe('timber-mdx', () => {
     const plugin = timberMdx(ctx);
 
     // buildStart triggers activation — should load @mdx-js/rollup
-    await (plugin.buildStart as Function)?.({});
+    await (plugin.buildStart as (...args: unknown[]) => unknown)?.({});
 
     // transform should now delegate to inner plugin (non-null return for .mdx files)
     // We can't fully test transform without a real MDX file, but the plugin should be loaded
@@ -62,7 +65,7 @@ describe('timber-mdx', () => {
     const plugin = timberMdx(ctx);
 
     // Should not throw — @mdx-js/rollup is installed as dev dep
-    await (plugin.buildStart as Function)?.({});
+    await (plugin.buildStart as (...args: unknown[]) => unknown)?.({});
   });
 
   it('passes mdx config options through', () => {

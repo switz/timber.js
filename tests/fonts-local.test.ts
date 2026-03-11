@@ -55,9 +55,7 @@ describe('handles single src string', () => {
   });
 
   it('extracts config with single string src', () => {
-    const config = extractLocalFontConfig(
-      "({ src: './fonts/MyFont.woff2', display: 'swap' })"
-    );
+    const config = extractLocalFontConfig("({ src: './fonts/MyFont.woff2', display: 'swap' })");
     expect(config).not.toBeNull();
     expect(config!.src).toBe('./fonts/MyFont.woff2');
     expect(config!.display).toBe('swap');
@@ -73,9 +71,7 @@ describe('handles single src string', () => {
     expect(extracted.weights).toEqual(['400']);
     expect(extracted.styles).toEqual(['normal']);
     expect(extracted.localSources).toHaveLength(1);
-    expect(extracted.localSources![0].path).toBe(
-      resolve('/project/app', 'fonts/MyFont.woff2')
-    );
+    expect(extracted.localSources![0].path).toBe(resolve('/project/app', 'fonts/MyFont.woff2'));
   });
 
   it('generates @font-face for single src', () => {
@@ -223,10 +219,7 @@ describe('returns consistent FontResult', () => {
   });
 
   it('local font without variable omits it', () => {
-    const extracted = processLocalFont(
-      { src: './fonts/MyFont.woff2' },
-      '/project/app/layout.tsx'
-    );
+    const extracted = processLocalFont({ src: './fonts/MyFont.woff2' }, '/project/app/layout.tsx');
     expect(extracted.variable).toBeUndefined();
   });
 
@@ -295,7 +288,11 @@ const myFont = localFont({ src: [{ path: './fonts/Regular.woff2', weight: '400' 
     const plugin = timberFonts(createPluginContext());
     const transform = plugin.transform as (code: string, id: string) => null;
 
-    const result = transform.call({ error: () => {} }, "import React from 'react'", '/app/page.tsx');
+    const result = transform.call(
+      { error: () => {} },
+      "import React from 'react'",
+      '/app/page.tsx'
+    );
     expect(result).toBeNull();
   });
 
@@ -319,23 +316,17 @@ const heading = localFont({ src: './fonts/Heading.woff2', family: 'Brand Heading
 
 describe('parses local font imports', () => {
   it('parses default import name', () => {
-    const name = parseLocalFontImportName(
-      "import localFont from '@timber/fonts/local'"
-    );
+    const name = parseLocalFontImportName("import localFont from '@timber/fonts/local'");
     expect(name).toBe('localFont');
   });
 
   it('parses custom import name', () => {
-    const name = parseLocalFontImportName(
-      "import myLoader from '@timber/fonts/local'"
-    );
+    const name = parseLocalFontImportName("import myLoader from '@timber/fonts/local'");
     expect(name).toBe('myLoader');
   });
 
   it('returns null for unrelated imports', () => {
-    const name = parseLocalFontImportName(
-      "import React from 'react'"
-    );
+    const name = parseLocalFontImportName("import React from 'react'");
     expect(name).toBeNull();
   });
 });
@@ -354,16 +345,12 @@ describe('infers font format from extension', () => {
 
 describe('generates family name from file path', () => {
   it('extracts family from filename', () => {
-    const name = generateFamilyName([
-      { path: './fonts/MyFont-Regular.woff2', weight: '400' },
-    ]);
+    const name = generateFamilyName([{ path: './fonts/MyFont-Regular.woff2', weight: '400' }]);
     expect(name).toBe('MyFont');
   });
 
   it('handles filename without weight suffix', () => {
-    const name = generateFamilyName([
-      { path: './fonts/CustomDisplay.woff2', weight: '400' },
-    ]);
+    const name = generateFamilyName([{ path: './fonts/CustomDisplay.woff2', weight: '400' }]);
     expect(name).toBe('CustomDisplay');
   });
 

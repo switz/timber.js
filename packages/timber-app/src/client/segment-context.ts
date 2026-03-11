@@ -50,7 +50,7 @@ export function SegmentProvider({ segments, parallelRouteKeys, children }: Segme
     () => ({ segments, parallelRouteKeys }),
     // segments and parallelRouteKeys are static per layout — they don't change
     // across navigations. The layout's position in the tree is fixed.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Intentionally using derived keys — segments/parallelRouteKeys are static per layout
     [segments.join('/'), parallelRouteKeys.join(',')]
   );
   return createElement(SegmentContext.Provider, { value }, children);

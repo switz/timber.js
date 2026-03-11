@@ -68,9 +68,6 @@ importers:
       oxfmt:
         specifier: ^0.37.0
         version: 0.37.0
-      oxlint:
-        specifier: ^1.52.0
-        version: 1.52.0
       playwright:
         specifier: ^1.52.0
         version: 1.58.2
@@ -7137,6 +7134,7 @@ snapshots:
       '@oxlint/binding-win32-arm64-msvc': 1.52.0
       '@oxlint/binding-win32-ia32-msvc': 1.52.0
       '@oxlint/binding-win32-x64-msvc': 1.52.0
+    optional: true
 
   p-limit@3.1.0:
     dependencies:

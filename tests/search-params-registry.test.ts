@@ -43,11 +43,12 @@ const qCodec = {
 
 function createWrapper(searchParams?: string) {
   return ({ children }: { children: ReactNode }) =>
-    createElement(NuqsTestingAdapter, {
-      searchParams: searchParams ?? '',
-      hasMemory: true,
-      children,
-    });
+    createElement(
+      NuqsTestingAdapter,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      { searchParams: searchParams ?? '', hasMemory: true } as any,
+      children
+    );
 }
 
 // ─── Registry unit tests ─────────────────────────────────────────

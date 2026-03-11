@@ -149,7 +149,9 @@ describe('next/navigation shim', () => {
 
   describe('permanentRedirect behavior', () => {
     it('permanentRedirect throws RedirectSignal with status 308', async () => {
-      const { permanentRedirect, RedirectSignal } = await import(resolve(SRC_DIR, 'server/primitives.ts'));
+      const { permanentRedirect, RedirectSignal } = await import(
+        resolve(SRC_DIR, 'server/primitives.ts')
+      );
       try {
         permanentRedirect('/new-page');
       } catch (e) {

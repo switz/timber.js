@@ -10,7 +10,7 @@
     "test:e2e:tailwind": "playwright test --config examples/tailwind/playwright.config.ts",
     "test:e2e:kitchen-sink": "playwright test --config examples/kitchen-sink/playwright.config.ts",
     "typecheck": "tsgo --noEmit",
-    "lint": "oxlint --deny-warnings",
+    "lint": "eslint",
     "fmt": "oxfmt",
     "fmt:check": "oxfmt --check"
   },
@@ -35,7 +35,6 @@
     "next-intl": "^4.8.3",
     "nuqs": "2.8.9",
     "oxfmt": "^0.37.0",
-    "oxlint": "^1.52.0",
     "playwright": "^1.52.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
@@ -44,7 +43,7 @@
     "vitest": "^4.0.18",
     "zod": "^4.3.6"
   },
-  "packageManager": "pnpm@10.32.0",
+  "packageManager": "pnpm@10.32.1",
   "pnpm": {
     "peerDependencyRules": {
       "ignoreMissing": [

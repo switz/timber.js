@@ -243,9 +243,7 @@ describe('timber-dev-server plugin', () => {
     });
 
     it('returns 404 for unmatched routes', async () => {
-      const rscHandler = vi.fn(
-        async () => new Response(null, { status: 404 })
-      );
+      const rscHandler = vi.fn(async () => new Response(null, { status: 404 }));
 
       const { handler } = setupMiddleware({ rscHandler });
       const { next, res } = await invokeHandler(handler, '/nonexistent');

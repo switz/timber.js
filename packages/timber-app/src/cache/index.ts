@@ -6,6 +6,7 @@ export interface CacheHandler {
   invalidate(opts: { key?: string; tag?: string }): Promise<void>;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface CacheOptions<Fn extends (...args: any[]) => any> {
   ttl: number;
   key?: (...args: Parameters<Fn>) => string;

@@ -15,11 +15,7 @@
 
 import { DenySignal, RedirectSignal } from './primitives.js';
 import type { AccessGateProps, SlotAccessGateProps, ReactElement } from './tree-builder.js';
-import { getDevLogEmitter } from './dev-log-context.js';
 import { withSpan, setSpanAttribute } from './tracing.js';
-
-// Counter for generating unique dev log event IDs when no segment name is available.
-let accessGateCounter = 0;
 
 // ─── AccessGate ─────────────────────────────────────────────────────────────
 
@@ -33,66 +29,32 @@ let accessGateCounter = 0;
  *
  * access.ts is a pure gate — return values are discarded. The layout below
  * gets the same data by calling the same cached functions (React.cache dedup).
+ *
+ * OTEL span (timber.access) captures the result via setSpanAttribute —
+ * the DevSpanProcessor reads this for the dev log tree output.
  */
 export async function AccessGate(props: AccessGateProps): Promise<ReactElement> {
   const { accessFn, params, searchParams, segmentName, children } = props;
-  const label = `AccessGate (${segmentName ?? 'segment'})`;
-  const eventId = `access-${segmentName ?? String(accessGateCounter++)}`;
 
   // Call access.ts wrapped in an OTEL span. If it calls deny() or redirect(),
   // a DenySignal or RedirectSignal is thrown — React catches it and the flush
   // controller produces the correct HTTP response.
   // The timber.result attribute is set after execution via setSpanAttribute
   // since the outcome is not known at span creation time.
-  try {
-    await withSpan('timber.access', { 'timber.segment': segmentName ?? 'unknown' }, async () => {
-      try {
-        await accessFn({ params, searchParams });
-        await setSpanAttribute('timber.result', 'pass');
-      } catch (error: unknown) {
-        if (error instanceof DenySignal) {
-          await setSpanAttribute('timber.result', 'deny');
-        } else if (error instanceof RedirectSignal) {
-          await setSpanAttribute('timber.result', 'redirect');
-        }
-        throw error;
+  await withSpan('timber.access', { 'timber.segment': segmentName ?? 'unknown' }, async () => {
+    try {
+      await accessFn({ params, searchParams });
+      await setSpanAttribute('timber.result', 'pass');
+    } catch (error: unknown) {
+      if (error instanceof DenySignal) {
+        await setSpanAttribute('timber.result', 'deny');
+        await setSpanAttribute('timber.deny_status', error.status);
+      } else if (error instanceof RedirectSignal) {
+        await setSpanAttribute('timber.result', 'redirect');
       }
-    });
-  } catch (error: unknown) {
-    // Emit access-result dev log event on denial
-    const devEmitter = getDevLogEmitter();
-    if (devEmitter) {
-      const result =
-        error instanceof DenySignal
-          ? 'DENY'
-          : error instanceof RedirectSignal
-            ? 'REDIRECT'
-            : 'ERROR';
-      const status = error instanceof DenySignal ? error.status : undefined;
-      devEmitter.emit({
-        type: 'access-result',
-        environment: 'rsc',
-        label,
-        id: eventId,
-        parentId: 'render',
-        meta: { result, status },
-      });
+      throw error;
     }
-    throw error;
-  }
-
-  // Emit access-result dev log event on pass
-  const devEmitter = getDevLogEmitter();
-  if (devEmitter) {
-    devEmitter.emit({
-      type: 'access-result',
-      environment: 'rsc',
-      label,
-      id: eventId,
-      parentId: 'render',
-      meta: { result: 'PASS' },
-    });
-  }
+  });
 
   // Access passed — render children (the layout and everything below).
   return children;

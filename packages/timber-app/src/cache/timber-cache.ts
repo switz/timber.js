@@ -2,7 +2,6 @@ import { createHash } from 'node:crypto';
 import type { CacheHandler, CacheOptions } from './index';
 import { stableStringify } from './stable-stringify';
 import { createSingleflight } from './singleflight';
-import { getDevLogEmitter } from '../server/dev-log-context.js';
 import { addSpanEvent } from '../server/tracing.js';
 
 const singleflight = createSingleflight();
@@ -39,6 +38,9 @@ let fnIdCounter = 0;
  * - SWR: serve stale immediately, background refetch
  * - Tags as string[] or function of args
  * - No ALS dependency
+ *
+ * Cache hits/misses are recorded as OTEL span events on the enclosing
+ * span (not child spans). The DevSpanProcessor reads these for dev log output.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function createCache<Fn extends (...args: any[]) => Promise<any>>(
@@ -55,17 +57,6 @@ export function createCache<Fn extends (...args: any[]) => Promise<any>>(
     const cached = await handler.get(key);
 
     if (cached && !cached.stale) {
-      // Emit cache-hit dev log event
-      const devEmitter = getDevLogEmitter();
-      if (devEmitter) {
-        devEmitter.emit({
-          type: 'cache-hit',
-          environment: 'rsc',
-          label: key,
-          id: `cache-hit-${key}-${cacheStart}`,
-          meta: { cacheType: 'timber.cache', durationMs: performance.now() - cacheStart },
-        });
-      }
       // Record as OTEL span event on enclosing span (not a child span)
       await addSpanEvent('timber.cache.hit', {
         key,
@@ -75,22 +66,7 @@ export function createCache<Fn extends (...args: any[]) => Promise<any>>(
     }
 
     if (cached && cached.stale && opts.staleWhileRevalidate) {
-      // Emit cache-hit (stale) dev log event
-      const devEmitter = getDevLogEmitter();
-      if (devEmitter) {
-        devEmitter.emit({
-          type: 'cache-hit',
-          environment: 'rsc',
-          label: key,
-          id: `cache-hit-${key}-${cacheStart}`,
-          meta: {
-            cacheType: 'timber.cache',
-            durationMs: performance.now() - cacheStart,
-            stale: true,
-          },
-        });
-      }
-      // Record as OTEL span event on enclosing span
+      // Record stale cache hit as OTEL span event
       await addSpanEvent('timber.cache.hit', {
         key,
         duration_ms: Math.round(performance.now() - cacheStart),
@@ -119,18 +95,7 @@ export function createCache<Fn extends (...args: any[]) => Promise<any>>(
     const tags = resolveTags(opts, args);
     await handler.set(key, result, { ttl: opts.ttl, tags });
 
-    // Emit cache-miss dev log event
-    const devEmitter = getDevLogEmitter();
-    if (devEmitter) {
-      devEmitter.emit({
-        type: 'cache-miss',
-        environment: 'rsc',
-        label: key,
-        id: `cache-miss-${key}-${cacheStart}`,
-        meta: { cacheType: 'timber.cache', durationMs: performance.now() - cacheStart },
-      });
-    }
-    // Record as OTEL span event on enclosing span
+    // Record cache miss as OTEL span event
     await addSpanEvent('timber.cache.miss', {
       key,
       duration_ms: Math.round(performance.now() - cacheStart),

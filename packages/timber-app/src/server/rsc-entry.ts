@@ -26,11 +26,10 @@ import { createElement } from 'react';
 import { renderToReadableStream } from '@vitejs/plugin-rsc/rsc';
 
 import { createPipeline } from './pipeline.js';
-import { withSpan } from './tracing.js';
+import { withSpan, initDevTracing } from './tracing.js';
 import type { PipelineConfig, RouteMatch } from './pipeline.js';
 import { logRenderError } from './logger.js';
-import { createRequestCollector, resolveLogMode } from './dev-logger.js';
-import type { DevLogEmitter } from './dev-log-events.js';
+import { resolveLogMode } from './dev-logger.js';
 import { createRouteMatcher } from './route-matcher.js';
 import type { ManifestSegmentNode } from './route-matcher.js';
 import { resolveMetadata, renderMetadataToElements } from './metadata.js';
@@ -105,7 +104,7 @@ export function setDevPipelineErrorHandler(handler: (error: Error, phase: string
  * The pipeline handles: proxy.ts → canonicalize → route match →
  * 103 Early Hints → middleware.ts → render (RSC → SSR → HTML).
  */
-function createRequestHandler(manifest: typeof routeManifest, runtimeConfig: typeof config) {
+async function createRequestHandler(manifest: typeof routeManifest, runtimeConfig: typeof config) {
   const matchRoute = createRouteMatcher(manifest);
 
   // Build the client bootstrap configuration.
@@ -116,12 +115,18 @@ function createRequestHandler(manifest: typeof routeManifest, runtimeConfig: typ
     buildManifest: buildManifest as BuildManifest,
   });
 
-  // Dev logging — resolve log mode once at handler creation time.
-  // In production, isDev is false and no dev log callback is installed,
-  // so the pipeline creates no emitters and has zero overhead.
+  // Dev logging — initialize OTEL-based dev tracing once at handler creation.
+  // In production, isDev is false — no tracing, no overhead.
+  // The DevSpanProcessor handles all formatting and stderr output.
   const isDev = process.env.NODE_ENV !== 'production';
-  const devLogMode = isDev ? resolveLogMode() : 'quiet';
   const slowPhaseMs = (runtimeConfig as Record<string, unknown>).slowPhaseMs as number | undefined;
+
+  if (isDev) {
+    const devLogMode = resolveLogMode();
+    if (devLogMode !== 'quiet') {
+      await initDevTracing({ mode: devLogMode, slowPhaseMs });
+    }
+  }
 
   const typedBuildManifest = buildManifest as BuildManifest;
 
@@ -148,22 +153,6 @@ function createRequestHandler(manifest: typeof routeManifest, runtimeConfig: typ
     renderNoMatch: async (req: Request, responseHeaders: Headers) => {
       return renderNoMatchPage(req, manifest.root, responseHeaders, clientBootstrap);
     },
-    onDevLog:
-      isDev && devLogMode !== 'quiet'
-        ? (emitter: DevLogEmitter) => {
-            const collector = createRequestCollector({ mode: devLogMode, slowPhaseMs });
-            emitter.on(collector.collect);
-            // Subscribe to request-end to flush formatted output to stderr.
-            emitter.on((event) => {
-              if (event.type === 'request-end') {
-                const output = collector.format(devLogMode);
-                if (output) {
-                  process.stderr.write(output);
-                }
-              }
-            });
-          }
-        : undefined,
     onPipelineError: isDev
       ? (error: Error, phase: string) => {
           if (_devPipelineErrorHandler) _devPipelineErrorHandler(error, phase);
@@ -1064,4 +1053,4 @@ function escapeHtml(str: string): string {
     .replace(/"/g, '&quot;');
 }
 
-export default createRequestHandler(routeManifest, config);
+export default await createRequestHandler(routeManifest, config);

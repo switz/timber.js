@@ -21,6 +21,7 @@ import {
   getOtelTraceId,
   replaceTraceId,
   withSpan,
+  setSpanAttribute,
   traceId,
 } from './tracing.js';
 import {
@@ -33,8 +34,6 @@ import {
   logRenderError,
 } from './logger.js';
 import { callOnRequestError } from './instrumentation.js';
-import { DevLogEmitter } from './dev-log-events.js';
-import { runWithDevLog } from './dev-log-context.js';
 import type { MiddlewareContext } from './types.js';
 import type { SegmentNode } from '../routing/types.js';
 
@@ -86,15 +85,6 @@ export interface PipelineConfig {
   /** Slow request threshold in ms. Requests exceeding this emit a warning. 0 to disable. Default: 3000. */
   slowRequestMs?: number;
   /**
-   * Dev log callback — called per-request with a DevLogEmitter in dev mode.
-   * The pipeline creates the emitter, emits events at each phase, and
-   * calls this callback with the emitter so the dev server can subscribe
-   * a collector and format output.
-   *
-   * Undefined in production — no emitter is created, zero overhead.
-   */
-  onDevLog?: (emitter: DevLogEmitter) => void;
-  /**
    * Dev pipeline error callback — called when a pipeline phase (proxy,
    * middleware, render) catches an unhandled error. Used to wire the error
    * into the Vite browser error overlay in dev mode.
@@ -120,7 +110,6 @@ export function createPipeline(config: PipelineConfig): (req: Request) => Promis
     earlyHints,
     stripTrailingSlash = true,
     slowRequestMs = 3000,
-    onDevLog,
     onPipelineError,
   } = config;
 
@@ -141,111 +130,51 @@ export function createPipeline(config: PipelineConfig): (req: Request) => Promis
       return runWithRequestContext(req, async () => {
         logRequestReceived({ method, path });
 
-        // Create dev log emitter if in dev mode. The emitter is stored in
-        // ALS so cache, access gate, and other modules can emit events
-        // without explicit threading.
-        const devEmitter = onDevLog ? new DevLogEmitter() : undefined;
-        if (devEmitter && onDevLog) {
-          onDevLog(devEmitter);
-          devEmitter.emit({
-            type: 'request-start',
-            environment: 'rsc',
-            label: `${method} ${path}`,
-            id: 'request',
-            meta: { method, path, traceId: traceIdValue },
-          });
-        }
-
-        const runPipeline = async (): Promise<Response> => {
-          // Wrap everything in an OTEL root span if a tracer is available.
-          // The root span covers the entire request lifecycle.
-          const response = await withSpan(
-            'http.server.request',
-            { 'http.request.method': method, 'url.path': path },
-            async () => {
-              // If OTEL is active, the root span now exists — replace the UUID
-              // fallback with the real OTEL trace ID for log–trace correlation.
-              const otelIds = await getOtelTraceId();
-              if (otelIds) {
-                replaceTraceId(otelIds.traceId, otelIds.spanId);
-              }
-
-              if (proxy) {
-                return runProxyPhase(req, method, path, devEmitter);
-              }
-              return handleRequest(req, method, path, devEmitter);
+        const response = await withSpan(
+          'http.server.request',
+          { 'http.request.method': method, 'url.path': path },
+          async () => {
+            // If OTEL is active, the root span now exists — replace the UUID
+            // fallback with the real OTEL trace ID for log–trace correlation.
+            const otelIds = await getOtelTraceId();
+            if (otelIds) {
+              replaceTraceId(otelIds.traceId, otelIds.spanId);
             }
-          );
 
-          // Request completed — emit structured logs.
-          const durationMs = Math.round(performance.now() - startTime);
-          const status = response.status;
+            let result: Response;
+            if (proxy) {
+              result = await runProxyPhase(req, method, path);
+            } else {
+              result = await handleRequest(req, method, path);
+            }
 
-          logRequestCompleted({ method, path, status, durationMs });
-
-          if (slowRequestMs > 0 && durationMs > slowRequestMs) {
-            logSlowRequest({ method, path, durationMs, threshold: slowRequestMs });
+            // Set response status on the root span before it ends —
+            // DevSpanProcessor reads this for tree/summary output.
+            await setSpanAttribute('http.response.status_code', result.status);
+            return result;
           }
+        );
 
-          // Emit request-end dev log event
-          if (devEmitter) {
-            devEmitter.emit({
-              type: 'request-end',
-              environment: 'rsc',
-              label: 'request-end',
-              id: 'request-end',
-              meta: { status, durationMs },
-            });
-          }
+        // Post-span: structured production logging
+        const durationMs = Math.round(performance.now() - startTime);
+        const status = response.status;
+        logRequestCompleted({ method, path, status, durationMs });
 
-          return response;
-        };
-
-        // Run the pipeline within dev log ALS scope if emitter exists
-        if (devEmitter) {
-          return runWithDevLog(devEmitter, runPipeline);
+        if (slowRequestMs > 0 && durationMs > slowRequestMs) {
+          logSlowRequest({ method, path, durationMs, threshold: slowRequestMs });
         }
-        return runPipeline();
+
+        return response;
       });
     });
   };
 
-  async function runProxyPhase(
-    req: Request,
-    method: string,
-    path: string,
-    devEmitter?: DevLogEmitter
-  ): Promise<Response> {
-    if (devEmitter) {
-      devEmitter.emit({
-        type: 'phase-start',
-        environment: 'proxy',
-        label: 'proxy.ts',
-        id: 'proxy',
-      });
-    }
+  async function runProxyPhase(req: Request, method: string, path: string): Promise<Response> {
     try {
-      const result = await withSpan('timber.proxy', {}, () =>
-        runProxy(config.proxy!, req, () => handleRequest(req, method, path, devEmitter))
+      return await withSpan('timber.proxy', {}, () =>
+        runProxy(config.proxy!, req, () => handleRequest(req, method, path))
       );
-      if (devEmitter) {
-        devEmitter.emit({
-          type: 'phase-end',
-          environment: 'proxy',
-          label: 'proxy.ts',
-          id: 'proxy',
-        });
-      }
-      return result;
     } catch (error) {
-      if (devEmitter) {
-        devEmitter.emit({
-          type: 'phase-end',
-          environment: 'proxy',
-          label: 'proxy.ts',
-          id: 'proxy',
-        });
-      }
       // Uncaught proxy.ts error → bare HTTP 500
       logProxyError({ error });
       await fireOnRequestError(error, req, 'proxy');
@@ -254,12 +183,7 @@ export function createPipeline(config: PipelineConfig): (req: Request) => Promis
     }
   }
 
-  async function handleRequest(
-    req: Request,
-    method: string,
-    path: string,
-    devEmitter?: DevLogEmitter
-  ): Promise<Response> {
+  async function handleRequest(req: Request, method: string, path: string): Promise<Response> {
     // Stage 1: URL canonicalization
     const url = new URL(req.url);
     const result = canonicalize(url.pathname, stripTrailingSlash);
@@ -316,26 +240,10 @@ export function createPipeline(config: PipelineConfig): (req: Request) => Promis
         },
       };
 
-      if (devEmitter) {
-        devEmitter.emit({
-          type: 'phase-start',
-          environment: 'rsc',
-          label: 'middleware.ts',
-          id: 'middleware',
-        });
-      }
       try {
         const middlewareResponse = await withSpan('timber.middleware', {}, () =>
           runMiddleware(match.middleware!, ctx)
         );
-        if (devEmitter) {
-          devEmitter.emit({
-            type: 'phase-end',
-            environment: 'rsc',
-            label: 'middleware.ts',
-            id: 'middleware',
-          });
-        }
         if (middlewareResponse) {
           logMiddlewareShortCircuit({ method, path, status: middlewareResponse.status });
           return middlewareResponse;
@@ -344,14 +252,6 @@ export function createPipeline(config: PipelineConfig): (req: Request) => Promis
         // injected request headers so headers() returns them downstream.
         applyRequestHeaderOverlay(requestHeaderOverlay);
       } catch (error) {
-        if (devEmitter) {
-          devEmitter.emit({
-            type: 'phase-end',
-            environment: 'rsc',
-            label: 'middleware.ts',
-            id: 'middleware',
-          });
-        }
         // Middleware throw → HTTP 500 (middleware runs before rendering,
         // no error boundary to catch it)
         logMiddlewareError({ method, path, error });
@@ -362,21 +262,11 @@ export function createPipeline(config: PipelineConfig): (req: Request) => Promis
     }
 
     // Stage 5: Render (access gates + element tree + renderToReadableStream)
-    if (devEmitter) {
-      devEmitter.emit({ type: 'phase-start', environment: 'rsc', label: 'render', id: 'render' });
-    }
     try {
-      const result = await withSpan('timber.render', { 'http.route': canonicalPathname }, () =>
+      return await withSpan('timber.render', { 'http.route': canonicalPathname }, () =>
         render(req, match, responseHeaders, requestHeaderOverlay)
       );
-      if (devEmitter) {
-        devEmitter.emit({ type: 'phase-end', environment: 'rsc', label: 'render', id: 'render' });
-      }
-      return result;
     } catch (error) {
-      if (devEmitter) {
-        devEmitter.emit({ type: 'phase-end', environment: 'rsc', label: 'render', id: 'render' });
-      }
       logRenderError({ method, path, error });
       await fireOnRequestError(error, req, 'render');
       if (onPipelineError && error instanceof Error) onPipelineError(error, 'render');

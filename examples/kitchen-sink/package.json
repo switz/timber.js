@@ -9,9 +9,9 @@
   "dependencies": {
     "@timber/app": "workspace:*",
     "nuqs": "^2.0.0",
-    "zod": "^4.0.0",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react": "19.3.0-canary-46103596-20260305",
+    "react-dom": "19.3.0-canary-46103596-20260305",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "vite": "^7.0.0"

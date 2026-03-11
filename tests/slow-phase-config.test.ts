@@ -5,7 +5,7 @@
  * - Is accepted in the TimberUserConfig.dev object
  * - Defaults to 200ms when not specified
  * - Is passed through to the runtime config module
- * - Flows through to createRequestCollector for slow phase highlighting
+ * - Flows through to formatSpanTree for slow phase highlighting
  *
  * Design ref: 17-logging.md §"Slow Phase Highlighting"
  */
@@ -15,7 +15,8 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { timberEntries } from '../packages/timber-app/src/plugins/entries.js';
 import type { PluginContext, TimberUserConfig } from '../packages/timber-app/src/index.js';
-import { createRequestCollector } from '../packages/timber-app/src/server/dev-logger.js';
+import { formatSpanTree } from '../packages/timber-app/src/server/dev-logger.js';
+import type { ReadableSpan } from '@opentelemetry/sdk-trace-base';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = resolve(__dirname, '..');
@@ -30,6 +31,50 @@ function createPluginContext(config?: TimberUserConfig): PluginContext {
     buildManifest: null,
   };
 }
+
+type HrTime = [number, number];
+function msToHrTime(ms: number): HrTime {
+  return [Math.floor(ms / 1000), (ms % 1000) * 1_000_000];
+}
+
+function mockSpan(opts: {
+  name: string;
+  spanId?: string;
+  parentSpanId?: string;
+  startMs: number;
+  endMs: number;
+  attributes?: Record<string, string | number | boolean>;
+}): ReadableSpan {
+  const spanId = opts.spanId ?? Math.random().toString(16).slice(2, 18).padEnd(16, '0');
+  const parentSpanContext = opts.parentSpanId
+    ? { traceId: 'abc123'.padEnd(32, '0'), spanId: opts.parentSpanId, traceFlags: 1 }
+    : undefined;
+  return {
+    name: opts.name,
+    spanContext: () => ({
+      traceId: 'abc123'.padEnd(32, '0'),
+      spanId,
+      traceFlags: 1,
+    }),
+    parentSpanContext,
+    startTime: msToHrTime(opts.startMs),
+    endTime: msToHrTime(opts.endMs),
+    duration: msToHrTime(opts.endMs - opts.startMs),
+    attributes: opts.attributes ?? {},
+    events: [],
+    status: { code: 0 },
+    resource: { attributes: {} },
+    instrumentationScope: { name: 'timber.js' },
+    ended: true,
+    kind: 0,
+    links: [],
+    droppedAttributesCount: 0,
+    droppedEventsCount: 0,
+    droppedLinksCount: 0,
+  } as unknown as ReadableSpan;
+}
+
+const ROOT_SPAN_ID = 'aaaa000000000001';
 
 // ─── Config option ──────────────────────────────────────────────────────
 
@@ -60,123 +105,84 @@ describe('dev.slowPhaseMs config option', () => {
   });
 });
 
-// ─── createRequestCollector respects slowPhaseMs ────────────────────────
+// ─── formatSpanTree respects slowPhaseMs ────────────────────────────────
 
-describe('createRequestCollector uses slowPhaseMs', () => {
+describe('formatSpanTree uses slowPhaseMs', () => {
   it('highlights phases exceeding custom threshold', () => {
+    const spans = [
+      mockSpan({
+        name: 'timber.render',
+        spanId: 'bbbb000000000003',
+        parentSpanId: ROOT_SPAN_ID,
+        startMs: 0,
+        endMs: 100,
+      }),
+      mockSpan({
+        name: 'http.server.request',
+        spanId: ROOT_SPAN_ID,
+        startMs: 0,
+        endMs: 100,
+        attributes: {
+          'http.request.method': 'GET',
+          'url.path': '/',
+          'http.response.status_code': 200,
+        },
+      }),
+    ];
     // 50ms threshold — a 100ms phase should be highlighted
-    const collector = createRequestCollector({ slowPhaseMs: 50 });
-    collector.collect({
-      type: 'request-start',
-      environment: 'rsc',
-      label: 'request',
-      timestampMs: 0,
-      id: 'req',
-      meta: { method: 'GET', path: '/', traceId: 'abc123' },
-    });
-    collector.collect({
-      type: 'phase-start',
-      environment: 'rsc',
-      label: 'render',
-      timestampMs: 0,
-      id: 'render-1',
-    });
-    collector.collect({
-      type: 'phase-end',
-      environment: 'rsc',
-      label: 'render',
-      timestampMs: 100,
-      id: 'render-1',
-    });
-    collector.collect({
-      type: 'request-end',
-      environment: 'rsc',
-      label: 'done',
-      timestampMs: 100,
-      id: 'req-end',
-      meta: { status: 200 },
-    });
-
-    const rawOutput = collector.format('tree');
-    // Should contain ANSI yellow for the slow phase
+    const rawOutput = formatSpanTree(spans, { slowPhaseMs: 50 });
     expect(rawOutput).toContain('\x1b[33m');
   });
 
   it('does not highlight phases under custom threshold', () => {
+    const spans = [
+      mockSpan({
+        name: 'timber.render',
+        spanId: 'bbbb000000000003',
+        parentSpanId: ROOT_SPAN_ID,
+        startMs: 0,
+        endMs: 100,
+      }),
+      mockSpan({
+        name: 'http.server.request',
+        spanId: ROOT_SPAN_ID,
+        startMs: 0,
+        endMs: 100,
+        attributes: {
+          'http.request.method': 'GET',
+          'url.path': '/',
+          'http.response.status_code': 200,
+        },
+      }),
+    ];
     // 500ms threshold — a 100ms phase should NOT be highlighted
-    const collector = createRequestCollector({ slowPhaseMs: 500 });
-    collector.collect({
-      type: 'request-start',
-      environment: 'rsc',
-      label: 'request',
-      timestampMs: 0,
-      id: 'req',
-      meta: { method: 'GET', path: '/', traceId: 'abc123' },
-    });
-    collector.collect({
-      type: 'phase-start',
-      environment: 'rsc',
-      label: 'render',
-      timestampMs: 0,
-      id: 'render-1',
-    });
-    collector.collect({
-      type: 'phase-end',
-      environment: 'rsc',
-      label: 'render',
-      timestampMs: 100,
-      id: 'render-1',
-    });
-    collector.collect({
-      type: 'request-end',
-      environment: 'rsc',
-      label: 'done',
-      timestampMs: 100,
-      id: 'req-end',
-      meta: { status: 200 },
-    });
-
-    const rawOutput = collector.format('tree');
-    // Should NOT contain ANSI yellow — phase is under threshold
+    const rawOutput = formatSpanTree(spans, { slowPhaseMs: 500 });
     expect(rawOutput).not.toContain('\x1b[33m');
   });
 
   it('uses 200ms default when slowPhaseMs not specified', () => {
+    const spans = [
+      mockSpan({
+        name: 'timber.render',
+        spanId: 'bbbb000000000003',
+        parentSpanId: ROOT_SPAN_ID,
+        startMs: 0,
+        endMs: 150,
+      }),
+      mockSpan({
+        name: 'http.server.request',
+        spanId: ROOT_SPAN_ID,
+        startMs: 0,
+        endMs: 150,
+        attributes: {
+          'http.request.method': 'GET',
+          'url.path': '/',
+          'http.response.status_code': 200,
+        },
+      }),
+    ];
     // No slowPhaseMs — default is 200ms. A 150ms phase should NOT be highlighted.
-    const collector = createRequestCollector({});
-    collector.collect({
-      type: 'request-start',
-      environment: 'rsc',
-      label: 'request',
-      timestampMs: 0,
-      id: 'req',
-      meta: { method: 'GET', path: '/', traceId: 'abc123' },
-    });
-    collector.collect({
-      type: 'phase-start',
-      environment: 'rsc',
-      label: 'render',
-      timestampMs: 0,
-      id: 'render-1',
-    });
-    collector.collect({
-      type: 'phase-end',
-      environment: 'rsc',
-      label: 'render',
-      timestampMs: 150,
-      id: 'render-1',
-    });
-    collector.collect({
-      type: 'request-end',
-      environment: 'rsc',
-      label: 'done',
-      timestampMs: 150,
-      id: 'req-end',
-      meta: { status: 200 },
-    });
-
-    const rawOutput = collector.format('tree');
-    // Should NOT contain ANSI yellow — 150ms is under 200ms default
+    const rawOutput = formatSpanTree(spans, {});
     expect(rawOutput).not.toContain('\x1b[33m');
   });
 });

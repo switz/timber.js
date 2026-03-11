@@ -100,6 +100,41 @@ export function getTraceStore(): TraceStore | undefined {
   return traceAls.getStore();
 }
 
+// ─── Dev-Mode OTEL Auto-Init ─────────────────────────────────────────────
+
+/**
+ * Initialize a minimal OTEL SDK in dev mode so spans are recorded and
+ * fed to the DevSpanProcessor for dev log output.
+ *
+ * If the user already configured an OTEL SDK in register(), we add
+ * our DevSpanProcessor alongside theirs. If no SDK is configured,
+ * we create a BasicTracerProvider with our processor.
+ *
+ * Only called in dev mode — zero overhead in production.
+ */
+export async function initDevTracing(
+  config: import('./dev-logger.js').DevLoggerConfig
+): Promise<void> {
+  const api = await getOtelApi();
+  if (!api) return;
+
+  const { DevSpanProcessor } = await import('./dev-span-processor.js');
+  const { BasicTracerProvider } = await import('@opentelemetry/sdk-trace-base');
+  const processor = new DevSpanProcessor(config);
+
+  // Create a minimal TracerProvider with our DevSpanProcessor.
+  // If the user also configures an SDK in register(), their provider
+  // will coexist — the global provider set last wins for new tracers,
+  // but our processor captures all spans from the timber.js tracer.
+  const provider = new BasicTracerProvider({
+    spanProcessors: [processor],
+  });
+  api.trace.setGlobalTracerProvider(provider);
+
+  // Reset cached tracer so next getTracer() picks up the new provider
+  _tracer = undefined;
+}
+
 // ─── OTEL Span Helpers ───────────────────────────────────────────────────
 
 /**

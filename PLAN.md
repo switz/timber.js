@@ -218,9 +218,9 @@ Navigation, forms, observability, and dev tooling. Builds on the Phase 1 pipelin
 
 ### 2c. Rendering Enhancements
 
-- [ ] `<DeferredSuspense ms={ms}>` — hold fallback for up to `ms`ms; if children resolve in time, no skeleton shown
-  - [ ] Signals (deny/redirect/throw) inside hold window promoted to pre-flush semantics
-  - [ ] Implemented via nested Suspense + `<Delay>` + `cache()`
+- [x] `deferSuspenseFor` — page-level export to hold SSR stream; fast-resolving Suspense boundaries render inline
+  - [x] SSR hold via `Promise.race(allReady, timeout)` in `ssr-render.ts`
+  - [x] Collected from page/layout modules during RSC entry, passed via `NavContext`
 - [ ] `RenderError` digest mechanism (may be Phase 1 if needed for error boundaries)
 
 ### 2d. Observability
@@ -263,7 +263,6 @@ Navigation, forms, observability, and dev tooling. Builds on the Phase 1 pipelin
 ### 2e. Dev-Mode Warnings
 
 - [ ] `<Suspense>` wrapping `{children}` in a layout (blocks the flush point)
-- [ ] `<DeferredSuspense>` wrapping `{children}` in a layout
 - [ ] `cookies()`/`headers()` called during a static build pass
 - [ ] `redirect()` called in slot `access.ts`
 - [ ] `deny()`/`redirect()` called inside a post-flush `<Suspense>` boundary
@@ -276,7 +275,7 @@ Navigation, forms, observability, and dev tooling. Builds on the Phase 1 pipelin
 - [ ] Back/forward: cached payload replayed, no server roundtrip
 - [ ] Segment tree diffing: sync layouts skipped, async layouts re-rendered, pages always rendered
 - [ ] `router.refresh()` forces full re-render
-- [ ] `<DeferredSuspense>` hold window: inline render when children resolve in time, skeleton when not
+- [ ] `deferSuspenseFor` hold window: inline render when Suspense resolves in time, skeleton when not
 - [ ] `createActionClient` schema validation rejects invalid input
 - [ ] `revalidatePath` returns RSC payload; redirect in revalidation handled correctly
 - [ ] `traceId()` accessible in all phases (proxy, middleware, access, render, action)

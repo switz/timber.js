@@ -20,7 +20,6 @@ import type { ViteDevServer } from 'vite';
 
 export const WarningId = {
   SUSPENSE_WRAPS_CHILDREN: 'SUSPENSE_WRAPS_CHILDREN',
-  DEFERRED_WRAPS_CHILDREN: 'DEFERRED_WRAPS_CHILDREN',
   DENY_IN_SUSPENSE: 'DENY_IN_SUSPENSE',
   REDIRECT_IN_SUSPENSE: 'REDIRECT_IN_SUSPENSE',
   REDIRECT_IN_ACCESS: 'REDIRECT_IN_ACCESS',
@@ -110,25 +109,6 @@ export function warnSuspenseWrappingChildren(layoutFile: string): void {
     layoutFile,
     'warn',
     `Layout at ${layoutFile} wraps {children} in <Suspense>. ` +
-      'This prevents child pages from setting HTTP status codes. ' +
-      'Use useNavigationPending() for loading states instead.'
-  );
-}
-
-/**
- * Warn when a layout wraps {children} in <DeferredSuspense>.
- *
- * Same issue as <Suspense> wrapping {children} — the page becomes deferred
- * content that cannot influence the HTTP status code.
- *
- * @param layoutFile - Relative path to the layout file
- */
-export function warnDeferredSuspenseWrappingChildren(layoutFile: string): void {
-  emitOnce(
-    WarningId.DEFERRED_WRAPS_CHILDREN,
-    layoutFile,
-    'warn',
-    `Layout at ${layoutFile} wraps {children} in <DeferredSuspense>. ` +
       'This prevents child pages from setting HTTP status codes. ' +
       'Use useNavigationPending() for loading states instead.'
   );

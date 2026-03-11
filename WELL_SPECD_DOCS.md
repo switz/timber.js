@@ -5,8 +5,8 @@ Well-Spec'd Docs (implementation-ready)
    clear behavioral contracts. The LayoutShell lesson is embedded here now (§"Layout State Preservation"
   explicitly says "no wrapper needed").
 
-  05-streaming.md — Very good. DeferredSuspense has a complete implementation in the doc (actual React
-  code). Status code contract is clear. Edge cases documented (deny() inside Suspense, timing
+  05-streaming.md — Very good. `deferSuspenseFor` SSR hold mechanism documented with implementation
+  details. Status code contract is clear. Edge cases documented (deny() inside Suspense, timing
   dependencies).
 
   06-caching.md — Good API spec. Clear interface definitions, behavioral tables, invalidation modes. But

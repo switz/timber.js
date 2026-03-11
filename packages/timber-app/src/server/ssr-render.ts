@@ -37,7 +37,7 @@ import { renderToReadableStream } from 'react-dom/server';
  */
 export async function renderSsrStream(
   element: ReactNode,
-  options?: { bootstrapScriptContent?: string }
+  options?: { bootstrapScriptContent?: string; deferSuspenseFor?: number }
 ): Promise<ReadableStream<Uint8Array>> {
   const stream = await renderToReadableStream(element, {
     bootstrapScriptContent: options?.bootstrapScriptContent || undefined,
@@ -54,6 +54,21 @@ export async function renderSsrStream(
   // the rejection becomes an unhandled promise rejection that crashes
   // the Node.js process.
   stream.allReady.catch(() => {});
+
+  // deferSuspenseFor hold: delay the first read so React can resolve
+  // fast-completing Suspense boundaries before we read the shell HTML.
+  // renderToReadableStream generates HTML lazily on pull — if we wait
+  // before reading, React resolves pending boundaries and inlines their
+  // content instead of serializing fallbacks. Race allReady against
+  // deferSuspenseFor so we don't wait longer than necessary.
+  // See design/05-streaming.md §"deferSuspenseFor"
+  const deferMs = options?.deferSuspenseFor;
+  if (deferMs && deferMs > 0) {
+    await Promise.race([
+      stream.allReady,
+      new Promise<void>((resolve) => setTimeout(resolve, deferMs)),
+    ]);
+  }
 
   // renderToReadableStream resolves after onShellReady by default.
   // The stream is ready to read — the shell (everything outside

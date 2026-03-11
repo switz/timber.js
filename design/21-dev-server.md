@@ -180,7 +180,6 @@ The framework emits warnings for common footguns. These are console warnings (no
 | ID | Trigger | Message |
 |---|---|---|
 | `SUSPENSE_WRAPS_CHILDREN` | `<Suspense>` directly wraps `{children}` in a layout | `Layout at app/dashboard/layout.tsx wraps {children} in <Suspense>. This prevents child pages from setting HTTP status codes. Use useNavigationPending() for loading states instead.` |
-| `DEFERRED_WRAPS_CHILDREN` | `<DeferredSuspense>` directly wraps `{children}` in a layout | Same as above but for `<DeferredSuspense>` |
 | `DENY_IN_SUSPENSE` | `deny()` called inside a `<Suspense>` boundary | `deny() called inside <Suspense> at app/dashboard/page.tsx:42. The HTTP status is already committed — this will trigger an error boundary with a 200 status. Move deny() outside <Suspense> for correct HTTP semantics.` |
 | `REDIRECT_IN_SUSPENSE` | `redirect()` called inside a `<Suspense>` boundary | `redirect() called inside <Suspense> at app/dashboard/page.tsx:55. This will perform a client-side navigation instead of an HTTP redirect.` |
 | `REDIRECT_IN_ACCESS` | Slot access calling `redirect()` | `redirect() called in access.ts at app/admin/access.ts:12. Only deny() is valid in slot access checks. Use deny() to block access or move redirect() to middleware.ts.` |
@@ -192,7 +191,7 @@ The framework emits warnings for common footguns. These are console warnings (no
 
 Warnings are detected at different layers:
 
-- **AST-level** (`SUSPENSE_WRAPS_CHILDREN`, `DEFERRED_WRAPS_CHILDREN`): Detected during the RSC transform phase. The transform plugin checks if a layout component's JSX tree has a `<Suspense>` or `<DeferredSuspense>` element whose children prop is `{children}` (the slot).
+- **AST-level** (`SUSPENSE_WRAPS_CHILDREN`): Detected during the RSC transform phase. The transform plugin checks if a layout component's JSX tree has a `<Suspense>` element whose children prop is `{children}` (the slot).
 
 - **Runtime** (`DENY_IN_SUSPENSE`, `REDIRECT_IN_SUSPENSE`, `REDIRECT_IN_ACCESS`): Detected during rendering. The `deny()` and `redirect()` functions check whether they're being called inside a Suspense boundary (tracked via React context or ALS) and whether the current context is an access check.
 

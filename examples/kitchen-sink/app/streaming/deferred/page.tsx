@@ -1,7 +1,12 @@
-import { DeferredSuspense } from '@timber/app/server';
+import { Suspense } from 'react';
 import Counter from '../../Counter';
 
 export const metadata = { title: 'Streaming: Deferred' };
+
+// Hold the SSR stream for up to 500ms, allowing fast-resolving
+// Suspense boundaries to render inline without showing fallbacks.
+// See design/05-streaming.md §"deferSuspenseFor"
+export const deferSuspenseFor = 500;
 
 // Resolves well within the 500ms hold window — should render inline
 async function FastContent() {
@@ -18,7 +23,7 @@ async function SlowContent() {
 export default function DeferredPage() {
   return (
     <div data-testid="deferred-page">
-      <h1>DeferredSuspense</h1>
+      <h1>Deferred Suspense</h1>
 
       <section>
         <h2>Interactive counter (in shell, outside Suspense)</h2>
@@ -29,22 +34,16 @@ export default function DeferredPage() {
 
       <section>
         <h2>Fast child (resolves before deadline)</h2>
-        <DeferredSuspense
-          ms={500}
-          fallback={<div data-testid="deferred-fast-fallback">Fast loading...</div>}
-        >
+        <Suspense fallback={<div data-testid="deferred-fast-fallback">Fast loading...</div>}>
           <FastContent />
-        </DeferredSuspense>
+        </Suspense>
       </section>
 
       <section>
         <h2>Slow child (exceeds deadline)</h2>
-        <DeferredSuspense
-          ms={500}
-          fallback={<div data-testid="deferred-slow-fallback">Slow loading...</div>}
-        >
+        <Suspense fallback={<div data-testid="deferred-slow-fallback">Slow loading...</div>}>
           <SlowContent />
-        </DeferredSuspense>
+        </Suspense>
       </section>
     </div>
   );

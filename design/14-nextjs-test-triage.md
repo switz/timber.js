@@ -291,7 +291,7 @@ Beyond Next.js compatibility tests, timber.js introduces novel features that nee
 | `proxy.ts` | Runs before route matching, `next()` wrapping, array form, covers all endpoints including RSC payloads | Vitest HTTP |
 | `denied.tsx` | Slot access denial renders `denied.tsx`, fallback to `default.tsx`, fallback to null | Vitest HTTP + Playwright |
 | `deny()` | Universal denial: correct HTTP status in segments (default 403, `deny(404)`, `deny(401)`), graceful degradation in slots, `denied.tsx` rendered, degraded behavior in post-flush Suspense, dev-mode error for `redirect()` in slot access | Vitest HTTP |
-| `<DeferredSuspense>` | Inline rendering when children resolve before deadline, fallback when deadline expires, nested boundaries | Vitest HTTP + Playwright |
+| `deferSuspenseFor` | Inline rendering when Suspense resolves before deadline, fallback when deadline expires | Vitest HTTP + Playwright |
 | `timber.cache` | TTL expiry, tag invalidation, key determinism, cache handler pluggability, separation from `React.cache` | Unit tests |
 | Flush point | Status code commits at `onShellReady`, correct 404/302/401/403 from components and access.ts | Vitest HTTP |
 | `searchParams()` | ALS-backed, auto-parsed in pages/handlers/access, raw in nested components | Vitest HTTP |

@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   warnSuspenseWrappingChildren,
-  warnDeferredSuspenseWrappingChildren,
   warnDenyInSuspense,
   warnRedirectInSuspense,
   warnRedirectInAccess,
@@ -40,20 +39,6 @@ describe('SUSPENSE_WRAPS_CHILDREN', () => {
     expect(msg).toContain('{children}');
     expect(msg).toContain('app/(dashboard)/layout.tsx');
     expect(msg).toContain('useNavigationPending()');
-  });
-});
-
-// ─── DEFERRED_WRAPS_CHILDREN ────────────────────────────────────────────────
-
-describe('DEFERRED_WRAPS_CHILDREN', () => {
-  it('warns on DeferredSuspense wrapping children', () => {
-    warnDeferredSuspenseWrappingChildren('app/layout.tsx');
-
-    expect(stderrSpy).toHaveBeenCalledOnce();
-    const msg = stderrSpy.mock.calls[0]![0] as string;
-    expect(msg).toContain('DeferredSuspense');
-    expect(msg).toContain('{children}');
-    expect(msg).toContain('app/layout.tsx');
   });
 });
 
@@ -164,7 +149,7 @@ describe('production stripping', () => {
       process.env.NODE_ENV = 'production';
 
       warnSuspenseWrappingChildren('app/layout.tsx');
-      warnDeferredSuspenseWrappingChildren('app/layout.tsx');
+
       warnDenyInSuspense('app/page.tsx', 10);
       warnRedirectInSuspense('app/page.tsx', 20);
       warnRedirectInAccess('app/access.ts', 5);

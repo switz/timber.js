@@ -230,6 +230,7 @@ async function renderRoute(
     segment: ManifestSegmentNode;
   }> = [];
   let PageComponent: ((...args: unknown[]) => unknown) | null = null;
+  let deferSuspenseFor = 0;
 
   for (let i = 0; i < segments.length; i++) {
     const segment = segments[i];
@@ -246,6 +247,10 @@ async function renderRoute(
       }
       if (mod.metadata) {
         metadataEntries.push({ metadata: mod.metadata as Metadata, isPage: false });
+      }
+      // deferSuspenseFor hold window — max across all segments
+      if (typeof mod.deferSuspenseFor === 'number' && mod.deferSuspenseFor > deferSuspenseFor) {
+        deferSuspenseFor = mod.deferSuspenseFor;
       }
     }
 
@@ -268,6 +273,10 @@ async function renderRoute(
         if (generated) {
           metadataEntries.push({ metadata: generated, isPage: true });
         }
+      }
+      // deferSuspenseFor hold window — max across all segments
+      if (typeof mod.deferSuspenseFor === 'number' && mod.deferSuspenseFor > deferSuspenseFor) {
+        deferSuspenseFor = mod.deferSuspenseFor;
       }
     }
   }
@@ -593,8 +602,7 @@ async function renderRoute(
   }
 
   // Progressive streaming: pipe the RSC stream directly to SSR without
-  // buffering. This enables DeferredSuspense fallback visibility and
-  // proper Suspense streaming behavior.
+  // buffering. This enables proper Suspense streaming behavior.
   //
   // For async deny() (inside components that await before calling deny()),
   // SSR will attempt to render the element tree progressively. Two outcomes:
@@ -627,6 +635,7 @@ async function renderRoute(
     headHtml: headHtml + clientBootstrap.preloadLinks + segmentScript,
     bootstrapScriptContent: clientBootstrap.bootstrapScriptContent,
     rscStream: inlineStream,
+    deferSuspenseFor: deferSuspenseFor > 0 ? deferSuspenseFor : undefined,
   };
 
   try {

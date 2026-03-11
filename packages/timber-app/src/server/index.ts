@@ -130,12 +130,6 @@ export type {
   ActionHandlerResult,
 } from './actions';
 
-// DeferredSuspense
-// Design doc: design/05-streaming.md §"DeferredSuspense"
-// Also exported from '@timber/app' for user-facing imports per design doc.
-export { DeferredSuspense } from './deferred-suspense';
-export type { DeferredSuspenseProps } from './deferred-suspense';
-
 // Tracing — per-request trace ID via ALS
 // Design doc: design/17-logging.md §"trace_id is Always Set"
 export {
@@ -180,7 +174,6 @@ export type {
 // Design doc: design/21-dev-server.md §"Dev-Mode Warnings", design/11-platform.md §"Dev Mode"
 export {
   warnSuspenseWrappingChildren,
-  warnDeferredSuspenseWrappingChildren,
   warnDenyInSuspense,
   warnRedirectInSuspense,
   warnRedirectInAccess,

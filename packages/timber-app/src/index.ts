@@ -131,8 +131,3 @@ export function timber(config?: TimberUserConfig): PluginOption[] {
 }
 
 export default timber;
-
-// React components — re-exported for user-facing imports.
-// Design doc: import { DeferredSuspense } from '@timber/app'
-export { DeferredSuspense } from './server/deferred-suspense';
-export type { DeferredSuspenseProps } from './server/deferred-suspense';

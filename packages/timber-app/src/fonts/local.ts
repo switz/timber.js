@@ -16,6 +16,7 @@
 import { resolve, dirname, extname } from 'node:path';
 import type { LocalFontConfig, LocalFontSrc, FontFaceDescriptor, ExtractedFont } from './types.js';
 import { buildFontStack } from './fallbacks.js';
+import { extractLocalFontConfigAst } from './ast.js';
 
 /**
  * Infer the font format from a file extension.
@@ -167,59 +168,10 @@ export function processLocalFont(config: LocalFontConfig, importerPath: string):
  *   localFont({ src: [{ path: './a.woff2', weight: '400' }, { path: './b.woff2', weight: '700' }] })
  *
  * Returns null if the call cannot be statically analyzed.
+ *
+ * Uses acorn AST parsing for robust handling of comments, trailing commas,
+ * and multi-line configs.
  */
 export function extractLocalFontConfig(callSource: string): LocalFontConfig | null {
-  const objMatch = callSource.match(/\(\s*(\{[\s\S]*?\})\s*\)/);
-  if (!objMatch) return null;
-
-  const objStr = objMatch[1];
-
-  try {
-    // Extract `display`
-    const displayMatch = objStr.match(/display\s*:\s*['"]([^'"]+)['"]/);
-    const display = displayMatch ? (displayMatch[1] as LocalFontConfig['display']) : undefined;
-
-    // Extract `variable`
-    const variableMatch = objStr.match(/variable\s*:\s*['"]([^'"]+)['"]/);
-    const variable = variableMatch ? variableMatch[1] : undefined;
-
-    // Extract `family`
-    const familyMatch = objStr.match(/family\s*:\s*['"]([^'"]+)['"]/);
-    const family = familyMatch ? familyMatch[1] : undefined;
-
-    // Extract `src` — either a string or an array of objects
-    // Check for array form first: src: [{ path: '...', weight: '...' }, ...]
-    const srcArrayMatch = objStr.match(/src\s*:\s*\[([\s\S]*?)\]/);
-    if (srcArrayMatch) {
-      const arrayContent = srcArrayMatch[1];
-      // Parse each { path: '...', weight: '...', style: '...' } entry
-      const entries: LocalFontSrc[] = [];
-      const entryPattern = /\{\s*([^}]+)\s*\}/g;
-      let entryMatch;
-      while ((entryMatch = entryPattern.exec(arrayContent)) !== null) {
-        const entryStr = entryMatch[1];
-        const pathMatch = entryStr.match(/path\s*:\s*['"]([^'"]+)['"]/);
-        if (!pathMatch) return null; // path is required
-        const weightMatch = entryStr.match(/weight\s*:\s*['"]([^'"]+)['"]/);
-        const styleMatch = entryStr.match(/style\s*:\s*['"]([^'"]+)['"]/);
-        entries.push({
-          path: pathMatch[1],
-          weight: weightMatch?.[1],
-          style: styleMatch?.[1],
-        });
-      }
-      if (entries.length === 0) return null;
-      return { src: entries, display, variable, family };
-    }
-
-    // Check for string form: src: './fonts/MyFont.woff2'
-    const srcStringMatch = objStr.match(/src\s*:\s*['"]([^'"]+)['"]/);
-    if (srcStringMatch) {
-      return { src: srcStringMatch[1], display, variable, family };
-    }
-
-    return null;
-  } catch {
-    return null;
-  }
+  return extractLocalFontConfigAst(callSource);
 }

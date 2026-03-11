@@ -18,6 +18,7 @@
 import type { Plugin } from 'vite';
 import type { PluginContext } from '../index.js';
 import type { ExtractedFont, GoogleFontConfig } from '../fonts/types.js';
+import type { ManifestFontEntry } from '../server/build-manifest.js';
 import { generateVariableClass, generateFontFamilyClass } from '../fonts/css.js';
 import { generateFallbackCss, buildFontStack } from '../fonts/fallbacks.js';
 
@@ -314,7 +315,7 @@ export function generateAllFontCss(registry: FontRegistry): string {
 /**
  * Create the timber-fonts Vite plugin.
  */
-export function timberFonts(_ctx: PluginContext): Plugin {
+export function timberFonts(ctx: PluginContext): Plugin {
   const registry: FontRegistry = new Map();
 
   return {
@@ -438,6 +439,54 @@ export function timberFonts(_ctx: PluginContext): Plugin {
       }
 
       return null;
+    },
+
+    /**
+     * Emit font metadata into the build manifest during production builds.
+     *
+     * Groups extracted fonts by their importer (source file path) and writes
+     * ManifestFontEntry arrays keyed by file path — the same key structure
+     * used by css/js/modulepreload in the build manifest.
+     *
+     * In dev mode the build manifest is null, so this is a no-op.
+     */
+    generateBundle() {
+      if (!ctx.buildManifest) return;
+
+      const fontsByImporter = new Map<string, ManifestFontEntry[]>();
+
+      for (const font of registry.values()) {
+        // Build font file entries for each weight × style × subset combination.
+        // Until the Google Fonts download task (timber-nk5) provides real
+        // content-hashed URLs, we generate deterministic placeholder paths
+        // that match the naming convention from design/24-fonts.md.
+        const entries = fontsByImporter.get(font.importer) ?? [];
+
+        for (const weight of font.weights) {
+          for (const style of font.styles) {
+            for (const subset of font.subsets) {
+              const slug = font.family.toLowerCase().replace(/\s+/g, '-');
+              const href = `/_timber/fonts/${slug}-${subset}-${weight}-${style}.woff2`;
+              entries.push({
+                href,
+                format: 'woff2',
+                crossOrigin: 'anonymous',
+              });
+            }
+          }
+        }
+
+        fontsByImporter.set(font.importer, entries);
+      }
+
+      // Normalize importer paths to be relative to project root (matching
+      // how Vite's manifest.json keys work for css/js).
+      for (const [importer, entries] of fontsByImporter) {
+        const relativePath = importer.startsWith(ctx.root)
+          ? importer.slice(ctx.root.length + 1)
+          : importer;
+        ctx.buildManifest.fonts[relativePath] = entries;
+      }
     },
   };
 }

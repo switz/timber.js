@@ -59,7 +59,7 @@ export function parseViteManifest(
     modulepreload[inputPath] = collectTransitiveDeps(inputPath, viteManifest, base);
   }
 
-  return { css, js, modulepreload };
+  return { css, js, modulepreload, fonts: {} };
 }
 
 /**
@@ -126,7 +126,7 @@ export function timberBuildManifest(ctx: PluginContext): Plugin {
       // In dev mode, return empty manifest — Vite HMR handles CSS.
       // In build mode, the manifest data comes from PluginContext
       // (populated by the adapter after client build).
-      const manifest = ctx.buildManifest ?? { css: {}, js: {}, modulepreload: {} };
+      const manifest = ctx.buildManifest ?? { css: {}, js: {}, modulepreload: {}, fonts: {} };
 
       return [
         '// Auto-generated build manifest — do not edit.',

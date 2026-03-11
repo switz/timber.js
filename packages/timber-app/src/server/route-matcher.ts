@@ -76,7 +76,7 @@ function matchPathname(root: ManifestSegmentNode, pathname: string): RouteMatch 
   const parts = pathname === '/' ? [] : pathname.slice(1).split('/');
 
   const segments: ManifestSegmentNode[] = [];
-  const params: Record<string, string> = {};
+  const params: Record<string, string | string[]> = {};
 
   const matched = matchSegments(root, parts, 0, segments, params);
   if (!matched) return null;
@@ -125,7 +125,7 @@ function matchSegments(
   parts: string[],
   index: number,
   segments: ManifestSegmentNode[],
-  params: Record<string, string>
+  params: Record<string, string | string[]>
 ): boolean {
   segments.push(node);
 
@@ -149,9 +149,7 @@ function matchSegments(
       if (child.segmentType === 'optional-catch-all') {
         if (child.page || child.route) {
           segments.push(child);
-          if (child.paramName) {
-            params[child.paramName] = '';
-          }
+          // Zero segments → param is undefined (not set), matching Next.js semantics
           return true;
         }
       }
@@ -206,7 +204,7 @@ function matchSegments(
       if (child.page || child.route) {
         const remaining = parts.slice(index).map(decodeURIComponent);
         segments.push(child);
-        params[child.paramName] = remaining.join('/');
+        params[child.paramName] = remaining;
         return true;
       }
     }
@@ -218,7 +216,7 @@ function matchSegments(
       if (child.page || child.route) {
         const remaining = parts.slice(index).map(decodeURIComponent);
         segments.push(child);
-        params[child.paramName] = remaining.join('/');
+        params[child.paramName] = remaining;
         return true;
       }
     }

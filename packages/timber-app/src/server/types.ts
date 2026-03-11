@@ -4,19 +4,19 @@ export interface MiddlewareContext {
   req: Request;
   requestHeaders: Headers;
   headers: Headers;
-  params: Record<string, string>;
+  params: Record<string, string | string[]>;
   searchParams: unknown;
 }
 
 export interface RouteContext {
   req: Request;
-  params: Record<string, string>;
+  params: Record<string, string | string[]>;
   searchParams: URLSearchParams;
   headers: Headers;
 }
 
 export interface AccessContext {
-  params: Record<string, string>;
+  params: Record<string, string | string[]>;
   searchParams: unknown;
 }
 

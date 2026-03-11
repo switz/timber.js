@@ -44,8 +44,8 @@ import type { SegmentNode } from '../routing/types.js';
 export interface RouteMatch {
   /** The matched segment chain from root to leaf. */
   segments: SegmentNode[];
-  /** Extracted route params. */
-  params: Record<string, string>;
+  /** Extracted route params (catch-all segments produce string[]). */
+  params: Record<string, string | string[]>;
   /** The leaf segment's middleware.ts export, if any. */
   middleware?: MiddlewareFn;
 }

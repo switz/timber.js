@@ -28,8 +28,8 @@ import { injectHead, injectRscPayload } from './html-injectors.js';
 export interface NavContext {
   /** The requested pathname */
   pathname: string;
-  /** Extracted route params */
-  params: Record<string, string>;
+  /** Extracted route params (catch-all segments produce string[]) */
+  params: Record<string, string | string[]>;
   /** Search params from the URL */
   searchParams: Record<string, string>;
   /** The committed HTTP status code */

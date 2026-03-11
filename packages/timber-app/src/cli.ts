@@ -81,11 +81,64 @@ export async function runBuild(options: CommandOptions): Promise<void> {
 }
 
 /**
+ * Determine whether to use the adapter's preview or Vite's built-in preview.
+ * Exported for testing — the actual runPreview function uses this internally.
+ */
+export function resolvePreviewStrategy(
+  adapter: import('./adapters/types').TimberPlatformAdapter | undefined
+): 'adapter' | 'vite' {
+  if (adapter && typeof adapter.preview === 'function') {
+    return 'adapter';
+  }
+  return 'vite';
+}
+
+/**
+ * Load timber.config.ts from the project root.
+ * Returns the config object with adapter, output, etc.
+ * Returns null if no config file is found.
+ */
+async function loadTimberConfig(
+  root: string
+): Promise<{ adapter?: import('./adapters/types').TimberPlatformAdapter; output?: string } | null> {
+  const { existsSync } = await import('node:fs');
+  const { join } = await import('node:path');
+  const { pathToFileURL } = await import('node:url');
+
+  const configNames = ['timber.config.ts', 'timber.config.js', 'timber.config.mjs'];
+
+  for (const name of configNames) {
+    const configPath = join(root, name);
+    if (existsSync(configPath)) {
+      // Use Vite's built-in config loading to handle TypeScript
+      const mod = await import(pathToFileURL(configPath).href);
+      return mod.default ?? mod;
+    }
+  }
+  return null;
+}
+
+/**
  * Serve the production build for local testing.
  * If the adapter provides a preview() method, it takes priority.
  * Otherwise falls back to Vite's built-in preview server.
  */
 export async function runPreview(options: CommandOptions): Promise<void> {
+  const { join } = await import('node:path');
+
+  // Try to load timber config for adapter-specific preview
+  const root = process.cwd();
+  const config = await loadTimberConfig(root).catch(() => null);
+  const adapter = config?.adapter as import('./adapters/types').TimberPlatformAdapter | undefined;
+
+  if (resolvePreviewStrategy(adapter) === 'adapter') {
+    const buildDir = join(root, '.timber', 'build');
+    const timberConfig = { output: (config?.output ?? 'server') as 'server' | 'static' };
+    await adapter!.preview!(timberConfig, buildDir);
+    return;
+  }
+
+  // Fallback: Vite's built-in preview server
   const { preview } = await import('vite');
   const server = await preview({
     configFile: options.config,

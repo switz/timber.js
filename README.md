@@ -20,6 +20,8 @@ timber.js takes a different approach: **block the flush until the shell is ready
 - **Fully typed routing** — generated route types for `<Link>`, params, and navigation
 - **Fully typed search params** — route-scoped `useQueryStates` with codegen overloads, powered by nuqs
 - **Early Hints (103)** — client assets start loading while the server renders
+- **Dynamic builds** – server-based builds are portable and deployable anywhere
+- **Static builds with NO javascript** - you can build a static site and ship genuinely zero JS. Or ship a static site with JS. It's a parlor trick, but it works.
 
 Next.js often leans on *magic* that hides optimizations from the developer. Here, everything works transparently. We'd rather you write an inefficient site that you understand than a site that you don't understand. Less confusion about _where things run_ or _when they run_, more clarity into each phase of the rendering.
 

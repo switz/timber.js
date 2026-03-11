@@ -5,16 +5,10 @@ import Byline from '#/ui/byline';
 import { GlobalNav } from '#/ui/global-nav';
 // MIGRATION: Replaced 'next' Metadata type with timber's Metadata type
 import type { Metadata } from '@timber/app/server';
-// MIGRATION: next/font/google is shimmed by timber — Geist fonts render
-// as CSS variable declarations; className and variable props are preserved.
-import { Geist, Geist_Mono } from 'next/font/google';
-
-const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] });
-
-const geistMono = Geist_Mono({
-  variable: '--font-geist-mono',
-  subsets: ['latin'],
-});
+// MIGRATION: next/font/google shim currently only exports a default function,
+// not named exports (timber-rlm). Stub out the font objects directly until fixed.
+const geistSans = { variable: '' };
+const geistMono = { variable: '' };
 
 export const metadata: Metadata = {
   title: { default: 'timber.js Playground', template: '%s | timber.js Playground' },

@@ -189,7 +189,7 @@ timber.js does NOT prefetch links on viewport intersection. Only `<Link prefetch
 All scroll operations are deferred until after React has committed the new content to the DOM. The router uses an `afterPaint` callback (double `requestAnimationFrame` in the browser) to schedule `scrollTo` after the paint. This is necessary because:
 
 1. `reactRoot.render()` is asynchronous — the DOM isn't updated synchronously
-2. Rendering to the `document` root causes the browser to reset scroll to 0 during DOM reconciliation
+2. Calling `reactRoot.render(newElement)` with a new element tree causes React to reconcile the entire document, resetting scroll to 0 (see "Why Not Browser-Native Scroll Restoration?" below)
 3. Calling `scrollTo` before the new content is painted has no effect (browser clamps to content height)
 
 In unit tests, `afterPaint` falls back to synchronous execution (no rAF available).
@@ -216,17 +216,20 @@ Restore saved `scrollY`. The framework sets `history.scrollRestoration = 'manual
 1. The current `scrollY` is captured before the fetch
 2. After `renderPayload()`, `afterPaint` restores the captured scroll position
 
-This active restoration is required because React's `render()` on the document root resets scroll to 0 during DOM reconciliation, even when layouts are preserved via React reconciliation. The scroll position cannot be passively preserved — it must be explicitly saved and restored.
+This active restoration is required because timber calls `reactRoot.render(newElement)` with a new element tree on each navigation, causing React to reconcile the entire document and reset scroll to 0. The scroll position cannot be passively preserved — it must be explicitly saved and restored.
 
 ### Why Not Browser-Native Scroll Restoration?
 
-Next.js App Router uses `history.scrollRestoration = 'auto'` and lets the browser handle scroll restoration natively. This does NOT work for timber.js because:
+Next.js App Router uses `history.scrollRestoration = 'auto'` and browser-native scroll restoration works there. Both Next.js and timber render to the `document` root via `hydrateRoot(document, ...)` — the difference is **how navigations are rendered**:
 
-1. timber.js hydrates and renders from the `document` root (not a `<div id="root">`), so React's `render()` call replaces the entire DOM tree during reconciliation
-2. The browser restores scroll → then React commits the new tree → browser resets scroll to 0
-3. Browser-native restoration only works when the DOM update doesn't reset scroll, which is not the case with document-root rendering
+- **Next.js App Router**: Holds the RSC cache in React state inside a persistent `<AppRouter>` component. Navigation updates router state via `useReducer`, which triggers React to re-render only the changed subtree. The top-level element tree identity is preserved, so React reconciles in place without resetting scroll.
+- **timber.js**: Calls `reactRoot.render(newElement)` with a completely new RSC element tree on each navigation. This replaces the entire tree, causing React to reconcile the whole document from scratch — which resets scroll to 0.
 
-timber.js explicitly manages scroll via `history.scrollRestoration = 'manual'` + in-memory history stack.
+The scroll reset is not caused by rendering to `document`. It's caused by replacing the entire element tree instead of updating state within a persistent tree.
+
+**Future improvement:** A persistent `<TimberRouter>` component that holds the current RSC payload in React state and renders it as children would let React reconcile in place, preserve scroll natively, and eliminate all the manual scroll machinery (`scrollRestoration = 'manual'`, `afterPaint`, `lastKnownUrl`, `timber:scroll-restored`).
+
+For now, timber.js explicitly manages scroll via `history.scrollRestoration = 'manual'` + in-memory history stack.
 
 ### `timber:scroll-restored` Event
 

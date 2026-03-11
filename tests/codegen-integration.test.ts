@@ -78,6 +78,7 @@ describe('codegen-integration', () => {
     expect(existsSync(routesPath)).toBe(true);
 
     const content = readFileSync(routesPath, 'utf-8');
+    expect(content).toContain('export {};');
     expect(content).toContain('declare module');
     expect(content).toContain("'/'");
     expect(content).toContain("'/dashboard'");

@@ -70,11 +70,12 @@ export default async function middleware(ctx: MiddlewareContext) {
   // No manual parse — the framework already ran the definition
 }
 
-// app/products/page.tsx — searchParams() is typed
+// app/products/page.tsx — searchParams() is typed via route generic
 import { searchParams } from '@timber/app/server'
 
 export default async function ProductsPage() {
-  const { page, pageSize, category, sort } = searchParams()  // auto-parsed, typed by route codegen
+  const { page, pageSize, category, sort } = await searchParams<'/products'>()
+  // Routes['/products']['searchParams'] → typed from search-params.ts
   const products = await getProducts({ page, pageSize, category, sort })
   // ...
 }
@@ -92,7 +93,7 @@ import { searchParams } from '@timber/app/server'
 import searchParamsDef from '@/app/products/search-params'
 
 export default async function ProductSidebar() {
-  const { category, sort } = searchParamsDef.parse(searchParams())
+  const { category, sort } = searchParamsDef.parse(await searchParams())
   // category and sort are typed
 }
 ```
@@ -101,7 +102,7 @@ export default async function ProductSidebar() {
 
 `searchParams()` is ALS-backed, like `cookies()` and `headers()`. The framework populates the ALS store with the raw `URLSearchParams` at the request boundary. In auto-parsed contexts (`page.tsx`, `middleware.ts`, `access.ts`), the framework also runs the route's codec and stores the parsed result, which is what `searchParams()` returns in those files.
 
-**How auto-typing works:** Build/dev-time codegen generates per-route type overloads for `searchParams()`, `MiddlewareContext`, and `AccessContext`. When you're editing `app/products/page.tsx`, the TypeScript language server knows this route's `search-params.ts` shape and narrows the return type accordingly. This follows the same codegen approach used for `params` — static analysis of the file system, type generation, no runtime overhead. Outside these auto-parsed contexts, `searchParams()` returns `URLSearchParams`.
+**How typing works:** Build/dev-time codegen generates a `Routes` interface mapping every route path to its `params` and `searchParams` shapes. `searchParams<R>()` is a generic function — passing the route path string as the type parameter narrows the return type to `Routes[R]['searchParams']`. This is explicit at the call site but requires no runtime overhead and works with `tsc`. Outside auto-parsed contexts (`page.tsx`, `middleware.ts`, `access.ts`), `searchParams()` (no generic) returns `URLSearchParams`.
 
 **Which `search-params.ts` applies:** The leaf route's `search-params.ts` is the canonical definition. `middleware.ts` always gets the leaf route's parsed searchParams (middleware only runs for the leaf). For `access.ts`, each segment's access check receives the leaf route's parsed searchParams — all segments in the chain share the same URL and the same query string, so they share the same parsed result.
 

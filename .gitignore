@@ -16,3 +16,4 @@ playwright-report/
 
 # timber.js generated files
 .timber/
+.tmp-route-watching-test/

@@ -56,8 +56,8 @@ const TIMBER_ENV_DTS = [
  */
 function writeCodegen(ctx: PluginContext): void {
   if (!ctx.routeTree) return;
-  const content = generateRouteMap(ctx.routeTree, { appDir: ctx.appDir });
   const timberDir = join(ctx.root, '.timber');
+  const content = generateRouteMap(ctx.routeTree, { appDir: ctx.appDir, outputDir: timberDir });
   const routesPath = join(ctx.root, CODEGEN_OUTPUT);
   const envPath = join(ctx.root, 'timber-env.d.ts');
   mkdir(timberDir, { recursive: true })
@@ -67,8 +67,9 @@ function writeCodegen(ctx: PluginContext): void {
         writeFile(envPath, TIMBER_ENV_DTS, 'utf-8'),
       ])
     )
-    .catch(() => {
-      // Non-fatal — types are a dev convenience
+    .catch((err) => {
+      // Non-fatal — types are a dev convenience, but log so issues are visible
+      console.warn('[timber] Failed to write codegen output:', err);
     });
 }
 

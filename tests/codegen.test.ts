@@ -36,6 +36,8 @@ describe('generateRouteMap', () => {
     const tree = scanRoutes(root);
     const output = generateRouteMap(tree);
 
+    // export {} makes the file a module so declare module blocks are augmentations
+    expect(output).toContain('export {};');
     // Should contain the Routes type
     expect(output).toContain('interface Routes');
     // Should include all routes with pages

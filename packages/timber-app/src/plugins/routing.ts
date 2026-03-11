@@ -67,8 +67,9 @@ function writeCodegen(ctx: PluginContext): void {
         writeFile(envPath, TIMBER_ENV_DTS, 'utf-8'),
       ])
     )
-    .catch(() => {
-      // Non-fatal — types are a dev convenience
+    .catch((err) => {
+      // Non-fatal — types are a dev convenience, but log so issues are visible
+      console.warn('[timber] Failed to write codegen output:', err);
     });
 }
 

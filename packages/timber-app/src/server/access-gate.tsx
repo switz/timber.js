@@ -49,6 +49,9 @@ export async function AccessGate(props: AccessGateProps): Promise<ReactElement> 
       if (error instanceof DenySignal) {
         await setSpanAttribute('timber.result', 'deny');
         await setSpanAttribute('timber.deny_status', error.status);
+        if (error.sourceFile) {
+          await setSpanAttribute('timber.deny_file', error.sourceFile);
+        }
       } else if (error instanceof RedirectSignal) {
         await setSpanAttribute('timber.result', 'redirect');
       }

@@ -26,7 +26,7 @@ import { createElement } from 'react';
 import { renderToReadableStream } from '@vitejs/plugin-rsc/rsc';
 
 import { createPipeline } from './pipeline.js';
-import { withSpan, initDevTracing } from './tracing.js';
+import { withSpan, setSpanAttribute, initDevTracing } from './tracing.js';
 import type { PipelineConfig, RouteMatch } from './pipeline.js';
 import { logRenderError } from './logger.js';
 import { resolveLogMode } from './dev-logger.js';
@@ -341,7 +341,27 @@ async function renderRoute(
         | undefined;
       if (accessFn) {
         try {
-          await accessFn({ params: match.params, searchParams: {} });
+          await withSpan(
+            'timber.access',
+            { 'timber.segment': segment.segmentName ?? 'unknown' },
+            async () => {
+              try {
+                await accessFn({ params: match.params, searchParams: {} });
+                await setSpanAttribute('timber.result', 'pass');
+              } catch (error) {
+                if (error instanceof DenySignal) {
+                  await setSpanAttribute('timber.result', 'deny');
+                  await setSpanAttribute('timber.deny_status', error.status);
+                  if (error.sourceFile) {
+                    await setSpanAttribute('timber.deny_file', error.sourceFile);
+                  }
+                } else if (error instanceof RedirectSignal) {
+                  await setSpanAttribute('timber.result', 'redirect');
+                }
+                throw error;
+              }
+            }
+          );
         } catch (error) {
           if (error instanceof DenySignal) {
             if (isRscPayloadRequest(_req)) {
@@ -848,7 +868,27 @@ async function handleApiRoute(
         | undefined;
       if (accessFn) {
         try {
-          await accessFn({ params: match.params, searchParams: {} });
+          await withSpan(
+            'timber.access',
+            { 'timber.segment': segment.segmentName ?? 'unknown' },
+            async () => {
+              try {
+                await accessFn({ params: match.params, searchParams: {} });
+                await setSpanAttribute('timber.result', 'pass');
+              } catch (error) {
+                if (error instanceof DenySignal) {
+                  await setSpanAttribute('timber.result', 'deny');
+                  await setSpanAttribute('timber.deny_status', error.status);
+                  if (error.sourceFile) {
+                    await setSpanAttribute('timber.deny_file', error.sourceFile);
+                  }
+                } else if (error instanceof RedirectSignal) {
+                  await setSpanAttribute('timber.result', 'redirect');
+                }
+                throw error;
+              }
+            }
+          );
         } catch (error) {
           if (error instanceof DenySignal) {
             return new Response(null, { status: error.status, headers: responseHeaders });

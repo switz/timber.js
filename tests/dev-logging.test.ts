@@ -411,6 +411,45 @@ describe('access check outcomes', () => {
     expect(output).toContain('PASS');
     expect(output).toContain('DENY 404');
   });
+
+  it('shows deny source file when timber.deny_file is set', () => {
+    const spans: ReadableSpan[] = [
+      mockSpan({
+        name: 'timber.access',
+        spanId: 'bbbb000000000005',
+        parentSpanId: 'bbbb000000000003',
+        startMs: 2,
+        endMs: 3,
+        attributes: {
+          'timber.segment': 'admin',
+          'timber.result': 'deny',
+          'timber.deny_status': 403,
+          'timber.deny_file': 'app/admin/access.ts',
+        },
+      }),
+      mockSpan({
+        name: 'timber.render',
+        spanId: 'bbbb000000000003',
+        parentSpanId: ROOT_SPAN_ID,
+        startMs: 1,
+        endMs: 5,
+      }),
+      mockSpan({
+        name: 'http.server.request',
+        spanId: ROOT_SPAN_ID,
+        startMs: 0,
+        endMs: 5,
+        attributes: {
+          'http.request.method': 'GET',
+          'url.path': '/admin',
+          'http.response.status_code': 403,
+        },
+      }),
+    ];
+    const output = stripAnsi(formatSpanTree(spans));
+    expect(output).toContain('DENY 403');
+    expect(output).toContain('(app/admin/access.ts)');
+  });
 });
 
 // ─── Slow Phase Highlighting ────────────────────────────────────────────

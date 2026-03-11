@@ -27,6 +27,11 @@ export interface TimberUserConfig {
     maxFields?: number;
   };
   pageExtensions?: string[];
+  /** Dev-mode options. These have no effect in production builds. */
+  dev?: {
+    /** Threshold in ms to highlight slow phases in dev logging output. Default: 200. */
+    slowPhaseMs?: number;
+  };
   /** MDX compilation options passed to @mdx-js/rollup. See design/20-content-collections.md. */
   mdx?: {
     remarkPlugins?: unknown[];

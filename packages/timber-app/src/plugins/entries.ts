@@ -86,6 +86,7 @@ function generateConfigModule(ctx: PluginContext): string {
     csrf: ctx.config.csrf ?? true,
     noJS: ctx.config.static?.noJS ?? false,
     dev: ctx.dev ?? false,
+    slowPhaseMs: ctx.config.dev?.slowPhaseMs ?? 200,
   };
 
   return [

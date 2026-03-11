@@ -96,6 +96,7 @@ function createRequestHandler(manifest: typeof routeManifest, runtimeConfig: typ
   // so the pipeline creates no emitters and has zero overhead.
   const isDev = process.env.NODE_ENV !== 'production';
   const devLogMode = isDev ? resolveLogMode() : 'quiet';
+  const slowPhaseMs = (runtimeConfig as Record<string, unknown>).slowPhaseMs as number | undefined;
 
   const pipelineConfig: PipelineConfig = {
     proxy: manifest.proxy?.load,
@@ -105,7 +106,7 @@ function createRequestHandler(manifest: typeof routeManifest, runtimeConfig: typ
     },
     onDevLog: isDev && devLogMode !== 'quiet'
       ? (emitter: DevLogEmitter) => {
-          const collector = createRequestCollector({ mode: devLogMode });
+          const collector = createRequestCollector({ mode: devLogMode, slowPhaseMs });
           emitter.on(collector.collect);
           // Subscribe to request-end to flush formatted output to stderr.
           emitter.on((event) => {

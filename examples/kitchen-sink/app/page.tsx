@@ -42,6 +42,20 @@ export default function HomePage() {
           </li>
         </ul>
       </section>
+      <section>
+        <h2>Metadata</h2>
+        <ul>
+          <li>
+            <Link href="/meta-test">Title template</Link>
+          </li>
+          <li>
+            <Link href="/meta-test/absolute">Absolute title</Link>
+          </li>
+          <li>
+            <Link href="/meta-test/abc">Dynamic generateMetadata</Link>
+          </li>
+        </ul>
+      </section>
     </div>
   );
 }

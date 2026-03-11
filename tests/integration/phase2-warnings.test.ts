@@ -131,7 +131,7 @@ describe('cross-feature interactions', () => {
       getScrollY: () => 0,
     });
 
-    router.prefetchCache.set('/products', 'stale-prefetch-data');
+    router.prefetchCache.set('/products', { payload: 'stale-prefetch-data', headElements: null });
 
     await router.navigate('/products');
     expect(mockFetch).not.toHaveBeenCalled();

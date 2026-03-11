@@ -86,6 +86,7 @@ The shortest version: **if Rails or PHP could do it, so can we.** Correct HTTP s
 | [Docs & Marketing Site](22-docs-site.md) | `@timber/docs-site` package, content collections for docs + blog, server actions demos, AI-generated content banners, Tailwind v4 styling |
 | [Search Params](23-search-params.md) | nuqs integration, `useQueryStates`, route-scoped typing, composable patterns, URL key aliasing, codec bridge, `shallow: false` default |
 | [Fonts & Web Font Loading](24-fonts.md) | `@timber/fonts/google`, `@timber/fonts/local`, build-time font download/subsetting, size-adjusted fallbacks, Early Hints integration, CSS variable bridging |
+| [Production Deployments](25-production-deployments.md) | Two-adapter architecture (Cloudflare + Nitro), production caching layers, Docker hardening, static deployments, preview, `TIMBER_RUNTIME`, deployment checklist |
 
 ## Future Concerns
 

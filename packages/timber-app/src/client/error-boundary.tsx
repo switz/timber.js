@@ -37,7 +37,14 @@ interface RenderErrorDigest {
   status: number;
 }
 
-type ParsedDigest = DenyDigest | RenderErrorDigest;
+/** Structured digest returned by RSC onError for RedirectSignal. */
+interface RedirectDigest {
+  type: 'redirect';
+  location: string;
+  status: number;
+}
+
+type ParsedDigest = DenyDigest | RenderErrorDigest | RedirectDigest;
 
 // ─── Props & State ───────────────────────────────────────────────────────────
 
@@ -93,6 +100,13 @@ export class TimberErrorBoundary extends Component<
 
     const error = this.state.error;
     const parsed = parseDigest(error);
+
+    // RedirectSignal errors must propagate through all error boundaries
+    // so the SSR shell fails and the pipeline catch block can produce a
+    // proper HTTP redirect response. See design/04-authorization.md.
+    if (parsed?.type === 'redirect') {
+      throw error;
+    }
 
     // If this boundary has a status filter, check whether the error matches.
     // Non-matching errors re-throw so an outer boundary can catch them.
@@ -151,6 +165,7 @@ function parseDigest(error: Error): ParsedDigest | null {
 function getErrorStatus(parsed: ParsedDigest | null, error: Error): number | null {
   if (parsed?.type === 'deny') return parsed.status;
   if (parsed?.type === 'render-error') return parsed.status;
+  if (parsed?.type === 'redirect') return parsed.status;
 
   // Fallback: parse DenySignal message pattern for errors that lost their digest
   const match = error.message.match(/^Access denied with status (\d+)$/);

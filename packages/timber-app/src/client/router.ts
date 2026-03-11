@@ -80,6 +80,18 @@ export interface RouterInstance {
   historyStack: HistoryStack;
 }
 
+/**
+ * Thrown when an RSC payload response contains X-Timber-Redirect header.
+ * Caught in navigate() to trigger a soft router navigation to the redirect target.
+ */
+class RedirectError extends Error {
+  readonly redirectUrl: string;
+  constructor(url: string) {
+    super(`Server redirect to ${url}`);
+    this.redirectUrl = url;
+  }
+}
+
 // ─── RSC Fetch ───────────────────────────────────────────────────
 
 const RSC_CONTENT_TYPE = 'text/x-component';
@@ -153,9 +165,20 @@ async function fetchRscPayload(
     //
     // Intercept the response to read X-Timber-Head before createFromFetch
     // consumes the body. Reading headers does NOT consume the body stream.
-    const fetchPromise = deps.fetch(rscUrl, { headers });
+    const fetchPromise = deps.fetch(rscUrl, { headers, redirect: 'manual' });
     let headElements: HeadElement[] | null = null;
     const wrappedPromise = fetchPromise.then((response) => {
+      // Detect server-side redirects via 3xx status + Location header.
+      // RSC fetches use redirect: "manual" so the browser doesn't auto-follow
+      // 302s (which would return HTML and break createFromFetch). Instead we
+      // read the Location header and throw RedirectError for the router to
+      // handle as a soft navigation.
+      if (response.status >= 300 && response.status < 400) {
+        const location = response.headers.get('Location');
+        if (location) {
+          throw new RedirectError(location);
+        }
+      }
       headElements = extractHeadElements(response);
       return response;
     });
@@ -167,7 +190,14 @@ async function fetchRscPayload(
     return { payload, headElements };
   }
   // Test/fallback path: return raw text
-  const response = await deps.fetch(rscUrl, { headers });
+  const response = await deps.fetch(rscUrl, { headers, redirect: 'manual' });
+  // Check for redirect in test path too
+  if (response.status >= 300 && response.status < 400) {
+    const location = response.headers.get('Location');
+    if (location) {
+      throw new RedirectError(location);
+    }
+  }
   return { payload: await response.text(), headElements: extractHeadElements(response) };
 }
 
@@ -270,6 +300,17 @@ export function createRouter(deps: RouterDeps): RouterInstance {
           deps.scrollTo(0, currentScrollY);
         }
       });
+    } catch (error) {
+      // Server-side redirect during RSC fetch → soft router navigation.
+      // access.ts called redirect() — the server returns X-Timber-Redirect
+      // header, and fetchRscPayload throws RedirectError. We re-navigate
+      // to the redirect target using the router for a seamless SPA transition.
+      if (error instanceof RedirectError) {
+        setPending(false);
+        await navigate(error.redirectUrl, { replace: true });
+        return;
+      }
+      throw error;
     } finally {
       setPending(false);
     }

@@ -530,6 +530,102 @@ describe('Router', () => {
     });
   });
 
+  describe('server redirect handling', () => {
+    it('soft navigates to redirect target on 302 response', async () => {
+      // First fetch returns a 302 redirect (redirect: manual means we get the raw 302)
+      mockFetch
+        .mockResolvedValueOnce(
+          new Response(null, {
+            status: 302,
+            headers: { Location: '/login' },
+          })
+        )
+        .mockResolvedValueOnce(
+          new Response('login-page-payload', {
+            headers: { 'content-type': 'text/x-component' },
+          })
+        );
+
+      await router.navigate('/protected');
+
+      // Should have made two fetches: one for /protected (302), one for /login
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+      const [secondUrl] = mockFetch.mock.calls[1] as [string, RequestInit];
+      expect(secondUrl).toMatch(/^\/login\?_rsc=/);
+      // Should use replaceState for the redirect (not pushState for /protected)
+      expect(mockReplaceState).toHaveBeenCalledWith(expect.anything(), '', '/login');
+    });
+
+    it('uses redirect: manual to prevent auto-follow', async () => {
+      mockFetch.mockResolvedValueOnce(
+        new Response('payload', {
+          headers: { 'content-type': 'text/x-component' },
+        })
+      );
+
+      await router.navigate('/projects');
+
+      const [, init] = mockFetch.mock.calls[0] as [string, RequestInit];
+      expect(init.redirect).toBe('manual');
+    });
+
+    it('handles redirect in test path (no decodeRsc)', async () => {
+      mockFetch
+        .mockResolvedValueOnce(
+          new Response(null, {
+            status: 302,
+            headers: { Location: '/login' },
+          })
+        )
+        .mockResolvedValueOnce(
+          new Response('login-payload', {
+            headers: { 'content-type': 'text/x-component' },
+          })
+        );
+
+      await router.navigate('/protected');
+
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('handles redirect with decodeRsc', async () => {
+      const mockDecodeRsc = vi.fn((fetchPromise: Promise<Response>) =>
+        fetchPromise.then((r) => r.text()).then((text) => ({ decoded: text }))
+      );
+      const mockRenderRoot = vi.fn();
+
+      const routerWithRsc = createRouter({
+        fetch: mockFetch,
+        pushState: mockPushState,
+        replaceState: mockReplaceState,
+        scrollTo: mockScrollTo,
+        getCurrentUrl: () => '/dashboard',
+        getScrollY: () => 0,
+        decodeRsc: mockDecodeRsc as (fetchPromise: Promise<Response>) => unknown,
+        renderRoot: mockRenderRoot as (element: unknown) => void,
+      });
+
+      mockFetch
+        .mockResolvedValueOnce(
+          new Response(null, {
+            status: 302,
+            headers: { Location: '/login' },
+          })
+        )
+        .mockResolvedValueOnce(
+          new Response('login-rsc-data', {
+            headers: { 'content-type': 'text/x-component' },
+          })
+        );
+
+      await routerWithRsc.navigate('/protected');
+
+      // Second fetch goes to /login, which is decoded and rendered
+      expect(mockRenderRoot).toHaveBeenCalledWith({ decoded: 'login-rsc-data' });
+      expect(mockReplaceState).toHaveBeenCalledWith(expect.anything(), '', '/login');
+    });
+  });
+
   describe('prefetch', () => {
     it('prefetches an RSC payload on hover', async () => {
       mockFetch.mockResolvedValueOnce(

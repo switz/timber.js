@@ -34,7 +34,8 @@ import { createRouteMatcher } from './route-matcher.js';
 import type { ManifestSegmentNode } from './route-matcher.js';
 import { resolveMetadata, renderMetadataToElements } from './metadata.js';
 import type { Metadata } from './types.js';
-import { DenySignal, RenderError } from './primitives.js';
+import { DenySignal, RedirectSignal, RenderError } from './primitives.js';
+import { AccessGate } from './access-gate.js';
 import { buildClientScripts } from './html-injectors.js';
 import type { ClientBootstrapConfig } from './html-injectors.js';
 import { renderDenyPage, renderDenyPageAsRsc } from './deny-renderer.js';
@@ -54,6 +55,9 @@ import type { NavContext } from './ssr-entry.js';
 import { resolveSlotElement } from './slot-resolver.js';
 import { SegmentProvider } from '../client/segment-context.js';
 import { TimberErrorBoundary } from '../client/error-boundary.js';
+import { handleRouteRequest } from './route-handler.js';
+import type { RouteModule } from './route-handler.js';
+import type { RouteContext } from './types.js';
 
 /**
  * Create a debug channel sink that discards all debug data.
@@ -163,6 +167,14 @@ async function renderRoute(
   clientBootstrap: ClientBootstrapConfig
 ): Promise<Response> {
   const segments = match.segments as unknown as ManifestSegmentNode[];
+  const leaf = segments[segments.length - 1];
+
+  // API routes (route.ts) — run access.ts standalone then dispatch to handler.
+  // No React render pass — AccessGate is not used, React.cache is not active.
+  // See design/04-authorization.md §"Auth in API Routes".
+  if (leaf.route && !leaf.page) {
+    return handleApiRoute(_req, match, segments, responseHeaders);
+  }
 
   // Params are passed as a Promise to match Next.js 15+ convention.
   const paramsPromise = Promise.resolve(match.params);
@@ -218,6 +230,58 @@ async function renderRoute(
 
   if (!PageComponent) {
     return new Response(null, { status: 404 });
+  }
+
+  // Run access.ts checks before rendering — top-down through the segment chain.
+  // This catches deny()/redirect() signals before the RSC stream is created,
+  // producing correct HTTP status codes for both full page loads and RSC
+  // payload requests (client navigation). The AccessGate components in the
+  // tree will re-run these checks during rendering (React.cache dedup means
+  // no double-execution for cached auth functions).
+  // See design/04-authorization.md §"access.ts Runs on Every Navigation".
+  for (const segment of segments) {
+    if (segment.access) {
+      const accessMod = (await segment.access.load()) as Record<string, unknown>;
+      const accessFn = accessMod.default as
+        | ((ctx: { params: Record<string, string>; searchParams: unknown }) => unknown)
+        | undefined;
+      if (accessFn) {
+        try {
+          await accessFn({ params: match.params, searchParams: {} });
+        } catch (error) {
+          if (error instanceof DenySignal) {
+            if (isRscPayloadRequest(_req)) {
+              return renderDenyPageAsRsc(
+                error,
+                segments,
+                layoutComponents as LayoutEntry[],
+                responseHeaders,
+                createDebugChannelSink
+              );
+            }
+            return renderDenyPage(
+              error,
+              segments,
+              layoutComponents as LayoutEntry[],
+              _req,
+              match,
+              responseHeaders,
+              clientBootstrap,
+              createDebugChannelSink,
+              callSsr
+            );
+          }
+          if (error instanceof RedirectSignal) {
+            responseHeaders.set('Location', error.location);
+            return new Response(null, {
+              status: error.status,
+              headers: responseHeaders,
+            });
+          }
+          throw error;
+        }
+      }
+    }
   }
 
   // Resolve metadata
@@ -296,6 +360,27 @@ async function renderRoute(
     // navigation, which breaks layout state preservation.
     element = await wrapSegmentWithErrorBoundaries(segment, element, h);
 
+    // Wrap in AccessGate if segment has access.ts.
+    // AccessGate calls the segment's access function before rendering children.
+    // If access.ts calls deny() or redirect(), the signal propagates as a
+    // render-phase throw — caught by the flush controller to produce the
+    // correct HTTP status code. See design/04-authorization.md.
+    if (segment.access) {
+      const accessMod = (await segment.access.load()) as Record<string, unknown>;
+      const accessFn = accessMod.default as
+        | ((ctx: { params: Record<string, string>; searchParams: unknown }) => unknown)
+        | undefined;
+      if (accessFn) {
+        element = h(AccessGate, {
+          accessFn,
+          params: match.params,
+          searchParams: {},
+          segmentName: segment.segmentName,
+          children: element,
+        });
+      }
+    }
+
     // Wrap with layout if this segment has one
     const layoutComponent = layoutBySegment.get(segment);
     if (layoutComponent) {
@@ -338,6 +423,7 @@ async function renderRoute(
   // SSR determine whether it was pre-flush (outside Suspense) or post-flush
   // (inside Suspense) based on whether the SSR shell renders successfully.
   let denySignal: DenySignal | null = null;
+  let redirectSignal: RedirectSignal | null = null;
   let renderError: { error: unknown; status: number } | null = null;
   let rscStream: ReadableStream<Uint8Array>;
   try {
@@ -349,6 +435,14 @@ async function renderRoute(
             denySignal = error;
             // Return structured digest for client-side error boundaries
             return JSON.stringify({ type: 'deny', status: error.status, data: error.data });
+          }
+          if (error instanceof RedirectSignal) {
+            redirectSignal = error;
+            return JSON.stringify({
+              type: 'redirect',
+              location: error.location,
+              status: error.status,
+            });
           }
           if (error instanceof RenderError) {
             // Track the first render error for pre-flush handling
@@ -383,9 +477,21 @@ async function renderRoute(
   } catch (error) {
     if (error instanceof DenySignal) {
       denySignal = error;
+    } else if (error instanceof RedirectSignal) {
+      redirectSignal = error;
     } else {
       throw error;
     }
+  }
+
+  // Synchronous redirect — redirect() in access.ts or a non-async component
+  // throws during renderToReadableStream creation. Return HTTP redirect.
+  if (redirectSignal) {
+    responseHeaders.set('Location', redirectSignal.location);
+    return new Response(null, {
+      status: redirectSignal.status,
+      headers: responseHeaders,
+    });
   }
 
   // Synchronous deny — deny() in a non-async component throws during
@@ -472,6 +578,18 @@ async function renderRoute(
   } catch (ssrError) {
     // SSR shell rendering failed — the error was outside Suspense
     // (inside Suspense errors stream after shell succeeds).
+
+    // RedirectSignal outside Suspense → HTTP redirect
+    // Note: redirectSignal is assigned inside onError callback — TS narrowing
+    // doesn't track mutations in callbacks, so we cast.
+    const trackedRedirect = redirectSignal as RedirectSignal | null;
+    if (trackedRedirect) {
+      responseHeaders.set('Location', trackedRedirect.location);
+      return new Response(null, {
+        status: trackedRedirect.status,
+        headers: responseHeaders,
+      });
+    }
 
     // DenySignal outside Suspense → render deny page with correct 4xx status
     if (denySignal) {
@@ -575,6 +693,57 @@ async function wrapSegmentWithErrorBoundaries(
   }
 
   return element;
+}
+
+/**
+ * Handle an API route (route.ts) request.
+ *
+ * Runs access.ts standalone for all segments in the chain (no React render
+ * pass, no AccessGate component). Then dispatches to the route handler.
+ * See design/04-authorization.md §"Auth in API Routes".
+ */
+async function handleApiRoute(
+  req: Request,
+  match: RouteMatch,
+  segments: ManifestSegmentNode[],
+  responseHeaders: Headers
+): Promise<Response> {
+  const leaf = segments[segments.length - 1];
+
+  // Run access.ts for every segment in the chain, top-down.
+  // Each access.ts is independent — deny()/redirect() throws a signal.
+  for (const segment of segments) {
+    if (segment.access) {
+      const accessMod = (await segment.access.load()) as Record<string, unknown>;
+      const accessFn = accessMod.default as
+        | ((ctx: { params: Record<string, string>; searchParams: unknown }) => unknown)
+        | undefined;
+      if (accessFn) {
+        try {
+          await accessFn({ params: match.params, searchParams: {} });
+        } catch (error) {
+          if (error instanceof DenySignal) {
+            return new Response(null, { status: error.status, headers: responseHeaders });
+          }
+          if (error instanceof RedirectSignal) {
+            responseHeaders.set('Location', error.location);
+            return new Response(null, { status: error.status, headers: responseHeaders });
+          }
+          throw error;
+        }
+      }
+    }
+  }
+
+  // Load route.ts module and dispatch
+  const routeMod = (await leaf.route!.load()) as RouteModule;
+  const ctx: RouteContext = {
+    req,
+    params: match.params,
+    searchParams: new URL(req.url).searchParams,
+    headers: responseHeaders,
+  };
+  return handleRouteRequest(routeMod, ctx);
 }
 
 /**

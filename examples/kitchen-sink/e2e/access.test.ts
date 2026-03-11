@@ -2,11 +2,14 @@
  * E2E tests for access.ts authorization behavior.
  *
  * Validates:
- * - Segment access deny() produces HTTP 403
+ * - Segment access deny() produces correct HTTP status codes (403, 401, 404)
  * - Segment access redirect() produces HTTP 302
  * - Slot denial renders denied.tsx while page remains visible
+ * - Slot denial falls back to default.tsx when no denied.tsx exists
+ * - Nested access gates execute top-down (parent first)
+ * - access.ts runs for API routes (route.ts)
  *
- * Design docs: design/04-authorization.md
+ * Design docs: design/04-authorization.md, design/13-security.md
  *
  * Run: pnpm run test:e2e:kitchen-sink
  */
@@ -20,6 +23,20 @@ test.describe('segment access control', () => {
     await expect(page.locator('[data-testid="auth-denied-page"]')).not.toBeVisible();
   });
 
+  test('deny(401) produces 401 status', async ({ page }) => {
+    const response = await page.goto('/auth-test/deny-401');
+    expect(response?.status()).toBe(401);
+    // The page.tsx should not render
+    await expect(page.locator('[data-testid="deny-401-page"]')).not.toBeVisible();
+  });
+
+  test('deny(404) produces 404 status', async ({ page }) => {
+    const response = await page.goto('/auth-test/deny-404');
+    expect(response?.status()).toBe(404);
+    // The page.tsx should not render
+    await expect(page.locator('[data-testid="deny-404-page"]')).not.toBeVisible();
+  });
+
   test('segment access redirect produces 302', async ({ request }) => {
     // Use request context to follow redirects manually
     const response = await request.get('/auth-test/redirect', {
@@ -27,6 +44,16 @@ test.describe('segment access control', () => {
     });
     expect(response.status()).toBe(302);
     expect(response.headers()['location']).toBe('/');
+  });
+});
+
+test.describe('nested access gates', () => {
+  test('nested access gates execute in order', async ({ page }) => {
+    // Parent access.ts passes, child access.ts denies → HTTP 403
+    const response = await page.goto('/auth-test/nested/child');
+    expect(response?.status()).toBe(403);
+    // The child page should not render
+    await expect(page.locator('[data-testid="nested-child-page"]')).not.toBeVisible();
   });
 });
 
@@ -46,5 +73,31 @@ test.describe('slot access control', () => {
     );
     // Admin page content should not be visible
     await expect(page.locator('[data-testid="admin-slot-page"]')).not.toBeVisible();
+  });
+
+  test('slot denial falls back to default.tsx', async ({ page }) => {
+    // Slot with access.ts that denies, no denied.tsx, but has default.tsx
+    const response = await page.goto('/auth-test/parallel-default');
+    expect(response?.status()).toBe(200);
+    // Main page content is visible
+    await expect(page.locator('[data-testid="parallel-default-page"]')).toBeVisible();
+    // Widget slot denied → falls back to default.tsx
+    await expect(page.locator('[data-testid="widget-default"]')).toBeVisible();
+    await expect(page.locator('[data-testid="widget-default-message"]')).toHaveText(
+      'Widget default fallback'
+    );
+    // Widget page should not be visible
+    await expect(page.locator('[data-testid="widget-page"]')).not.toBeVisible();
+  });
+});
+
+test.describe('API route access control', () => {
+  test('access.ts runs for API routes', async ({ request }) => {
+    // API route with access.ts that denies(401) — handler should never execute
+    const response = await request.get('/auth-test/api-guarded');
+    expect(response.status()).toBe(401);
+    // The response body should be empty (not the JSON from the handler)
+    const body = await response.text();
+    expect(body).toBe('');
   });
 });

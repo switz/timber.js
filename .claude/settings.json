@@ -53,8 +53,7 @@
       "WebFetch(domain:github.com)",
       "Bash(grep \"\\\\.test\\\\.ts$\")",
       "Bash(curl -s -N --max-time 5 http://localhost:3003/streaming/deferred)",
-      "Read(//tmp/**)",
-      "Bash(git fetch vinext main)"
+      "Read(//tmp/**)"
     ],
     "additionalDirectories": [
       "/Users/dsaewitz/y/timber-js-fresh/tests/e2e",

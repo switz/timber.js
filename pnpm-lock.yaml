@@ -127,6 +127,22 @@ importers:
         specifier: ^4.3.6
         version: 4.3.6
 
+  examples/kitchen-sink:
+    dependencies:
+      '@timber/app':
+        specifier: workspace:*
+        version: link:../../packages/timber-app
+      react:
+        specifier: ^19.1.0
+        version: 19.2.4
+      react-dom:
+        specifier: ^19.1.0
+        version: 19.2.4(react@19.2.4)
+    devDependencies:
+      vite:
+        specifier: ^7.0.0
+        version: 7.3.1(@types/node@25.4.0)(jiti@2.6.1)(lightningcss@1.31.1)(yaml@2.8.2)
+
   examples/tailwind:
     dependencies:
       '@timber/app':

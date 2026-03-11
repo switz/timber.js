@@ -8,6 +8,7 @@
     "test:e2e": "playwright test",
     "test:e2e:blog": "playwright test --config examples/blog/playwright.config.ts",
     "test:e2e:tailwind": "playwright test --config examples/tailwind/playwright.config.ts",
+    "test:e2e:kitchen-sink": "playwright test --config examples/kitchen-sink/playwright.config.ts",
     "typecheck": "tsgo --noEmit",
     "lint": "oxlint --deny-warnings",
     "fmt": "oxfmt",

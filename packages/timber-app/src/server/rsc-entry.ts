@@ -376,7 +376,8 @@ async function renderRoute(
       headHtml += `<title>${escapeHtml(el.content)}</title>`;
     } else if (el.attrs) {
       const attrs = Object.entries(el.attrs)
-        .map(([k, v]) => `${k}="${escapeHtml(v)}"`)
+        .filter(([, v]) => v != null)
+        .map(([k, v]) => `${k}="${escapeHtml(v as string)}"`)
         .join(' ');
       headHtml += `<${el.tag} ${attrs}>`;
     }
@@ -455,7 +456,12 @@ async function renderRoute(
       element = h(SegmentProvider, {
         segments: segmentPath,
         parallelRouteKeys,
-        children: h(layoutComponent, { ...slotProps, children: element }),
+        children: h(layoutComponent, {
+          ...slotProps,
+          params: paramsPromise,
+          searchParams: {},
+          children: element,
+        }),
       });
     }
   }

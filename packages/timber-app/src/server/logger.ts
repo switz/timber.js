@@ -96,17 +96,30 @@ export function logMiddlewareShortCircuit(data: {
 
 /** Log unhandled error in middleware phase. Level: error. */
 export function logMiddlewareError(data: { method: string; path: string; error: unknown }): void {
-  _logger?.error('unhandled error in middleware phase', withTraceContext(data));
+  if (_logger) {
+    _logger.error('unhandled error in middleware phase', withTraceContext(data));
+  } else if (process.env.NODE_ENV !== 'production') {
+    console.error('[timber] middleware error', data.error);
+  }
 }
 
 /** Log unhandled render-phase error. Level: error. */
 export function logRenderError(data: { method: string; path: string; error: unknown }): void {
-  _logger?.error('unhandled render-phase error', withTraceContext(data));
+  if (_logger) {
+    _logger.error('unhandled render-phase error', withTraceContext(data));
+  } else if (process.env.NODE_ENV !== 'production') {
+    // No logger configured — fall back to console.error in dev so errors are visible.
+    console.error('[timber] render error', data.error);
+  }
 }
 
 /** Log proxy.ts uncaught error. Level: error. */
 export function logProxyError(data: { error: unknown }): void {
-  _logger?.error('proxy.ts threw uncaught error', withTraceContext(data));
+  if (_logger) {
+    _logger.error('proxy.ts threw uncaught error', withTraceContext(data));
+  } else if (process.env.NODE_ENV !== 'production') {
+    console.error('[timber] proxy error', data.error);
+  }
 }
 
 /** Log waitUntil() adapter missing (once at startup). Level: warn. */

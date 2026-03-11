@@ -339,6 +339,11 @@ export function createRouter(deps: RouterDeps): RouterInstance {
       // Update document.title and <meta> tags with the new page's metadata
       applyHead(result.headElements);
 
+      // Notify nuqs adapter (and any other listeners) that navigation completed.
+      // The nuqs adapter syncs its searchParams state from window.location.search
+      // on this event so URL-bound inputs reflect the new URL after navigation.
+      window.dispatchEvent(new Event('timber:navigation-end'));
+
       afterPaint(() => {
         if (scroll) {
           deps.scrollTo(0, 0);

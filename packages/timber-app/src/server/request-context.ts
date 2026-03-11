@@ -22,6 +22,12 @@ interface RequestContextStore {
   parsedCookies?: ReadonlyMap<string, string>;
   /** Original (pre-overlay) frozen headers, kept for overlay merging. */
   originalHeaders: Headers;
+  /**
+   * Promise resolving to the route's typed search params (when search-params.ts
+   * exists) or to the raw URLSearchParams. Stored as a Promise so the framework
+   * can later support partial pre-rendering where param resolution is deferred.
+   */
+  searchParamsPromise: Promise<URLSearchParams | Record<string, unknown>>;
 }
 
 const requestContextAls = new AsyncLocalStorage<RequestContextStore>();
@@ -81,6 +87,42 @@ export function cookies(): RequestCookies {
   };
 }
 
+/**
+ * Returns a Promise resolving to the current request's search params.
+ *
+ * In `page.tsx`, `middleware.ts`, and `access.ts` the framework pre-parses the
+ * route's `search-params.ts` definition and the Promise resolves to the typed
+ * object. In all other server component contexts it resolves to raw
+ * `URLSearchParams`.
+ *
+ * Returned as a Promise to match the `params` prop convention and to allow
+ * future partial pre-rendering support where param resolution may be deferred.
+ *
+ * Throws if called outside a request context.
+ */
+export function searchParams(): Promise<URLSearchParams | Record<string, unknown>> {
+  const store = requestContextAls.getStore();
+  if (!store) {
+    throw new Error(
+      '[timber] searchParams() called outside of a request context. ' +
+        'It can only be used in middleware, access checks, server components, and server actions.'
+    );
+  }
+  return store.searchParamsPromise;
+}
+
+/**
+ * Replace the search params Promise for the current request with one that
+ * resolves to the typed parsed result from the route's search-params.ts.
+ * Called by the framework before rendering the page — not for app code.
+ */
+export function setParsedSearchParams(parsed: Record<string, unknown>): void {
+  const store = requestContextAls.getStore();
+  if (store) {
+    store.searchParamsPromise = Promise.resolve(parsed);
+  }
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────
 
 /**
@@ -120,6 +162,7 @@ export function runWithRequestContext<T>(req: Request, fn: () => T): T {
     headers: freezeHeaders(req.headers),
     originalHeaders: originalCopy,
     cookieHeader: req.headers.get('cookie') ?? '',
+    searchParamsPromise: Promise.resolve(new URL(req.url).searchParams),
   };
   return requestContextAls.run(store, fn);
 }

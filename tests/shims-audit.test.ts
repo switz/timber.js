@@ -67,19 +67,18 @@ describe('next/image shim', () => {
       placeholder: 'blur' as const,
       blurDataURL: 'data:image/...',
     });
-    // Result should be the passthrough props (src, alt, width, height, sizes)
-    // without the Next.js-specific ones
-    const props = result as Record<string, unknown>;
-    expect(props.src).toBe('/photo.jpg');
-    expect(props.alt).toBe('test');
-    expect(props.width).toBe(100);
-    expect(props.height).toBe(100);
+    // Result is a React element — passthrough props live on result.props
+    const el = result as { props: Record<string, unknown> };
+    expect(el.props.src).toBe('/photo.jpg');
+    expect(el.props.alt).toBe('test');
+    expect(el.props.width).toBe(100);
+    expect(el.props.height).toBe(100);
     // Next.js-specific props should be stripped
-    expect(props.priority).toBeUndefined();
-    expect(props.quality).toBeUndefined();
-    expect(props.fill).toBeUndefined();
-    expect(props.placeholder).toBeUndefined();
-    expect(props.blurDataURL).toBeUndefined();
+    expect(el.props.priority).toBeUndefined();
+    expect(el.props.quality).toBeUndefined();
+    expect(el.props.fill).toBeUndefined();
+    expect(el.props.placeholder).toBeUndefined();
+    expect(el.props.blurDataURL).toBeUndefined();
   });
 });
 

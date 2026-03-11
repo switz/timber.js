@@ -6,9 +6,16 @@ export type { MiddlewareContext } from './types';
 export type { RouteContext } from './types';
 export type { Metadata, MetadataRoute } from './types';
 
-// Request Context — ALS-backed headers() and cookies()
+// Request Context — ALS-backed headers(), cookies(), and searchParams()
 // Design doc: design/04-authorization.md §"AccessContext does not include cookies or headers"
-export { headers, cookies, runWithRequestContext } from './request-context';
+// Design doc: design/23-search-params.md §"Server Integration"
+export {
+  headers,
+  cookies,
+  searchParams,
+  setParsedSearchParams,
+  runWithRequestContext,
+} from './request-context';
 export type { ReadonlyHeaders, RequestCookies } from './request-context';
 
 // Runtime primitives

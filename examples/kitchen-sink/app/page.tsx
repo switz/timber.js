@@ -43,6 +43,22 @@ export default function HomePage() {
         </ul>
       </section>
       <section>
+        <h2>Search Params + Typed Routes</h2>
+        <ul>
+          <li>
+            <Link href="/search-params-test" data-testid="home-link-search-params">
+              Typed searchParams (server + client)
+            </Link>
+          </li>
+          <li>
+            <Link href="/routes-test/[id]" params={{ id: '42' }} data-testid="home-link-dynamic">
+              Dynamic route /routes-test/42
+            </Link>
+          </li>
+        </ul>
+      </section>
+
+      <section>
         <h2>Metadata</h2>
         <ul>
           <li>

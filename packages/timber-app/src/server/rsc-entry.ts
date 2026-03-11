@@ -58,6 +58,8 @@ import { TimberErrorBoundary } from '../client/error-boundary.js';
 import { handleRouteRequest } from './route-handler.js';
 import type { RouteModule } from './route-handler.js';
 import type { RouteContext } from './types.js';
+import { setParsedSearchParams } from './request-context.js';
+import type { SearchParamsDefinition } from '../search-params/create.js';
 
 /**
  * Create a debug channel sink that discards all debug data.
@@ -256,6 +258,19 @@ async function renderRoute(
 
     // Load page (leaf segment only)
     if (isLeaf && segment.page) {
+      // Load and apply search-params.ts definition before rendering so
+      // searchParams() from @timber/app/server returns parsed typed values.
+      if (segment.searchParams) {
+        const spMod = (await segment.searchParams.load()) as {
+          default?: SearchParamsDefinition<Record<string, unknown>>;
+        };
+        if (spMod.default) {
+          const rawSearchParams = new URL(_req.url).searchParams;
+          const parsed = spMod.default.parse(rawSearchParams);
+          setParsedSearchParams(parsed);
+        }
+      }
+
       const mod = (await segment.page.load()) as Record<string, unknown>;
       if (mod.default) {
         PageComponent = mod.default as (...args: unknown[]) => unknown;

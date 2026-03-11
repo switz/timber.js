@@ -84,6 +84,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             <Link href="/routes-test/grouped-b" data-testid="link-routes-group-b">
               Routes: Group B
             </Link>
+            <Link href="/search-params-test" data-testid="link-search-params">
+              Search Params
+            </Link>
             <Link href="/meta-test" data-testid="link-meta-test">
               Meta: Title
             </Link>

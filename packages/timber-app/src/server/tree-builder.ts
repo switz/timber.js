@@ -66,6 +66,8 @@ export interface AccessGateProps {
   accessFn: (ctx: { params: Record<string, string>; searchParams: unknown }) => unknown;
   params: Record<string, string>;
   searchParams: unknown;
+  /** Segment name for dev logging (e.g. "authenticated", "dashboard"). */
+  segmentName?: string;
   children: ReactElement;
 }
 
@@ -159,6 +161,7 @@ export async function buildElementTree(config: TreeBuilderConfig): Promise<TreeB
         accessFn,
         params,
         searchParams,
+        segmentName: segment.segmentName,
         children: element,
       } satisfies AccessGateProps);
     }

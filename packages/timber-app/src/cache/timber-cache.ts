@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import type { CacheHandler, CacheOptions } from './index';
 import { stableStringify } from './stable-stringify';
 import { createSingleflight } from './singleflight';
+import { getDevLogEmitter } from '../server/dev-log-context.js';
 
 const singleflight = createSingleflight();
 
@@ -47,13 +48,36 @@ export function createCache<Fn extends (...args: any[]) => Promise<any>>(
   return async (...args: Parameters<Fn>): Promise<Awaited<ReturnType<Fn>>> => {
     const key = opts.key ? opts.key(...args) : defaultKeyGenerator(fnId, args);
 
+    const cacheStart = performance.now();
     const cached = await handler.get(key);
 
     if (cached && !cached.stale) {
+      // Emit cache-hit dev log event
+      const devEmitter = getDevLogEmitter();
+      if (devEmitter) {
+        devEmitter.emit({
+          type: 'cache-hit',
+          environment: 'rsc',
+          label: key,
+          id: `cache-hit-${key}-${cacheStart}`,
+          meta: { cacheType: 'timber.cache', durationMs: performance.now() - cacheStart },
+        });
+      }
       return cached.value as Awaited<ReturnType<Fn>>;
     }
 
     if (cached && cached.stale && opts.staleWhileRevalidate) {
+      // Emit cache-hit (stale) dev log event
+      const devEmitter = getDevLogEmitter();
+      if (devEmitter) {
+        devEmitter.emit({
+          type: 'cache-hit',
+          environment: 'rsc',
+          label: key,
+          id: `cache-hit-${key}-${cacheStart}`,
+          meta: { cacheType: 'timber.cache', durationMs: performance.now() - cacheStart, stale: true },
+        });
+      }
       // Serve stale immediately, trigger background refetch
       singleflight
         .do(`swr:${key}`, async () => {
@@ -76,6 +100,19 @@ export function createCache<Fn extends (...args: any[]) => Promise<any>>(
     const result = await singleflight.do(key, () => fn(...args));
     const tags = resolveTags(opts, args);
     await handler.set(key, result, { ttl: opts.ttl, tags });
+
+    // Emit cache-miss dev log event
+    const devEmitter = getDevLogEmitter();
+    if (devEmitter) {
+      devEmitter.emit({
+        type: 'cache-miss',
+        environment: 'rsc',
+        label: key,
+        id: `cache-miss-${key}-${cacheStart}`,
+        meta: { cacheType: 'timber.cache', durationMs: performance.now() - cacheStart },
+      });
+    }
+
     return result as Awaited<ReturnType<Fn>>;
   };
 }

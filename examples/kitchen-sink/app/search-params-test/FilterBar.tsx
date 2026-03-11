@@ -27,7 +27,7 @@ export default function FilterBar() {
           <input
             data-testid="q-input"
             value={q ?? ''}
-            onChange={(e) => setParams({ q: e.target.value || null })}
+            onChange={(e) => setParams({ q: e.target.value || null }, { shallow: true })}
           />
         </label>
       </div>

@@ -20,6 +20,8 @@ interface RequestContextStore {
   cookieHeader: string;
   /** Lazily-parsed cookie map. */
   parsedCookies?: ReadonlyMap<string, string>;
+  /** Original (pre-overlay) frozen headers, kept for overlay merging. */
+  originalHeaders: Headers;
 }
 
 const requestContextAls = new AsyncLocalStorage<RequestContextStore>();
@@ -113,11 +115,46 @@ export interface RequestCookies {
  * @param fn - The function to run within the request context.
  */
 export function runWithRequestContext<T>(req: Request, fn: () => T): T {
+  const originalCopy = new Headers(req.headers);
   const store: RequestContextStore = {
     headers: freezeHeaders(req.headers),
+    originalHeaders: originalCopy,
     cookieHeader: req.headers.get('cookie') ?? '',
   };
   return requestContextAls.run(store, fn);
+}
+
+/**
+ * Apply middleware-injected request headers to the current request context.
+ *
+ * Called by the pipeline after middleware.ts runs. Merges overlay headers
+ * on top of the original request headers so downstream code (access.ts,
+ * server components, server actions) sees them via `headers()`.
+ *
+ * The original request headers are never mutated — a new frozen Headers
+ * object is created with the overlay applied on top.
+ *
+ * See design/07-routing.md §"Request Header Injection"
+ */
+export function applyRequestHeaderOverlay(overlay: Headers): void {
+  const store = requestContextAls.getStore();
+  if (!store) {
+    throw new Error('[timber] applyRequestHeaderOverlay() called outside of a request context.');
+  }
+
+  // Check if the overlay has any headers — skip if empty
+  let hasOverlay = false;
+  overlay.forEach(() => {
+    hasOverlay = true;
+  });
+  if (!hasOverlay) return;
+
+  // Merge: start with original headers, overlay on top
+  const merged = new Headers(store.originalHeaders);
+  overlay.forEach((value, key) => {
+    merged.set(key, value);
+  });
+  store.headers = freezeHeaders(merged);
 }
 
 // ─── Read-Only Headers ────────────────────────────────────────────────────

@@ -14,7 +14,7 @@
 import { canonicalize } from './canonicalize.js';
 import { runProxy, type ProxyExport } from './proxy.js';
 import { runMiddleware, type MiddlewareFn } from './middleware-runner.js';
-import { runWithRequestContext } from './request-context.js';
+import { runWithRequestContext, applyRequestHeaderOverlay } from './request-context.js';
 import {
   generateTraceId,
   runWithTraceId,
@@ -313,6 +313,9 @@ export function createPipeline(config: PipelineConfig): (req: Request) => Promis
           logMiddlewareShortCircuit({ method, path, status: middlewareResponse.status });
           return middlewareResponse;
         }
+        // Middleware succeeded without short-circuiting — apply any
+        // injected request headers so headers() returns them downstream.
+        applyRequestHeaderOverlay(requestHeaderOverlay);
       } catch (error) {
         if (devEmitter) {
           devEmitter.emit({

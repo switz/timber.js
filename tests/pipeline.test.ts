@@ -10,6 +10,7 @@ import {
   type MiddlewareFn,
 } from '../packages/timber-app/src/server/middleware-runner';
 import type { MiddlewareContext } from '../packages/timber-app/src/server/types';
+import { headers } from '../packages/timber-app/src/server/request-context';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
 
@@ -321,6 +322,28 @@ describe('middleware.ts', () => {
 
     // Original request is unchanged
     expect(req.headers.get('X-Locale')).toBeNull();
+  });
+
+  it('headers() returns middleware-injected request headers during render', async () => {
+    const middlewareFn: MiddlewareFn = async (ctx) => {
+      ctx.requestHeaders.set('X-Locale', 'fr');
+    };
+
+    let headersLocale: string | null = null;
+
+    const handler = createPipeline(
+      makeConfig({
+        matchRoute: () => makeMatch({ middleware: middlewareFn }),
+        render: () => {
+          // headers() should see the overlay header set by middleware
+          headersLocale = headers().get('X-Locale');
+          return new Response('OK');
+        },
+      })
+    );
+
+    await handler(makeRequest('/test'));
+    expect(headersLocale).toBe('fr');
   });
 });
 

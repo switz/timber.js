@@ -1,63 +1,62 @@
 /**
  * useQueryStates — client-side hook for URL-synced search params.
  *
- * Wraps nuqs to provide URL synchronization with React 19 transitions.
- * shallow: false by default — changing params triggers a server RSC navigation.
+ * Delegates to nuqs for URL synchronization, batching, React 19 transitions,
+ * and throttled URL writes. Bridges timber's SearchParamCodec protocol to
+ * nuqs-compatible parsers.
  *
- * Design doc: design/09-typescript.md §"useQueryStates"
- * Design doc: design/05-search-params.md §"useQueryStates"
+ * Design doc: design/23-search-params.md §"Codec Bridge"
  */
 
-import { useSyncExternalStore, useCallback, useRef } from 'react';
+'use client';
+
+import { useQueryStates as nuqsUseQueryStates } from 'nuqs';
+import type { SingleParser } from 'nuqs';
 import type {
   SearchParamCodec,
   SearchParamsDefinition,
   SetParams,
-  SetParamsOptions,
   QueryStatesOptions,
 } from '../search-params/create.js';
 
-// ─── Types ───────────────────────────────────────────────────────
-
-/** Dependencies injected for testability. */
-export interface UseQueryStatesDeps {
-  /** Get the current URL search string (e.g. "?page=2&q=boots") */
-  getSearch(): string;
-  /** Subscribe to URL changes. Returns an unsubscribe function. */
-  subscribe(callback: () => void): () => void;
-  /** Push a new URL to the browser history */
-  pushState(url: string): void;
-  /** Replace the current URL in the browser history */
-  replaceState(url: string): void;
-  /** Trigger a server RSC navigation for the given URL */
-  navigate(url: string): void;
-}
-
-// Default browser deps — used in production
-let _deps: UseQueryStatesDeps | undefined;
+// ─── Codec Bridge ─────────────────────────────────────────────────
 
 /**
- * Inject platform dependencies. Called once at app hydration.
- * In tests, call this with mock dependencies before using useQueryStates.
+ * Bridge a timber SearchParamCodec to a nuqs-compatible SingleParser.
+ *
+ * nuqs parsers: { parse(string) → T|null, serialize?(T) → string, eq?, defaultValue? }
+ * timber codecs: { parse(string|string[]|undefined) → T, serialize(T) → string|null }
  */
-export function setQueryStatesDeps(deps: UseQueryStatesDeps): void {
-  _deps = deps;
+function bridgeCodec<T>(codec: SearchParamCodec<T>): SingleParser<T> & { defaultValue: T } {
+  return {
+    parse: (v: string) => codec.parse(v),
+    serialize: (v: T) => codec.serialize(v) ?? '',
+    defaultValue: codec.parse(undefined) as T,
+    eq: (a: T, b: T) => codec.serialize(a) === codec.serialize(b),
+  };
 }
 
-function getDeps(): UseQueryStatesDeps {
-  if (!_deps) {
-    throw new Error(
-      'useQueryStates: platform dependencies not initialized. ' +
-        'Call setQueryStatesDeps() during app hydration.'
-    );
+/**
+ * Bridge an entire codec map to nuqs-compatible parsers.
+ */
+function bridgeCodecs<T extends Record<string, unknown>>(codecs: {
+  [K in keyof T]: SearchParamCodec<T[K]>;
+}) {
+  const result: Record<string, SingleParser<unknown> & { defaultValue: unknown }> = {};
+  for (const key of Object.keys(codecs)) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    result[key] = bridgeCodec(codecs[key as keyof T]) as any;
   }
-  return _deps;
+  return result as { [K in keyof T]: SingleParser<T[K]> & { defaultValue: T[K] } };
 }
 
-// ─── Hook ────────────────────────────────────────────────────────
+// ─── Hook ─────────────────────────────────────────────────────────
 
 /**
  * Read and write typed search params from/to the URL.
+ *
+ * Delegates to nuqs internally. The timber nuqs adapter (auto-injected in
+ * browser-entry.ts) handles RSC navigation on non-shallow updates.
  *
  * Usage:
  * ```ts
@@ -69,124 +68,38 @@ function getDeps(): UseQueryStatesDeps {
  *   page: fromSchema(z.coerce.number().int().min(1).default(1)),
  * })
  * ```
- *
- * Options:
- * - shallow: false (default) — triggers server RSC navigation
- * - scroll: true (default) — scroll to top on URL change
- * - history: 'push' (default) — push vs replace state
  */
 export function useQueryStates<T extends Record<string, unknown>>(
   codecs: { [K in keyof T]: SearchParamCodec<T[K]> },
-  options?: QueryStatesOptions
+  _options?: QueryStatesOptions,
+  urlKeys?: Readonly<Record<string, string>>
 ): [T, SetParams<T>] {
-  const deps = getDeps();
+  const bridged = bridgeCodecs(codecs);
 
-  // Parse the current URL search params using the codecs
-  const search = useSyncExternalStore(
-    deps.subscribe,
-    deps.getSearch,
-    // Server snapshot — empty search on SSR
-    () => ''
-  );
-
-  const codecsRef = useRef(codecs);
-  codecsRef.current = codecs;
-
-  // Parse the current search string into typed values
-  const parsed = parseSearch(search, codecs);
-
-  const setParams: SetParams<T> = useCallback(
-    (values: Partial<T>, setOptions?: SetParamsOptions) => {
-      const mergedOptions = { ...options, ...setOptions };
-      const shallow = mergedOptions.shallow ?? false;
-      const scroll = mergedOptions.scroll !== false;
-      const history = mergedOptions.history ?? 'push';
-
-      // Read current search params, merge with new values, serialize
-      const currentSearch = deps.getSearch();
-      const currentParsed = parseSearch(currentSearch, codecsRef.current);
-      const merged = { ...currentParsed, ...values } as T;
-      const qs = serializeParams(merged, codecsRef.current);
-
-      // Build new URL preserving the pathname
-      const pathname = typeof window !== 'undefined' ? window.location.pathname : '/';
-      const newUrl = qs ? `${pathname}?${qs}` : pathname;
-
-      // Update the URL
-      if (history === 'replace') {
-        deps.replaceState(newUrl);
-      } else {
-        deps.pushState(newUrl);
-      }
-
-      // Trigger server navigation if not shallow
-      if (!shallow) {
-        deps.navigate(newUrl);
-      } else if (scroll) {
-        // For shallow updates, scroll to top if requested
-        if (typeof window !== 'undefined') {
-          window.scrollTo(0, 0);
-        }
-      }
-    },
-    [deps, options]
-  );
-
-  return [parsed, setParams];
-}
-
-// ─── Internal helpers ────────────────────────────────────────────
-
-/**
- * Parse a URL search string using the provided codecs.
- */
-function parseSearch<T extends Record<string, unknown>>(
-  search: string,
-  codecs: { [K in keyof T]: SearchParamCodec<T[K]> }
-): T {
-  const usp = new URLSearchParams(search);
-  const result: Record<string, unknown> = {};
-
-  for (const key of Object.keys(codecs)) {
-    const values = usp.getAll(key);
-    let raw: string | string[] | undefined;
-    if (values.length === 0) {
-      raw = undefined;
-    } else if (values.length === 1) {
-      raw = values[0];
-    } else {
-      raw = values;
-    }
-    result[key] = (codecs[key as keyof T] as SearchParamCodec<unknown>).parse(raw);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const nuqsOptions: any = {};
+  if (urlKeys && Object.keys(urlKeys).length > 0) {
+    nuqsOptions.urlKeys = urlKeys;
   }
 
-  return result as T;
+  const [values, setValues] = nuqsUseQueryStates(bridged, nuqsOptions);
+
+  // Wrap the nuqs setter to match timber's SetParams<T> signature.
+  // nuqs's setter accepts Partial<Nullable<Values>> | UpdaterFn | null.
+  // timber's setter accepts Partial<T> with optional SetParamsOptions.
+  const setParams: SetParams<T> = (partial, setOptions?) => {
+    const nuqsSetOptions: Record<string, unknown> = {};
+    if (setOptions?.shallow !== undefined) nuqsSetOptions.shallow = setOptions.shallow;
+    if (setOptions?.scroll !== undefined) nuqsSetOptions.scroll = setOptions.scroll;
+    if (setOptions?.history !== undefined) nuqsSetOptions.history = setOptions.history;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    void setValues(partial as any, nuqsSetOptions);
+  };
+
+  return [values as T, setParams];
 }
 
-/**
- * Serialize typed values to a query string (no leading '?'),
- * omitting values that match the codec's default.
- */
-function serializeParams<T extends Record<string, unknown>>(
-  values: T,
-  codecs: { [K in keyof T]: SearchParamCodec<T[K]> }
-): string {
-  const parts: string[] = [];
-
-  for (const key of Object.keys(codecs)) {
-    const codec = codecs[key as keyof T] as SearchParamCodec<unknown>;
-    const serialized = codec.serialize(values[key as keyof T] as unknown);
-
-    // Omit if serialized matches the default
-    const defaultSerialized = codec.serialize(codec.parse(undefined));
-    if (serialized === defaultSerialized) continue;
-    if (serialized === null) continue;
-
-    parts.push(`${encodeURIComponent(key)}=${encodeURIComponent(serialized)}`);
-  }
-
-  return parts.join('&');
-}
+// ─── Definition binding ───────────────────────────────────────────
 
 /**
  * Create a useQueryStates binding for a SearchParamsDefinition.
@@ -196,6 +109,6 @@ export function bindUseQueryStates<T extends Record<string, unknown>>(
   definition: SearchParamsDefinition<T>
 ): (options?: QueryStatesOptions) => [T, SetParams<T>] {
   return (options?: QueryStatesOptions) => {
-    return useQueryStates<T>(definition.codecs, options);
+    return useQueryStates<T>(definition.codecs, options, definition.urlKeys);
   };
 }

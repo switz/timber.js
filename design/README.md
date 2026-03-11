@@ -58,3 +58,5 @@ We don't need to create docs for these now but future things that would be nice 
 - [ ] comprehensive framework-integrated feature flags
 - [ ] monorepo support
 - [ ] content security policies
+- [ ] Full text search integration, perhaps with turbopuffer or alternative vector based search?
+- [ ] Better story around async (client) react, transitions, and so on

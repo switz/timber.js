@@ -1,3 +1,5 @@
+'use client';
+
 import { Boundary } from '#/ui/boundary';
 
 export default function NotFound() {

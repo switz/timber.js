@@ -90,6 +90,13 @@ describe('preset config', () => {
     expect(config.supportsWaitUntil).toBe(true);
   });
 
+  it('bun preset supports waitUntil', () => {
+    const config = getPresetConfig('bun');
+    expect(config.supportsWaitUntil).toBe(true);
+    expect(config.nitroPreset).toBe('bun');
+    expect(config.outputDir).toBe('.output');
+  });
+
   it('all presets have required fields', () => {
     const presets: NitroPreset[] = [
       'vercel',
@@ -100,6 +107,7 @@ describe('preset config', () => {
       'deno-deploy',
       'azure-functions',
       'node-server',
+      'bun',
     ];
 
     for (const preset of presets) {

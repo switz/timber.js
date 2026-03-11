@@ -451,10 +451,8 @@ Bring `next/*` shims into the `@timber/app` namespace and audit compatibility wi
 Adapters can be developed in parallel with any phase once the Phase 1 pipeline is stable.
 
 - [ ] Define `TimberPlatformAdapter` interface: `name`, `buildOutput(config, buildDir)`, `preview?(config, buildDir)`
-- [ ] `@timber/app/adapters/cloudflare` — Cloudflare Workers/Pages (primary target)
-- [ ] `@timber/app/adapters/node` — Node.js HTTP server with gzip/brotli compression
-- [ ] `@timber/app/adapters/bun` — Bun's native `Bun.serve()`
-- [ ] `@timber/app/adapters/nitro` — Vercel, Netlify, AWS, Deno Deploy, Azure via `nitro({ preset })`
+- [ ] `@timber/app/adapters/cloudflare` — Cloudflare Workers/Pages (primary target, deep binding integration)
+- [ ] `@timber/app/adapters/nitro` — Everything else: Node.js, Bun, Vercel, Netlify, AWS Lambda, Deno Deploy, Azure via `nitro({ preset })`
 
 ---
 

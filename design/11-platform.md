@@ -68,20 +68,20 @@ Adapters are small. They receive the build output directory and transform or cop
 
 ### First-Party Adapters
 
-**`@timber/app/adapters/cloudflare`** — Cloudflare Workers and Pages. Generates `wrangler.jsonc`, wraps the request handler in a Workers-compatible entry point.
+timber.js ships exactly two adapters. See [Production Deployments](25-production-deployments.md) for the full rationale.
 
-**`@timber/app/adapters/node`** — Node.js HTTP server. Self-hosting, Docker, and any Node.js-based platform. Wraps the request handler in a `node:http` server. Supports gzip/brotli compression.
+**`@timber/app/adapters/cloudflare`** — Cloudflare Workers and Pages. First-class, deeply integrated. Generates `wrangler.jsonc`, wraps the request handler in a Workers-compatible entry point, and passes through KV/D1/DO/R2/Queues bindings directly. This adapter exists because Workers is architecturally different from Node — it has no file system, no `node:http`, and its own lifecycle model.
 
-**`@timber/app/adapters/bun`** — Bun's native HTTP server. Uses `Bun.serve()` which speaks `Request`/`Response` natively — no `node:http` wrapping needed. Simpler and faster than the Node adapter for Bun deployments.
-
-**`@timber/app/adapters/nitro`** — Nitro-based adapter. Covers Vercel, Netlify, AWS Amplify, Deno Deploy, Azure, and any other platform Nitro supports. Community platforms that don't have a first-party adapter should use this.
+**`@timber/app/adapters/nitro`** — Everything else. Node.js (Docker, VPS), Bun, Vercel, Netlify, AWS Lambda, Deno Deploy, Azure Functions. Nitro handles platform-specific wiring (compression, graceful shutdown, static file serving, serverless function shape).
 
 ```ts
 import { nitro } from '@timber/app/adapters/nitro'
 
 export default {
   output: 'server',
-  adapter: nitro({ preset: 'vercel' }),
+  adapter: nitro({ preset: 'vercel' }),     // Vercel serverless
+  // adapter: nitro({ preset: 'node-server' }), // Docker, VPS, bare metal
+  // adapter: nitro({ preset: 'bun' }),          // Bun.serve()
 }
 ```
 

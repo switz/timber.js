@@ -1,4 +1,5 @@
 import { DeferredSuspense } from '@timber/app/server';
+import Counter from '../../Counter';
 
 export const metadata = { title: 'Streaming: Deferred' };
 
@@ -18,6 +19,13 @@ export default function DeferredPage() {
   return (
     <div data-testid="deferred-page">
       <h1>DeferredSuspense</h1>
+
+      <section>
+        <h2>Interactive counter (in shell, outside Suspense)</h2>
+        <div data-testid="shell-counter">
+          <Counter />
+        </div>
+      </section>
 
       <section>
         <h2>Fast child (resolves before deadline)</h2>

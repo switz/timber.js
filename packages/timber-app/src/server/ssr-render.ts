@@ -27,10 +27,20 @@ import { renderToReadableStream } from 'react-dom/server';
  * succeeds (200 committed) and the error streams as an error boundary.
  *
  * @param element - The React element tree decoded from the RSC stream
+ * @param options - Optional configuration
+ * @param options.bootstrapScriptContent - Inline JS injected by React as a
+ *   non-deferred `<script>` in the shell HTML. Executes immediately during
+ *   parsing — even while Suspense boundaries are still streaming. Used to
+ *   kick off module loading via dynamic `import()` so hydration can start
+ *   before the HTML stream closes.
  * @returns A ReadableStream of HTML bytes with hydration markers
  */
-export async function renderSsrStream(element: ReactNode): Promise<ReadableStream<Uint8Array>> {
+export async function renderSsrStream(
+  element: ReactNode,
+  options?: { bootstrapScriptContent?: string }
+): Promise<ReadableStream<Uint8Array>> {
   const stream = await renderToReadableStream(element, {
+    bootstrapScriptContent: options?.bootstrapScriptContent || undefined,
     onError(error: unknown) {
       console.error('[timber] SSR render error:', error);
     },

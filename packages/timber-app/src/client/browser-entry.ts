@@ -47,27 +47,55 @@ function bootstrap(runtimeConfig: typeof config): void {
   window.history.scrollRestoration = 'manual';
 
   // Hydrate the React tree from the RSC payload.
-  // The RSC payload is embedded in the HTML as a script tag that sets
-  // window.__TIMBER_RSC_PAYLOAD to a UTF-8 string. We wrap it in a
-  // ReadableStream so createFromReadableStream can decode it.
+  // The RSC payload is embedded in the HTML as progressive inline script
+  // tags that call self.__timber_f.push(chunk) as RSC chunks arrive.
+  // We set up a ReadableStream that gets fed by those push() calls so
+  // createFromReadableStream can decode the Flight protocol progressively.
   //
   // For the initial page load, the RSC payload is inlined in the HTML.
   // For subsequent navigations, it's fetched from the server.
-  const rscPayloadText = (window as unknown as Record<string, unknown>).__TIMBER_RSC_PAYLOAD as
-    | string
-    | undefined;
+  const timberChunks = (self as unknown as Record<string, string[]>).__timber_f;
 
   let reactRoot: Root | null = null;
   let initialElement: unknown = null;
 
-  if (rscPayloadText) {
-    const encoded = new TextEncoder().encode(rscPayloadText);
+  if (timberChunks) {
+    const encoder = new TextEncoder();
+    let streamController: ReadableStreamDefaultController<Uint8Array> | null = null;
+
     const rscPayload = new ReadableStream<Uint8Array>({
       start(controller) {
-        controller.enqueue(encoded);
-        controller.close();
+        streamController = controller;
+        // Flush any chunks that arrived before this script executed.
+        for (const chunk of timberChunks) {
+          controller.enqueue(encoder.encode(chunk));
+        }
       },
     });
+
+    // Intercept future push() calls to feed the stream controller.
+    // Chunks arriving after hydration starts (from Suspense boundaries
+    // resolving) are piped directly into the ReadableStream.
+    (self as unknown as Record<string, { push: (chunk: string) => void }>).__timber_f = {
+      push(chunk: string) {
+        streamController?.enqueue(encoder.encode(chunk));
+      },
+    };
+
+    // Listen for the stream to close when all chunks have arrived.
+    // The server signals completion by setting self.__timber_f_done.
+    // If it's already set (SSR completed before this script ran), close now.
+    if ((self as unknown as Record<string, boolean>).__timber_f_done) {
+      streamController!.close();
+    } else {
+      Object.defineProperty(self, '__timber_f_done', {
+        set() {
+          streamController?.close();
+        },
+        configurable: true,
+      });
+    }
+
     const element = createFromReadableStream(rscPayload);
     initialElement = element;
     // Hydrate on document — the root layout renders the full <html> tree,

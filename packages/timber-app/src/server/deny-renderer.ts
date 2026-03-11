@@ -18,6 +18,7 @@ import { resolveManifestStatusFile } from './manifest-status-resolver.js';
 import type { ManifestSegmentNode } from './route-matcher.js';
 import type { RouteMatch } from './pipeline.js';
 import type { NavContext } from './ssr-entry.js';
+import type { ClientBootstrapConfig } from './html-injectors.js';
 import type { Metadata } from './types.js';
 
 /** RSC content type for client navigation payload requests. */
@@ -58,7 +59,7 @@ export async function renderDenyPage(
   req: Request,
   match: RouteMatch,
   responseHeaders: Headers,
-  scriptsHtml: string,
+  clientBootstrap: ClientBootstrapConfig,
   createDebugChannelSink: DebugChannelFactory,
   callSsr: CallSsrFn
 ): Promise<Response> {
@@ -131,7 +132,7 @@ export async function renderDenyPage(
     statusCode: deny.status,
     responseHeaders,
     headHtml,
-    scriptsHtml,
+    bootstrapScriptContent: clientBootstrap.bootstrapScriptContent,
     rscStream: inlineStream,
   };
 

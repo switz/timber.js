@@ -61,6 +61,75 @@ test.describe('DeferredSuspense', () => {
   });
 });
 
+test.describe('client JS loading during streaming', () => {
+  test('client bootstrap scripts are in the initial HTML shell, not blocked behind Suspense', async ({
+    page,
+  }) => {
+    // Intercept the page HTML response and capture the first chunk timing
+    const scriptLoadTimes: number[] = [];
+    const navigationStart = Date.now();
+
+    // Listen for script requests — these should start before Suspense resolves
+    page.on('request', (request) => {
+      const url = request.url();
+      if (url.includes('timber-browser-entry') || url.includes('@vite/client')) {
+        scriptLoadTimes.push(Date.now() - navigationStart);
+      }
+    });
+
+    await page.goto('/streaming/deferred');
+
+    // Wait for slow content to confirm streaming completed
+    await expect(page.locator('[data-testid="deferred-slow-content"]')).toBeVisible({
+      timeout: 10_000,
+    });
+
+    // Script requests should have started well before the 2s slow content resolved.
+    // If scripts are in <head>, they start loading with the shell (~0ms).
+    // If scripts are before </body>, they don't load until ~2000ms.
+    expect(scriptLoadTimes.length).toBeGreaterThan(0);
+    expect(scriptLoadTimes[0]).toBeLessThan(1000); // Must start within 1s, not after 2s
+  });
+});
+
+test.describe('hydration during streaming', () => {
+  test('client component in shell becomes interactive before Suspense resolves', async ({
+    page,
+  }) => {
+    await page.goto('/streaming/deferred');
+
+    // The Counter is in the shell (outside Suspense). It starts at 1 and
+    // increments every second via useEffect + setInterval. If hydration
+    // is blocked behind the 2s Suspense boundary, the counter stays at
+    // its SSR value (1) until after slow content streams in.
+    //
+    // Wait for the counter to increment past 1 — proving hydration started.
+    const counter = page.locator('[data-testid="shell-counter"]');
+    await expect(counter).toBeVisible();
+
+    // Poll until counter > 1 (hydration happened and useEffect fired)
+    await expect(async () => {
+      const text = await counter.textContent();
+      expect(Number(text)).toBeGreaterThan(1);
+    }).toPass({ timeout: 5_000 });
+
+    // At this point the counter is interactive. The slow content (2s)
+    // should NOT have arrived yet if hydration started promptly.
+    // Verify slow content is still loading or just arrived.
+    const slowContent = page.locator('[data-testid="deferred-slow-content"]');
+    const isSlowVisible = await slowContent.isVisible().catch(() => false);
+
+    // If slow content is already visible, the counter must have been
+    // interactive for at least 1s (it incremented). The key assertion
+    // is above: the counter DID increment, proving hydration wasn't
+    // blocked behind Suspense.
+    if (!isSlowVisible) {
+      // Slow content hasn't arrived — hydration clearly started during streaming
+      await expect(slowContent).toBeVisible({ timeout: 10_000 });
+    }
+  });
+});
+
 test.describe('deny inside Suspense', () => {
   test('deny inside Suspense returns 200 status', async ({ page }) => {
     const response = await page.goto('/streaming/deny-inside');

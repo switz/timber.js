@@ -17,7 +17,7 @@ import config from 'virtual:timber-config';
 import { createFromReadableStream } from '@vitejs/plugin-rsc/ssr';
 
 import { renderSsrStream, buildSsrResponse } from './ssr-render.js';
-import { injectHead, injectScripts, injectRscPayload } from './html-injectors.js';
+import { injectHead, injectRscPayload } from './html-injectors.js';
 
 /**
  * Navigation context passed from the RSC environment to SSR.
@@ -38,8 +38,8 @@ export interface NavContext {
   responseHeaders: Headers;
   /** Pre-rendered metadata HTML to inject before </head> */
   headHtml: string;
-  /** Client bootstrap script tags to inject before </body> */
-  scriptsHtml: string;
+  /** Inline JS for React's bootstrapScriptContent — kicks off module loading */
+  bootstrapScriptContent: string;
   /** Tee'd RSC stream for client-side hydration (inlined into HTML) */
   rscStream?: ReadableStream<Uint8Array>;
 }
@@ -78,14 +78,18 @@ export async function handleSsr(
   const element = createFromReadableStream(rscStream) as React.ReactNode;
 
   // Render to HTML stream (waits for onShellReady).
-  const htmlStream = await renderSsrStream(element);
+  // Pass bootstrapScriptContent so React injects a non-deferred <script>
+  // in the shell HTML. This executes immediately during parsing — even
+  // while Suspense boundaries are still streaming — triggering module
+  // loading via dynamic import() so hydration can start early.
+  const htmlStream = await renderSsrStream(element, {
+    bootstrapScriptContent: navContext.bootstrapScriptContent || undefined,
+  });
 
-  // Inject metadata into <head>, RSC payload for hydration, and
-  // client scripts before </body>.
-  // The layout renders <html><head>...</head><body>...</body></html>.
+  // Inject metadata into <head>, then interleave RSC payload chunks
+  // into the body as they arrive from the tee'd RSC stream.
   let outputStream = injectHead(htmlStream, navContext.headHtml);
   outputStream = injectRscPayload(outputStream, navContext.rscStream);
-  outputStream = injectScripts(outputStream, navContext.scriptsHtml);
 
   // Build and return the Response.
   return buildSsrResponse(outputStream, navContext.statusCode, navContext.responseHeaders);

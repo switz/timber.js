@@ -105,7 +105,7 @@ describe('route-matcher: catch-all params', () => {
     expect(match('/docs')).toBeNull();
   });
 
-  it('catch-all decodes percent-encoded segments', () => {
+  it('catch-all receives already-decoded segments (no double-decode)', () => {
     const root = makeNode({
       children: [
         makeNode({
@@ -127,7 +127,8 @@ describe('route-matcher: catch-all params', () => {
 
     const match = createRouteMatcher(makeManifest(root));
 
-    const result = match('/docs/hello%20world/foo%2Bbar');
+    // Input is already canonical (decoded by canonicalize()) — matcher must not decode again
+    const result = match('/docs/hello world/foo+bar');
     expect(result).not.toBeNull();
     expect(result!.params.slug).toEqual(['hello world', 'foo+bar']);
   });
@@ -215,6 +216,96 @@ describe('route-matcher: optional catch-all params', () => {
     const result = match('/docs/hello');
     expect(result).not.toBeNull();
     expect(result!.params.slug).toEqual(['hello']);
+  });
+});
+
+// ─── No double-decode (timber-dh7) ──────────────────────────────────────────
+
+describe('route-matcher: no double-decode on canonical paths', () => {
+  it('dynamic param preserves literal percent-encoded values from canonicalize', () => {
+    // /user/%2561dmin → canonicalize decodes to /user/%61dmin
+    // The matcher must NOT decode %61 → 'a', producing 'admin'
+    const root = makeNode({
+      children: [
+        makeNode({
+          segmentName: 'user',
+          segmentType: 'static',
+          urlPath: '/user',
+          children: [
+            makeNode({
+              segmentName: '[name]',
+              segmentType: 'dynamic',
+              urlPath: '/user/[name]',
+              paramName: 'name',
+              page: dummyFile,
+            }),
+          ],
+        }),
+      ],
+    });
+
+    const match = createRouteMatcher(makeManifest(root));
+
+    // After canonicalize: %2561 → %61 (single decode). Matcher receives '%61dmin'.
+    const result = match('/user/%61dmin');
+    expect(result).not.toBeNull();
+    expect(result!.params.name).toBe('%61dmin');
+    // Must NOT be 'admin' (double-decode)
+    expect(result!.params.name).not.toBe('admin');
+  });
+
+  it('catch-all preserves literal percent-encoded values', () => {
+    const root = makeNode({
+      children: [
+        makeNode({
+          segmentName: 'docs',
+          segmentType: 'static',
+          urlPath: '/docs',
+          children: [
+            makeNode({
+              segmentName: '[...slug]',
+              segmentType: 'catch-all',
+              urlPath: '/docs/[...slug]',
+              paramName: 'slug',
+              page: dummyFile,
+            }),
+          ],
+        }),
+      ],
+    });
+
+    const match = createRouteMatcher(makeManifest(root));
+
+    const result = match('/docs/%61dmin/page');
+    expect(result).not.toBeNull();
+    expect(result!.params.slug).toEqual(['%61dmin', 'page']);
+  });
+
+  it('optional catch-all preserves literal percent-encoded values', () => {
+    const root = makeNode({
+      children: [
+        makeNode({
+          segmentName: 'docs',
+          segmentType: 'static',
+          urlPath: '/docs',
+          children: [
+            makeNode({
+              segmentName: '[[...slug]]',
+              segmentType: 'optional-catch-all',
+              urlPath: '/docs/[[...slug]]',
+              paramName: 'slug',
+              page: dummyFile,
+            }),
+          ],
+        }),
+      ],
+    });
+
+    const match = createRouteMatcher(makeManifest(root));
+
+    const result = match('/docs/%61dmin');
+    expect(result).not.toBeNull();
+    expect(result!.params.slug).toEqual(['%61dmin']);
   });
 });
 

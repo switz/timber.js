@@ -187,7 +187,7 @@ function matchSegments(
   for (const child of node.children) {
     if (child.segmentType === 'dynamic' && child.paramName) {
       const prevParam = params[child.paramName];
-      params[child.paramName] = decodeURIComponent(part);
+      params[child.paramName] = part;
       if (matchSegments(child, parts, index + 1, segments, params)) {
         return true;
       }
@@ -204,7 +204,7 @@ function matchSegments(
   for (const child of node.children) {
     if (child.segmentType === 'catch-all' && child.paramName) {
       if (child.page || child.route) {
-        const remaining = parts.slice(index).map(decodeURIComponent);
+        const remaining = parts.slice(index);
         segments.push(child);
         params[child.paramName] = remaining;
         return true;
@@ -216,7 +216,7 @@ function matchSegments(
   for (const child of node.children) {
     if (child.segmentType === 'optional-catch-all' && child.paramName) {
       if (child.page || child.route) {
-        const remaining = parts.slice(index).map(decodeURIComponent);
+        const remaining = parts.slice(index);
         segments.push(child);
         params[child.paramName] = remaining;
         return true;

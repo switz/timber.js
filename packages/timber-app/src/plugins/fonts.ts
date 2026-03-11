@@ -22,6 +22,10 @@ import { generateVariableClass, generateFontFamilyClass } from '../fonts/css.js'
 import { generateFallbackCss, buildFontStack } from '../fonts/fallbacks.js';
 import { extractLocalFontConfig, processLocalFont } from '../fonts/local.js';
 import { inferFontFormat } from '../fonts/local.js';
+import {
+  downloadAndCacheFonts,
+  type CachedFont,
+} from '../fonts/google.js';
 
 const VIRTUAL_GOOGLE = '@timber/fonts/google';
 const VIRTUAL_LOCAL = '@timber/fonts/local';
@@ -399,6 +403,8 @@ function transformLocalFonts(
  */
 export function timberFonts(ctx: PluginContext): Plugin {
   const registry: FontRegistry = new Map();
+  /** Fonts downloaded during buildStart (production only). */
+  let cachedFonts: CachedFont[] = [];
 
   return {
     name: 'timber-fonts',
@@ -419,6 +425,24 @@ export function timberFonts(ctx: PluginContext): Plugin {
       if (id === RESOLVED_GOOGLE) return generateGoogleVirtualModule(registry);
       if (id === RESOLVED_LOCAL) return generateLocalVirtualModule();
       return null;
+    },
+
+    /**
+     * Download and cache Google Fonts during production builds.
+     *
+     * In dev mode this is a no-op — fonts point to the Google CDN.
+     * The registry is populated by the transform hook which runs before
+     * buildStart in the build pipeline, so all fonts are known here.
+     */
+    async buildStart() {
+      if (ctx.dev) return;
+
+      const googleFonts = [...registry.values()].filter(
+        (f) => f.provider === 'google'
+      );
+      if (googleFonts.length === 0) return;
+
+      cachedFonts = await downloadAndCacheFonts(googleFonts, ctx.root);
     },
 
     /**
@@ -533,16 +557,35 @@ export function timberFonts(ctx: PluginContext): Plugin {
     },
 
     /**
-     * Emit font metadata into the build manifest during production builds.
+     * Emit font files and metadata into the build output.
      *
-     * Groups extracted fonts by their importer (source file path) and writes
-     * ManifestFontEntry arrays keyed by file path — the same key structure
-     * used by css/js/modulepreload in the build manifest.
+     * For Google fonts: emits the downloaded, content-hashed woff2 files
+     * and writes ManifestFontEntry arrays using real hashed URLs.
+     *
+     * For local fonts: emits entries using the source file paths.
      *
      * In dev mode the build manifest is null, so this is a no-op.
      */
     generateBundle() {
+      // Emit cached Google Font files into the build output
+      for (const cf of cachedFonts) {
+        this.emitFile({
+          type: 'asset',
+          fileName: `_timber/fonts/${cf.hashedFilename}`,
+          source: cf.data,
+        });
+      }
+
       if (!ctx.buildManifest) return;
+
+      // Build a lookup from font family → cached files for manifest entries
+      const cachedByFamily = new Map<string, CachedFont[]>();
+      for (const cf of cachedFonts) {
+        const key = cf.face.family.toLowerCase();
+        const arr = cachedByFamily.get(key) ?? [];
+        arr.push(cf);
+        cachedByFamily.set(key, arr);
+      }
 
       const fontsByImporter = new Map<string, ManifestFontEntry[]>();
 
@@ -561,22 +604,15 @@ export function timberFonts(ctx: PluginContext): Plugin {
             });
           }
         } else {
-          // Google fonts: entry per weight × style × subset combination.
-          // Until the Google Fonts download task (timber-nk5) provides real
-          // content-hashed URLs, we generate deterministic placeholder paths
-          // that match the naming convention from design/24-fonts.md.
-          for (const weight of font.weights) {
-            for (const style of font.styles) {
-              for (const subset of font.subsets) {
-                const slug = font.family.toLowerCase().replace(/\s+/g, '-');
-                const href = `/_timber/fonts/${slug}-${subset}-${weight}-${style}.woff2`;
-                entries.push({
-                  href,
-                  format: 'woff2',
-                  crossOrigin: 'anonymous',
-                });
-              }
-            }
+          // Google fonts: use real content-hashed URLs from cached downloads
+          const familyKey = font.family.toLowerCase();
+          const familyCached = cachedByFamily.get(familyKey) ?? [];
+          for (const cf of familyCached) {
+            entries.push({
+              href: `/_timber/fonts/${cf.hashedFilename}`,
+              format: 'woff2',
+              crossOrigin: 'anonymous',
+            });
           }
         }
 

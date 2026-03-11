@@ -11,9 +11,11 @@
  * Design docs: 24-fonts.md, 02-rendering-pipeline.md §"Early Hints"
  */
 
-import { describe, it, expect } from 'vitest';
-import { resolve, dirname } from 'node:path';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import {
   collectRouteFonts,
   buildFontPreloadTags,
@@ -44,10 +46,70 @@ function createManifest(fonts: Record<string, ManifestFontEntry[]>): BuildManife
 
 // ─── Manifest contains font metadata ─────────────────────────────────────────
 
+/** Sample Google Fonts CSS API response for mocking. */
+const SAMPLE_CSS = `
+/* latin */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/inter/v13/latin400.woff2) format('woff2');
+  unicode-range: U+0000-00FF;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/inter/v13/cyrillic400.woff2) format('woff2');
+  unicode-range: U+0400-045F;
+}
+/* latin */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/inter/v13/latin700.woff2) format('woff2');
+  unicode-range: U+0000-00FF;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/inter/v13/cyrillic700.woff2) format('woff2');
+  unicode-range: U+0400-045F;
+}
+`;
+
 describe('manifest contains font metadata', () => {
-  it('generateBundle writes font entries to buildManifest', () => {
+  let tempDir: string;
+  let originalFetch: typeof globalThis.fetch;
+
+  beforeEach(async () => {
+    tempDir = await mkdtemp(join(tmpdir(), 'timber-fonts-eh-'));
+    originalFetch = globalThis.fetch;
+    globalThis.fetch = vi.fn(async (url: string | URL | Request) => {
+      const urlStr = typeof url === 'string' ? url : url.toString();
+      if (urlStr.includes('fonts.googleapis.com')) {
+        return new Response(SAMPLE_CSS, { status: 200 });
+      }
+      return new Response(Buffer.from('fake-woff2'), { status: 200 });
+    }) as typeof fetch;
+  });
+
+  afterEach(async () => {
+    globalThis.fetch = originalFetch;
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it('generateBundle writes font entries to buildManifest', async () => {
     const buildManifest: BuildManifest = createManifest({});
-    const ctx = createPluginContext({ buildManifest, root: '/project' });
+    const ctx = createPluginContext({ buildManifest, root: tempDir });
     const plugin = timberFonts(ctx);
 
     // Simulate transform to register fonts in the registry
@@ -56,25 +118,33 @@ describe('manifest contains font metadata', () => {
 import { Inter } from '@timber/fonts/google'
 const inter = Inter({ subsets: ['latin'], weight: '400', display: 'swap' })
 `;
-    transform.call({ error: () => {} }, source, '/project/app/layout.tsx');
+    transform.call({ error: () => {} }, source, `${tempDir}/app/layout.tsx`);
+
+    // Run buildStart to download fonts
+    const buildStart = plugin.buildStart as () => Promise<void>;
+    await buildStart.call({});
 
     // Run generateBundle
+    const emittedFiles: { fileName: string }[] = [];
     const generateBundle = plugin.generateBundle as () => void;
-    generateBundle.call({});
+    generateBundle.call({ emitFile: (f: { fileName: string }) => emittedFiles.push(f) });
 
     // Font entries should be written to the manifest keyed by relative path
     expect(buildManifest.fonts['app/layout.tsx']).toBeDefined();
     expect(buildManifest.fonts['app/layout.tsx'].length).toBeGreaterThan(0);
 
     const entry = buildManifest.fonts['app/layout.tsx'][0];
-    expect(entry.href).toContain('/_timber/fonts/inter-latin-400-normal.woff2');
+    expect(entry.href).toMatch(/^\/_timber\/fonts\/inter-latin-400-normal-[a-f0-9]{8}\.woff2$/);
     expect(entry.format).toBe('woff2');
     expect(entry.crossOrigin).toBe('anonymous');
+
+    // Font files should be emitted
+    expect(emittedFiles.length).toBeGreaterThan(0);
   });
 
-  it('generates entries for each weight × style × subset combination', () => {
+  it('generates entries for each weight × style × subset combination', async () => {
     const buildManifest: BuildManifest = createManifest({});
-    const ctx = createPluginContext({ buildManifest, root: '/project' });
+    const ctx = createPluginContext({ buildManifest, root: tempDir });
     const plugin = timberFonts(ctx);
 
     const transform = plugin.transform as (code: string, id: string) => { code: string } | null;
@@ -82,20 +152,29 @@ const inter = Inter({ subsets: ['latin'], weight: '400', display: 'swap' })
 import { Inter } from '@timber/fonts/google'
 const inter = Inter({ subsets: ['latin', 'cyrillic'], weight: ['400', '700'], display: 'swap' })
 `;
-    transform.call({ error: () => {} }, source, '/project/app/layout.tsx');
+    transform.call({ error: () => {} }, source, `${tempDir}/app/layout.tsx`);
 
+    // Run buildStart to download fonts
+    const buildStart = plugin.buildStart as () => Promise<void>;
+    await buildStart.call({});
+
+    const emittedFiles: { fileName: string }[] = [];
     const generateBundle = plugin.generateBundle as () => void;
-    generateBundle.call({});
+    generateBundle.call({ emitFile: (f: { fileName: string }) => emittedFiles.push(f) });
 
     const entries = buildManifest.fonts['app/layout.tsx'];
     // 2 subsets × 2 weights × 1 style = 4 entries
     expect(entries.length).toBe(4);
-    expect(entries.map((e) => e.href)).toContain('/_timber/fonts/inter-latin-400-normal.woff2');
-    expect(entries.map((e) => e.href)).toContain('/_timber/fonts/inter-cyrillic-700-normal.woff2');
+    expect(entries.map((e) => e.href)).toEqual(
+      expect.arrayContaining([
+        expect.stringMatching(/inter-latin-400-normal-[a-f0-9]{8}\.woff2/),
+        expect.stringMatching(/inter-cyrillic-700-normal-[a-f0-9]{8}\.woff2/),
+      ])
+    );
   });
 
   it('does not write fonts when buildManifest is null (dev mode)', () => {
-    const ctx = createPluginContext({ buildManifest: null, root: '/project' });
+    const ctx = createPluginContext({ buildManifest: null, root: tempDir, dev: true });
     const plugin = timberFonts(ctx);
 
     const transform = plugin.transform as (code: string, id: string) => { code: string } | null;
@@ -103,11 +182,11 @@ const inter = Inter({ subsets: ['latin', 'cyrillic'], weight: ['400', '700'], di
 import { Inter } from '@timber/fonts/google'
 const inter = Inter({ subsets: ['latin'], weight: '400', display: 'swap' })
 `;
-    transform.call({ error: () => {} }, source, '/project/app/layout.tsx');
+    transform.call({ error: () => {} }, source, `${tempDir}/app/layout.tsx`);
 
     // Should not throw
     const generateBundle = plugin.generateBundle as () => void;
-    generateBundle.call({});
+    generateBundle.call({ emitFile: () => {} });
 
     // buildManifest remains null
     expect(ctx.buildManifest).toBeNull();

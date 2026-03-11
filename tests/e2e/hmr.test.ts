@@ -10,12 +10,13 @@
  * - Syntax error shows Vite overlay, fix recovers
  * - HMR works after client-side navigation (not just initial load)
  * - No unnecessary full-page reloads for standard file types
+ * - New route file detected without dev server restart
  *
  * Design refs: 18-build-system.md §HMR Wiring, 21-dev-server.md §HMR Wiring
  */
 
 import { test, expect, type Page } from '@playwright/test';
-import { writeFileSync, readFileSync } from 'node:fs';
+import { writeFileSync, readFileSync, unlinkSync, mkdirSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const FIXTURE_DIR = resolve(__dirname, '../fixtures/phase2-app/app');
@@ -332,6 +333,65 @@ test.describe('HMR after navigation', () => {
       await expect(page.locator('[data-testid="hmr-counter-value"]')).toHaveText('1');
     } finally {
       restore();
+    }
+  });
+});
+
+// ─── New Route File Detected Without Restart ─────────────────────────────────
+
+test.describe('new route detection', () => {
+  test('new route file is detected without dev server restart', async ({ page }) => {
+    const newRouteDir = resolve(FIXTURE_DIR, 'hmr-new-route');
+    const newPageFile = resolve(newRouteDir, 'page.tsx');
+
+    // Ensure the route directory doesn't exist before the test
+    if (existsSync(newPageFile)) {
+      unlinkSync(newPageFile);
+    }
+
+    // Navigate to the new route — should 404 initially
+    const initial = await page.goto('/hmr-new-route');
+    expect(initial?.status()).toBe(404);
+
+    // Create the new route file
+    mkdirSync(newRouteDir, { recursive: true });
+    writeFileSync(
+      newPageFile,
+      `export default function HmrNewRoute() {
+  return <div data-testid="hmr-new-route-page">New Route Works</div>;
+}
+`,
+      'utf-8'
+    );
+
+    try {
+      // Wait for the route scanner to pick up the new file, then navigate
+      // Use polling — the route tree watcher should detect the new file
+      await page.waitForTimeout(2_000);
+      const response = await page.goto('/hmr-new-route');
+      // If the first attempt is still 404, retry with backoff
+      if (response?.status() === 404) {
+        await page.waitForTimeout(3_000);
+        const retry = await page.goto('/hmr-new-route');
+        expect(retry?.status()).toBe(200);
+      }
+      await expect(page.locator('[data-testid="hmr-new-route-page"]')).toHaveText(
+        'New Route Works'
+      );
+    } finally {
+      // Clean up: remove the new route file and directory
+      if (existsSync(newPageFile)) {
+        unlinkSync(newPageFile);
+      }
+      // Wait a moment for file watcher to process the deletion
+      // before the directory can be removed
+      await page.waitForTimeout(500);
+      try {
+        const { rmdirSync } = await import('node:fs');
+        rmdirSync(newRouteDir);
+      } catch {
+        // Directory may already be gone or not empty — ignore
+      }
     }
   });
 });

@@ -82,14 +82,28 @@ export async function renderDenyPage(
     return bareJsonResponse(deny.status, responseHeaders);
   }
 
-  // Page routes → try component first, then JSON if no component found
+  // Page routes → component chain first, JSON fallback only if no component found.
   const resolution = resolveManifestStatusFile(deny.status, segments, 'component');
 
-  // No component status file found — try JSON chain before bare fallback
+  // No component status file — try JSON chain before bare fallback
   if (!resolution) {
     const jsonResponse = await renderDenyPageJson(deny, segments, responseHeaders);
     if (jsonResponse) return jsonResponse;
     return new Response(null, { status: deny.status, headers: responseHeaders });
+  }
+
+  // Dev warning: JSON status file exists but is shadowed by the component chain.
+  // This helps developers understand why their .json file isn't being served.
+  if (process.env.NODE_ENV !== 'production') {
+    const jsonResolution = resolveManifestStatusFile(deny.status, segments, 'json');
+    if (jsonResolution) {
+      console.warn(
+        `[timber] ${jsonResolution.file.filePath} exists but is shadowed by ` +
+          `${resolution.file.filePath} (component chain). ` +
+          `For page routes, component status files take priority over JSON. ` +
+          `Remove the component file or move it to use the JSON variant.`
+      );
+    }
   }
 
   // Load the status-code page component

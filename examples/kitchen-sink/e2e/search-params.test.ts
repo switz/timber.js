@@ -52,33 +52,101 @@ test.describe('server-side typed searchParams', () => {
 });
 
 test.describe('client useQueryStates', () => {
-  test('param change triggers server navigation', async ({ page }) => {
+  test('sort change triggers RSC navigation and updates server values', async ({ page }) => {
     await page.goto('/search-params-test');
     await expect(page.locator('[data-testid="filter-bar"]')).toBeVisible();
 
-    // Select a new sort — default shallow:false should trigger RSC navigation
+    // Track RSC fetches to confirm server navigation fires
+    let rscRequestCount = 0;
+    page.on('request', (req) => {
+      if (req.headers()['accept']?.includes('text/x-component')) {
+        rscRequestCount++;
+      }
+    });
+
     await page.selectOption('[data-testid="sort-select"]', 'price-asc');
 
-    // URL should update to ?s=price-asc (aliased key)
+    // URL should update to aliased key ?s=price-asc
     await expect(page).toHaveURL(/s=price-asc/);
 
-    // Server-rendered value should update after navigation completes
+    // Server-rendered value must update — confirms RSC navigation completed
+    // and nuqs synced its state after timber:navigation-end was dispatched.
     await expect(page.locator('[data-testid="server-sort"]')).toHaveText('sort: price-asc');
+
+    // Client display should also reflect new value without flash
+    await expect(page.locator('[data-testid="client-sort"]')).toHaveText('sort: price-asc');
+
+    expect(rscRequestCount).toBeGreaterThan(0);
   });
 
-  test('next-page button increments page in URL', async ({ page }) => {
+  test('sort select does not flash back to old value after navigation', async ({ page }) => {
     await page.goto('/search-params-test');
+
+    // Change sort and immediately check — should not revert to 'relevance'
+    await page.selectOption('[data-testid="sort-select"]', 'newest');
+    await expect(page.locator('[data-testid="client-sort"]')).toHaveText('sort: newest');
+
+    // Wait for server navigation to settle — value must remain 'newest'
+    await expect(page.locator('[data-testid="server-sort"]')).toHaveText('sort: newest');
+    await expect(page.locator('[data-testid="client-sort"]')).toHaveText('sort: newest');
+  });
+
+  test('next-page button triggers RSC navigation and updates server page', async ({ page }) => {
+    await page.goto('/search-params-test');
+
+    let rscRequestCount = 0;
+    page.on('request', (req) => {
+      if (req.headers()['accept']?.includes('text/x-component')) {
+        rscRequestCount++;
+      }
+    });
+
     await page.click('[data-testid="next-page-btn"]');
 
     // URL should use aliased key ?pg=2
     await expect(page).toHaveURL(/pg=2/);
     await expect(page.locator('[data-testid="server-page"]')).toHaveText('page: 2');
+    await expect(page.locator('[data-testid="client-page"]')).toHaveText('page: 2');
+
+    expect(rscRequestCount).toBeGreaterThan(0);
+  });
+
+  test('q input is shallow — typing updates URL without RSC fetch', async ({ page }) => {
+    await page.goto('/search-params-test');
+
+    let rscRequestCount = 0;
+    page.on('request', (req) => {
+      if (req.headers()['accept']?.includes('text/x-component')) {
+        rscRequestCount++;
+      }
+    });
+
+    // Type into the search input character by character
+    await page.fill('[data-testid="q-input"]', 'hello');
+
+    // URL should update shallowly with each keystroke
+    await expect(page).toHaveURL(/q=hello/);
+
+    // Client value reflects what was typed
+    await expect(page.locator('[data-testid="client-q"]')).toHaveText('q: hello');
+
+    // No RSC fetch should have fired — q input uses shallow:true
+    expect(rscRequestCount).toBe(0);
+  });
+
+  test('q input does not flash back while typing', async ({ page }) => {
+    await page.goto('/search-params-test');
+
+    const input = page.locator('[data-testid="q-input"]');
+    await input.fill('abc');
+
+    // Input value must stay at 'abc' — no flash back to empty
+    await expect(input).toHaveValue('abc');
   });
 
   test('shallow mode skips server navigation', async ({ page }) => {
     await page.goto('/search-params-test');
 
-    // Track network requests to the RSC endpoint
     let rscRequestCount = 0;
     page.on('request', (req) => {
       if (req.headers()['accept']?.includes('text/x-component')) {

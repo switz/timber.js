@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 /**
  * Phase 2 Integration Tests — Dev Warnings & Cross-Feature
  *

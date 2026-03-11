@@ -11,6 +11,15 @@ export default defineConfig({
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
+      testIgnore: /hmr\.test\.ts/,
+    },
+    {
+      // HMR tests mutate fixture files on disk — run them serially after
+      // all other tests to avoid corrupting the shared dev server state.
+      name: 'hmr',
+      use: { ...devices['Desktop Chrome'] },
+      testMatch: /hmr\.test\.ts/,
+      dependencies: ['chromium'],
     },
   ],
   webServer: {
@@ -18,5 +27,6 @@ export default defineConfig({
     port: 3000,
     reuseExistingServer: !process.env.CI,
     timeout: 30_000,
+    env: { TIMBER_DEV_QUIET: '1' },
   },
 });

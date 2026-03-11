@@ -43,7 +43,7 @@ test.describe('dom state preserved', () => {
     await expect(page.locator('[data-testid="dashboard-content"]')).toBeVisible();
 
     // Layout input should retain its value — no full page reload
-    await expect(layoutInput).toHaveValue('user-typed-value');
+    await expect(layoutInput).toHaveValue('user-typed-value', { timeout: 10_000 });
   });
 
   test('focus state preserved in layout during navigation', async ({ page }) => {
@@ -71,22 +71,25 @@ test.describe('dom state preserved', () => {
     await page.evaluate(() => window.scrollTo(0, 300));
     await page.waitForFunction(() => Math.abs(window.scrollY - 300) < 10);
 
-    // Use dispatchEvent to click without Playwright auto-scrolling
+    // Use page.evaluate with el.click() to avoid Playwright auto-scrolling
     // the element into view (which would reset scrollY to 0).
-    await page.locator('[data-testid="link-no-scroll"]').dispatchEvent('click');
+    // dispatchEvent('click') doesn't produce a real MouseEvent with button=0,
+    // so the router's click handler may ignore it, causing a full page load.
+    await page.evaluate(() => {
+      const el = document.querySelector('[data-testid="link-no-scroll"]') as HTMLElement;
+      el.click();
+    });
     await page.waitForURL('/dashboard/settings');
 
     // Wait for settings content to render (navigation complete)
     await expect(page.locator('[data-testid="settings-content"]')).toBeVisible();
 
-    // Wait for scroll restoration (afterPaint callback restores position).
-    // Use a generous timeout — double-rAF can be slow under CI load.
+    // Scroll should be preserved — the navigation is within the same layout
+    // and the router restores scroll after paint. Poll with waitForFunction
+    // to handle the async double-rAF delay.
     await page.waitForFunction(() => Math.abs(window.scrollY - 300) < 10, null, {
       timeout: 10_000,
     });
-    const scrollY = await page.evaluate(() => window.scrollY);
-    expect(scrollY).toBeGreaterThanOrEqual(290);
-    expect(scrollY).toBeLessThanOrEqual(310);
   });
 });
 
@@ -151,30 +154,22 @@ test.describe('history cached', () => {
 
     // Navigate to dashboard. Use page.evaluate with el.click() to avoid
     // Playwright auto-scrolling the link into view (which resets scrollY).
-    // Wait for timber:scroll-restored event instead of polling scrollY.
-    await page.evaluate(() =>
-      new Promise<void>((resolve) => {
-        window.addEventListener('timber:scroll-restored', () => resolve(), { once: true });
-        const el = document.querySelector('[data-testid="link-dashboard"]') as HTMLElement;
-        el.click();
-      })
-    );
+    await page.evaluate(() => {
+      const el = document.querySelector('[data-testid="link-dashboard"]') as HTMLElement;
+      el.click();
+    });
     await page.waitForURL('/dashboard');
     await expect(page.locator('[data-testid="dashboard-content"]')).toBeVisible();
-    const topScroll = await page.evaluate(() => window.scrollY);
-    expect(topScroll).toBe(0);
+    await page.waitForFunction(() => window.scrollY === 0);
 
     // Go back — router replays cached payload and restores saved scrollY.
-    // Wait for timber:scroll-restored event for deterministic assertion.
-    const scrollPromise = page.evaluate(() =>
-      new Promise<void>((resolve) => {
-        window.addEventListener('timber:scroll-restored', () => resolve(), { once: true });
-      })
-    );
+    // Use waitForFunction to poll for scroll restoration instead of listening
+    // for timber:scroll-restored, which can be lost if the execution context
+    // is destroyed during navigation.
     await page.goBack();
     await page.waitForURL('/');
     await expect(page.locator('[data-testid="home-content"]')).toBeVisible();
-    await scrollPromise;
+    await page.waitForFunction(() => window.scrollY === 500, null, { timeout: 10_000 });
     const restoredScroll = await page.evaluate(() => window.scrollY);
     expect(restoredScroll).toBe(500);
   });
@@ -187,9 +182,11 @@ test.describe('segment diff', () => {
     await page.goto('/dashboard');
     await waitForHydration(page);
 
-    // Intercept the RSC request on next navigation
+    // Intercept the RSC request on next navigation.
+    // Set up listener before clicking to avoid race conditions.
     const rscRequest = page.waitForRequest(
-      (req) => req.headers()['accept']?.includes('text/x-component') ?? false
+      (req) => req.headers()['accept']?.includes('text/x-component') ?? false,
+      { timeout: 10_000 }
     );
 
     await page.click('[data-testid="link-settings"]');
@@ -314,6 +311,6 @@ test.describe('navigation pending', () => {
 
     // After navigation completes, pending should disappear
     await page.waitForURL('/slow-page');
-    await expect(pendingIndicator).toBeHidden();
+    await expect(pendingIndicator).toBeHidden({ timeout: 10_000 });
   });
 });

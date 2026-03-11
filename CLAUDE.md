@@ -119,7 +119,7 @@ If a file approaches 500 lines, decompose it. This prevents god objects. **Comme
 - **NEVER push directly to main.** Always create a feature branch and open a PR.
 - **NEVER use `gh pr merge --admin`.** If merge is blocked, investigate why.
 - Branch protection: Lint, Typecheck, Vitest, Playwright E2E must pass.
-- **NEVER mention claude in commit messages** It's not necessary.
+- **DO NOT mention claude in commit messages or pull requests** It's not necessary and adds little value.
 
 ### PR Workflow
 

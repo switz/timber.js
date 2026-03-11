@@ -67,12 +67,17 @@ test.describe('client component HMR', () => {
     await page.goto('/hmr-test');
     await waitForHydration(page);
 
-    // Click the counter button a few times to build up state
+    // Click the counter button a few times to build up state.
+    // Wait for each click to register — on slow CI the component may not
+    // be fully interactive immediately after hydration.
     const button = page.locator('[data-testid="hmr-counter-button"]');
+    const counterValue = page.locator('[data-testid="hmr-counter-value"]');
     await button.click();
+    await expect(counterValue).toHaveText('1');
     await button.click();
+    await expect(counterValue).toHaveText('2');
     await button.click();
-    await expect(page.locator('[data-testid="hmr-counter-value"]')).toHaveText('3');
+    await expect(counterValue).toHaveText('3');
 
     // Track full page loads — should NOT happen during HMR
     let fullReloadOccurred = false;
@@ -117,9 +122,11 @@ test.describe('server component HMR', () => {
 
     // Build up client state to verify it survives server component HMR
     const button = page.locator('[data-testid="hmr-counter-button"]');
+    const counterValue = page.locator('[data-testid="hmr-counter-value"]');
     await button.click();
+    await expect(counterValue).toHaveText('1');
     await button.click();
-    await expect(page.locator('[data-testid="hmr-counter-value"]')).toHaveText('2');
+    await expect(counterValue).toHaveText('2');
 
     // Edit the server component: change the heading text
     const pageFile = resolve(HMR_DIR, 'page.tsx');
@@ -178,9 +185,11 @@ test.describe('CSS HMR', () => {
 
     // Build up counter state
     const button = page.locator('[data-testid="hmr-counter-button"]');
+    const counterValue = page.locator('[data-testid="hmr-counter-value"]');
     await button.click();
+    await expect(counterValue).toHaveText('1');
     await button.click();
-    await expect(page.locator('[data-testid="hmr-counter-value"]')).toHaveText('2');
+    await expect(counterValue).toHaveText('2');
 
     // Verify initial background color
     const box = page.locator('[data-testid="hmr-styled-box"]');

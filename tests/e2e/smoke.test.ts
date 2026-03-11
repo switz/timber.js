@@ -48,3 +48,29 @@ test('dashboard layout is present on dashboard pages', async ({ page }) => {
   await page.goto('/dashboard');
   await expect(page.locator('[data-testid="dashboard-layout"]')).toBeVisible();
 });
+
+test('no hydration errors on initial page load', async ({ page }) => {
+  const hydrationErrors: string[] = [];
+  page.on('console', (msg) => {
+    const text = msg.text();
+    // React hydration errors show as warnings or errors with these patterns
+    if (
+      (msg.type() === 'error' || msg.type() === 'warning') &&
+      (text.includes('Hydration') ||
+        text.includes('hydrating') ||
+        text.includes('server-rendered HTML') ||
+        text.includes('did not match'))
+    ) {
+      hydrationErrors.push(text);
+    }
+  });
+
+  await page.goto('/');
+  // Wait for hydration to complete
+  await page.waitForSelector('meta[name="timber-ready"]', { state: 'attached', timeout: 15_000 });
+
+  // Allow a tick for any deferred console messages
+  await page.waitForTimeout(500);
+
+  expect(hydrationErrors).toEqual([]);
+});

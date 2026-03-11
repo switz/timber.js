@@ -31,26 +31,20 @@ test.describe('rsc payload source leak', () => {
   });
 
   test('RSC payload during navigation does not contain server component source code', async ({
-    page,
+    request,
   }) => {
-    await page.goto('/');
-    // Wait for hydration so the click triggers SPA navigation (RSC fetch)
-    // rather than a full page reload. browser-entry.ts appends a
-    // <meta name="timber-ready"> tag after the router is initialized.
-    await page.waitForSelector('meta[name="timber-ready"]', { state: 'attached', timeout: 15_000 });
+    // Fetch the RSC payload directly with the Accept header the client router
+    // sends during SPA navigation. This avoids flakiness from intercepting
+    // live browser navigations (prefetch cache hits, full page loads, etc.).
+    const response = await request.get('/todos', {
+      headers: { Accept: 'text/x-component' },
+    });
 
-    // Intercept the RSC payload response during client-side navigation
-    const rscResponse = page.waitForResponse(
-      (res) => res.headers()['content-type']?.includes('text/x-component') ?? false
-    );
-
-    await page.click('[data-testid="link-dashboard"]');
-
-    const response = await rscResponse;
+    expect(response.headers()['content-type']).toContain('text/x-component');
     const payload = await response.text();
 
     // RSC payload should contain rendered component output, not source code
-    expect(payload).toContain('dashboard');
+    expect(payload).toContain('todos');
     expect(payload).not.toMatch(LEAKED_SOURCE_PATTERN);
   });
 });

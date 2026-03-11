@@ -10,11 +10,21 @@
  * - Navigation pending indicator
  * - Navigation links with various test IDs
  */
+import { useRef, useEffect } from 'react';
 import { Link } from '@timber/app/client';
 import { useNavigationPending } from '@timber/app/client';
 
 export function RootShell({ children }: { children: React.ReactNode }) {
   const pending = useNavigationPending();
+  const markerRef = useRef<HTMLDivElement>(null);
+
+  // Stamp a unique ID after mount — avoids hydration mismatch from Date.now()
+  // while still giving tests a value that stays stable without revalidation.
+  useEffect(() => {
+    if (markerRef.current) {
+      markerRef.current.setAttribute('data-id', String(Date.now()));
+    }
+  }, []);
 
   return (
     <div data-testid="root-layout">
@@ -55,7 +65,7 @@ export function RootShell({ children }: { children: React.ReactNode }) {
       </button>
 
       {/* Layout marker — tests revalidation (data-id stays stable without revalidation) */}
-      <div data-testid="layout-marker" data-id={String(Date.now())} />
+      <div data-testid="layout-marker" ref={markerRef} />
 
       {/* Navigation pending indicator */}
       <div

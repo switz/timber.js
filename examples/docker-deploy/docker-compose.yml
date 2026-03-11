@@ -1,0 +1,13 @@
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    # Uncomment to mount secrets:
+    # env_file: .env.production
+    restart: unless-stopped
+    # Match Nitro's graceful shutdown window
+    stop_grace_period: 10s

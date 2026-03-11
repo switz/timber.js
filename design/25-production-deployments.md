@@ -256,7 +256,7 @@ The recommended container deployment uses a multi-stage build with production ha
 2. **Multi-stage build.** Build dependencies (TypeScript, build tools) are not in the runtime image.
 3. **Corepack for pnpm.** `corepack enable` + `corepack prepare` — no global `npm install -g pnpm`. The package manager version is locked to `packageManager` in `package.json`.
 4. **Layer caching.** `package.json` and lockfile are copied before source code. pnpm store is cached via Docker BuildKit cache mounts.
-5. **Slim base image.** `node:22-slim` (Debian-based). Not Alpine — native modules with C++ bindings (e.g., `better-sqlite3`, `sharp`) often fail on musl libc.
+5. **Slim base image.** `node:24-slim` (Debian-based). Not Alpine — native modules with C++ bindings (e.g., `better-sqlite3`, `sharp`) often fail on musl libc.
 6. **Graceful shutdown.** Nitro's `node-server` preset handles `SIGTERM`. Docker sends `SIGTERM` on `docker stop` with a 10-second grace period by default.
 7. **Health check.** `HEALTHCHECK` instruction for orchestrator liveness probes.
 8. **Minimal runtime.** Only production dependencies + build output in the final image.
@@ -265,7 +265,7 @@ The recommended container deployment uses a multi-stage build with production ha
 # syntax=docker/dockerfile:1
 
 # ── Stage 1: Install + Build ──
-FROM node:22-slim AS build
+FROM node:24-slim AS build
 
 # Enable corepack for pnpm (version from package.json packageManager field)
 RUN corepack enable
@@ -284,7 +284,7 @@ COPY . .
 RUN pnpm run build
 
 # ── Stage 2: Production Runtime ──
-FROM node:22-slim AS runtime
+FROM node:24-slim AS runtime
 
 RUN corepack enable
 

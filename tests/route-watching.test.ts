@@ -369,6 +369,7 @@ describe('route tree file watching', () => {
       ['not-found.tsx', /not-found/],
       ['forbidden.tsx', /forbidden/],
       ['unauthorized.tsx', /unauthorized/],
+      ['search-params.ts', /search-params/],
     ])('adding %s triggers rescan', (filename, _pattern) => {
       const { emit, root, server } = setupPlugin({
         'page.tsx': 'export default function Home() {}',

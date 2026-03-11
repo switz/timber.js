@@ -891,7 +891,7 @@ async function handleApiRoute(
           );
         } catch (error) {
           if (error instanceof DenySignal) {
-            return new Response(null, { status: error.status, headers: responseHeaders });
+            return renderApiDeny(error, segments, responseHeaders);
           }
           if (error instanceof RedirectSignal) {
             responseHeaders.set('Location', error.location);
@@ -912,6 +912,39 @@ async function handleApiRoute(
     headers: responseHeaders,
   };
   return handleRouteRequest(routeMod, ctx);
+}
+
+/**
+ * Render a deny response for an API route (route.ts).
+ *
+ * Tries JSON status file chain first. Falls back to bare JSON response.
+ * Never renders a component — API consumers get structured JSON, not HTML.
+ * See design/10-error-handling.md §"Format Selection for deny()"
+ */
+async function renderApiDeny(
+  deny: DenySignal,
+  segments: ManifestSegmentNode[],
+  responseHeaders: Headers
+): Promise<Response> {
+  const { resolveManifestStatusFile } = await import('./manifest-status-resolver.js');
+
+  const resolution = resolveManifestStatusFile(deny.status, segments, 'json');
+  if (resolution) {
+    const mod = (await resolution.file.load()) as Record<string, unknown>;
+    const jsonContent = mod.default ?? mod;
+    responseHeaders.set('content-type', 'application/json; charset=utf-8');
+    return new Response(JSON.stringify(jsonContent), {
+      status: deny.status,
+      headers: responseHeaders,
+    });
+  }
+
+  // No JSON status file — bare JSON fallback
+  responseHeaders.set('content-type', 'application/json; charset=utf-8');
+  return new Response(JSON.stringify({ error: true, status: deny.status }), {
+    status: deny.status,
+    headers: responseHeaders,
+  });
 }
 
 /**

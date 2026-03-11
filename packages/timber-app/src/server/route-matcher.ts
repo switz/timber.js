@@ -38,6 +38,7 @@ export interface ManifestSegmentNode {
   denied?: ManifestFile;
   searchParams?: ManifestFile;
   statusFiles?: Record<string, ManifestFile>;
+  jsonStatusFiles?: Record<string, ManifestFile>;
   legacyStatusFiles?: Record<string, ManifestFile>;
   prerender?: ManifestFile;
 

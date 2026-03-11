@@ -1,0 +1,4 @@
+{
+  "error": true,
+  "static": "this is a static 401, but not cached"
+}

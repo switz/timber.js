@@ -190,7 +190,7 @@ function scanSegmentFiles(dirPath: string, node: SegmentNode, extSet: Set<string
     }
 
     // Fixed conventions (middleware, access, route) — always .ts or .tsx
-    if (FIXED_CONVENTIONS.has(name) && (ext === 'ts' || ext === 'tsx')) {
+    if (FIXED_CONVENTIONS.has(name) && /\.?[jt]sx?$/.test(ext)) {
       const file: RouteFile = { filePath: fullPath, extension: ext };
       switch (name) {
         case 'middleware':
@@ -209,6 +209,16 @@ function scanSegmentFiles(dirPath: string, node: SegmentNode, extSet: Set<string
           node.searchParams = file;
           break;
       }
+      continue;
+    }
+
+    // JSON status-code files (401.json, 4xx.json, 503.json, 5xx.json)
+    // Recognized regardless of pageExtensions — .json is a data format, not a page extension.
+    if (STATUS_CODE_PATTERN.test(name) && ext === 'json') {
+      if (!node.jsonStatusFiles) {
+        node.jsonStatusFiles = new Map();
+      }
+      node.jsonStatusFiles.set(name, { filePath: fullPath, extension: ext });
       continue;
     }
 

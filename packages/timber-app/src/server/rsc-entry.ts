@@ -455,7 +455,7 @@ async function renderRoute(
       element = h(SegmentProvider, {
         segments: segmentPath,
         parallelRouteKeys,
-        children: h(layoutComponent, { ...slotProps, children: element }),
+        children: h(layoutComponent, { ...slotProps, params: paramsPromise, searchParams: {}, children: element }),
       });
     }
   }

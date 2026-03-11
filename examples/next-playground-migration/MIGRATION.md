@@ -407,6 +407,58 @@ export async function GET(ctx: RouteContext): Promise<Response> {
 
 ---
 
+## 14. `'use cache'` on Components that Receive `params`
+
+**Rule:** Do NOT put `'use cache'` at the file level (or inside the component body) on page/layout components that receive `params` as a `Promise`. The `'use cache'` transform serializes inputs to build cache keys — a Promise cannot be serialized, causing a runtime error.
+
+**Before** (broken)
+```ts
+'use cache'; // file-level — wraps all exported functions
+
+export default async function Page({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  // ...
+}
+```
+
+**After** (working)
+```ts
+// No 'use cache' directive — component always renders fresh
+
+export default async function Page({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  // ...
+}
+```
+
+If you need caching, extract the data-fetching logic into a separate `timber.cache()`-wrapped function and call it from the component.
+
+---
+
+## 15. `404.tsx` (and other status files) Must Be `'use client'`
+
+**Rule:** timber's error boundary (`TimberErrorBoundary`) is a React class component that passes `fallbackComponent` as a prop. React cannot pass server component functions as props across the RSC boundary. All status files (`404.tsx`, `error.tsx`, `403.tsx`, etc.) must be `'use client'` components.
+
+**Before** (missing directive — causes "Functions cannot be passed directly to Client Components" error)
+```ts
+export default function NotFound() {
+  return <div>Not found</div>;
+}
+```
+
+**After**
+```ts
+'use client';
+
+export default function NotFound() {
+  return <div>Not found</div>;
+}
+```
+
+**Static analysis gap filed:** timber-9oo (static analyzer should warn when status files are missing `'use client'`)
+
+---
+
 ## Summary of Gaps Filed
 
 | Gap | bd Issue | Description |
@@ -415,3 +467,8 @@ export async function GET(ctx: RouteContext): Promise<Response> {
 | `Link.onNavigate` | timber-375 | Prop not supported in timber's Link shim |
 | `next/og` | — | Use [Takumi RS](https://takumi.rs) for OG images on CF Workers |
 | `template.tsx` | — | A layout with `key={pathname}` achieves the same remounting effect |
+| `next/font/google` named exports | timber-rlm | Shim only has `default` export, no `Geist`, `Geist_Mono` etc. |
+| Status file `'use client'` lint | timber-9oo | Static analyzer should warn when status files missing `'use client'` |
+| MDX config in `timber.config.ts` | timber-abu | Plugin reads config at build time before `timber.config.ts` loads |
+| `'use cache'` + Promise params | timber-2pl | Cannot serialize Promise inputs for cache key |
+| Dev error overlay wiring | timber-6zw | Pipeline errors not routed to browser overlay |

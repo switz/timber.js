@@ -28,6 +28,7 @@ const SHIM_MAP: Record<string, string> = {
   'next/navigation': resolve(SHIMS_DIR, 'navigation.ts'),
   'next/headers': resolve(SHIMS_DIR, 'headers.ts'),
   'next/font/google': resolve(SHIMS_DIR, 'font-google.ts'),
+  'next/font/local': resolve(SHIMS_DIR, 'font-local.ts'),
 };
 
 /**

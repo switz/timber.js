@@ -147,6 +147,6 @@ These Next.js modules are **not shimmed** and will produce import errors:
 | `next/dynamic` | Use React.lazy() + Suspense |
 | `next/server` | Internal Next.js server utilities — no equivalent needed |
 | `next/cache` | Use `@timber/app/cache` (`timber.cache()`) |
-| `next/font/local` | Not yet implemented in `timber-fonts` plugin |
+| `next/font/local` | Shimmed via `@timber/fonts/local` — resolved by `timber-shims` + `timber-fonts` plugin |
 
 Libraries that depend on Next.js build plugins (SWC transforms, webpack plugins) or internal APIs cannot be shimmed and require custom integration.

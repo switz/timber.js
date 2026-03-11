@@ -414,4 +414,56 @@ describe('extracts local font config edge cases', () => {
     const srcArray = config!.src as Array<{ path: string; style?: string }>;
     expect(srcArray[0].style).toBe('italic');
   });
+
+  it('handles comments in local font config', () => {
+    const config = extractLocalFontConfig(`({
+      src: './fonts/MyFont.woff2', // the font file
+      display: 'swap', // fast swap
+      variable: '--font-custom', // CSS variable
+    })`);
+    expect(config).not.toBeNull();
+    expect(config!.src).toBe('./fonts/MyFont.woff2');
+    expect(config!.display).toBe('swap');
+    expect(config!.variable).toBe('--font-custom');
+  });
+
+  it('handles trailing commas in local font src array', () => {
+    const config = extractLocalFontConfig(`({
+      src: [
+        { path: './fonts/Regular.woff2', weight: '400', },
+        { path: './fonts/Bold.woff2', weight: '700', },
+      ],
+      display: 'swap',
+    })`);
+    expect(config).not.toBeNull();
+    const srcArray = config!.src as Array<{ path: string; weight?: string }>;
+    expect(srcArray).toHaveLength(2);
+    expect(srcArray[0].path).toBe('./fonts/Regular.woff2');
+    expect(srcArray[1].weight).toBe('700');
+  });
+
+  it('handles multi-line local font config with block comments', () => {
+    const config = extractLocalFontConfig(`({
+      src: [
+        /* Regular weight */
+        {
+          path: './fonts/Regular.woff2',
+          weight: '400',
+        },
+        /* Bold weight */
+        {
+          path: './fonts/Bold.woff2',
+          weight: '700',
+        },
+      ],
+      family: 'Custom Font',
+      variable: '--font-custom',
+    })`);
+    expect(config).not.toBeNull();
+    expect(config!.family).toBe('Custom Font');
+    const srcArray = config!.src as Array<{ path: string; weight?: string }>;
+    expect(srcArray).toHaveLength(2);
+    expect(srcArray[0].path).toBe('./fonts/Regular.woff2');
+    expect(srcArray[1].path).toBe('./fonts/Bold.woff2');
+  });
 });

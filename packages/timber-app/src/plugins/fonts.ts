@@ -20,12 +20,17 @@ import type { ExtractedFont, GoogleFontConfig } from '../fonts/types.js';
 import type { ManifestFontEntry } from '../server/build-manifest.js';
 import { generateVariableClass, generateFontFamilyClass } from '../fonts/css.js';
 import { generateFallbackCss, buildFontStack } from '../fonts/fallbacks.js';
-import { extractLocalFontConfig, processLocalFont } from '../fonts/local.js';
+import { processLocalFont } from '../fonts/local.js';
 import { inferFontFormat } from '../fonts/local.js';
 import {
   downloadAndCacheFonts,
   type CachedFont,
 } from '../fonts/google.js';
+import {
+  extractFontConfigAst,
+  extractLocalFontConfigAst,
+  detectDynamicFontCallAst,
+} from '../fonts/ast.js';
 
 const VIRTUAL_GOOGLE = '@timber/fonts/google';
 const VIRTUAL_LOCAL = '@timber/fonts/local';
@@ -87,70 +92,14 @@ function normalizeStyleArray(value: string | string[] | undefined): string[] {
  *   const inter = Inter({ subsets: ['latin'], weight: '400', display: 'swap', variable: '--font-sans' })
  *
  * Returns null if the call cannot be statically analyzed.
+ *
+ * Uses acorn AST parsing for robust handling of comments, trailing commas,
+ * and multi-line configs.
  */
 export function extractFontConfig(
   callSource: string
 ): GoogleFontConfig | null {
-  // Match the object literal inside the function call
-  const objMatch = callSource.match(/\(\s*(\{[\s\S]*?\})\s*\)/);
-  if (!objMatch) return null;
-
-  const objStr = objMatch[1];
-
-  try {
-    // Parse individual properties from the object literal.
-    // We do this with regex rather than eval for security.
-    const config: GoogleFontConfig = {};
-
-    // Extract `subsets` array
-    const subsetsMatch = objStr.match(/subsets\s*:\s*\[([^\]]*)\]/);
-    if (subsetsMatch) {
-      config.subsets = subsetsMatch[1]
-        .split(',')
-        .map((s) => s.trim().replace(/['"]/g, ''))
-        .filter(Boolean);
-    }
-
-    // Extract `weight` — string or array
-    const weightArrayMatch = objStr.match(/weight\s*:\s*\[([^\]]*)\]/);
-    if (weightArrayMatch) {
-      config.weight = weightArrayMatch[1]
-        .split(',')
-        .map((s) => s.trim().replace(/['"]/g, ''))
-        .filter(Boolean);
-    } else {
-      const weightStrMatch = objStr.match(/weight\s*:\s*['"]([^'"]+)['"]/);
-      if (weightStrMatch) config.weight = weightStrMatch[1];
-    }
-
-    // Extract `display`
-    const displayMatch = objStr.match(/display\s*:\s*['"]([^'"]+)['"]/);
-    if (displayMatch) config.display = displayMatch[1] as GoogleFontConfig['display'];
-
-    // Extract `variable`
-    const variableMatch = objStr.match(/variable\s*:\s*['"]([^'"]+)['"]/);
-    if (variableMatch) config.variable = variableMatch[1];
-
-    // Extract `style` — string or array
-    const styleArrayMatch = objStr.match(/style\s*:\s*\[([^\]]*)\]/);
-    if (styleArrayMatch) {
-      config.style = styleArrayMatch[1]
-        .split(',')
-        .map((s) => s.trim().replace(/['"]/g, ''))
-        .filter(Boolean);
-    } else {
-      const styleStrMatch = objStr.match(/style\s*:\s*['"]([^'"]+)['"]/);
-      if (styleStrMatch) config.style = styleStrMatch[1];
-    }
-
-    // Extract `preload`
-    const preloadMatch = objStr.match(/preload\s*:\s*(true|false)/);
-    if (preloadMatch) config.preload = preloadMatch[1] === 'true';
-
-    return config;
-  } catch {
-    return null;
-  }
+  return extractFontConfigAst(callSource);
 }
 
 /**
@@ -158,21 +107,11 @@ export function extractFontConfig(
  * that cannot be statically analyzed.
  *
  * Returns the offending expression if found, null if all calls are static.
+ *
+ * Uses acorn AST parsing for accurate detection.
  */
 export function detectDynamicFontCall(source: string, importedNames: string[]): string | null {
-  for (const name of importedNames) {
-    // Check for calls with variable arguments: FontName(someVar)
-    const callPattern = new RegExp(`${name}\\s*\\(\\s*([^{)][^)]*?)\\s*\\)`, 'g');
-    let match;
-    while ((match = callPattern.exec(source)) !== null) {
-      const arg = match[1].trim();
-      // If the argument isn't an object literal, it's dynamic
-      if (arg && !arg.startsWith('{')) {
-        return `${name}(${arg})`;
-      }
-    }
-  }
-  return null;
+  return detectDynamicFontCallAst(source, importedNames);
 }
 
 /**
@@ -369,7 +308,7 @@ function transformLocalFonts(
     const configSource = callMatch[2];
     const fullMatch = callMatch[0];
 
-    const config = extractLocalFontConfig(`(${configSource})`);
+    const config = extractLocalFontConfigAst(`(${configSource})`);
     if (!config) {
       emitError(
         `Could not statically analyze local font config. ` +

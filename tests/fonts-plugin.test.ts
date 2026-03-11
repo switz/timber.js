@@ -97,6 +97,88 @@ describe('extracts font config from static calls', () => {
   });
 });
 
+// ─── Edge cases: comments, trailing commas, multi-line ───────────────────────
+
+describe('handles comments in config', () => {
+  it('parses config with inline comments', () => {
+    const config = extractFontConfig(`({
+      subsets: ['latin'], // only latin for now
+      weight: '400', // regular weight
+      display: 'swap', // fast display
+    })`);
+    expect(config).not.toBeNull();
+    expect(config!.subsets).toEqual(['latin']);
+    expect(config!.weight).toBe('400');
+    expect(config!.display).toBe('swap');
+  });
+
+  it('parses config with block comments', () => {
+    const config = extractFontConfig(`({
+      subsets: ['latin' /* primary */, 'cyrillic' /* secondary */],
+      weight: '700',
+      /* display option */
+      display: 'swap',
+    })`);
+    expect(config).not.toBeNull();
+    expect(config!.subsets).toEqual(['latin', 'cyrillic']);
+    expect(config!.weight).toBe('700');
+    expect(config!.display).toBe('swap');
+  });
+});
+
+describe('handles trailing commas', () => {
+  it('parses config with trailing commas in object', () => {
+    const config = extractFontConfig(`({
+      subsets: ['latin',],
+      weight: '400',
+      display: 'swap',
+      variable: '--font-sans',
+    })`);
+    expect(config).not.toBeNull();
+    expect(config!.subsets).toEqual(['latin']);
+    expect(config!.weight).toBe('400');
+    expect(config!.variable).toBe('--font-sans');
+  });
+
+  it('parses weight array with trailing comma', () => {
+    const config = extractFontConfig(`({
+      weight: ['400', '700',],
+    })`);
+    expect(config).not.toBeNull();
+    expect(config!.weight).toEqual(['400', '700']);
+  });
+});
+
+describe('handles multi-line config', () => {
+  it('parses heavily multi-line config', () => {
+    const config = extractFontConfig(`({
+      subsets: [
+        'latin',
+        'latin-ext',
+        'cyrillic',
+      ],
+      weight: [
+        '400',
+        '700',
+      ],
+      display: 'swap',
+      variable: '--font-sans',
+      style: [
+        'normal',
+        'italic',
+      ],
+      preload: true,
+    })`);
+    expect(config).not.toBeNull();
+    expect(config!.subsets).toEqual(['latin', 'latin-ext', 'cyrillic']);
+    expect(config!.weight).toEqual(['400', '700']);
+    expect(config!.display).toBe('swap');
+    expect(config!.variable).toBe('--font-sans');
+    expect(config!.style).toEqual(['normal', 'italic']);
+    expect(config!.preload).toBe(true);
+  });
+});
+
 // ─── Dynamic call detection ──────────────────────────────────────────────────
 
 describe('errors on dynamic font config', () => {

@@ -1,52 +1,38 @@
-// DeferredSuspense — hold the fallback for up to `ms` milliseconds.
-//
-// If children resolve within the hold window, no skeleton is ever shown —
-// the content appears inline. If the deadline expires, the fallback flushes
-// and children stream in later.
+// DeferredSuspense — wraps children in a Suspense boundary.
 //
 // Design doc: design/05-streaming.md §"DeferredSuspense"
 //
-// Implementation uses nested Suspense boundaries with a Delay component
-// that itself suspends. This creates a natural race without any Promise.race
-// in userland — it falls out of React's own boundary resolution logic.
+// TODO: Restore the nested-Suspense "hold fallback for N ms" behavior once
+// @vitejs/plugin-rsc fixes the Flight→Fizz interaction that triggers
+// "A previously unvisited boundary must have exactly one root segment"
+// with nested Suspense boundaries. The nested pattern works in plain React
+// but breaks when the RSC Flight stream is decoded by Vite's vendored
+// Flight client and then rendered by Fizz.
+//
+// Original design: outer <Suspense> catches inner fallback suspension,
+// inner <Suspense> wraps children with a <Delay ms={ms}> fallback that
+// itself suspends via use(). This creates a natural race — if children
+// resolve before the delay, no fallback is shown; if the delay resolves
+// first, the fallback flushes and children stream in later.
 
-import { Suspense, use, cache, type ReactNode } from 'react';
-
-// cache() is critical — without it, the promise would be recreated on every
-// React retry, resetting the timer forever. React 19's cache() is per-request
-// on the server and per-render on the client — exactly the right scoping.
-const getDelay = cache((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
-
-function Delay({ ms, children }: { ms: number; children: ReactNode }) {
-  use(getDelay(ms));
-  return children;
-}
+import { Suspense, type ReactNode } from 'react';
 
 export interface DeferredSuspenseProps {
-  /** Milliseconds to wait before showing the fallback. This is a latency budget, not a guarantee. */
+  /** Milliseconds to wait before showing the fallback. Currently unused — see TODO above. */
   ms: number;
-  /** The fallback UI, same as <Suspense fallback={...}>. Shown only after `ms` expires. */
+  /** The fallback UI, same as <Suspense fallback={...}>. */
   fallback?: ReactNode;
   children?: ReactNode;
 }
 
 /**
- * Holds the fallback for up to `ms` milliseconds before showing it.
+ * Suspense boundary with a deferred fallback.
  *
- * If children resolve within the hold window, they render inline — no fallback
- * is ever shown. If the deadline expires, the fallback flushes and children
- * stream in when ready.
- *
- * The nested structure creates a natural race:
- * 1. Children suspend → inner boundary catches it, tries to render its fallback (Delay)
- * 2. Delay itself suspends for `ms` → outer boundary catches it, renders nothing
- * 3. If children resolve before `ms`: inner boundary resolves, Delay never renders, content appears inline
- * 4. If `ms` expires first: Delay resolves, inner fallback commits, real fallback UI appears — children stream in later
+ * Currently behaves as a plain <Suspense> — the `ms` prop is accepted but
+ * the hold-delay behavior is disabled due to an upstream bug in
+ * @vitejs/plugin-rsc's Flight client with nested Suspense boundaries.
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function DeferredSuspense({ ms, fallback, children }: DeferredSuspenseProps) {
-  return (
-    <Suspense fallback={fallback}>
-      <Suspense fallback={<Delay ms={ms}>{fallback}</Delay>}>{children}</Suspense>
-    </Suspense>
-  );
+  return <Suspense fallback={fallback}>{children}</Suspense>;
 }

@@ -5,6 +5,7 @@ import {
   type LoadedModule,
   type CreateElement,
 } from '../packages/timber-app/src/server/tree-builder';
+import { TimberErrorBoundary } from '../packages/timber-app/src/client/error-boundary';
 import type { SegmentNode, RouteFile } from '../packages/timber-app/src/routing/types';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -196,7 +197,7 @@ describe('error boundary wrapping', () => {
     );
 
     // error boundary should wrap the page
-    expect(result.tree.type).toBe('timber:error-boundary');
+    expect(result.tree.type).toBe(TimberErrorBoundary);
     expect(result.tree.props.fallbackComponent).toBe(ErrorComponent);
     expect(result.tree.props.children.type).toBe(PageComponent);
   });
@@ -227,7 +228,126 @@ describe('error boundary wrapping', () => {
     // Specific status (404) should be innermost, then category (4xx)
     // The tree should be: 4xx boundary → 404 boundary → page
     // (outer wraps inner, so 404 is checked first at runtime)
-    expect(result.tree.type).toBe('timber:error-boundary');
+    expect(result.tree.type).toBe(TimberErrorBoundary);
+  });
+
+  it('wraps with multiple specific status files (403 + 404)', async () => {
+    const statusFiles = new Map<string, RouteFile>();
+    statusFiles.set('403', makeRouteFile('app/403.tsx'));
+    statusFiles.set('404', makeRouteFile('app/404.tsx'));
+
+    const ForbiddenComponent = () => 'forbidden';
+    const segments = [
+      makeSegment({
+        page: makeRouteFile('app/page.tsx'),
+        statusFiles,
+      }),
+    ];
+
+    const result = await buildElementTree(
+      makeConfig({
+        segments,
+        loadModule: makeModuleLoader({
+          'app/page.tsx': { default: PageComponent },
+          'app/403.tsx': { default: ForbiddenComponent },
+          'app/404.tsx': { default: NotFoundComponent },
+        }),
+      })
+    );
+
+    // Both boundaries should be present.
+    // Outermost boundary is the last specific status file processed.
+    // Both should be TimberErrorBoundary with different status filters.
+    expect(result.tree.type).toBe(TimberErrorBoundary);
+
+    // Walk the tree to find both boundaries
+    const boundaries: Array<{ status: number; fallback: unknown }> = [];
+    let node = result.tree;
+    while (node?.type === TimberErrorBoundary) {
+      boundaries.push({
+        status: node.props.status,
+        fallback: node.props.fallbackComponent,
+      });
+      node = node.props.children;
+    }
+
+    // Both 403 and 404 boundaries exist
+    expect(boundaries).toHaveLength(2);
+    const statuses = boundaries.map((b) => b.status);
+    expect(statuses).toContain(403);
+    expect(statuses).toContain(404);
+
+    // Each boundary has the correct fallback component
+    const b403 = boundaries.find((b) => b.status === 403);
+    const b404 = boundaries.find((b) => b.status === 404);
+    expect(b403?.fallback).toBe(ForbiddenComponent);
+    expect(b404?.fallback).toBe(NotFoundComponent);
+
+    // Innermost element is the page
+    expect(node.type).toBe(PageComponent);
+  });
+
+  it('wraps with 403 + 404 + 4xx + error.tsx in correct priority order', async () => {
+    const statusFiles = new Map<string, RouteFile>();
+    statusFiles.set('403', makeRouteFile('app/403.tsx'));
+    statusFiles.set('404', makeRouteFile('app/404.tsx'));
+    statusFiles.set('4xx', makeRouteFile('app/4xx.tsx'));
+
+    const ForbiddenComponent = () => 'forbidden';
+    const FourXXComponent = () => '4xx';
+    const segments = [
+      makeSegment({
+        page: makeRouteFile('app/page.tsx'),
+        error: makeRouteFile('app/error.tsx'),
+        statusFiles,
+      }),
+    ];
+
+    const result = await buildElementTree(
+      makeConfig({
+        segments,
+        loadModule: makeModuleLoader({
+          'app/page.tsx': { default: PageComponent },
+          'app/403.tsx': { default: ForbiddenComponent },
+          'app/404.tsx': { default: NotFoundComponent },
+          'app/4xx.tsx': { default: FourXXComponent },
+          'app/error.tsx': { default: ErrorComponent },
+        }),
+      })
+    );
+
+    // Walk the tree collecting all boundaries
+    const boundaries: Array<{ status?: number; fallback: unknown }> = [];
+    let node = result.tree;
+    while (node?.type === TimberErrorBoundary) {
+      boundaries.push({
+        status: node.props.status,
+        fallback: node.props.fallbackComponent,
+      });
+      node = node.props.children;
+    }
+
+    // Expected order outermost → innermost:
+    //   error.tsx (catch-all) → 4xx (category) → 403/404 (specific)
+    // At runtime, innermost boundary (specific) gets first shot at the error.
+    expect(boundaries.length).toBeGreaterThanOrEqual(4);
+
+    // error.tsx is outermost (no status filter)
+    expect(boundaries[0].fallback).toBe(ErrorComponent);
+    expect(boundaries[0].status).toBeUndefined();
+
+    // 4xx category is next
+    const categoryBoundary = boundaries.find((b) => b.status === 400);
+    expect(categoryBoundary?.fallback).toBe(FourXXComponent);
+
+    // Both specific status files present
+    const b403 = boundaries.find((b) => b.status === 403);
+    const b404 = boundaries.find((b) => b.status === 404);
+    expect(b403?.fallback).toBe(ForbiddenComponent);
+    expect(b404?.fallback).toBe(NotFoundComponent);
+
+    // Innermost element is the page
+    expect(node.type).toBe(PageComponent);
   });
 
   it('wraps with error.tsx outside status-code boundaries', async () => {
@@ -254,7 +374,7 @@ describe('error boundary wrapping', () => {
     );
 
     // error.tsx is outermost boundary (catches anything not matched by status files)
-    expect(result.tree.type).toBe('timber:error-boundary');
+    expect(result.tree.type).toBe(TimberErrorBoundary);
     expect(result.tree.props.fallbackComponent).toBe(ErrorComponent);
   });
 });

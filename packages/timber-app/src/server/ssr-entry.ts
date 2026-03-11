@@ -55,10 +55,11 @@ export interface NavContext {
  * 4. Inject metadata into <head> and client scripts before </body>
  * 5. Return Response with navContext.statusCode and navContext.responseHeaders
  *
- * DenySignal handling is done entirely in the RSC entry (rsc-entry.ts).
- * By the time handleSsr is called, the RSC stream already contains either
- * the normal page or a rendered error page — SSR doesn't need to detect
- * or handle DenySignal at all.
+ * The RSC stream is piped progressively — not buffered. For deny() outside
+ * Suspense, the RSC stream encodes an error in the shell region, causing
+ * renderToReadableStream to reject. The error propagates back to the RSC
+ * entry which renders the deny page. For deny() inside Suspense, the shell
+ * succeeds and the error streams as a React error boundary after flush.
  *
  * @param rscStream - The ReadableStream from the RSC environment
  * @param navContext - Per-request state passed across RSC→SSR boundary

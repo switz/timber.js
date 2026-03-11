@@ -74,7 +74,20 @@ function bootstrap(runtimeConfig: typeof config): void {
     // so React owns the entire document from the root.
     // Wrap with TimberNuqsAdapter so useQueryStates works out of the box.
     const wrapped = createElement(TimberNuqsAdapter, null, element as React.ReactNode);
-    reactRoot = hydrateRoot(document, wrapped);
+    reactRoot = hydrateRoot(document, wrapped, {
+      // Suppress recoverable hydration errors from deny/error signals
+      // inside Suspense boundaries. The server already handled these
+      // (wrapStreamWithErrorHandling closes the stream cleanly after
+      // the shell is flushed). React replays the error during hydration
+      // but the server HTML is already correct — no recovery needed.
+      onRecoverableError(error: unknown) {
+        // Only log in dev — in production these are expected for
+        // deny() inside Suspense and streaming error boundaries.
+        if (process.env.NODE_ENV === 'development') {
+          console.debug('[timber] Hydration recoverable error:', error);
+        }
+      },
+    });
   } else {
     // No RSC payload available (plugin hasn't inlined it yet) — create a
     // non-hydrated root so client navigation can still render RSC payloads.

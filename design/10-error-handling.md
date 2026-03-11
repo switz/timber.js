@@ -8,6 +8,19 @@ Errors in timber.js fall into one of two phases, and the phase determines how th
 
 **Render-phase errors** happen inside the React tree. These are caught by error boundaries — `error.tsx` for general errors, status-code files (`5xx.tsx`, `4xx.tsx`, `403.tsx`, `404.tsx`, etc.) for status-specific handling.
 
+### Error Boundary Architecture
+
+Error boundaries are injected per-segment during element tree construction, wrapping page content **inside** layouts (not outside). This means error fallbacks preserve the layout shell — headers, navigation, and sidebars remain visible when an error fires.
+
+Error boundaries are **not keyed** per-route — a route-based key would force React to unmount/remount the boundary subtree on every navigation, destroying layout client component state (counters, form inputs, etc.). Instead, `componentDidUpdate` resets the error state when `children` change on client-side navigation.
+
+The wrapping order per segment (innermost to outermost):
+1. Specific status files (`403.tsx`, `503.tsx`) — highest priority
+2. Category catch-alls (`4xx.tsx`, `5xx.tsx`)
+3. `error.tsx` — catches anything unmatched
+
+For initial HTML render, if `deny()` fires outside Suspense, the RSC `onError` callback captures it. Even though the error boundary may catch the error during SSR, the pipeline detects the deny signal and re-renders with `renderDenyPage` to produce the correct HTTP status code. The boundary is harmless in this case.
+
 ## `error.tsx`
 
 The general React error boundary. Co-located with route segments. Catches any unhandled error thrown during rendering of that segment and its children — both server-side render errors and client-side errors. Same role as Next.js's `error.tsx`.
@@ -139,6 +152,9 @@ deny(404, { resourceId: params.id })  // data passed as dangerouslyPassData prop
 **Inside `<Suspense>` (during hold window)** — promoted to pre-flush behavior. Same as outside Suspense.
 
 **Inside `<Suspense>` (after flush)** — status is already committed (200). The error boundary renders inline. Dev-mode warning is emitted. A `<meta name="robots" content="noindex">` tag is injected.
+
+> **Known limitation: deny() inside Suspense and hydration.**
+> Error boundaries are keyed per-route and wrap page content inside layouts. When `deny()` fires inside a `<Suspense>` boundary after the SSR shell flushes, the server-rendered HTML correctly shows the page shell with the Suspense fallback. However, during client hydration React retries the Suspense content, re-throws the deny signal, and the error boundary catches it — replacing the page shell with the error page. The net result is the error page renders with a 200 status. This matches Next.js behavior. A future improvement may suppress error boundary activation for errors already handled server-side in a Suspense boundary.
 
 ---
 

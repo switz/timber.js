@@ -242,20 +242,17 @@ describe('timber-dev-server plugin', () => {
       expect(next).not.toHaveBeenCalled();
     });
 
-    it('returns 404 for unmatched routes (passes to Vite fallback)', async () => {
+    it('returns 404 for unmatched routes', async () => {
       const rscHandler = vi.fn(
-        async () =>
-          new Response(null, {
-            status: 404,
-            headers: { 'X-Timber-No-Match': '1' },
-          })
+        async () => new Response(null, { status: 404 })
       );
 
       const { handler } = setupMiddleware({ rscHandler });
-      const { next } = await invokeHandler(handler, '/nonexistent');
+      const { next, res } = await invokeHandler(handler, '/nonexistent');
 
-      // 404 from pipeline → pass through to Vite's static serving
-      expect(next).toHaveBeenCalled();
+      // 404 from pipeline → served directly (renderNoMatch renders 404 page)
+      expect(next).not.toHaveBeenCalled();
+      expect(res.statusCode).toBe(404);
     });
 
     it('returns 302 for redirects', async () => {

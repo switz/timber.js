@@ -10,9 +10,11 @@
 /**
  * Inject HTML content before a closing tag in the stream.
  *
- * Buffers chunks until the target tag is found, then injects the
- * content immediately before it. If the tag is never found, the
- * buffer is flushed as-is.
+ * Streams chunks through immediately, keeping only a small trailing
+ * buffer (the length of the target tag minus one) to handle the case
+ * where the target tag spans two chunks. This preserves React's
+ * streaming behavior for Suspense boundaries — chunks are not held
+ * back waiting for the closing tag.
  */
 function createInjector(
   stream: ReadableStream<Uint8Array>,
@@ -24,7 +26,10 @@ function createInjector(
   const decoder = new TextDecoder();
   const encoder = new TextEncoder();
   let injected = false;
-  let buffer = '';
+  // Keep a trailing buffer just large enough that the target tag
+  // can't be split across the boundary without us seeing it.
+  let tail = '';
+  const tailLen = targetTag.length - 1;
 
   return stream.pipeThrough(
     new TransformStream<Uint8Array, Uint8Array>({
@@ -34,21 +39,29 @@ function createInjector(
           return;
         }
 
-        buffer += decoder.decode(chunk, { stream: true });
-        const tagIndex = buffer.indexOf(targetTag);
+        // Combine the trailing buffer with the new chunk
+        const text = tail + decoder.decode(chunk, { stream: true });
+        const tagIndex = text.indexOf(targetTag);
 
         if (tagIndex !== -1) {
-          const before = buffer.slice(0, tagIndex);
-          const after = buffer.slice(tagIndex);
+          const before = text.slice(0, tagIndex);
+          const after = text.slice(tagIndex);
           controller.enqueue(encoder.encode(before + content + after));
           injected = true;
-          buffer = '';
+          tail = '';
+        } else {
+          // Flush everything except the last tailLen chars (which might
+          // be the start of the target tag split across chunks).
+          const safeEnd = Math.max(0, text.length - tailLen);
+          if (safeEnd > 0) {
+            controller.enqueue(encoder.encode(text.slice(0, safeEnd)));
+          }
+          tail = text.slice(safeEnd);
         }
-        // Otherwise keep buffering — target tag may span chunks
       },
       flush(controller) {
-        if (!injected && buffer) {
-          controller.enqueue(encoder.encode(buffer));
+        if (!injected && tail) {
+          controller.enqueue(encoder.encode(tail));
         }
       },
     })
@@ -103,9 +116,12 @@ function escapeForScript(str: string): string {
 /**
  * Inline the RSC Flight payload into the HTML stream for client-side hydration.
  *
- * Reads the RSC stream, collects it as a UTF-8 string, and injects a script
- * before </body> that sets window.__TIMBER_RSC_PAYLOAD to the escaped text.
- * The browser entry wraps this in a ReadableStream for createFromReadableStream.
+ * Reads the RSC stream in the background while passing HTML chunks through
+ * immediately. When </body> is found, waits for the RSC stream to finish,
+ * then injects a script with the escaped payload before </body>.
+ *
+ * This preserves React's streaming behavior — Suspense boundary flushes
+ * are sent to the client as they resolve, not buffered until the end.
  *
  * If no rscStream is provided, returns the HTML stream unchanged.
  */
@@ -117,61 +133,74 @@ export function injectRscPayload(
 
   const encoder = new TextEncoder();
   const decoder = new TextDecoder();
+  const targetTag = '</body>';
+  const tailLen = targetTag.length - 1;
 
-  // We need to collect the RSC payload and inject it when we see </body>.
-  // Buffer the HTML stream until we find </body>, then inject the RSC script.
-  let htmlBuffer = '';
-  let htmlInjected = false;
+  let tail = '';
+  let injected = false;
   const rscChunks: string[] = [];
   let rscDone = false;
   const rscReader = rscStream.getReader();
   const rscDecoder = new TextDecoder();
 
-  // Read the RSC stream to completion in the background
+  // Read the RSC stream to completion in the background.
+  // Errors are caught to prevent unhandled promise rejections —
+  // if the RSC stream errors (e.g. the tee'd source is cancelled),
+  // we still produce valid HTML (just without the inline RSC payload).
   const rscPromise = (async () => {
-    for (;;) {
-      const { done, value } = await rscReader.read();
-      if (done) break;
-      rscChunks.push(rscDecoder.decode(value, { stream: true }));
+    try {
+      for (;;) {
+        const { done, value } = await rscReader.read();
+        if (done) break;
+        rscChunks.push(rscDecoder.decode(value, { stream: true }));
+      }
+      const final = rscDecoder.decode();
+      if (final) rscChunks.push(final);
+    } catch {
+      // RSC stream errored — proceed with whatever chunks we collected.
     }
-    // Flush any remaining bytes from the streaming decoder
-    const final = rscDecoder.decode();
-    if (final) rscChunks.push(final);
     rscDone = true;
   })();
 
   return htmlStream.pipeThrough(
     new TransformStream<Uint8Array, Uint8Array>({
       async transform(chunk, controller) {
-        if (htmlInjected) {
+        if (injected) {
           controller.enqueue(chunk);
           return;
         }
 
-        htmlBuffer += decoder.decode(chunk, { stream: true });
-        const tagIndex = htmlBuffer.indexOf('</body>');
+        const text = tail + decoder.decode(chunk, { stream: true });
+        const tagIndex = text.indexOf(targetTag);
 
         if (tagIndex !== -1) {
           // Wait for RSC stream to complete before injecting
           if (!rscDone) await rscPromise;
 
           const rscText = escapeForScript(rscChunks.join(''));
-
           const script =
             '<script>' +
             `window.__TIMBER_RSC_PAYLOAD='${rscText}'` +
             '</script>';
 
-          const before = htmlBuffer.slice(0, tagIndex);
-          const after = htmlBuffer.slice(tagIndex);
+          const before = text.slice(0, tagIndex);
+          const after = text.slice(tagIndex);
           controller.enqueue(encoder.encode(before + script + after));
-          htmlInjected = true;
-          htmlBuffer = '';
+          injected = true;
+          tail = '';
+        } else {
+          // Pass through everything except the trailing chars that
+          // might be the start of </body> split across chunks.
+          const safeEnd = Math.max(0, text.length - tailLen);
+          if (safeEnd > 0) {
+            controller.enqueue(encoder.encode(text.slice(0, safeEnd)));
+          }
+          tail = text.slice(safeEnd);
         }
       },
       async flush(controller) {
-        if (!htmlInjected && htmlBuffer) {
-          controller.enqueue(encoder.encode(htmlBuffer));
+        if (!injected && tail) {
+          controller.enqueue(encoder.encode(tail));
         }
       },
     })

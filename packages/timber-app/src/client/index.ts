@@ -43,3 +43,7 @@ export { useParams, setCurrentParams } from './use-params';
 
 // Query states (URL-synced search params)
 export { useQueryStates, bindUseQueryStates } from './use-query-states';
+
+// Error boundary (framework-internal, used by tree-builder and rsc-entry)
+export { TimberErrorBoundary } from './error-boundary';
+export type { TimberErrorBoundaryProps } from './error-boundary';

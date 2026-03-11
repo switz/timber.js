@@ -164,14 +164,6 @@ function createTimberMiddleware(server: ViteDevServer, projectRoot: string) {
       // Run the full pipeline
       const webResponse = await handler(webRequest);
 
-      // If no route matched (X-Timber-No-Match header), pass through to
-      // Vite's fallback for static files / SPA fallback. Route-level 404s
-      // (from deny(404)) are served directly as real 404 responses.
-      if (webResponse.status === 404 && webResponse.headers.get('X-Timber-No-Match')) {
-        next();
-        return;
-      }
-
       // Convert Web Response → Node ServerResponse
       await sendWebResponse(res, webResponse);
     } catch (error) {

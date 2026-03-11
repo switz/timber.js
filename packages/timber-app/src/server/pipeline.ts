@@ -66,6 +66,8 @@ export interface PipelineConfig {
   matchRoute: RouteMatcher;
   /** Renderer — produces the final Response for a matched route. */
   render: RouteRenderer;
+  /** Renderer for no-match 404 — renders 404.tsx in root layout. */
+  renderNoMatch?: (req: Request, responseHeaders: Headers) => Response | Promise<Response>;
   /** Early hints emitter — fires 103 hints after route match, before middleware. */
   earlyHints?: EarlyHintsEmitter;
   /** Whether to strip trailing slashes during canonicalization. Default: true. */
@@ -227,12 +229,13 @@ export function createPipeline(config: PipelineConfig): (req: Request) => Promis
     // Stage 2: Route matching
     const match = matchRoute(canonicalPathname);
     if (!match) {
-      // X-Timber-No-Match signals "no route found" to the dev server,
-      // distinguishing it from a 404 produced by deny() during render.
-      return new Response(null, {
-        status: 404,
-        headers: { 'X-Timber-No-Match': '1' },
-      });
+      // No route matched — render 404.tsx in root layout if available,
+      // otherwise fall back to a bare 404 Response.
+      if (config.renderNoMatch) {
+        const responseHeaders = new Headers();
+        return config.renderNoMatch(req, responseHeaders);
+      }
+      return new Response(null, { status: 404 });
     }
 
     // Stage 3: 103 Early Hints (before middleware, after match)

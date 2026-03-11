@@ -34,9 +34,10 @@ import { createRouteMatcher } from './route-matcher.js';
 import type { ManifestSegmentNode } from './route-matcher.js';
 import { resolveMetadata, renderMetadataToElements } from './metadata.js';
 import type { Metadata } from './types.js';
-import { DenySignal } from './primitives.js';
+import { DenySignal, RenderError } from './primitives.js';
 import { buildClientScripts } from './html-injectors.js';
-import { resolveManifestStatusFile } from './manifest-status-resolver.js';
+import { renderDenyPage, renderDenyPageAsRsc } from './deny-renderer.js';
+import type { LayoutEntry } from './deny-renderer.js';
 import {
   collectRouteCss,
   collectRouteFonts,
@@ -48,10 +49,10 @@ import {
   buildModulepreloadTags,
 } from './build-manifest.js';
 import type { BuildManifest } from './build-manifest.js';
-
 import type { NavContext } from './ssr-entry.js';
 import { resolveSlotElement } from './slot-resolver.js';
 import { SegmentProvider } from '../client/segment-context.js';
+import { TimberErrorBoundary } from '../client/error-boundary.js';
 
 /**
  * Create a debug channel sink that discards all debug data.
@@ -107,21 +108,25 @@ function createRequestHandler(manifest: typeof routeManifest, runtimeConfig: typ
     render: async (req: Request, match: RouteMatch, responseHeaders: Headers) => {
       return renderRoute(req, match, responseHeaders, scriptsHtml);
     },
-    onDevLog: isDev && devLogMode !== 'quiet'
-      ? (emitter: DevLogEmitter) => {
-          const collector = createRequestCollector({ mode: devLogMode, slowPhaseMs });
-          emitter.on(collector.collect);
-          // Subscribe to request-end to flush formatted output to stderr.
-          emitter.on((event) => {
-            if (event.type === 'request-end') {
-              const output = collector.format(devLogMode);
-              if (output) {
-                process.stderr.write(output);
+    renderNoMatch: async (req: Request, responseHeaders: Headers) => {
+      return renderNoMatchPage(req, manifest.root, responseHeaders, scriptsHtml);
+    },
+    onDevLog:
+      isDev && devLogMode !== 'quiet'
+        ? (emitter: DevLogEmitter) => {
+            const collector = createRequestCollector({ mode: devLogMode, slowPhaseMs });
+            emitter.on(collector.collect);
+            // Subscribe to request-end to flush formatted output to stderr.
+            emitter.on((event) => {
+              if (event.type === 'request-end') {
+                const output = collector.format(devLogMode);
+                if (output) {
+                  process.stderr.write(output);
+                }
               }
-            }
-          });
-        }
-      : undefined,
+            });
+          }
+        : undefined,
   };
 
   const pipeline = createPipeline(pipelineConfig);
@@ -269,36 +274,51 @@ async function renderRoute(
     searchParams: {},
   });
 
-  // Wrap in layouts from innermost to outermost.
-  // For each layout, resolve parallel slots and pass them as named props.
-  // Each layout is also wrapped with a SegmentProvider that records
-  // its position in the segment tree for useSelectedLayoutSegment hooks.
-  for (let i = layoutComponents.length - 1; i >= 0; i--) {
-    const { component, segment } = layoutComponents[i];
+  // Build a lookup of layout components by segment for O(1) access.
+  const layoutBySegment = new Map(
+    layoutComponents.map(({ component, segment }) => [segment, component])
+  );
 
-    // Resolve parallel slots for this layout
-    const slotProps: Record<string, unknown> = {};
-    const slotEntries = Object.entries(segment.slots ?? {});
-    for (const [slotName, slotNode] of slotEntries) {
-      slotProps[slotName] = await resolveSlotElement(
-        slotNode as ManifestSegmentNode,
-        match,
-        paramsPromise,
-        h
-      );
+  // Wrap from innermost (leaf) to outermost (root), processing every
+  // segment in the chain. Each segment may contribute:
+  //   1. Error boundaries (status files + error.tsx) — wrap children
+  //      INSIDE the layout so error fallbacks preserve the layout shell
+  //   2. Layout component — wraps children + parallel slots
+  //   3. SegmentProvider — records position for useSelectedLayoutSegment
+  for (let i = segments.length - 1; i >= 0; i--) {
+    const segment = segments[i];
+
+    // Wrap with error boundaries from this segment (inside layout).
+    // No key prop — error boundaries reset via componentDidUpdate when
+    // children change on client navigation. A route-based key would force
+    // React to unmount/remount the boundary (and its subtree) on every
+    // navigation, which breaks layout state preservation.
+    element = await wrapSegmentWithErrorBoundaries(segment, element, h);
+
+    // Wrap with layout if this segment has one
+    const layoutComponent = layoutBySegment.get(segment);
+    if (layoutComponent) {
+      // Resolve parallel slots for this layout
+      const slotProps: Record<string, unknown> = {};
+      const slotEntries = Object.entries(segment.slots ?? {});
+      for (const [slotName, slotNode] of slotEntries) {
+        slotProps[slotName] = await resolveSlotElement(
+          slotNode as ManifestSegmentNode,
+          match,
+          paramsPromise,
+          h
+        );
+      }
+
+      const segmentPath = segment.urlPath.split('/');
+      const parallelRouteKeys = Object.keys(segment.slots ?? {});
+
+      element = h(SegmentProvider, {
+        segments: segmentPath,
+        parallelRouteKeys,
+        children: h(layoutComponent, { ...slotProps, children: element }),
+      });
     }
-
-    // Compute URL segments from root to this layout for the SegmentProvider.
-    // urlPath is the cumulative path (e.g. "/dashboard/settings"), split into
-    // segments so the hook knows this layout's depth in the tree.
-    const segmentPath = segment.urlPath.split('/');
-    const parallelRouteKeys = Object.keys(segment.slots ?? {});
-
-    element = h(SegmentProvider, {
-      segments: segmentPath,
-      parallelRouteKeys,
-      children: h(component, { ...slotProps, children: element }),
-    });
   }
 
   // Render to RSC Flight stream.
@@ -310,7 +330,14 @@ async function renderRoute(
   // - reactOptions: passed to React (onError, signal, etc.)
   // - extraOptions: { onClientReference } for tracking client deps
   // The client manifest is created internally by the plugin.
+  //
+  // DenySignal detection: deny() in sync components throws during
+  // renderToReadableStream (caught in try/catch). deny() in async components
+  // fires onError during stream consumption. We capture it here and let
+  // SSR determine whether it was pre-flush (outside Suspense) or post-flush
+  // (inside Suspense) based on whether the SSR shell renders successfully.
   let denySignal: DenySignal | null = null;
+  let renderError: { error: unknown; status: number } | null = null;
   let rscStream: ReadableStream<Uint8Array>;
   try {
     rscStream = renderToReadableStream(
@@ -319,7 +346,25 @@ async function renderRoute(
         onError(error: unknown) {
           if (error instanceof DenySignal) {
             denySignal = error;
-            return;
+            // Return structured digest for client-side error boundaries
+            return JSON.stringify({ type: 'deny', status: error.status, data: error.data });
+          }
+          if (error instanceof RenderError) {
+            // Track the first render error for pre-flush handling
+            if (!renderError) {
+              renderError = { error, status: error.status };
+            }
+            logRenderError({ method: _req.method, path: new URL(_req.url).pathname, error });
+            return JSON.stringify({
+              type: 'render-error',
+              code: error.code,
+              data: error.digest.data,
+              status: error.status,
+            });
+          }
+          // Track unhandled errors for pre-flush handling (500 status)
+          if (!renderError) {
+            renderError = { error, status: 500 };
           }
           logRenderError({ method: _req.method, path: new URL(_req.url).pathname, error });
         },
@@ -342,34 +387,28 @@ async function renderRoute(
     }
   }
 
-  // For async server components, deny() throws during stream consumption
-  // (not stream creation). Read the RSC stream fully to trigger onError,
-  // then check denySignal. If deny was called, discard the buffered stream
-  // and render the error page. Otherwise, replay the buffer as a stream.
-  //
-  // This is safe for performance because the RSC stream encodes the full
-  // component tree — SSR must consume it entirely anyway.
-  if (!denySignal && rscStream!) {
-    rscStream = await bufferRscStream(rscStream, () => denySignal);
-  }
-
-  // If deny() was called during rendering, render the status-code error page
-  // (e.g. 404.tsx, 403.tsx) as a fresh RSC stream. All DenySignal handling
-  // stays in the RSC entry — SSR never needs to detect or parse deny errors.
+  // Synchronous deny — deny() in a non-async component throws during
+  // renderToReadableStream creation, caught in the try/catch above.
   if (denySignal) {
-    // For RSC payload requests, still render the deny page as RSC stream
-    // so the client can reconcile the error page into the existing DOM.
     if (isRscPayloadRequest(_req)) {
-      return renderDenyPageAsRsc(denySignal, segments, layoutComponents, responseHeaders);
+      return renderDenyPageAsRsc(
+        denySignal,
+        segments,
+        layoutComponents as LayoutEntry[],
+        responseHeaders,
+        createDebugChannelSink
+      );
     }
     return renderDenyPage(
       denySignal,
       segments,
-      layoutComponents,
+      layoutComponents as LayoutEntry[],
       _req,
       match,
       responseHeaders,
-      scriptsHtml
+      scriptsHtml,
+      createDebugChannelSink,
+      callSsr
     );
   }
 
@@ -388,15 +427,26 @@ async function renderRoute(
     });
   }
 
+  // Progressive streaming: pipe the RSC stream directly to SSR without
+  // buffering. This enables DeferredSuspense fallback visibility and
+  // proper Suspense streaming behavior.
+  //
+  // For async deny() (inside components that await before calling deny()),
+  // SSR will attempt to render the element tree progressively. Two outcomes:
+  //
+  // 1. deny() outside Suspense: the error appears in the RSC shell. SSR's
+  //    renderToReadableStream fails (rejects). We catch the failure, check
+  //    denySignal, and render the deny page with the correct status code.
+  //
+  // 2. deny() inside Suspense: the SSR shell succeeds (200 committed). The
+  //    error streams into the connection as a React error boundary. The
+  //    status is already committed — per design/05-streaming.md this is the
+  //    expected degraded behavior for deny inside Suspense.
+  //
   // Tee the RSC stream — one copy goes to SSR for HTML rendering,
   // the other is inlined in the HTML for client-side hydration.
-  // The client reads __TIMBER_RSC_PAYLOAD via createFromReadableStream
-  // to hydrate the React tree without a second server round-trip.
   const [ssrStream, inlineStream] = rscStream!.tee();
 
-  // Pass the RSC stream to the SSR entry for HTML rendering.
-  // The SSR entry runs in a separate Vite environment (separate module graph)
-  // and decodes client references using its own module map.
   const navContext: NavContext = {
     pathname: new URL(_req.url).pathname,
     params: match.params,
@@ -408,7 +458,114 @@ async function renderRoute(
     rscStream: inlineStream,
   };
 
-  return callSsr(ssrStream, navContext);
+  try {
+    return await callSsr(ssrStream, navContext);
+  } catch (ssrError) {
+    // SSR shell rendering failed — the error was outside Suspense
+    // (inside Suspense errors stream after shell succeeds).
+
+    // DenySignal outside Suspense → render deny page with correct 4xx status
+    if (denySignal) {
+      return renderDenyPage(
+        denySignal,
+        segments,
+        layoutComponents as LayoutEntry[],
+        _req,
+        match,
+        responseHeaders,
+        scriptsHtml,
+        createDebugChannelSink,
+        callSsr
+      );
+    }
+
+    // RenderError or unhandled throw outside Suspense → render error page
+    // with the correct status code (RenderError.status or 500).
+    // Note: renderError is assigned inside the onError callback — TS
+    // narrowing doesn't track mutations in callbacks, so we cast.
+    const trackedError = renderError as { error: unknown; status: number } | null;
+    if (trackedError) {
+      return renderErrorPage(
+        trackedError.error,
+        trackedError.status,
+        segments,
+        layoutComponents as LayoutEntry[],
+        _req,
+        match,
+        responseHeaders,
+        scriptsHtml
+      );
+    }
+
+    // No tracked error — rethrow (infrastructure failure)
+    throw ssrError;
+  }
+}
+
+/**
+ * Wrap an element with error boundaries from a segment's status files and error.tsx.
+ *
+ * Follows the same fallback chain as tree-builder.ts:
+ *   1. Specific status files (403.tsx, 503.tsx) — innermost, highest priority
+ *   2. Category catch-alls (4xx.tsx, 5xx.tsx)
+ *   3. error.tsx — outermost, catches anything unmatched
+ *
+ * These boundaries are essential for client-side navigation: when the client
+ * decodes the RSC stream, errors (deny/throw) must be caught by a boundary
+ * to render the error page UI. For initial HTML render, if a deny() fires
+ * outside Suspense, the pipeline detects denySignal and re-renders with
+ * renderDenyPage for the correct status code — the boundary is harmless.
+ */
+async function wrapSegmentWithErrorBoundaries(
+  segment: ManifestSegmentNode,
+  element: React.ReactElement,
+  h: (...args: unknown[]) => React.ReactElement
+): Promise<React.ReactElement> {
+  // Specific status files (innermost — highest priority at runtime)
+  if (segment.statusFiles) {
+    for (const [key, file] of Object.entries(segment.statusFiles)) {
+      if (key !== '4xx' && key !== '5xx') {
+        const status = parseInt(key, 10);
+        if (!isNaN(status)) {
+          const mod = (await file.load()) as Record<string, unknown>;
+          if (mod.default) {
+            element = h(TimberErrorBoundary, {
+              fallbackComponent: mod.default,
+              status,
+              children: element,
+            });
+          }
+        }
+      }
+    }
+
+    // Category catch-alls (4xx.tsx, 5xx.tsx)
+    for (const [key, file] of Object.entries(segment.statusFiles)) {
+      if (key === '4xx' || key === '5xx') {
+        const mod = (await file.load()) as Record<string, unknown>;
+        if (mod.default) {
+          element = h(TimberErrorBoundary, {
+            fallbackComponent: mod.default,
+            status: key === '4xx' ? 400 : 500,
+            children: element,
+          });
+        }
+      }
+    }
+  }
+
+  // error.tsx (outermost — catches anything not matched by status files)
+  if (segment.error) {
+    const mod = (await segment.error.load()) as Record<string, unknown>;
+    if (mod.default) {
+      element = h(TimberErrorBoundary, {
+        fallbackComponent: mod.default,
+        children: element,
+      });
+    }
+  }
+
+  return element;
 }
 
 /**
@@ -426,83 +583,142 @@ async function callSsr(
 }
 
 /**
- * Render a status-code error page for a DenySignal.
+ * Render a 404 page for URLs that don't match any route.
  *
- * Resolves the appropriate status-code file (e.g. 404.tsx, 403.tsx) from the
- * segment chain, renders it through a fresh RSC→SSR pipeline, and returns
- * an HTML Response with the correct status code.
- *
- * Falls back to a bare Response(null, { status }) when no status-code page
- * exists in the segment chain.
+ * Uses the root segment's 404.tsx (or 4xx.tsx / error.tsx fallback)
+ * wrapped in the root layout, via the same renderDenyPage path
+ * used for in-route deny() calls.
  */
-async function renderDenyPage(
-  deny: DenySignal,
+async function renderNoMatchPage(
+  req: Request,
+  rootSegment: ManifestSegmentNode,
+  responseHeaders: Headers,
+  scriptsHtml: string
+): Promise<Response> {
+  const segments = [rootSegment];
+
+  // Load root layout if present
+  const layoutComponents: LayoutEntry[] = [];
+  if (rootSegment.layout) {
+    const mod = (await rootSegment.layout.load()) as Record<string, unknown>;
+    if (mod.default) {
+      layoutComponents.push({
+        component: mod.default as (...args: unknown[]) => unknown,
+        segment: rootSegment,
+      });
+    }
+  }
+
+  const deny = new DenySignal(404);
+  const match: RouteMatch = { segments: segments as never, params: {} };
+
+  return renderDenyPage(
+    deny,
+    segments,
+    layoutComponents,
+    req,
+    match,
+    responseHeaders,
+    scriptsHtml,
+    createDebugChannelSink,
+    callSsr
+  );
+}
+
+/**
+ * Render an error page for unhandled throws or RenderError outside Suspense.
+ *
+ * Walks the segment chain from leaf to root looking for:
+ *   1. Specific status file (e.g. 503.tsx) matching the error's status
+ *   2. 5xx.tsx category catch-all
+ *   3. error.tsx
+ *
+ * Renders the found component with { error, digest, reset } props
+ * wrapped in layouts, with the correct HTTP status code.
+ */
+async function renderErrorPage(
+  error: unknown,
+  status: number,
   segments: ManifestSegmentNode[],
-  layoutComponents: Array<{
-    component: (...args: unknown[]) => unknown;
-    segment: ManifestSegmentNode;
-  }>,
+  layoutComponents: LayoutEntry[],
   req: Request,
   match: RouteMatch,
   responseHeaders: Headers,
   scriptsHtml: string
 ): Promise<Response> {
-  const resolution = resolveManifestStatusFile(deny.status, segments);
-
-  // No status-code page found — fall back to bare response
-  if (!resolution) {
-    return new Response(null, { status: deny.status, headers: responseHeaders });
-  }
-
-  // Load the status-code page component
-  const mod = (await resolution.file.load()) as Record<string, unknown>;
-  if (!mod.default) {
-    return new Response(null, { status: deny.status, headers: responseHeaders });
-  }
-
-  const ErrorPageComponent = mod.default as (...args: unknown[]) => unknown;
   const h = createElement as (...args: unknown[]) => React.ReactElement;
 
-  // 4xx status-code pages receive { status, dangerouslyPassData }
-  // per design/10-error-handling.md §"Status-Code File Props"
-  let element = h(ErrorPageComponent, {
-    status: deny.status,
-    dangerouslyPassData: deny.data,
+  // Walk segments from leaf to root to find the error component
+  let errorComponent: ((...args: unknown[]) => unknown) | null = null;
+  let foundSegmentIndex = -1;
+
+  for (let i = segments.length - 1; i >= 0; i--) {
+    const segment = segments[i];
+
+    // Check specific status file (e.g. 503.tsx)
+    if (segment.statusFiles) {
+      const statusKey = String(status);
+      const specificFile = segment.statusFiles[statusKey];
+      if (specificFile) {
+        const mod = (await specificFile.load()) as Record<string, unknown>;
+        if (mod.default) {
+          errorComponent = mod.default as (...args: unknown[]) => unknown;
+          foundSegmentIndex = i;
+          break;
+        }
+      }
+
+      // Check 5xx.tsx category catch-all
+      const categoryFile = segment.statusFiles['5xx'];
+      if (categoryFile && status >= 500 && status <= 599) {
+        const mod = (await categoryFile.load()) as Record<string, unknown>;
+        if (mod.default) {
+          errorComponent = mod.default as (...args: unknown[]) => unknown;
+          foundSegmentIndex = i;
+          break;
+        }
+      }
+    }
+
+    // Check error.tsx
+    if (segment.error) {
+      const mod = (await segment.error.load()) as Record<string, unknown>;
+      if (mod.default) {
+        errorComponent = mod.default as (...args: unknown[]) => unknown;
+        foundSegmentIndex = i;
+        break;
+      }
+    }
+  }
+
+  // No error component found — fall back to bare response
+  if (!errorComponent) {
+    return new Response(null, { status, headers: responseHeaders });
+  }
+
+  // Build digest prop for RenderError, null for unhandled errors
+  const digest =
+    error instanceof RenderError ? { code: error.code, data: error.digest.data } : null;
+
+  // Error pages receive { error, digest, reset } per design/10-error-handling.md
+  let element = h(errorComponent, {
+    error: error instanceof Error ? error : new Error(String(error)),
+    digest,
+    reset: undefined, // reset is only meaningful on the client
   });
 
-  // Wrap in layouts from root up to the segment where the status file was found.
-  // Compare by segment index in the original segments array, not layoutComponents index
-  // (not every segment has a layout, so indices don't align).
-  const resolvedSegments = new Set(segments.slice(0, resolution.segmentIndex + 1));
+  // Wrap in layouts from root up to the segment where the error file was found
+  const resolvedSegments = new Set(segments.slice(0, foundSegmentIndex + 1));
   const layoutsToWrap = layoutComponents.filter((lc) => resolvedSegments.has(lc.segment));
   for (let i = layoutsToWrap.length - 1; i >= 0; i--) {
     const { component } = layoutsToWrap[i];
     element = h(component, null, element);
   }
 
-  // Build head HTML from error page metadata (if any)
-  let headHtml = '';
-  if (mod.metadata) {
-    const resolvedMeta = resolveMetadata([{ metadata: mod.metadata as Metadata, isPage: true }]);
-    const headElements = renderMetadataToElements(resolvedMeta);
-    for (const el of headElements) {
-      if (el.tag === 'title' && el.content) {
-        headHtml += `<title>${escapeHtml(el.content)}</title>`;
-      } else if (el.attrs) {
-        const attrs = Object.entries(el.attrs)
-          .map(([k, v]) => `${k}="${escapeHtml(v)}"`)
-          .join(' ');
-        headHtml += `<${el.tag} ${attrs}>`;
-      }
-    }
-  }
-
-  // Render the error page to a fresh RSC Flight stream.
-  // The error page component should not call deny() — if it does,
-  // the error is logged and the stream may be incomplete.
+  // Render to fresh RSC Flight stream
   const rscStream = renderToReadableStream(element, {
-    onError(error: unknown) {
-      logRenderError({ method: req.method, path: new URL(req.url).pathname, error });
+    onError(err: unknown) {
+      logRenderError({ method: req.method, path: new URL(req.url).pathname, error: err });
     },
     debugChannel: createDebugChannelSink(),
   });
@@ -513,109 +729,14 @@ async function renderDenyPage(
     pathname: new URL(req.url).pathname,
     params: match.params,
     searchParams: Object.fromEntries(new URL(req.url).searchParams),
-    statusCode: deny.status,
+    statusCode: status,
     responseHeaders,
-    headHtml,
+    headHtml: '',
     scriptsHtml,
     rscStream: inlineStream,
   };
 
   return callSsr(ssrStream, navContext);
-}
-
-/**
- * Render a status-code error page as a raw RSC Flight stream for client navigation.
- *
- * Same as renderDenyPage but skips SSR — returns the RSC stream directly
- * so the client can reconcile the error page into the existing DOM.
- */
-async function renderDenyPageAsRsc(
-  deny: DenySignal,
-  segments: ManifestSegmentNode[],
-  layoutComponents: Array<{
-    component: (...args: unknown[]) => unknown;
-    segment: ManifestSegmentNode;
-  }>,
-  responseHeaders: Headers
-): Promise<Response> {
-  const resolution = resolveManifestStatusFile(deny.status, segments);
-
-  if (!resolution) {
-    responseHeaders.set('content-type', `${RSC_CONTENT_TYPE}; charset=utf-8`);
-    return new Response(null, { status: deny.status, headers: responseHeaders });
-  }
-
-  const mod = (await resolution.file.load()) as Record<string, unknown>;
-  if (!mod.default) {
-    responseHeaders.set('content-type', `${RSC_CONTENT_TYPE}; charset=utf-8`);
-    return new Response(null, { status: deny.status, headers: responseHeaders });
-  }
-
-  const ErrorPageComponent = mod.default as (...args: unknown[]) => unknown;
-  const h = createElement as (...args: unknown[]) => React.ReactElement;
-
-  let element = h(ErrorPageComponent, {
-    status: deny.status,
-    dangerouslyPassData: deny.data,
-  });
-
-  // Wrap in layouts up to the segment where the status file was found
-  const resolvedSegments = new Set(segments.slice(0, resolution.segmentIndex + 1));
-  const layoutsToWrap = layoutComponents.filter((lc) => resolvedSegments.has(lc.segment));
-  for (let i = layoutsToWrap.length - 1; i >= 0; i--) {
-    const { component } = layoutsToWrap[i];
-    element = h(component, null, element);
-  }
-
-  const rscStream = renderToReadableStream(element, {
-    onError(error: unknown) {
-      console.error('[timber] Error page RSC render error:', error);
-    },
-    debugChannel: createDebugChannelSink(),
-  });
-
-  responseHeaders.set('content-type', `${RSC_CONTENT_TYPE}; charset=utf-8`);
-  responseHeaders.set('Vary', 'Accept');
-  return new Response(rscStream, {
-    status: deny.status,
-    headers: responseHeaders,
-  });
-}
-
-/**
- * Buffer the RSC stream to detect deny() in async server components.
- *
- * For async components, deny() throws during stream consumption — the
- * onError callback fires only when React resolves the component. By
- * reading the full stream we give React a chance to report errors.
- *
- * Returns a new ReadableStream that replays the buffered chunks.
- * If getDeny() returns a signal, the caller discards this stream.
- */
-async function bufferRscStream(
-  stream: ReadableStream<Uint8Array>,
-  getDeny: () => DenySignal | null
-): Promise<ReadableStream<Uint8Array>> {
-  const reader = stream.getReader();
-  const chunks: Uint8Array[] = [];
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    chunks.push(value);
-    // Stop early if deny was detected — no need to read more
-    if (getDeny()) break;
-  }
-
-  // Replay buffered chunks as a new ReadableStream
-  return new ReadableStream<Uint8Array>({
-    start(controller) {
-      for (const chunk of chunks) {
-        controller.enqueue(chunk);
-      }
-      controller.close();
-    },
-  });
 }
 
 function escapeHtml(str: string): string {

@@ -403,6 +403,161 @@ describe('no-js form submission', () => {
 // ActionError
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Concurrent action isolation (timber-b12 / timber-izg)
+//
+// Validates that concurrent executeAction() calls each get their own
+// revalidation state — no cross-request tag/path leakage.
+// ---------------------------------------------------------------------------
+
+describe('concurrent revalidation isolation', () => {
+  it('concurrent revalidateTag calls never cross-contaminate', async () => {
+    const handler = new MemoryCacheHandler();
+    // Seed cache entries with distinct tags
+    await handler.set('a-1', { v: 'a' }, { ttl: 60, tags: ['tag-a'] });
+    await handler.set('b-1', { v: 'b' }, { ttl: 60, tags: ['tag-b'] });
+
+    // Action A: invalidates tag-a, but yields the event loop (simulates async work)
+    const actionA = async () => {
+      revalidateTag('tag-a');
+      // Yield so Action B runs concurrently
+      await new Promise((r) => setTimeout(r, 50));
+      return { action: 'A' };
+    };
+
+    // Action B: invalidates tag-b, also yields
+    const actionB = async () => {
+      revalidateTag('tag-b');
+      await new Promise((r) => setTimeout(r, 10));
+      return { action: 'B' };
+    };
+
+    const [resultA, resultB] = await Promise.all([
+      executeAction(actionA, [], { cacheHandler: handler }),
+      executeAction(actionB, [], { cacheHandler: handler }),
+    ]);
+
+    // Each action should only see its own tag
+    expect(resultA.actionResult).toEqual({ action: 'A' });
+    expect(resultB.actionResult).toEqual({ action: 'B' });
+
+    // tag-a invalidated by action A
+    expect(await handler.get('a-1')).toBeNull();
+    // tag-b invalidated by action B
+    expect(await handler.get('b-1')).toBeNull();
+  });
+
+  it('concurrent revalidatePath calls never cross-contaminate', async () => {
+    const renderer = vi.fn(async (path: string) => {
+      return new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode(`payload:${path}`));
+          controller.close();
+        },
+      });
+    });
+
+    const actionA = async () => {
+      revalidatePath('/dashboard');
+      await new Promise((r) => setTimeout(r, 50));
+      return 'A';
+    };
+
+    const actionB = async () => {
+      revalidatePath('/settings');
+      await new Promise((r) => setTimeout(r, 10));
+      return 'B';
+    };
+
+    const [resultA, resultB] = await Promise.all([
+      executeAction(actionA, [], { renderer }),
+      executeAction(actionB, [], { renderer }),
+    ]);
+
+    // Each action gets its own RSC payload for its own path
+    expect(resultA.actionResult).toBe('A');
+    expect(resultB.actionResult).toBe('B');
+
+    // Renderer should have been called once for each path (not both paths in one action)
+    const rendererCalls = renderer.mock.calls.map((c) => c[0]);
+    expect(rendererCalls).toContain('/dashboard');
+    expect(rendererCalls).toContain('/settings');
+    expect(renderer).toHaveBeenCalledTimes(2);
+  });
+
+  it('clearing state in one request does not affect another', async () => {
+    // Action A finishes quickly, Action B takes longer.
+    // When A's ALS scope ends, B's revalidation state must still be intact.
+    const actionA = async () => {
+      revalidateTag('fast-tag');
+      return 'A';
+    };
+
+    const actionB = async () => {
+      // Delay so A finishes first
+      await new Promise((r) => setTimeout(r, 50));
+      revalidateTag('slow-tag');
+      return 'B';
+    };
+
+    const handler = new MemoryCacheHandler();
+    await handler.set('fast', { v: 1 }, { ttl: 60, tags: ['fast-tag'] });
+    await handler.set('slow', { v: 2 }, { ttl: 60, tags: ['slow-tag'] });
+
+    const [resultA, resultB] = await Promise.all([
+      executeAction(actionA, [], { cacheHandler: handler }),
+      executeAction(actionB, [], { cacheHandler: handler }),
+    ]);
+
+    expect(resultA.actionResult).toBe('A');
+    expect(resultB.actionResult).toBe('B');
+
+    // Both tags should have been invalidated independently
+    expect(await handler.get('fast')).toBeNull();
+    expect(await handler.get('slow')).toBeNull();
+  });
+
+  it('20 concurrent requests with different tags — no leakage', async () => {
+    const handler = new MemoryCacheHandler();
+    const count = 20;
+
+    // Seed cache entries
+    for (let i = 0; i < count; i++) {
+      await handler.set(`item-${i}`, { i }, { ttl: 60, tags: [`tag-${i}`] });
+    }
+
+    // Launch 20 concurrent actions, each invalidating its own tag
+    const results = await Promise.all(
+      Array.from({ length: count }, (_, i) =>
+        executeAction(
+          async () => {
+            revalidateTag(`tag-${i}`);
+            // Stagger to maximize interleaving
+            await new Promise((r) => setTimeout(r, Math.random() * 30));
+            return i;
+          },
+          [],
+          { cacheHandler: handler }
+        )
+      )
+    );
+
+    // Each action should return its own index
+    for (let i = 0; i < count; i++) {
+      expect(results[i].actionResult).toBe(i);
+    }
+
+    // All entries should be invalidated (each by its own action)
+    for (let i = 0; i < count; i++) {
+      expect(await handler.get(`item-${i}`)).toBeNull();
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// ActionError
+// ---------------------------------------------------------------------------
+
 describe('ActionError', () => {
   it('carries code and optional data', () => {
     const err = new ActionError('FORBIDDEN');

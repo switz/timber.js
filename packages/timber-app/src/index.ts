@@ -1,5 +1,7 @@
 import type { Plugin, PluginOption } from 'vite';
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import react from '@vitejs/plugin-react';
 import { cacheTransformPlugin } from './plugins/cache-transform';
 import { timberContent } from './plugins/content';
@@ -106,6 +108,46 @@ function createPluginContext(config?: TimberUserConfig, root?: string): PluginCo
   };
 }
 
+/**
+ * Load timber.config.ts (or .js, .mjs) from the project root.
+ * Returns the config object or null if no config file is found.
+ */
+async function loadTimberConfigFile(root: string): Promise<TimberUserConfig | null> {
+  const configNames = ['timber.config.ts', 'timber.config.js', 'timber.config.mjs'];
+
+  for (const name of configNames) {
+    const configPath = join(root, name);
+    if (existsSync(configPath)) {
+      const mod = await import(pathToFileURL(configPath).href);
+      return (mod.default ?? mod) as TimberUserConfig;
+    }
+  }
+  return null;
+}
+
+/**
+ * Merge file-based config into ctx.config. Inline config (already in ctx.config)
+ * takes precedence — file config only fills in missing fields.
+ */
+function mergeFileConfig(ctx: PluginContext, fileConfig: TimberUserConfig): void {
+  const inline = ctx.config;
+
+  // For each top-level key, use inline value if present, otherwise file value
+  ctx.config = {
+    ...fileConfig,
+    ...inline,
+    // Deep merge for nested objects where both exist
+    ...(fileConfig.limits && inline.limits
+      ? { limits: { ...fileConfig.limits, ...inline.limits } }
+      : {}),
+    ...(fileConfig.dev && inline.dev ? { dev: { ...fileConfig.dev, ...inline.dev } } : {}),
+    ...(fileConfig.mdx && inline.mdx ? { mdx: { ...fileConfig.mdx, ...inline.mdx } } : {}),
+    ...(fileConfig.static && inline.static
+      ? { static: { ...fileConfig.static, ...inline.static } }
+      : {}),
+  };
+}
+
 function timberCache(_ctx: PluginContext): Plugin {
   return cacheTransformPlugin();
 }
@@ -114,12 +156,22 @@ export function timber(config?: TimberUserConfig): PluginOption[] {
   const ctx = createPluginContext(config);
   // Sync ctx.root and ctx.appDir with Vite's resolved root, which may
   // differ from process.cwd() when --config points to a subdirectory.
+  // Also loads timber.config.ts and merges it into ctx.config (inline config wins).
   const rootSync: Plugin = {
     name: 'timber-root-sync',
     configResolved(resolved) {
       ctx.root = resolved.root;
       ctx.appDir = join(resolved.root, 'app');
       ctx.dev = resolved.command === 'serve';
+    },
+    async buildStart() {
+      // Load timber.config.ts and merge into ctx.config.
+      // Inline config (from vite.config.ts) takes precedence over file config.
+      // This runs before other plugins' buildStart (plugin ordering in the array).
+      const fileConfig = await loadTimberConfigFile(ctx.root);
+      if (fileConfig) {
+        mergeFileConfig(ctx, fileConfig);
+      }
     },
   };
   // @vitejs/plugin-rsc handles:

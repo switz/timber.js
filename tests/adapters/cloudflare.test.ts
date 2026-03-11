@@ -39,10 +39,10 @@ describe('TimberPlatformAdapter interface', () => {
     expect(typeof adapter.waitUntil).toBe('function');
   });
 
-  it('defines optional preview method', () => {
+  it('defines preview method using wrangler dev --local', () => {
     const adapter = cloudflare();
-    // Cloudflare adapter doesn't provide preview — falls back to built-in
-    expect(adapter.preview).toBeUndefined();
+    expect(adapter.preview).toBeDefined();
+    expect(typeof adapter.preview).toBe('function');
   });
 });
 

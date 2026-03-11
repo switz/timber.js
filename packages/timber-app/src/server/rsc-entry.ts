@@ -162,11 +162,27 @@ function buildSegmentInfo(
     layoutComponents.map(({ component, segment }) => [segment, component])
   );
 
-  return segments.map((segment) => {
+  // Deduplicate by path — route groups are transparent and share their
+  // parent's urlPath. When a group has its own layout, update the entry
+  // to reflect the group's async status (the layout is what matters for
+  // segment diffing). Without dedup, the state tree would contain
+  // duplicate paths that break the server's skip logic.
+  const byPath = new Map<string, { path: string; isAsync: boolean }>();
+
+  for (const segment of segments) {
     const component = layoutBySegment.get(segment);
     const isAsync = component?.constructor?.name === 'AsyncFunction';
-    return { path: segment.urlPath, isAsync };
-  });
+
+    const existing = byPath.get(segment.urlPath);
+    if (!existing) {
+      byPath.set(segment.urlPath, { path: segment.urlPath, isAsync });
+    } else if (component) {
+      // Group with a layout overrides the parent entry's async status
+      existing.isAsync = isAsync;
+    }
+  }
+
+  return Array.from(byPath.values());
 }
 
 /**

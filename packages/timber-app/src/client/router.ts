@@ -3,6 +3,7 @@
 
 import { SegmentCache, PrefetchCache } from './segment-cache';
 import { HistoryStack } from './history';
+import type { HeadElement } from './head';
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -48,6 +49,14 @@ export interface RouterDeps {
    * In tests, this runs the callback synchronously.
    */
   afterPaint?: (callback: () => void) => void;
+  /** Apply resolved head elements (title, meta tags) to the DOM after navigation. */
+  applyHead?: (elements: HeadElement[]) => void;
+}
+
+/** Result of fetching an RSC payload — includes head elements from X-Timber-Head header. */
+interface FetchResult {
+  payload: unknown;
+  headElements: HeadElement[] | null;
 }
 
 export interface RouterInstance {
@@ -109,27 +118,57 @@ function buildRscHeaders(stateTree: { segments: string[] } | undefined): Record<
 }
 
 /**
+ * Extract head elements from the X-Timber-Head response header.
+ * Returns null if the header is missing or malformed.
+ */
+function extractHeadElements(response: Response): HeadElement[] | null {
+  const header = response.headers.get('X-Timber-Head');
+  if (!header) return null;
+  try {
+    return JSON.parse(decodeURIComponent(header));
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Fetch an RSC payload from the server. If a decodeRsc function is provided,
  * the response is decoded into a React element tree via createFromFetch.
  * Otherwise, the raw response text is returned (test mode).
+ *
+ * Also extracts head elements from the X-Timber-Head response header
+ * so the client can update document.title and <meta> tags after navigation.
  */
 async function fetchRscPayload(
   url: string,
   deps: RouterDeps,
   stateTree?: { segments: string[] }
-): Promise<unknown> {
+): Promise<FetchResult> {
   const rscUrl = appendRscParam(url);
   const headers = buildRscHeaders(stateTree);
   if (deps.decodeRsc) {
     // Production path: use createFromFetch for streaming RSC decoding.
     // createFromFetch takes a Promise<Response> and progressively parses
     // the RSC Flight stream as chunks arrive.
+    //
+    // Intercept the response to read X-Timber-Head before createFromFetch
+    // consumes the body. Reading headers does NOT consume the body stream.
     const fetchPromise = deps.fetch(rscUrl, { headers });
-    return deps.decodeRsc(fetchPromise);
+    let headElements: HeadElement[] | null = null;
+    const wrappedPromise = fetchPromise.then((response) => {
+      headElements = extractHeadElements(response);
+      return response;
+    });
+    // Await so headElements is populated before we return.
+    // Also await the decoded payload — createFromFetch returns a thenable
+    // that resolves to the React element tree.
+    await wrappedPromise;
+    const payload = await deps.decodeRsc(wrappedPromise);
+    return { payload, headElements };
   }
   // Test/fallback path: return raw text
   const response = await deps.fetch(rscUrl, { headers });
-  return response.text();
+  return { payload: await response.text(), headElements: extractHeadElements(response) };
 }
 
 // ─── Router Factory ──────────────────────────────────────────────
@@ -162,6 +201,13 @@ export function createRouter(deps: RouterDeps): RouterInstance {
     }
   }
 
+  /** Apply head elements (title, meta tags) to the DOM if available. */
+  function applyHead(elements: HeadElement[] | null | undefined): void {
+    if (elements && deps.applyHead) {
+      deps.applyHead(elements);
+    }
+  }
+
   /** Run a callback after the next paint (after React commit). */
   function afterPaint(callback: () => void): void {
     if (deps.afterPaint) {
@@ -186,12 +232,12 @@ export function createRouter(deps: RouterDeps): RouterInstance {
 
     try {
       // Check prefetch cache first
-      let payload = prefetchCache.consume(url);
+      let result = prefetchCache.consume(url);
 
-      if (payload === undefined) {
+      if (result === undefined) {
         // Fetch RSC payload with state tree for partial rendering
         const stateTree = segmentCache.serializeStateTree();
-        payload = await fetchRscPayload(url, deps, stateTree);
+        result = await fetchRscPayload(url, deps, stateTree);
       }
 
       // Update the browser history — replace mode overwrites the current entry
@@ -202,13 +248,20 @@ export function createRouter(deps: RouterDeps): RouterInstance {
       }
 
       // Store the payload in the history stack
-      historyStack.push(url, { payload, scrollY: 0 });
+      historyStack.push(url, {
+        payload: result.payload,
+        scrollY: 0,
+        headElements: result.headElements,
+      });
 
       // Render the decoded RSC tree into the DOM.
       // React's render() on the document root can cause the browser to
       // reset scroll to 0 during DOM reconciliation. We must actively
       // restore scroll after paint when scroll={false}.
-      renderPayload(payload);
+      renderPayload(result.payload);
+
+      // Update document.title and <meta> tags with the new page's metadata
+      applyHead(result.headElements);
 
       afterPaint(() => {
         if (scroll) {
@@ -229,16 +282,18 @@ export function createRouter(deps: RouterDeps): RouterInstance {
 
     try {
       // No state tree sent — server renders the complete RSC payload
-      const payload = await fetchRscPayload(currentUrl, deps);
+      const result = await fetchRscPayload(currentUrl, deps);
 
       // Update the history entry with the fresh payload
       historyStack.push(currentUrl, {
-        payload,
+        payload: result.payload,
         scrollY: deps.getScrollY(),
+        headElements: result.headElements,
       });
 
-      // Render the fresh RSC tree
-      renderPayload(payload);
+      // Render the fresh RSC tree and update head elements
+      renderPayload(result.payload);
+      applyHead(result.headElements);
     } finally {
       setPending(false);
     }
@@ -250,6 +305,7 @@ export function createRouter(deps: RouterDeps): RouterInstance {
     if (entry && entry.payload !== null) {
       // Replay cached payload — no server roundtrip
       renderPayload(entry.payload);
+      applyHead(entry.headElements);
       afterPaint(() => deps.scrollTo(0, entry.scrollY));
     } else {
       // No cached payload — fetch from server.
@@ -260,9 +316,14 @@ export function createRouter(deps: RouterDeps): RouterInstance {
       setPending(true);
       try {
         const stateTree = segmentCache.serializeStateTree();
-        const payload = await fetchRscPayload(url, deps, stateTree);
-        historyStack.push(url, { payload, scrollY: savedScrollY });
-        renderPayload(payload);
+        const result = await fetchRscPayload(url, deps, stateTree);
+        historyStack.push(url, {
+          payload: result.payload,
+          scrollY: savedScrollY,
+          headElements: result.headElements,
+        });
+        renderPayload(result.payload);
+        applyHead(result.headElements);
         afterPaint(() => deps.scrollTo(0, savedScrollY));
       } finally {
         setPending(false);
@@ -282,8 +343,8 @@ export function createRouter(deps: RouterDeps): RouterInstance {
     // Fire-and-forget fetch
     const stateTree = segmentCache.serializeStateTree();
     void fetchRscPayload(url, deps, stateTree).then(
-      (payload) => {
-        prefetchCache.set(url, payload);
+      (result) => {
+        prefetchCache.set(url, result);
       },
       () => {
         // Prefetch failure is non-fatal — navigation will fetch fresh

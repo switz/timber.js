@@ -1,7 +1,15 @@
 // Segment Cache — stores the mounted segment tree and prefetched payloads
 // See design/19-client-navigation.md for architecture details.
 
+import type { HeadElement } from './head';
+
 // ─── Types ───────────────────────────────────────────────────────
+
+/** A prefetched RSC result with optional head elements for metadata updates. */
+export interface PrefetchResult {
+  payload: unknown;
+  headElements: HeadElement[] | null;
+}
 
 /**
  * A node in the client-side segment tree. Each node represents a mounted
@@ -83,7 +91,7 @@ function collectSyncSegments(node: SegmentNode, out: string[]): void {
 // ─── Prefetch Cache ──────────────────────────────────────────────
 
 interface PrefetchEntry {
-  payload: unknown;
+  result: PrefetchResult;
   expiresAt: number;
 }
 
@@ -99,29 +107,29 @@ export class PrefetchCache {
   private static readonly TTL_MS = 30_000;
   private entries = new Map<string, PrefetchEntry>();
 
-  set(url: string, payload: unknown): void {
+  set(url: string, result: PrefetchResult): void {
     this.entries.set(url, {
-      payload,
+      result,
       expiresAt: Date.now() + PrefetchCache.TTL_MS,
     });
   }
 
-  get(url: string): unknown | undefined {
+  get(url: string): PrefetchResult | undefined {
     const entry = this.entries.get(url);
     if (!entry) return undefined;
     if (Date.now() >= entry.expiresAt) {
       this.entries.delete(url);
       return undefined;
     }
-    return entry.payload;
+    return entry.result;
   }
 
   /** Get and remove the entry (used when navigation consumes a prefetch) */
-  consume(url: string): unknown | undefined {
-    const payload = this.get(url);
-    if (payload !== undefined) {
+  consume(url: string): PrefetchResult | undefined {
+    const result = this.get(url);
+    if (result !== undefined) {
       this.entries.delete(url);
     }
-    return payload;
+    return result;
   }
 }

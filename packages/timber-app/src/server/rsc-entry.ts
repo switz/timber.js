@@ -422,6 +422,14 @@ async function renderRoute(
     // for the same URL. The client appends ?_rsc=<id> as a cache-bust,
     // but Vary ensures correct behavior even without the query param.
     responseHeaders.set('Vary', 'Accept');
+
+    // Send resolved head elements so the client can update document.title
+    // and <meta> tags after SPA navigation. See design/16-metadata.md.
+    const encoded = encodeURIComponent(JSON.stringify(headElements));
+    if (encoded.length <= 4096) {
+      responseHeaders.set('X-Timber-Head', encoded);
+    }
+
     return new Response(rscStream!, {
       status: 200,
       headers: responseHeaders,

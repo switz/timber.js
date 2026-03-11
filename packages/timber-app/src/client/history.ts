@@ -1,6 +1,8 @@
 // History Stack — stores RSC payloads by URL for instant back/forward navigation
 // See design/19-client-navigation.md § History Stack
 
+import type { HeadElement } from './head';
+
 // ─── Types ───────────────────────────────────────────────────────
 
 export interface HistoryEntry {
@@ -8,6 +10,8 @@ export interface HistoryEntry {
   payload: unknown;
   /** The scroll position when the user navigated away from this page */
   scrollY: number;
+  /** Resolved head elements for this page (title, meta tags). Null for SSR'd initial page. */
+  headElements?: HeadElement[] | null;
 }
 
 // ─── History Stack ───────────────────────────────────────────────

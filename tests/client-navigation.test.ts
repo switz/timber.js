@@ -123,17 +123,19 @@ describe('PrefetchCache', () => {
     vi.useRealTimers();
   });
 
-  it('stores and retrieves a prefetched payload', () => {
-    prefetchCache.set('/projects', 'payload-data');
-    expect(prefetchCache.get('/projects')).toBe('payload-data');
+  it('stores and retrieves a prefetched result', () => {
+    const result = { payload: 'payload-data', headElements: null };
+    prefetchCache.set('/projects', result);
+    expect(prefetchCache.get('/projects')).toEqual(result);
   });
 
   it('prefetch cache 30s TTL', () => {
-    prefetchCache.set('/projects', 'payload-data');
+    const result = { payload: 'payload-data', headElements: null };
+    prefetchCache.set('/projects', result);
 
     // Still available at 29s
     vi.advanceTimersByTime(29_000);
-    expect(prefetchCache.get('/projects')).toBe('payload-data');
+    expect(prefetchCache.get('/projects')).toEqual(result);
 
     // Expired at 30s
     vi.advanceTimersByTime(1_000);
@@ -145,8 +147,9 @@ describe('PrefetchCache', () => {
   });
 
   it('consumes entry (removes after get when consume=true)', () => {
-    prefetchCache.set('/projects', 'payload-data');
-    expect(prefetchCache.consume('/projects')).toBe('payload-data');
+    const result = { payload: 'payload-data', headElements: null };
+    prefetchCache.set('/projects', result);
+    expect(prefetchCache.consume('/projects')).toEqual(result);
     expect(prefetchCache.get('/projects')).toBeUndefined();
   });
 });
@@ -154,6 +157,7 @@ describe('PrefetchCache', () => {
 // ─── History Stack ───────────────────────────────────────────────
 
 import { HistoryStack, type HistoryEntry } from '../packages/timber-app/src/client/history';
+import type { HeadElement } from '../packages/timber-app/src/client/head';
 
 describe('HistoryStack', () => {
   let stack: HistoryStack;
@@ -317,7 +321,7 @@ describe('Router', () => {
 
     it('uses prefetch cache if available', async () => {
       // Prime the prefetch cache
-      router.prefetchCache.set('/projects', 'prefetched-payload');
+      router.prefetchCache.set('/projects', { payload: 'prefetched-payload', headElements: null });
 
       await router.navigate('/projects');
 
@@ -544,7 +548,7 @@ describe('Router', () => {
     });
 
     it('does not prefetch if already in prefetch cache', () => {
-      router.prefetchCache.set('/projects', 'already-cached');
+      router.prefetchCache.set('/projects', { payload: 'already-cached', headElements: null });
 
       router.prefetch('/projects');
 
@@ -568,6 +572,119 @@ describe('Router', () => {
       await vi.waitFor(() => {
         expect(mockFetch).toHaveBeenCalled();
       });
+    });
+  });
+
+  describe('head metadata on navigation', () => {
+    let routerWithHead: RouterInstance;
+    let mockApplyHead: ReturnType<typeof vi.fn>;
+
+    beforeEach(() => {
+      mockApplyHead = vi.fn();
+
+      routerWithHead = createRouter({
+        fetch: mockFetch,
+        pushState: mockPushState,
+        replaceState: mockReplaceState,
+        scrollTo: mockScrollTo,
+        getCurrentUrl: () => '/dashboard',
+        getScrollY: () => 0,
+        applyHead: mockApplyHead as (elements: unknown[]) => void,
+      });
+    });
+
+    function responseWithHead(body: string, headElements: unknown[]): Response {
+      const encoded = encodeURIComponent(JSON.stringify(headElements));
+      return new Response(body, {
+        headers: {
+          'content-type': 'text/x-component',
+          'X-Timber-Head': encoded,
+        },
+      });
+    }
+
+    it('calls applyHead with decoded head elements on navigate', async () => {
+      const elements: HeadElement[] = [
+        { tag: 'title', content: 'About | Site' },
+        { tag: 'meta', attrs: { name: 'description', content: 'About page' } },
+      ];
+      mockFetch.mockResolvedValueOnce(responseWithHead('payload', elements));
+
+      await routerWithHead.navigate('/about');
+
+      expect(mockApplyHead).toHaveBeenCalledWith(elements);
+    });
+
+    it('calls applyHead on refresh', async () => {
+      const elements: HeadElement[] = [{ tag: 'title', content: 'Dashboard | Site' }];
+      mockFetch.mockResolvedValueOnce(responseWithHead('payload', elements));
+
+      await routerWithHead.refresh();
+
+      expect(mockApplyHead).toHaveBeenCalledWith(elements);
+    });
+
+    it('replays cached headElements on popstate', async () => {
+      const elements: HeadElement[] = [{ tag: 'title', content: 'Cached Page' }];
+      routerWithHead.historyStack.push('/projects', {
+        payload: 'cached',
+        scrollY: 0,
+        headElements: elements,
+      });
+
+      await routerWithHead.handlePopState('/projects');
+
+      expect(mockApplyHead).toHaveBeenCalledWith(elements);
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('does not call applyHead when headElements is null (initial SSR page)', async () => {
+      routerWithHead.historyStack.push('/', {
+        payload: 'initial',
+        scrollY: 0,
+        headElements: null,
+      });
+
+      await routerWithHead.handlePopState('/');
+
+      expect(mockApplyHead).not.toHaveBeenCalled();
+    });
+
+    it('stores headElements in history stack after navigate', async () => {
+      const elements: HeadElement[] = [{ tag: 'title', content: 'About | Site' }];
+      mockFetch.mockResolvedValueOnce(responseWithHead('payload', elements));
+
+      await routerWithHead.navigate('/about');
+
+      const entry = routerWithHead.historyStack.get('/about');
+      expect(entry?.headElements).toEqual(elements);
+    });
+
+    it('skips applyHead when X-Timber-Head header is missing', async () => {
+      mockFetch.mockResolvedValueOnce(
+        new Response('payload', {
+          headers: { 'content-type': 'text/x-component' },
+        })
+      );
+
+      await routerWithHead.navigate('/about');
+
+      expect(mockApplyHead).not.toHaveBeenCalled();
+    });
+
+    it('skips applyHead when X-Timber-Head header is malformed', async () => {
+      mockFetch.mockResolvedValueOnce(
+        new Response('payload', {
+          headers: {
+            'content-type': 'text/x-component',
+            'X-Timber-Head': 'not-valid-json',
+          },
+        })
+      );
+
+      await routerWithHead.navigate('/about');
+
+      expect(mockApplyHead).not.toHaveBeenCalled();
     });
   });
 });

@@ -28,6 +28,7 @@ import { hydrateRoot, createRoot, type Root } from 'react-dom/client';
 import { createFromReadableStream, createFromFetch } from '@vitejs/plugin-rsc/browser';
 import { createRouter } from './router.js';
 import type { RouterDeps, RouterInstance } from './router.js';
+import { applyHeadElements } from './head.js';
 import { setGlobalRouter } from './router-ref.js';
 import { TimberNuqsAdapter } from './nuqs-adapter.js';
 
@@ -197,6 +198,10 @@ function bootstrap(runtimeConfig: typeof config): void {
         requestAnimationFrame(callback);
       });
     },
+
+    // Apply resolved head elements (title, meta tags) to the DOM after
+    // SPA navigation. See design/16-metadata.md.
+    applyHead: applyHeadElements,
   };
 
   const router = createRouter(deps);
@@ -208,6 +213,7 @@ function bootstrap(runtimeConfig: typeof config): void {
   router.historyStack.push(window.location.href, {
     payload: initialElement,
     scrollY: 0,
+    headElements: null, // SSR already set the correct head
   });
 
   // Register popstate handler for back/forward navigation

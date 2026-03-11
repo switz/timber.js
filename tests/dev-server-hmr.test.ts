@@ -315,6 +315,7 @@ describe('dev server HMR wiring', () => {
           statusCode: 200,
           headersSent: false,
           setHeader: vi.fn(),
+          flushHeaders: vi.fn(),
           write: vi.fn(),
           end: vi.fn(),
         };

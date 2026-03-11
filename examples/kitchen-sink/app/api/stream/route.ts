@@ -14,7 +14,7 @@ export async function GET(ctx: RouteContext) {
           clearInterval(interval);
           controller.close();
         }
-      }, 50);
+      }, 100);
 
       ctx.req.signal.addEventListener('abort', () => {
         clearInterval(interval);

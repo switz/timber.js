@@ -268,11 +268,17 @@ async function sendWebResponse(nodeRes: ServerResponse, webResponse: Response): 
     return;
   }
 
+  // Flush headers immediately so the client can start processing
+  // the response (critical for SSE and other streaming responses).
+  nodeRes.flushHeaders();
+
   const reader = webResponse.body.getReader();
   try {
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
+      // write() returns false when the kernel buffer is full, but we
+      // don't need back-pressure here — just keep pushing chunks.
       nodeRes.write(value);
     }
   } finally {

@@ -108,6 +108,24 @@ function createMockServer() {
   };
 }
 
+/**
+ * Create a mock RSC module that captures the registered pipeline error handler.
+ * Returns the captured handler so tests can invoke it directly.
+ */
+function createPipelineErrorCapture(rscHandler: (req: Request) => Promise<Response>) {
+  let capturedHandler: ((error: Error, phase: string) => void) | undefined;
+  const rscModule = {
+    default: rscHandler,
+    setDevPipelineErrorHandler: (fn: (error: Error, phase: string) => void) => {
+      capturedHandler = fn;
+    },
+  };
+  const fire = (error: Error, phase: string) => {
+    if (capturedHandler) capturedHandler(error, phase);
+  };
+  return { rscModule, fire };
+}
+
 // ─── Frame Classification ───────────────────────────────────────────────
 
 describe('frame classification', () => {
@@ -497,6 +515,90 @@ describe('dev server integration', () => {
     // Second request: succeeds (file was fixed, module reloaded)
     const second = await invokeHandler(handler, '/dashboard');
     expect(second.res.statusCode).toBe(200);
+  });
+
+  it('pipeline render error shows in overlay', async () => {
+    const renderError = new Error('render boom');
+    renderError.stack = 'Error: render boom\n    at Component (/project/app/page.tsx:10:5)';
+
+    const { rscModule, fire } = createPipelineErrorCapture(
+      async () => new Response('ok', { status: 200 })
+    );
+    const ctx = createPluginContext();
+    const plugin = timberDevServer(ctx);
+    const mock = createMockServer();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    mock.rscRunner.import = vi.fn(async () => rscModule) as any;
+
+    const configureServer = plugin.configureServer as (s: ViteDevServer) => (() => void) | void;
+    configureServer.call({}, mock.server);
+
+    // Trigger the first request so the dev server registers the handler
+    await invokeHandler(mock.handlers[0]!, '/page');
+
+    // Now simulate a pipeline render error coming through onPipelineError
+    fire(renderError, 'render');
+
+    expect(mock.raw.hot.send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'error',
+        err: expect.objectContaining({ message: 'render boom' }),
+      })
+    );
+  });
+
+  it('pipeline middleware error shows in overlay', async () => {
+    const middlewareError = new Error('middleware boom');
+    middlewareError.stack =
+      'Error: middleware boom\n    at handler (/project/app/dashboard/middleware.ts:10:5)';
+
+    const { rscModule, fire } = createPipelineErrorCapture(
+      async () => new Response('ok', { status: 200 })
+    );
+    const ctx = createPluginContext();
+    const plugin = timberDevServer(ctx);
+    const mock = createMockServer();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    mock.rscRunner.import = vi.fn(async () => rscModule) as any;
+
+    const configureServer = plugin.configureServer as (s: ViteDevServer) => (() => void) | void;
+    configureServer.call({}, mock.server);
+
+    await invokeHandler(mock.handlers[0]!, '/dashboard');
+
+    fire(middlewareError, 'middleware');
+
+    expect(mock.raw.hot.send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'error',
+        err: expect.objectContaining({
+          plugin: 'timber (Middleware)',
+        }),
+      })
+    );
+  });
+
+  it('ssrFixStacktrace called for pipeline errors', async () => {
+    const renderError = new Error('render boom');
+    renderError.stack = 'Error: render boom\n    at Component (/project/app/page.tsx:10:5)';
+
+    const { rscModule, fire } = createPipelineErrorCapture(
+      async () => new Response('ok', { status: 200 })
+    );
+    const ctx = createPluginContext();
+    const plugin = timberDevServer(ctx);
+    const mock = createMockServer();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    mock.rscRunner.import = vi.fn(async () => rscModule) as any;
+
+    const configureServer = plugin.configureServer as (s: ViteDevServer) => (() => void) | void;
+    configureServer.call({}, mock.server);
+
+    await invokeHandler(mock.handlers[0]!, '/page');
+
+    fire(renderError, 'render');
+
+    expect(mock.raw.ssrFixStacktrace).toHaveBeenCalledWith(renderError);
   });
 
   it('error logged to both browser overlay and stderr', async () => {

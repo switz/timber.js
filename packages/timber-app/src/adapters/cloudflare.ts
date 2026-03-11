@@ -4,6 +4,7 @@
 // and wrangler.jsonc configuration. See design/11-platform.md §"Cloudflare Workers".
 
 import { writeFile, mkdir, cp } from 'node:fs/promises';
+import { execFile } from 'node:child_process';
 import { join, relative } from 'node:path';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import type { TimberPlatformAdapter, TimberConfig } from './types';
@@ -118,6 +119,11 @@ export function cloudflare(options: CloudflareAdapterOptions = {}): TimberPlatfo
       await writeFile(join(outDir, 'wrangler.jsonc'), JSON.stringify(wranglerConfig, null, 2));
     },
 
+    async preview(_config: TimberConfig, buildDir: string) {
+      const cmd = generatePreviewCommand(buildDir);
+      await spawnPreviewProcess(cmd.command, cmd.args, cmd.cwd);
+    },
+
     // Default no-op. wrapWithExecutionContext() replaces this per-request
     // with a function that routes to ctx.waitUntil().
     waitUntil(_promise: Promise<unknown>) {},
@@ -206,6 +212,40 @@ export function generateWranglerConfig(
   }
 
   return base;
+}
+
+// ─── Preview ─────────────────────────────────────────────────────────────────
+
+/** Command descriptor for preview — testable without spawning a process. */
+export interface PreviewCommand {
+  command: string;
+  args: string[];
+  cwd: string;
+}
+
+/** @internal Exported for testing. */
+export function generatePreviewCommand(buildDir: string): PreviewCommand {
+  const cfDir = join(buildDir, 'cloudflare');
+  return {
+    command: 'wrangler',
+    args: ['dev', '--local', '--config', join(cfDir, 'wrangler.jsonc')],
+    cwd: cfDir,
+  };
+}
+
+/**
+ * Spawn a long-running preview process and pipe stdio to the parent.
+ * Resolves when the process exits.
+ */
+function spawnPreviewProcess(command: string, args: string[], cwd: string): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    const child = execFile(command, args, { cwd }, (err) => {
+      if (err) reject(err);
+      else resolve();
+    });
+    child.stdout?.pipe(process.stdout);
+    child.stderr?.pipe(process.stderr);
+  });
 }
 
 // ─── Cloudflare Workers type stubs ───────────────────────────────────────────

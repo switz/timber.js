@@ -6,6 +6,7 @@
 // See design/11-platform.md and design/25-production-deployments.md.
 
 import { writeFile, mkdir, cp } from 'node:fs/promises';
+import { execFile } from 'node:child_process';
 import { join, relative } from 'node:path';
 import type { TimberPlatformAdapter, TimberConfig } from './types';
 
@@ -164,6 +165,17 @@ export function nitro(options: NitroAdapterOptions = {}): TimberPlatformAdapter 
       await writeFile(join(outDir, 'nitro.config.ts'), nitroConfig);
     },
 
+    // Only presets that produce a locally-runnable server get preview().
+    // Serverless presets (vercel, netlify, aws-lambda, etc.) have no
+    // local runtime — Vite's built-in preview is the fallback.
+    preview: LOCALLY_PREVIEWABLE.has(preset)
+      ? async (_config: TimberConfig, buildDir: string) => {
+          const cmd = generateNitroPreviewCommand(buildDir, preset);
+          if (!cmd) return;
+          await spawnNitroPreview(cmd.command, cmd.args, cmd.cwd);
+        }
+      : undefined,
+
     waitUntil: presetConfig.supportsWaitUntil
       ? (promise: Promise<unknown>) => {
           const tracked = promise.catch((err) => {
@@ -223,6 +235,48 @@ import { defineNitroConfig } from 'nitropack/config'
 
 export default defineNitroConfig(${configJson})
 `;
+}
+
+// ─── Preview ─────────────────────────────────────────────────────────────────
+
+/** Presets that produce a locally-runnable server entry. */
+const LOCALLY_PREVIEWABLE = new Set<NitroPreset>(['node-server', 'bun']);
+
+/** Command descriptor for Nitro preview — testable without spawning. */
+export interface NitroPreviewCommand {
+  command: string;
+  args: string[];
+  cwd: string;
+}
+
+/** @internal Exported for testing. */
+export function generateNitroPreviewCommand(
+  buildDir: string,
+  preset: NitroPreset
+): NitroPreviewCommand | null {
+  if (!LOCALLY_PREVIEWABLE.has(preset)) return null;
+
+  const nitroDir = join(buildDir, 'nitro');
+  const entryPath = join(nitroDir, 'entry.ts');
+
+  const command = preset === 'bun' ? 'bun' : 'node';
+  return {
+    command,
+    args: [entryPath],
+    cwd: nitroDir,
+  };
+}
+
+/** Spawn a Nitro preview process and pipe stdio. */
+function spawnNitroPreview(command: string, args: string[], cwd: string): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    const child = execFile(command, args, { cwd }, (err) => {
+      if (err) reject(err);
+      else resolve();
+    });
+    child.stdout?.pipe(process.stdout);
+    child.stderr?.pipe(process.stderr);
+  });
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────

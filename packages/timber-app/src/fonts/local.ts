@@ -25,12 +25,18 @@ import { buildFontStack } from './fallbacks.js';
 export function inferFontFormat(filePath: string): string {
   const ext = extname(filePath).toLowerCase();
   switch (ext) {
-    case '.woff2': return 'woff2';
-    case '.woff': return 'woff';
-    case '.ttf': return 'truetype';
-    case '.otf': return 'opentype';
-    case '.eot': return 'embedded-opentype';
-    default: return 'woff2';
+    case '.woff2':
+      return 'woff2';
+    case '.woff':
+      return 'woff';
+    case '.ttf':
+      return 'truetype';
+    case '.otf':
+      return 'opentype';
+    case '.eot':
+      return 'embedded-opentype';
+    default:
+      return 'woff2';
   }
 }
 
@@ -82,7 +88,10 @@ export function generateFamilyName(sources: LocalFontSrc[]): string {
   // Remove extension and weight/style suffixes for a cleaner family name
   const stem = basename.replace(/\.[^.]+$/, '');
   // Strip common weight/style suffixes to get the family root
-  const family = stem.replace(/[-_]?(Regular|Bold|Italic|Light|Medium|SemiBold|ExtraBold|Thin|Black|Heavy)$/i, '');
+  const family = stem.replace(
+    /[-_]?(Regular|Bold|Italic|Light|Medium|SemiBold|ExtraBold|Thin|Black|Heavy)$/i,
+    ''
+  );
   return family || stem;
 }
 
@@ -123,10 +132,7 @@ export function localFontClassName(family: string): string {
  * This is the main entry point called by the fonts plugin's transform hook
  * when it encounters a `localFont()` call.
  */
-export function processLocalFont(
-  config: LocalFontConfig,
-  importerPath: string
-): ExtractedFont {
+export function processLocalFont(config: LocalFontConfig, importerPath: string): ExtractedFont {
   const sources = normalizeSrc(config.src);
   const resolvedSources = resolveLocalFontPaths(importerPath, sources);
   const family = config.family ?? generateFamilyName(sources);
@@ -171,7 +177,7 @@ export function extractLocalFontConfig(callSource: string): LocalFontConfig | nu
   try {
     // Extract `display`
     const displayMatch = objStr.match(/display\s*:\s*['"]([^'"]+)['"]/);
-    const display = displayMatch ? displayMatch[1] as LocalFontConfig['display'] : undefined;
+    const display = displayMatch ? (displayMatch[1] as LocalFontConfig['display']) : undefined;
 
     // Extract `variable`
     const variableMatch = objStr.match(/variable\s*:\s*['"]([^'"]+)['"]/);

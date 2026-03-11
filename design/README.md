@@ -4,6 +4,59 @@ timber.js is a web framework built on Vite and React Server Components. It is a 
 
 The shortest version: **if Rails or PHP could do it, so can we.** Correct HTTP semantics, real status codes, pages that work without JavaScript, genuine middleware, and streaming only where you explicitly ask for it.
 
+## Basic Premises
+
+* A good dedicated server will outperform the cpu any serverless platform for most cases
+  * Owning your own CPU cycles beats sharing them
+  * No cold starts
+  * You can place your rendering layer as close to your data store as possible - which has compounding positive effects due to waterfalls and round trips (same machine, same rack, or at least same availability zone)
+* Serverless still has value
+  * Not all web rendering needs to hit a centralized data store
+  * Sometimes edge rendering is useful
+  * There are integrated advantages to serverless - scaling, durable objects, integrated verticals (r2, queues, etc.)
+* The server is useful
+  * Access Control
+  * Full server APIs
+  * Hide external API keys
+  * multiple round-trips or waterfalls will outperform
+  * your server is in your control, clients are not – clients have bad ISPs, crappy internet with terrible latency and connectivity
+* Static is useful – it's just server-rendering at build-time
+  * No JS is useful - if you don't need it, you can opt out
+* A good website sits across the server and client boundary
+  * Both from a UX perspective and performance
+  * All web frameworks do this, even HTMX, Rails, or SPAs
+    * HTMX largely pretends the client doesn't exist by giving the server full control of it
+    * SPAs pretend the server doesn't exist
+    * Rails asks you to serialize your client code
+    * Universal SSR turns the server into a dumbed-down client (no node apis, no access control, etc.)
+  * RSCs don't give one more credence than the other, they just embrace this inherent complexity and give you power to wield both
+  * Embracing both worlds will lead to better outcomes in ux, dx, and performance
+* The best UX is invisible to the user. But the best DX is *visible*–a framework that feels magical hides explicit control and observability. It should always be obvious to the developer what is happening and why.
+  * Renders should have clarity when and where they are happening
+  * Users should opt-in to performance, rather than having it done for them
+  * Caching is useful, but it should be minimized unless elected into - all it does is cause confusion otherwise
+* The web has become an anxious mess – largely because of initial page loading states.
+  * Content layout shift is weird
+  * Spinners followed by spinners followed by spinners is awful ux
+  * All of this is percieved speed, not real speed. There's very little inherent value
+* Streaming is useful, but the flush point is often in the wrong place
+  * Moving the flush point too early just hides status codes and proper web standards
+  * It's largely just percieved performance, very little _real_ performance (103 early hints are enough)
+  * It's confusing for developers, crawl bots, AI agents, otel tracing, logs, general http-tooling
+  * Pages load complete and with their content ready
+  * It largely amounts to a micro-optimization over poorly constructed data layers – fast, performant, and low latency data layers negate most benefits (not all!) of streaming
+* Open Source devs have long been anathema to making money
+  * Not being profitable is just code for not being sustainable
+  * Companies building open source work often have perverse (or misaligned) incentives
+  * Just because something is 'open source', doesn't mean you shouldn't be able to capture the value you create with it
+  * Making money directly has better incentives for both parties than making money indirectly (e.g. selling servers/infra/cdn changes your design decisions)
+* All public sites (and most private ones) should largely work with or without javascript
+  * They often render leaner and faster
+  * They're more accessible to various devices and device-types
+  * They tend to have fewer bugs (request-response model vs. infinite lifecycle of the client + state)
+  * Generally involve fewer throughput to get the user to content when on high latency or high-packet-drop internet (e.g. flights, lower quality internet, tethering)
+  * No primary-content loading states.
+
 ## Documents
 
 | Document | Contents |

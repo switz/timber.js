@@ -93,11 +93,15 @@ test.describe('slot access control', () => {
 
 test.describe('API route access control', () => {
   test('access.ts runs for API routes', async ({ request }) => {
-    // API route with access.ts that denies(401) — handler should never execute
+    // API route with access.ts that denies(401) — handler should never execute.
+    // The co-located 401.json is served as the deny response body.
     const response = await request.get('/auth-test/api-guarded');
     expect(response.status()).toBe(401);
-    // The response body should be empty (not the JSON from the handler)
-    const body = await response.text();
-    expect(body).toBe('');
+    const contentType = response.headers()['content-type'];
+    expect(contentType).toContain('application/json');
+    const body = await response.json();
+    // Must be the static 401.json, not the handler's JSON
+    expect(body).not.toHaveProperty('message', 'should not reach here');
+    expect(body).toHaveProperty('error', true);
   });
 });

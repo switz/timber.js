@@ -26,13 +26,33 @@ export interface AppRouterInstance {
   prefetch(href: string): void;
 }
 
+/** No-op router returned during SSR or before bootstrap. All methods are safe no-ops. */
+const SSR_NOOP_ROUTER: AppRouterInstance = {
+  push() {},
+  replace() {},
+  refresh() {},
+  back() {},
+  forward() {},
+  prefetch() {},
+};
+
 /**
  * Get a router instance for programmatic navigation.
  *
  * Compatible with Next.js's `useRouter()` from `next/navigation`.
+ *
+ * Returns a no-op router during SSR or before the client router is bootstrapped,
+ * so components that call useRouter() at the function level (e.g. TransitionLink)
+ * do not crash during server-side rendering.
  */
 export function useRouter(): AppRouterInstance {
-  const router = getRouter();
+  let router;
+  try {
+    router = getRouter();
+  } catch {
+    // Router not yet bootstrapped — SSR or early client render before bootstrap().
+    return SSR_NOOP_ROUTER;
+  }
 
   return {
     push(href: string, options?: { scroll?: boolean }) {

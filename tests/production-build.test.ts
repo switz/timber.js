@@ -146,6 +146,7 @@ describe('collectRouteJs()', () => {
         'app/settings/page.tsx': '/assets/settings-ghi.js',
       },
       modulepreload: {},
+      fonts: {},
     };
 
     const dashboardSegments = [
@@ -160,7 +161,7 @@ describe('collectRouteJs()', () => {
   });
 
   it('returns empty array for dev mode (empty manifest)', () => {
-    const manifest: BuildManifest = { css: {}, js: {}, modulepreload: {} };
+    const manifest: BuildManifest = { css: {}, js: {}, modulepreload: {}, fonts: {} };
     const segments = [{ layout: { filePath: 'app/layout.tsx' } }];
     expect(collectRouteJs(segments, manifest)).toEqual([]);
   });
@@ -180,6 +181,7 @@ describe('collectRouteModulepreloads()', () => {
         'app/layout.tsx': ['/assets/react-vendor.js'],
         'app/page.tsx': ['/assets/react-vendor.js', '/assets/utils.js'],
       },
+      fonts: {},
     };
 
     const segments = [
@@ -232,6 +234,7 @@ describe('buildClientScripts() — production', () => {
       modulepreload: {
         'virtual:timber-browser-entry': ['/assets/react-vendor.js'],
       },
+      fonts: {},
     };
 
     const result = buildClientScripts({
@@ -256,6 +259,7 @@ describe('buildClientScripts() — production', () => {
       modulepreload: {
         'virtual:timber-browser-entry': ['/assets/react-vendor.js', '/assets/router.js'],
       },
+      fonts: {},
     };
 
     const result = buildClientScripts({
@@ -295,6 +299,7 @@ describe('buildClientScripts() — production', () => {
       css: {},
       js: {},
       modulepreload: {},
+      fonts: {},
     };
 
     const result = buildClientScripts({

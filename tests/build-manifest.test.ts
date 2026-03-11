@@ -19,6 +19,7 @@ describe('collectRouteCss()', () => {
     },
     js: {},
     modulepreload: {},
+    fonts: {},
   };
 
   it('collects CSS from layout and page file paths', () => {
@@ -56,6 +57,7 @@ describe('collectRouteCss()', () => {
       },
       js: {},
       modulepreload: {},
+      fonts: {},
     };
 
     const segments = [

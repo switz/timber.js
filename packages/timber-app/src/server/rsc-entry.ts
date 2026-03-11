@@ -39,8 +39,11 @@ import { buildClientScripts } from './html-injectors.js';
 import { resolveManifestStatusFile } from './manifest-status-resolver.js';
 import {
   collectRouteCss,
+  collectRouteFonts,
   collectRouteModulepreloads,
   buildCssLinkTags,
+  buildFontPreloadTags,
+  buildFontLinkHeaders,
   buildLinkHeaders,
   buildModulepreloadTags,
 } from './build-manifest.js';
@@ -227,6 +230,15 @@ async function renderRoute(
     // Add Link preload headers — Cloudflare CDN converts these to 103 Early Hints.
     const linkHeader = buildLinkHeaders(cssUrls);
     responseHeaders.append('Link', linkHeader);
+  }
+
+  // Collect font preloads from the build manifest for matched segments.
+  // Font Link headers enable 103 Early Hints; <link rel="preload"> in <head>
+  // is the fallback for platforms without Early Hints support.
+  const fontEntries = collectRouteFonts(segments, typedManifest);
+  if (fontEntries.length > 0) {
+    headHtml += buildFontPreloadTags(fontEntries);
+    responseHeaders.append('Link', buildFontLinkHeaders(fontEntries));
   }
 
   // Collect modulepreload hints for route-specific JS chunks.

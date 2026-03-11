@@ -14,6 +14,7 @@
  * See design/08-forms-and-actions.md
  */
 
+import { AsyncLocalStorage } from 'node:async_hooks';
 import type { CacheHandler } from '../cache/index';
 import { RedirectSignal } from './primitives';
 import { withSpan } from './tracing';
@@ -53,24 +54,27 @@ export interface ActionHandlerResult {
 
 // ─── Revalidation State ──────────────────────────────────────────────────
 
-// Per-request state, set before each action execution and cleared after.
-// This avoids ALS — the action is synchronously dispatched on the same call stack.
-let _currentRevalidationState: RevalidationState | null = null;
+// Per-request revalidation state stored in AsyncLocalStorage.
+// This ensures concurrent requests never share or overwrite each other's state
+// (the previous module-level global was vulnerable to cross-request pollution).
+const revalidationAls = new AsyncLocalStorage<RevalidationState>();
 
 /**
  * Set the revalidation state for the current action execution.
- * @internal
+ * @internal — kept for test compatibility; prefer executeAction() which uses ALS.
  */
 export function _setRevalidationState(state: RevalidationState): void {
-  _currentRevalidationState = state;
+  // Enter ALS scope — this is only used by tests that call revalidatePath/Tag
+  // directly without going through executeAction().
+  revalidationAls.enterWith(state);
 }
 
 /**
  * Clear the revalidation state after action execution.
- * @internal
+ * @internal — kept for test compatibility.
  */
 export function _clearRevalidationState(): void {
-  _currentRevalidationState = null;
+  revalidationAls.enterWith(undefined as unknown as RevalidationState);
 }
 
 /**
@@ -78,13 +82,14 @@ export function _clearRevalidationState(): void {
  * @internal
  */
 function getRevalidationState(): RevalidationState {
-  if (!_currentRevalidationState) {
+  const state = revalidationAls.getStore();
+  if (!state) {
     throw new Error(
       'revalidatePath/revalidateTag called outside of a server action context. ' +
         'These functions can only be called during action execution.'
     );
   }
-  return _currentRevalidationState;
+  return state;
 }
 
 // ─── Public API ──────────────────────────────────────────────────────────
@@ -139,31 +144,31 @@ export async function executeAction(
   spanMeta?: { actionFile?: string; actionName?: string }
 ): Promise<ActionHandlerResult> {
   const state: RevalidationState = { paths: [], tags: [] };
-  _setRevalidationState(state);
-
   let actionResult: unknown;
   let redirectTo: string | undefined;
   let redirectStatus: number | undefined;
 
-  try {
-    actionResult = await withSpan(
-      'timber.action',
-      {
-        ...(spanMeta?.actionFile ? { 'timber.action_file': spanMeta.actionFile } : {}),
-        ...(spanMeta?.actionName ? { 'timber.action_name': spanMeta.actionName } : {}),
-      },
-      () => actionFn(...args)
-    );
-  } catch (error) {
-    if (error instanceof RedirectSignal) {
-      redirectTo = error.location;
-      redirectStatus = error.status;
-    } else {
-      throw error;
+  // Run the action inside ALS scope so revalidatePath/Tag resolve to this
+  // request's state object — concurrent requests each get their own scope.
+  await revalidationAls.run(state, async () => {
+    try {
+      actionResult = await withSpan(
+        'timber.action',
+        {
+          ...(spanMeta?.actionFile ? { 'timber.action_file': spanMeta.actionFile } : {}),
+          ...(spanMeta?.actionName ? { 'timber.action_name': spanMeta.actionName } : {}),
+        },
+        () => actionFn(...args)
+      );
+    } catch (error) {
+      if (error instanceof RedirectSignal) {
+        redirectTo = error.location;
+        redirectStatus = error.status;
+      } else {
+        throw error;
+      }
     }
-  } finally {
-    _clearRevalidationState();
-  }
+  });
 
   // Process tag invalidation
   if (state.tags.length > 0 && config.cacheHandler) {

@@ -246,6 +246,8 @@ One per incoming request. Follows [OTel HTTP server semantic conventions](https:
 | `timber.ssr` | SSR hydration render | `timber.environment`: `'ssr'` |
 | `timber.action` | Server action execution | `timber.action_file`, `timber.action_name` |
 | `timber.metadata` | `generateMetadata()` execution | `timber.segment` |
+| `timber.layout` | Each layout component render | `timber.segment` |
+| `timber.page` | Page component render | `timber.route` |
 
 `timber.cache` calls are recorded as **span events** on the enclosing span — not child spans. Keeps cardinality low:
 
@@ -449,7 +451,7 @@ export default function proxy(req: Request, next: () => Promise<Response>) {
 
 ## What the Framework Does Not Instrument
 
-- **Individual component timings in production** — the `timber.render` span covers the full render pass as one unit. Per-component timing is dev-mode only.
+- **Arbitrary user component timings** — the framework traces layouts and pages (framework-controlled entry points), but not individual user components nested within them. Use custom spans via `@opentelemetry/api` for application-level tracing.
 - **`timber.cache` as child spans** — recorded as span events, not child spans. Keeps cardinality low.
 - **React internals** — reconciliation, hydration, client navigation.
 - **Application business logic** — the framework instruments its own phases only.
@@ -497,4 +499,5 @@ The dev logger is implemented as a Vite plugin and stripped entirely from produc
 
 **Not yet implemented:**
 - `slowPhaseMs` config wiring from `timber.config.ts` (infrastructure works, config option not added)
-- `timber.access`, `timber.ssr`, `timber.action`, `timber.metadata` OTEL spans (access gates and SSR run inside the render phase)
+- `timber.access`, `timber.ssr`, `timber.action`, `timber.metadata`, `timber.layout`, `timber.page` OTEL spans
+- `timber.cache` HIT/MISS span events on enclosing span

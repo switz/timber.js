@@ -253,19 +253,19 @@ app/
 
 When `deny()` fires, the framework selects the response format based on context:
 
-- **Route handlers (`route.ts`)** — prefer `.json` variant if available. API consumers expect structured data, not HTML.
-- **Page routes (`page.tsx`/`page.mdx`)** — prefer component variant (`.tsx`/`.mdx`). Only use `.json` if the request's `Accept` header explicitly includes `application/json` and no component variant exists at the same priority level.
+- **Route handlers (`route.ts`)** — JSON only. Prefer `.json` variant; fall back to bare JSON `{"error": true, "status": <N>}`. Never render a component for API routes.
+- **Page routes (`page.tsx`/`page.mdx`)** — prefer component variant (`.tsx`/`.mdx`). If no component variant exists in the segment chain, fall back to `.json` if available. This means a segment with only `401.json` (no `401.tsx`) will return JSON for both API and page route denials.
 
-**No cross-format fallback.** If the JSON format is selected but no `.json` status file exists in the segment chain, the framework returns a bare JSON response: `{"error": true, "status": <N>}` with the correct HTTP status code. It does not fall back to rendering a TSX/MDX component for an API consumer. Similarly, a page route never falls back to a `.json` file when a component variant is expected.
+**API routes never cross to components.** If a route handler triggers `deny()` but no `.json` status file exists, the framework returns a bare JSON response: `{"error": true, "status": <N>}`. It does not fall back to rendering a TSX/MDX component for an API consumer.
 
 ### Format-Aware Fallback Chains
 
-Fallback chains operate **within the same format family**. Component files (`.tsx`/`.jsx`/`.mdx`) form one chain; JSON files form another. The chains never cross.
+Component and JSON files form separate fallback chains. Page routes try the component chain first, then the JSON chain. Route handlers use the JSON chain exclusively.
 
-**Component chain (page routes, default):**
-`401.tsx` → `4xx.tsx` → walk up segments → legacy compat → `error.tsx` → framework default HTML.
+**Component chain (page routes, primary):**
+`401.tsx` → `4xx.tsx` → walk up segments → legacy compat → `error.tsx` → *then try JSON chain* → framework default HTML.
 
-**JSON chain (route handlers, Accept: application/json):**
+**JSON chain (route handlers, or page route fallback):**
 `401.json` → `4xx.json` → walk up segments → framework default JSON (`{"error": true, "status": <N>}`).
 
 The JSON chain has no `error.json` equivalent — `error.tsx` is a React error boundary concept with `reset()` that has no JSON counterpart. JSON fallback terminates at the category catch-all level.

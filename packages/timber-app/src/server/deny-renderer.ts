@@ -22,7 +22,6 @@ import { DenySignal } from './primitives.js';
 import { logRenderError } from './logger.js';
 import { resolveMetadata, renderMetadataToElements } from './metadata.js';
 import { resolveManifestStatusFile } from './manifest-status-resolver.js';
-import type { ManifestStatusFileFormat } from './manifest-status-resolver.js';
 import type { ManifestSegmentNode } from './route-matcher.js';
 import type { RouteMatch } from './pipeline.js';
 import type { NavContext } from './ssr-entry.js';
@@ -51,29 +50,11 @@ export type CallSsrFn = (
 ) => Promise<Response>;
 
 /**
- * Determine the preferred status file format based on request context.
- *
- * - Route handlers (route.ts in leaf segment) → 'json'
- * - Accept: application/json → 'json'
- * - Everything else → 'component'
+ * Check if the leaf segment is an API route (has route.ts).
  */
-export function selectDenyFormat(
-  req: Request,
-  segments: ReadonlyArray<ManifestSegmentNode>
-): ManifestStatusFileFormat {
-  // If the leaf segment has route.ts, this is an API route → prefer JSON
+function isApiRoute(segments: ReadonlyArray<ManifestSegmentNode>): boolean {
   const leaf = segments[segments.length - 1];
-  if (leaf?.route) {
-    return 'json';
-  }
-
-  // Check Accept header for explicit JSON preference
-  const accept = req.headers.get('accept') ?? '';
-  if (accept.includes('application/json')) {
-    return 'json';
-  }
-
-  return 'component';
+  return !!leaf?.route;
 }
 
 /**
@@ -94,22 +75,20 @@ export async function renderDenyPage(
   createDebugChannelSink: DebugChannelFactory,
   callSsr: CallSsrFn
 ): Promise<Response> {
-  const format = selectDenyFormat(req, segments);
-
-  // JSON format — try JSON chain first
-  if (format === 'json') {
+  // API routes (route.ts) → JSON only, never render components
+  if (isApiRoute(segments)) {
     const jsonResponse = await renderDenyPageJson(deny, segments, responseHeaders);
     if (jsonResponse) return jsonResponse;
-
-    // No JSON status file found — return bare JSON
     return bareJsonResponse(deny.status, responseHeaders);
   }
 
-  // Component format — resolve from component chain
+  // Page routes → try component first, then JSON if no component found
   const resolution = resolveManifestStatusFile(deny.status, segments, 'component');
 
-  // No status-code page found — fall back to bare response
+  // No component status file found — try JSON chain before bare fallback
   if (!resolution) {
+    const jsonResponse = await renderDenyPageJson(deny, segments, responseHeaders);
+    if (jsonResponse) return jsonResponse;
     return new Response(null, { status: deny.status, headers: responseHeaders });
   }
 

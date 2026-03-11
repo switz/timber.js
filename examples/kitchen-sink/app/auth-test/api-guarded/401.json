@@ -1,5 +1,4 @@
 {
-  "error": "Unauthorized",
-  "status": 401,
-  "message": "API access requires authentication."
+  "error": true,
+  "static": "this is a static 401, but not cached"
 }

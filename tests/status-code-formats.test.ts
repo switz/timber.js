@@ -255,6 +255,72 @@ describe('deny format selection', () => {
   });
 });
 
+// ─── Resolver: Page route JSON fallback ─────────────────────────────────────
+
+describe('page route json fallback', () => {
+  it('page route with only json status file resolves via json chain', () => {
+    // No component 401.tsx, only 401.json — page route should find it via json fallback
+    const jsonStatusFiles = new Map<string, RouteFile>();
+    jsonStatusFiles.set('401', makeRouteFile('app/deny-401/401.json', 'json'));
+
+    const segments = [
+      makeSegment(),
+      makeSegment({
+        segmentName: 'deny-401',
+        urlPath: '/deny-401',
+        jsonStatusFiles,
+        page: makeRouteFile('app/deny-401/page.tsx', 'tsx'),
+      }),
+    ];
+
+    // Component chain finds nothing
+    const componentResult = resolveStatusFile(401, segments, 'component');
+    expect(componentResult).toBeNull();
+
+    // JSON chain finds 401.json — this is what renderDenyPage falls back to
+    const jsonResult = resolveStatusFile(401, segments, 'json');
+    expect(jsonResult).not.toBeNull();
+    expect(jsonResult!.file.filePath).toBe('app/deny-401/401.json');
+  });
+
+  it('page route prefers component over json when both exist', () => {
+    const statusFiles = new Map<string, RouteFile>();
+    statusFiles.set('401', makeRouteFile('app/401.tsx', 'tsx'));
+
+    const jsonStatusFiles = new Map<string, RouteFile>();
+    jsonStatusFiles.set('401', makeRouteFile('app/401.json', 'json'));
+
+    const segments = [makeSegment({ statusFiles, jsonStatusFiles })];
+
+    // Component chain finds 401.tsx — json is never tried
+    const result = resolveStatusFile(401, segments, 'component');
+    expect(result).not.toBeNull();
+    expect(result!.file.filePath).toBe('app/401.tsx');
+  });
+
+  it('page route falls through component chain completely before trying json', () => {
+    // Root has error.tsx (component chain), leaf has only 401.json
+    // Component chain should find error.tsx (not fall to json)
+    const jsonStatusFiles = new Map<string, RouteFile>();
+    jsonStatusFiles.set('401', makeRouteFile('app/leaf/401.json', 'json'));
+
+    const segments = [
+      makeSegment({ error: makeRouteFile('app/error.tsx') }),
+      makeSegment({
+        segmentName: 'leaf',
+        urlPath: '/leaf',
+        jsonStatusFiles,
+      }),
+    ];
+
+    // Component chain finds error.tsx in root
+    const componentResult = resolveStatusFile(401, segments, 'component');
+    expect(componentResult).not.toBeNull();
+    expect(componentResult!.file.filePath).toBe('app/error.tsx');
+    expect(componentResult!.kind).toBe('error');
+  });
+});
+
 // ─── Resolver: Backwards Compatibility ──────────────────────────────────────
 
 describe('backwards compatibility', () => {

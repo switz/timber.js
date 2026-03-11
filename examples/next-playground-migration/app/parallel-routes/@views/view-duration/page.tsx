@@ -2,11 +2,7 @@ import { Boundary } from '#/ui/boundary';
 
 export default function Page() {
   return (
-    <Boundary
-      label="@views/view-duration/page.tsx"
-      size="small"
-      className="flex flex-col gap-4"
-    >
+    <Boundary label="@views/view-duration/page.tsx" size="small" className="flex flex-col gap-4">
       <h1 className="font-semibold text-gray-300">View duration stats</h1>
 
       <div className="flex flex-col gap-2">

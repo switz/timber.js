@@ -38,7 +38,7 @@ export default function Client({
       // receive a new `searchParams` prop with the updated values.
       router.push(pathname + '?' + params.toString()); // or router.replace()
     },
-    [router, pathname, searchParams],
+    [router, pathname, searchParams]
   );
 
   return (
@@ -56,14 +56,10 @@ export default function Client({
                   <button
                     key={item}
                     onClick={() => updateSearchParam(option.value, item)}
-                    className={clsx(
-                      'rounded-lg px-3 py-1 text-sm font-medium',
-                      {
-                        'bg-gray-700 text-gray-100 hover:bg-gray-500 hover:text-white':
-                          !isActive,
-                        'bg-blue-600 text-white': isActive,
-                      },
-                    )}
+                    className={clsx('rounded-lg px-3 py-1 text-sm font-medium', {
+                      'bg-gray-700 text-gray-100 hover:bg-gray-500 hover:text-white': !isActive,
+                      'bg-blue-600 text-white': isActive,
+                    })}
                   >
                     {item}
                   </button>

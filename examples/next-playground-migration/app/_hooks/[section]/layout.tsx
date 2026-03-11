@@ -24,10 +24,7 @@ export default async function Layout({
       <div className="flex justify-between">
         <Tabs
           basePath={`/hooks/${section.slug}`}
-          items={[
-            { text: 'All' },
-            ...categories.map((x) => ({ text: x.name, slug: x.slug })),
-          ]}
+          items={[{ text: 'All' }, ...categories.map((x) => ({ text: x.name, slug: x.slug }))]}
         />
 
         <div className="self-start">

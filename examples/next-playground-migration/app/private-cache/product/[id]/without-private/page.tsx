@@ -9,11 +9,7 @@ import { ProductDetails } from '#/app/private-cache/_components/product-detail';
 import Link from 'next/link';
 import { ChevronLeftIcon } from '@heroicons/react/24/solid';
 
-export default async function Page({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default async function Page({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const product = await db.product.find({ where: { id } });
 
@@ -89,10 +85,7 @@ function RecommendationsSkeleton() {
         <h2 className="text-lg font-semibold text-gray-300">Recommendations</h2>
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
           {[1, 2, 3].map((i) => (
-            <div
-              key={i}
-              className="h-48 animate-pulse rounded-lg bg-gray-800"
-            />
+            <div key={i} className="h-48 animate-pulse rounded-lg bg-gray-800" />
           ))}
         </div>
       </div>

@@ -25,8 +25,7 @@ export function Prose({
         aria-expanded={isCollapsible && !isCollapsed}
         className={clsx({
           'max-h-[5lh] overflow-hidden': isCollapsible && isCollapsed,
-          '[mask-image:linear-gradient(to_bottom,black_60%,transparent_100%)]':
-            isCollapsed,
+          '[mask-image:linear-gradient(to_bottom,black_60%,transparent_100%)]': isCollapsed,
         })}
       >
         {children}

@@ -8,11 +8,7 @@ const CounterContext = React.createContext<
 
 export function CounterProvider({ children }: { children: React.ReactNode }) {
   const [count, setCount] = React.useState(0);
-  return (
-    <CounterContext.Provider value={[count, setCount]}>
-      {children}
-    </CounterContext.Provider>
-  );
+  return <CounterContext.Provider value={[count, setCount]}>{children}</CounterContext.Provider>;
 }
 
 export function useCounter() {

@@ -41,12 +41,7 @@ export function TransitionLink({ type, ...props }: TransitionLinkProps) {
  *   Back to Products
  * </TransitionButtonLink>
  */
-export function TransitionButtonLink({
-  type,
-  children,
-  className,
-  ...props
-}: TransitionLinkProps) {
+export function TransitionButtonLink({ type, children, className, ...props }: TransitionLinkProps) {
   return (
     <TransitionLink
       type={type}
@@ -54,17 +49,13 @@ export function TransitionButtonLink({
         'flex w-fit items-center gap-1 rounded-md bg-gray-700 px-3 py-1 text-sm font-medium text-gray-100 hover:bg-gray-500 hover:text-white',
         className,
         type === 'transition-backwards' && 'pl-1.5',
-        type === 'transition-forwards' && 'pr-1.5',
+        type === 'transition-forwards' && 'pr-1.5'
       )}
       {...props}
     >
-      {type === 'transition-backwards' && (
-        <ChevronLeftIcon className="size-5 opacity-40" />
-      )}
+      {type === 'transition-backwards' && <ChevronLeftIcon className="size-5 opacity-40" />}
       {children}
-      {type === 'transition-forwards' && (
-        <ChevronRightIcon className="size-5 opacity-40" />
-      )}
+      {type === 'transition-forwards' && <ChevronRightIcon className="size-5 opacity-40" />}
     </TransitionLink>
   );
 }
@@ -130,17 +121,13 @@ export function SharedTransition({
  * Available transition IDs for shared elements
  * @internal
  */
-const transitionIds = [
-  'navigation-icon',
-  'navigation-title',
-  'navigation-pagination',
-] as const;
+const _transitionIds = ['navigation-icon', 'navigation-title', 'navigation-pagination'] as const;
 
 /**
  * Available transition types for navigation
  * @internal
  */
-const transitionTypes = [
+const _transitionTypes = [
   'default',
   'transition-to-detail',
   'transition-to-list',
@@ -152,7 +139,7 @@ const transitionTypes = [
  * Available animation types for transitions
  * @internal
  */
-const animationTypes = [
+const _animationTypes = [
   'auto',
   'none',
   'animate-slide-from-left',
@@ -165,12 +152,12 @@ const animationTypes = [
 /**
  * Type for transition types with their corresponding animations
  */
-type TransitionType = (typeof transitionTypes)[number];
+type TransitionType = (typeof _transitionTypes)[number];
 
 /**
  * Type for available animation classes
  */
-type AnimationType = (typeof animationTypes)[number];
+type AnimationType = (typeof _animationTypes)[number];
 
 /**
  * Mapping of transition types to their animation classes
@@ -194,7 +181,7 @@ type ViewTransitionClass = AnimationType | TransitionMap;
 /**
  * Type for transition element IDs
  */
-type TransitionId = (typeof transitionIds)[number] | `product-${string}`;
+type TransitionId = (typeof _transitionIds)[number] | `product-${string}`;
 
 /**
  * Props for TransitionLink component

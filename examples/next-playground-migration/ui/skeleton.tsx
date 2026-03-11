@@ -20,9 +20,7 @@ export function SkeletonText({
   });
 
   return (
-    <div
-      className={clsx('flex flex-wrap gap-x-[1ch] gap-y-[0.65em]', className)}
-    >
+    <div className={clsx('flex flex-wrap gap-x-[1ch] gap-y-[0.65em]', className)}>
       {words.map((width, i) => (
         <div
           key={i}
@@ -43,11 +41,10 @@ function mulberry32(a: number) {
 }
 
 function hashCode(str: string) {
-  let i = 0;
-  let chr = 0;
+  let chr: number;
   let hash = 0;
 
-  for (i = 0; i < str.length; i++) {
+  for (let i = 0; i < str.length; i++) {
     chr = str.charCodeAt(i);
     hash = (hash << 5) - hash + chr;
     hash |= 0; // Convert to 32bit integer

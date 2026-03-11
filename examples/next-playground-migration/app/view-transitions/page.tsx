@@ -15,12 +15,12 @@ export default async function Page() {
   return (
     <HorizontalTransition
       enter={{
-        default: 'none',
+        'default': 'none',
         'transition-to-list': 'animate-slide-from-left',
         'transition-to-detail': 'animate-slide-from-right',
       }}
       exit={{
-        default: 'none',
+        'default': 'none',
         'transition-to-list': 'animate-slide-to-right',
         'transition-to-detail': 'animate-slide-to-left',
       }}
@@ -31,9 +31,7 @@ export default async function Page() {
             <SharedTransition name="navigation-title" share="animate-morph">
               <h1>Shop</h1>
             </SharedTransition>
-            <span className="font-mono tracking-tighter text-gray-600">
-              ({products.length})
-            </span>
+            <span className="font-mono tracking-tighter text-gray-600">({products.length})</span>
           </div>
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
             {products.map((product) => (
@@ -46,7 +44,7 @@ export default async function Page() {
                 <SharedTransition
                   name={`product-${product.id}`}
                   share={{
-                    default: 'auto',
+                    'default': 'auto',
                     'transition-to-list': 'animate-morph',
                     'transition-to-detail': 'animate-morph',
                   }}

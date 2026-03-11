@@ -10,12 +10,11 @@
 //   }
 //
 // After (timber):
-//   const getProducts = cache(async () => { ... }, { tags: ['products'] })
+//   const getProducts = createCache(async () => { ... }, { tags: ['products'] })
 import db from '#/lib/db';
 import { Boundary } from '#/ui/boundary';
 import { ProductCard } from '#/ui/product-card';
-import { cache } from '@timber/app/cache';
-import Link from 'next/link';
+import { createCache } from '@timber/app/cache';
 import SessionButton from './session-button';
 import ProductLink from './product-link';
 
@@ -23,18 +22,12 @@ export async function ProductList() {
   const products = await getProducts();
 
   return (
-    <Boundary
-      label="<ProductList> (statically inferred)"
-      size="small"
-      animateRerendering={false}
-    >
+    <Boundary label="<ProductList> (statically inferred)" size="small" animateRerendering={false}>
       <div className="flex flex-col gap-4">
         <div className="flex justify-between">
           <h1 className="text-xl font-semibold text-gray-300">
             Available Products{' '}
-            <span className="font-mono tracking-tighter text-gray-600">
-              ({products.length})
-            </span>
+            <span className="font-mono tracking-tighter text-gray-600">({products.length})</span>
           </h1>
 
           <div className="flex">
@@ -78,15 +71,10 @@ export function ProductListSkeleton() {
     >
       <div className="flex flex-col gap-4">
         <div className="h-24 animate-pulse rounded-lg bg-gray-800" />
-        <h1 className="text-xl font-semibold text-gray-300">
-          Available Products
-        </h1>
+        <h1 className="text-xl font-semibold text-gray-300">Available Products</h1>
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           {[1, 2, 3, 4, 5, 6].map((i) => (
-            <div
-              key={i}
-              className="h-48 animate-pulse rounded-lg bg-gray-800"
-            />
+            <div key={i} className="h-48 animate-pulse rounded-lg bg-gray-800" />
           ))}
         </div>
       </div>
@@ -95,7 +83,7 @@ export function ProductListSkeleton() {
 }
 
 // MIGRATION: 'use cache' + cacheTag() → timber.cache() with tags option
-const getProducts = cache(
+const getProducts = createCache(
   async () => {
     // DEMO: Add a delay to simulate a slow data request
     await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -108,5 +96,5 @@ const getProducts = cache(
     // However, timber.cache tags run at call time, not after execution.
     // Per-product tags could be added by wrapping individual product fetches.
     tags: ['products'],
-  },
+  }
 );

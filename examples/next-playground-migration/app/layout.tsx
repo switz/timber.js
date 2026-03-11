@@ -16,11 +16,7 @@ export const metadata: Metadata = {
     'A playground to explore timber.js features such as nested layouts, instant loading states, streaming, and component level data fetching.',
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   const demos = db.demo.findMany();
   return (
     <html lang="en" className="[color-scheme:dark]">

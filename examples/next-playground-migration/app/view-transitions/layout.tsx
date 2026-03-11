@@ -16,11 +16,7 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default async function Layout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default async function Layout({ children }: { children: React.ReactNode }) {
   return (
     <>
       <Boundary label="Demo" kind="solid" animateRerendering={false}>

@@ -123,6 +123,9 @@ export function timberMdx(ctx: PluginContext): Plugin {
 
   return {
     name: 'timber-mdx',
+    // Must run before @vitejs/plugin-rsc (rsc:use-client) which tries to parse
+    // all files as JS. MDX files must be compiled to JS first.
+    enforce: 'pre',
 
     async buildStart(options) {
       await activate();

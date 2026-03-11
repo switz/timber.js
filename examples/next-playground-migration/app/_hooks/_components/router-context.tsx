@@ -24,14 +24,12 @@ export function HooksClient() {
             {
               usePathname: pathname,
               useParams: params,
-              useSearchParams: searchParams
-                ? Object.fromEntries(searchParams.entries())
-                : {},
+              useSearchParams: searchParams ? Object.fromEntries(searchParams.entries()) : {},
               useSelectedLayoutSegment: selectedLayoutSegment,
               useSelectedLayoutSegments: selectedLayoutSegments,
             },
             null,
-            2,
+            2
           )}
         </pre>
       </div>

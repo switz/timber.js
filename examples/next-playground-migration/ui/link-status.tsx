@@ -14,7 +14,5 @@ import { useNavigationPending } from '@timber/app/client';
 
 export function LinkStatus() {
   const pending = useNavigationPending();
-  return pending ? (
-    <div className="spinner ml-auto size-4 shrink-0 rounded-full" />
-  ) : null;
+  return pending ? <div className="spinner ml-auto size-4 shrink-0 rounded-full" /> : null;
 }

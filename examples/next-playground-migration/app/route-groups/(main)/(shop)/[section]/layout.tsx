@@ -20,16 +20,10 @@ export default async function Layout({
   const categories = db.category.findMany({ where: { section: section?.id } });
 
   return (
-    <Boundary
-      label="(main)/(shop)/[section]/layout.tsx"
-      className="flex flex-col gap-9"
-    >
+    <Boundary label="(main)/(shop)/[section]/layout.tsx" className="flex flex-col gap-9">
       <Tabs
         basePath={`/${demo.slug}/${section.slug}`}
-        items={[
-          { text: 'All' },
-          ...categories.map((x) => ({ text: x.name, slug: x.slug })),
-        ]}
+        items={[{ text: 'All' }, ...categories.map((x) => ({ text: x.name, slug: x.slug }))]}
       />
 
       <div>{children}</div>

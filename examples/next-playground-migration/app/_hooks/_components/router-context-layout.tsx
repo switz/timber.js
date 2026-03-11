@@ -1,10 +1,7 @@
 'use client';
 
 import { Boundary } from '#/ui/boundary';
-import {
-  useSelectedLayoutSegment,
-  useSelectedLayoutSegments,
-} from 'next/navigation';
+import { useSelectedLayoutSegment, useSelectedLayoutSegments } from 'next/navigation';
 
 export function LayoutHooks() {
   const selectedLayoutSegment = useSelectedLayoutSegment();
@@ -20,7 +17,7 @@ export function LayoutHooks() {
               useSelectedLayoutSegments: selectedLayoutSegments,
             },
             null,
-            2,
+            2
           )}
         </pre>
       </div>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useCounter } from './counter-context';
-import React from 'react';
+
 import { Boundary } from '#/ui/boundary';
 
 const ContextClickCounter = () => {

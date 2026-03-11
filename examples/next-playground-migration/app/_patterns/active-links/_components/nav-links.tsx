@@ -4,11 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import clsx from 'clsx';
 
-export function NavLinks({
-  links,
-}: {
-  links: { href: string; name: string }[];
-}) {
+export function NavLinks({ links }: { links: { href: string; name: string }[] }) {
   // Alternatively, you could use `useParams` or `useSelectedLayoutSegment(s)`
   const pathname = usePathname();
 
@@ -21,8 +17,7 @@ export function NavLinks({
             key={link.href}
             href={link.href}
             className={clsx('rounded-lg px-3 py-1 text-sm font-medium', {
-              'bg-gray-700 text-gray-100 hover:bg-gray-500 hover:text-white':
-                !isActive,
+              'bg-gray-700 text-gray-100 hover:bg-gray-500 hover:text-white': !isActive,
               'bg-blue-600 text-white': isActive,
             })}
           >

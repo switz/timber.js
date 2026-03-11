@@ -12,14 +12,14 @@
 //   }
 //
 // After (timber):
-//   const getProductPrice = cache(async (productId: string) => { ... }, {
+//   const getProductPrice = createCache(async (productId: string) => { ... }, {
 //     tags: (productId) => [`product-price-${productId}`, `product-${productId}`]
 //   })
 
 import { Suspense } from 'react';
 import db from '#/lib/db';
 import { Boundary } from '#/ui/boundary';
-import { cache } from '@timber/app/cache';
+import { createCache } from '@timber/app/cache';
 
 const DEMO_PRODUCT_ID = '1';
 
@@ -48,12 +48,7 @@ async function ProductPrice({ productId }: { productId: string }) {
 
 function ProductPriceSkeleton() {
   return (
-    <Boundary
-      label="<ProductPrice> (Cached)"
-      size="small"
-      color="blue"
-      animateRerendering={false}
-    >
+    <Boundary label="<ProductPrice> (Cached)" size="small" color="blue" animateRerendering={false}>
       <div className="text-center text-sm">
         <div className="inline-block h-4 w-24 animate-pulse rounded bg-gray-800" />
       </div>
@@ -62,7 +57,7 @@ function ProductPriceSkeleton() {
 }
 
 // MIGRATION: 'use cache: remote' + cacheTag() → timber.cache() with tags
-const getProductPrice = cache(
+const getProductPrice = createCache(
   async (productId: string) => {
     // DEMO: Add a delay to simulate a database query
     await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -75,7 +70,5 @@ const getProductPrice = cache(
 
     return product.price;
   },
-  {
-    tags: (productId: string) => [`product-price-${productId}`, `product-${productId}`],
-  },
+  { tags: (productId: string) => [`product-price-${productId}`, `product-${productId}`] }
 );

@@ -2,10 +2,10 @@
 
 import { Boundary } from '#/ui/boundary';
 import Button from '#/ui/button';
-import React from 'react';
+import { useEffect } from 'react';
 
-export default function Error({ error, reset }: any) {
-  React.useEffect(() => {
+export default function Error({ error, reset }: { error: Error; reset: () => void }) {
+  useEffect(() => {
     console.log('logging error:', error);
   }, [error]);
 

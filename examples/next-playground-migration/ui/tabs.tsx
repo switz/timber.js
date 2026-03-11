@@ -22,13 +22,7 @@ export function Tabs({ basePath, items }: { basePath: string; items: Item[] }) {
   );
 }
 
-export function Tab({
-  basePath = '',
-  item,
-}: {
-  basePath?: string;
-  item: Item;
-}) {
+export function Tab({ basePath = '', item }: { basePath?: string; item: Item }) {
   const href = item.slug ? `${basePath}/${item.slug}` : basePath;
 
   return (
@@ -40,13 +34,7 @@ export function Tab({
   );
 }
 
-function DynamicTabContent({
-  children,
-  href,
-}: {
-  children: React.ReactNode;
-  href: string;
-}) {
+function DynamicTabContent({ children, href }: { children: React.ReactNode; href: string }) {
   const pathname = usePathname();
   const isActive = pathname === href;
   // MIGRATION: useNavigationPending is global; not per-link like useLinkStatus
@@ -71,8 +59,7 @@ function TabContent({
   return (
     <span
       className={clsx('flex rounded-md px-3 py-1 transition duration-75', {
-        'bg-gray-700 text-gray-100 hover:bg-gray-500 hover:text-white':
-          !isActive && !isPending,
+        'bg-gray-700 text-gray-100 hover:bg-gray-500 hover:text-white': !isActive && !isPending,
         'bg-blue-600 text-white': isActive,
         'bg-gray-800 text-gray-500 delay-75': isPending,
       })}

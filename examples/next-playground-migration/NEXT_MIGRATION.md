@@ -215,9 +215,9 @@ async function getProducts() {
 
 **After**
 ```ts
-import { cache } from '@timber/app/cache';
+import { createCache } from '@timber/app/cache';
 
-const getProducts = cache(
+const getProducts = createCache(
   async () => db.product.findMany(),
   { tags: ['products'] }
 );
@@ -241,14 +241,14 @@ async function getRecommendations(productId: string) {
 
 **After**
 ```ts
-import { cache } from '@timber/app/cache';
+import { createCache } from '@timber/app/cache';
 import { cookies } from 'next/headers';
 
-// cookies() called OUTSIDE the cached function
+// cookies() called OUTSIDE the cached function (inside render)
 const sessionCookie = await cookies();
 const sessionId = sessionCookie.get('sessionId')?.value ?? 'default';
 
-const getRecommendations = cache(
+const getRecommendations = createCache(
   async (productId: string, sessionId: string) => {
     return db.recommendation.findMany({ where: { productId } });
   },

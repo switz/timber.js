@@ -20,11 +20,7 @@ export default function SessionButton() {
       }}
       disabled={isPending}
     >
-      {isPending
-        ? 'Changing Session...'
-        : sessionChanged
-          ? 'Session Changed!'
-          : 'Change Session'}
+      {isPending ? 'Changing Session...' : sessionChanged ? 'Session Changed!' : 'Change Session'}
     </Button>
   );
 }

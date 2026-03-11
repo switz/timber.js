@@ -3,11 +3,7 @@ import { Boundary } from '#/ui/boundary';
 import { Tabs } from '#/ui/tabs';
 import db from '#/lib/db';
 
-export default async function Layout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default async function Layout({ children }: { children: React.ReactNode }) {
   const demo = db.demo.find({ where: { slug: 'route-groups' } });
   const sections = db.section.findMany({ limit: 1 });
 

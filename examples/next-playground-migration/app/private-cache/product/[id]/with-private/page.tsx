@@ -20,7 +20,7 @@
 //   }
 //
 // After (timber):
-//   const getRecommendations = cache(
+//   const getRecommendations = createCache(
 //     async (productId: string, sessionId: string) => { ... },
 //     { tags: (productId) => [`recommendations-${productId}`], ttl: 60 }
 //   )
@@ -29,7 +29,7 @@ import { Suspense } from 'react';
 import db from '#/lib/db';
 import { Boundary } from '#/ui/boundary';
 import { ProductCard } from '#/ui/product-card';
-import { cache } from '@timber/app/cache';
+import { createCache } from '@timber/app/cache';
 import { cookies } from 'next/headers';
 import { getPersonalizedRecommendations } from '../../../_components/recommendations';
 import { notFound } from 'next/navigation';
@@ -41,11 +41,7 @@ import { ChevronLeftIcon } from '@heroicons/react/24/solid';
 // supported in timber. Timber uses <Link prefetch> for hover-based prefetch.
 // export const unstable_prefetch = { ... }  ← removed
 
-export default async function Page({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default async function Page({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const product = await db.product.find({ where: { id } });
 
@@ -85,11 +81,7 @@ async function Recommendations({ productId }: { productId: string }) {
   const recommendations = await getRecommendations(productId, sessionId);
 
   return (
-    <Boundary
-      label="<Recommendations> (User-Scoped Cache)"
-      size="small"
-      animateRerendering={false}
-    >
+    <Boundary label="<Recommendations> (User-Scoped Cache)" size="small" animateRerendering={false}>
       <div className="flex flex-col gap-4">
         <h2 className="text-lg font-semibold text-gray-300">Recommendations</h2>
         {recommendations.length === 0 ? (
@@ -111,14 +103,11 @@ async function Recommendations({ productId }: { productId: string }) {
 // MIGRATION: 'use cache: private' + cacheTag() + cacheLife() → timber.cache()
 // User-scoped caching: sessionId is passed as an arg, so each user gets
 // their own cache entry (the cache key includes sessionId).
-const getRecommendations = cache(
+const getRecommendations = createCache(
   async (productId: string, sessionId: string) => {
     return getPersonalizedRecommendations(productId, sessionId);
   },
-  {
-    ttl: 60,
-    tags: (productId: string) => [`recommendations-${productId}`],
-  },
+  { ttl: 60, tags: (productId: string) => [`recommendations-${productId}`] }
 );
 
 function RecommendationsSkeleton() {
@@ -133,10 +122,7 @@ function RecommendationsSkeleton() {
         <h2 className="text-lg font-semibold text-gray-300">Recommendations</h2>
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
           {[1, 2, 3].map((i) => (
-            <div
-              key={i}
-              className="h-48 animate-pulse rounded-lg bg-gray-800"
-            />
+            <div key={i} className="h-48 animate-pulse rounded-lg bg-gray-800" />
           ))}
         </div>
       </div>

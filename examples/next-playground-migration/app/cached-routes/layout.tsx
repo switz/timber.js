@@ -16,22 +16,14 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default async function Layout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default async function Layout({ children }: { children: React.ReactNode }) {
   return (
     <>
       <Boundary label="Demo" kind="solid" animateRerendering={false}>
         <Mdx source={readme} collapsed={true} />
       </Boundary>
 
-      <Boundary
-        label="layout.tsx (Cacheable)"
-        kind="solid"
-        animateRerendering={false}
-      >
+      <Boundary label="layout.tsx (Cacheable)" kind="solid" animateRerendering={false}>
         {children}
       </Boundary>
     </>

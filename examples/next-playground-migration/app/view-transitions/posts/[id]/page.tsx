@@ -19,11 +19,7 @@ export async function generateStaticParams() {
   return products.map((product) => ({ id: product.id }));
 }
 
-export default async function Page({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default async function Page({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const product = db.product.find({ where: { id } });
   if (!product) {
@@ -37,14 +33,14 @@ export default async function Page({
   return (
     <HorizontalTransition
       enter={{
-        default: 'none',
+        'default': 'none',
         'transition-to-list': 'animate-slide-from-left',
         'transition-to-detail': 'animate-slide-from-right',
         'transition-backwards': 'animate-slide-from-left',
         'transition-forwards': 'animate-slide-from-right',
       }}
       exit={{
-        default: 'none',
+        'default': 'none',
         'transition-to-list': 'animate-slide-to-right',
         'transition-to-detail': 'animate-slide-to-left',
         'transition-backwards': 'animate-slide-to-right',
@@ -61,7 +57,7 @@ export default async function Page({
             <SharedTransition
               name="navigation-icon"
               share={{
-                default: 'auto',
+                'default': 'auto',
                 'transition-to-list': 'animate-morph',
                 'transition-to-detail': 'animate-morph',
               }}
@@ -72,7 +68,7 @@ export default async function Page({
             <SharedTransition
               name="navigation-title"
               share={{
-                default: 'auto',
+                'default': 'auto',
                 'transition-to-list': 'animate-morph',
                 'transition-to-detail': 'animate-morph',
               }}
@@ -85,7 +81,7 @@ export default async function Page({
             <SharedTransition
               name={`product-${product.id}`}
               share={{
-                default: 'auto',
+                'default': 'auto',
                 'transition-to-list': 'animate-morph',
                 'transition-to-detail': 'animate-morph',
               }}
@@ -98,16 +94,10 @@ export default async function Page({
 
           <SharedTransition name="navigation-pagination">
             <div className="flex justify-between gap-4">
-              <TransitionButtonLink
-                href={prevProduct}
-                type="transition-backwards"
-              >
+              <TransitionButtonLink href={prevProduct} type="transition-backwards">
                 Previous
               </TransitionButtonLink>
-              <TransitionButtonLink
-                href={nextProduct}
-                type="transition-forwards"
-              >
+              <TransitionButtonLink href={nextProduct} type="transition-forwards">
                 Next
               </TransitionButtonLink>
             </div>

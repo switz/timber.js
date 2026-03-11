@@ -14,9 +14,7 @@ export default async function Page() {
         <div className="flex justify-between">
           <h1 className="text-xl font-semibold text-gray-300">
             All{' '}
-            <span className="font-mono tracking-tighter text-gray-600">
-              ({products.length})
-            </span>
+            <span className="font-mono tracking-tighter text-gray-600">({products.length})</span>
           </h1>
 
           <div className="flex">

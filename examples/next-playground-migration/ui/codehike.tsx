@@ -1,3 +1,4 @@
+/* eslint-disable react/prop-types, @typescript-eslint/no-explicit-any */
 import { Boundary } from '#/ui/boundary';
 import { Prose } from '#/ui/prose';
 import clsx from 'clsx';
@@ -38,10 +39,7 @@ export const lineNumbers: AnnotationHandler = {
 
     return (
       <div className="flex">
-        <span
-          className="text-right opacity-20 select-none"
-          style={{ minWidth: `${width}ch` }}
-        >
+        <span className="text-right opacity-20 select-none" style={{ minWidth: `${width}ch` }}>
           {props.lineNumber}
         </span>
         <InnerLine merge={props} className="..." />
@@ -68,11 +66,7 @@ const mark: AnnotationHandler = {
     const color = (annotation?.query || 'blue') as keyof typeof colors;
 
     return (
-      <div
-        className={clsx('border-l-2 border-transparent', {
-          [colors[color]]: annotation,
-        })}
-      >
+      <div className={clsx('border-l-2 border-transparent', { [colors[color]]: annotation })}>
         <InnerLine merge={props} className="px-[2ch]" />
       </div>
     );
@@ -96,7 +90,7 @@ async function MyCode({ codeblock }: { codeblock: RawCode }) {
   'use cache';
 
   const highlighted = await highlight(codeblock, 'github-dark');
-  const { background, ...style } = highlighted.style;
+  const { background: _background, ...style } = highlighted.style;
   return (
     <Boundary
       // TODO: Instead of using boundary, replicate boundary styles
@@ -129,7 +123,7 @@ export function Mdx({
   source: MdxComponent,
   components = {},
   collapsed,
-  className,
+  className: _className,
   ...props
 }: {
   source: (props: MDXProps) => JSX.Element;
@@ -142,10 +136,7 @@ export function Mdx({
       collapsed={collapsed}
       className="prose prose-sm prose-invert prose-h1:font-medium prose-h2:font-medium prose-h3:font-medium prose-h4:font-medium prose-h5:font-medium prose-h6:font-medium prose-pre:mt-0 prose-pre:mb-0 prose-pre:rounded-none prose-pre:bg-transparent max-w-none"
     >
-      <MdxComponent
-        components={{ MyCode, MyInlineCode, Image, ...components }}
-        {...props}
-      />
+      <MdxComponent components={{ MyCode, MyInlineCode, Image, ...components }} {...props} />
     </Prose>
   );
 }

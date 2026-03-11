@@ -66,11 +66,7 @@ export const Boundary = ({
           })}
         >
           {[...(typeof label === 'string' ? [label] : label)].map((label) => (
-            <Label
-              key={label}
-              color={color}
-              animateRerendering={animateRerendering}
-            >
+            <Label key={label} color={color} animateRerendering={animateRerendering}>
               {label}
             </Label>
           ))}
@@ -111,7 +107,7 @@ const Label = ({
           'bg-orange-500 text-orange-200': color === 'orange',
           'bg-red-800 text-red-300': color === 'red',
           'animate-[highlight_1s_ease-in-out_1]': animateRerendering,
-        },
+        }
       )}
     >
       {children}

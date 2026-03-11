@@ -183,10 +183,12 @@ export function resolveMetadataUrls(metadata: Metadata): Metadata {
     if (typeof result.openGraph.images === 'string') {
       result.openGraph.images = resolveUrl(result.openGraph.images, base);
     } else if (Array.isArray(result.openGraph.images)) {
-      result.openGraph.images = result.openGraph.images.map((img) => ({
-        ...img,
-        url: resolveUrl(img.url, base),
-      }));
+      result.openGraph.images = result.openGraph.images.map((img) => {
+        if (typeof img === 'string') {
+          return { url: resolveUrl(img, base) };
+        }
+        return { ...img, url: resolveUrl(img.url, base) };
+      });
     }
     if (result.openGraph.url && !isAbsoluteUrl(result.openGraph.url)) {
       result.openGraph.url = resolveUrl(result.openGraph.url, base);

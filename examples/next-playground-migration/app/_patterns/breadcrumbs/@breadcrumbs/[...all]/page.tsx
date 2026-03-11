@@ -1,10 +1,6 @@
 import { Breadcrumbs } from '#/app/_patterns/breadcrumbs/_components/breadcrumbs';
 
-export default async function Page({
-  params,
-}: {
-  params: Promise<{ all: string[] }>;
-}) {
+export default async function Page({ params }: { params: Promise<{ all: string[] }> }) {
   const { all } = await params;
 
   // Note: you could fetch breadcrumb data based on params here

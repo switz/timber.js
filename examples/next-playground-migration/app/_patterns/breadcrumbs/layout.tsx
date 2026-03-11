@@ -30,10 +30,7 @@ export default async function Layout({
       <div className="flex justify-between">
         <Tabs
           basePath="/patterns/breadcrumbs"
-          items={[
-            { text: 'Home' },
-            ...categories.map((x) => ({ text: x.name, slug: x.slug })),
-          ]}
+          items={[{ text: 'Home' }, ...categories.map((x) => ({ text: x.name, slug: x.slug }))]}
         />
       </div>
 

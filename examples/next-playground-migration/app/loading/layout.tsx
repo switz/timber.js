@@ -20,11 +20,7 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default async function Layout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default async function Layout({ children }: { children: React.ReactNode }) {
   const demo = db.demo.find({ where: { slug: 'loading' } });
   const sections = db.section.findMany();
 
@@ -42,10 +38,7 @@ export default async function Layout({
       >
         <Tabs
           basePath={`/${demo.slug}`}
-          items={[
-            { text: 'Home' },
-            ...sections.map((x) => ({ text: x.name, slug: x.slug })),
-          ]}
+          items={[{ text: 'Home' }, ...sections.map((x) => ({ text: x.name, slug: x.slug }))]}
         />
 
         <Suspense fallback={<Loading />}>{children}</Suspense>

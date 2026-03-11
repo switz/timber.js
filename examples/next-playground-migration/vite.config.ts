@@ -26,13 +26,8 @@ export default defineConfig({
     }),
   ],
   root: import.meta.dirname,
-  server: {
-    port: 3004,
-    strictPort: true,
-  },
-  esbuild: {
-    jsx: 'automatic',
-  },
+  server: { port: 3004, strictPort: true },
+  esbuild: { jsx: 'automatic' },
   resolve: {
     alias: {
       // Workspace source aliases

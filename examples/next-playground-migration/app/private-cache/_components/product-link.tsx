@@ -32,8 +32,7 @@ if (typeof window !== 'undefined') {
     // Ensure that we only monitor runtime prefetch requests.
     if (
       args[0] instanceof URL &&
-      (args[1]?.headers as Record<string, string>)?.['next-router-prefetch'] ===
-        '2'
+      (args[1]?.headers as Record<string, string>)?.['next-router-prefetch'] === '2'
     ) {
       const url = args[0];
       console.log('Monitoring fetch for', url.pathname);
@@ -76,7 +75,7 @@ export default function ProductLink({
   const state = useSyncExternalStore(
     subscribe,
     () => getSnapshot(pathname),
-    () => 'idle',
+    () => 'idle'
   );
 
   // Determine color and label based on loading state

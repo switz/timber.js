@@ -6,11 +6,7 @@ export default function Default() {
   const demo = db.demo.find({ where: { slug: 'parallel-routes' } });
 
   return (
-    <Boundary
-      label="@audience/default.tsx"
-      size="small"
-      className="flex flex-col gap-4"
-    >
+    <Boundary label="@audience/default.tsx" size="small" className="flex flex-col gap-4">
       <h1 className="font-semibold text-gray-300">Default</h1>
 
       <div className="flex flex-col gap-2">

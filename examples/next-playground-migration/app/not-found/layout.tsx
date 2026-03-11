@@ -17,11 +17,7 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default async function Layout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default async function Layout({ children }: { children: React.ReactNode }) {
   const demo = db.demo.find({ where: { slug: 'not-found' } });
   const sections = db.section.findMany({ limit: 1 });
 

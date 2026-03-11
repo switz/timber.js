@@ -16,18 +16,12 @@ export function GlobalNav({ items }: { items: DemoCategory[] }) {
   return (
     <>
       <div className="flex h-14 items-center px-4 py-4 lg:h-auto">
-        <Link
-          href="/"
-          className="group flex w-full items-center gap-x-2.5"
-          onClick={close}
-        >
+        <Link href="/" className="group flex w-full items-center gap-x-2.5" onClick={close}>
           <div className="size-9 rounded-full border-2 border-gray-800 group-hover:border-gray-700">
             <NextLogoDark />
           </div>
 
-          <h3 className="text-lg font-medium text-gray-200 group-hover:text-white">
-            Playground
-          </h3>
+          <h3 className="text-lg font-medium text-gray-200 group-hover:text-white">Playground</h3>
         </Link>
       </div>
       <button
@@ -35,9 +29,7 @@ export function GlobalNav({ items }: { items: DemoCategory[] }) {
         className="group absolute top-0 right-0 flex h-14 items-center gap-x-2 px-4 lg:hidden"
         onClick={() => setIsOpen(!isOpen)}
       >
-        <div className="font-medium text-gray-100 group-hover:text-gray-400">
-          Menu
-        </div>
+        <div className="font-medium text-gray-100 group-hover:text-gray-400">Menu</div>
         {isOpen ? (
           <XMarkIcon className="block w-6 text-gray-400" />
         ) : (
@@ -48,7 +40,7 @@ export function GlobalNav({ items }: { items: DemoCategory[] }) {
       <div
         className={clsx('overflow-y-auto lg:static lg:block', {
           'fixed inset-x-0 top-14 bottom-0 mt-px bg-black': isOpen,
-          hidden: !isOpen,
+          'hidden': !isOpen,
         })}
       >
         <nav className="space-y-6 px-2 pt-5 pb-24">
@@ -64,10 +56,7 @@ export function GlobalNav({ items }: { items: DemoCategory[] }) {
                     // `useSelectedLayoutSegment` suspends, so we place
                     // a Suspense boundary as deep as possible to allow
                     // the route's fallback shell to include these elements
-                    <Suspense
-                      key={item.slug}
-                      fallback={<NavItem item={item} close={close} />}
-                    >
+                    <Suspense key={item.slug} fallback={<NavItem item={item} close={close} />}>
                       <DynamicNavItem item={item} close={close} />
                     </Suspense>
                   ))}
@@ -81,13 +70,7 @@ export function GlobalNav({ items }: { items: DemoCategory[] }) {
   );
 }
 
-function DynamicNavItem({
-  item,
-  close,
-}: {
-  item: Demo;
-  close: () => false | void;
-}) {
+function DynamicNavItem({ item, close }: { item: Demo; close: () => false | void }) {
   const segment = useSelectedLayoutSegment();
   const isActive = item.slug === segment;
 
@@ -109,10 +92,7 @@ function NavItem({
       href={`/${item.slug}`}
       className={clsx(
         'flex justify-between rounded-md px-3 py-2 text-sm font-medium hover:text-gray-300',
-        {
-          'text-gray-400 hover:bg-gray-800': !isActive,
-          'text-white': isActive,
-        },
+        { 'text-gray-400 hover:bg-gray-800': !isActive, 'text-white': isActive }
       )}
     >
       {item.nav_title || item.name}

@@ -13,3 +13,7 @@ playwright-report/
 # Dolt database files (added by bd init)
 .dolt/
 *.db
+
+# timber.js generated files
+.timber/
+.tmp-route-watching-test/

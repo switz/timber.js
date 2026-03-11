@@ -32,6 +32,9 @@ export function RootShell({ children }: { children: React.ReactNode }) {
         <Link href="/parallel" data-testid="link-parallel">
           Parallel
         </Link>
+        <Link href="/hmr-test" data-testid="link-hmr-test">
+          HMR Test
+        </Link>
 
         {/* Prefetch-enabled link */}
         <Link href="/dashboard" prefetch data-testid="link-prefetch-dashboard">

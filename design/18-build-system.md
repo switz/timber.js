@@ -155,6 +155,25 @@ The route manifest virtual module contains the route tree data. The entry file c
 - Initializes the client navigation runtime (segment router, prefetch cache, history stack)
 - Registers the RSC stream parser for navigation responses
 
+### RSC Plugin Entry Configuration
+
+The `@vitejs/plugin-rsc` plugin is configured with `entries` mapping each environment to timber's virtual entry modules:
+
+```typescript
+vitePluginRsc({
+  entries: {
+    rsc: 'virtual:timber-rsc-entry',
+    ssr: 'virtual:timber-ssr-entry',
+    client: 'virtual:timber-browser-entry',
+  },
+  customClientEntry: true,  // timber manages its own browser entry
+  customBuildApp: true,     // timber controls its own build pipeline
+  serverHandler: false,     // timber has its own dev server
+})
+```
+
+The `entries.client` option is critical for React Fast Refresh: the RSC plugin's `virtual:vite-rsc/entry-browser` module sets up the Fast Refresh preamble globals (`$RefreshReg$`, `$RefreshSig$`) and then dynamically imports the client entry specified by `entries.client`. The `customClientEntry: true` flag opts out of the RSC plugin's default "index" client entry convention.
+
 ---
 
 ## Build Pipeline

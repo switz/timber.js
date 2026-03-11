@@ -357,11 +357,22 @@ export function buildClientScripts(runtimeConfig: {
   }
 
   if (runtimeConfig.dev) {
-    // Dev mode: Vite HMR client + virtual module path.
+    // Dev mode: Vite HMR client + RSC virtual browser entry.
+    //
+    // We import virtual:vite-rsc/entry-browser (the RSC plugin's browser
+    // entry) instead of directly importing virtual:timber-browser-entry.
+    // The RSC entry sets up React Fast Refresh globals ($RefreshReg$,
+    // $RefreshSig$) BEFORE dynamically importing our browser entry
+    // (resolved via the `entries.client` option we pass to the RSC plugin).
+    // This ordering is critical — @vitejs/plugin-react's Babel transform
+    // injects preamble checks into client components that expect these
+    // globals to exist at module evaluation time.
+    //
     // Dynamic import() ensures both scripts start loading immediately,
     // not deferred until document parsing completes.
     return {
-      bootstrapScriptContent: 'import("/@vite/client");import("/@id/virtual:timber-browser-entry")',
+      bootstrapScriptContent:
+        'import("/@vite/client");import("/@id/__x00__virtual:vite-rsc/entry-browser")',
       preloadLinks: '',
     };
   }

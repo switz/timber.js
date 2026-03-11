@@ -282,7 +282,11 @@ describe('buildClientScripts() — production', () => {
       dev: true,
     });
 
-    expect(result.bootstrapScriptContent).toContain('import("/@id/virtual:timber-browser-entry")');
+    // Dev mode imports the RSC plugin's virtual browser entry, which sets up
+    // React Fast Refresh preamble before dynamically importing our browser entry.
+    expect(result.bootstrapScriptContent).toContain(
+      'import("/@id/__x00__virtual:vite-rsc/entry-browser")'
+    );
     expect(result.bootstrapScriptContent).toContain('import("/@vite/client")');
   });
 

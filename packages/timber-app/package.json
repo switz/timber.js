@@ -31,14 +31,25 @@
     "zod": "^3.22.0 || ^4.0.0"
   },
   "peerDependenciesMeta": {
-    "@content-collections/core": { "optional": true },
-    "@content-collections/mdx": { "optional": true },
-    "@content-collections/vite": { "optional": true },
-    "@mdx-js/rollup": { "optional": true },
-    "zod": { "optional": true }
+    "@content-collections/core": {
+      "optional": true
+    },
+    "@content-collections/mdx": {
+      "optional": true
+    },
+    "@content-collections/vite": {
+      "optional": true
+    },
+    "@mdx-js/rollup": {
+      "optional": true
+    },
+    "zod": {
+      "optional": true
+    }
   },
   "dependencies": {
     "@opentelemetry/api": "^1.9.0",
+    "@vitejs/plugin-react": "^5.1.4",
     "@vitejs/plugin-rsc": "^0.5.19"
   }
 }

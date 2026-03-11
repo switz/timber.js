@@ -23,7 +23,7 @@ pnpm test                              # Vitest — full suite
 pnpm test tests/plugin.test.ts         # Run a single test file
 pnpm run test:e2e                      # Playwright E2E tests
 pnpm run typecheck                     # TypeScript via tsgo
-pnpm run lint                          # eslint
+pnpm run lint                          # oxlint
 ```
 
 ### Project Structure

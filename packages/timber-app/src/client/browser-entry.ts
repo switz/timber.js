@@ -14,7 +14,6 @@
  * After hydration, the browser entry:
  * - Intercepts clicks on <a data-timber-link> for SPA navigation
  * - Listens for mouseenter on <a data-timber-prefetch> for hover prefetch
- * - Manages history.scrollRestoration = 'manual' for scroll restoration
  * - Listens for popstate events for back/forward navigation
  *
  * Design docs: 18-build-system.md §"Entry Files", 19-client-navigation.md
@@ -43,8 +42,11 @@ import { TimberNuqsAdapter } from './nuqs-adapter.js';
 function bootstrap(runtimeConfig: typeof config): void {
   const _config = runtimeConfig;
 
-  // Take manual control of scroll restoration.
-  // See design/19-client-navigation.md §"Scroll Restoration"
+  // Take manual control of scroll restoration. React's render() on the
+  // document root resets scroll during DOM reconciliation, so the browser's
+  // native scroll restoration (scrollRestoration = 'auto') doesn't work —
+  // the browser restores scroll, then React's commit resets it to 0.
+  // We save/restore scroll positions explicitly in the history stack.
   window.history.scrollRestoration = 'manual';
 
   // Hydrate the React tree from the RSC payload.
@@ -171,7 +173,7 @@ function bootstrap(runtimeConfig: typeof config): void {
     pushState: (data, unused, url) => window.history.pushState(data, unused, url),
     replaceState: (data, unused, url) => window.history.replaceState(data, unused, url),
     scrollTo: (x, y) => window.scrollTo(x, y),
-    getCurrentUrl: () => window.location.href,
+    getCurrentUrl: () => window.location.pathname + window.location.search,
     getScrollY: () => window.scrollY,
 
     // Decode RSC Flight stream using createFromFetch.
@@ -210,7 +212,7 @@ function bootstrap(runtimeConfig: typeof config): void {
   // Store the initial page in the history stack so back-button works
   // after the first navigation. We store the decoded RSC element so
   // back navigation can replay it instantly without a server fetch.
-  router.historyStack.push(window.location.href, {
+  router.historyStack.push(window.location.pathname + window.location.search, {
     payload: initialElement,
     scrollY: 0,
     headElements: null, // SSR already set the correct head
@@ -225,9 +227,11 @@ function bootstrap(runtimeConfig: typeof config): void {
     delete (self as unknown as Record<string, unknown>).__timber_segments;
   }
 
-  // Register popstate handler for back/forward navigation
+  // Register popstate handler for back/forward navigation.
+  // Use pathname+search (not full href) to match the URL format used by
+  // navigate() — Link hrefs are relative paths like "/scroll-test/page-a".
   window.addEventListener('popstate', () => {
-    void router.handlePopState(window.location.href);
+    void router.handlePopState(window.location.pathname + window.location.search);
   });
 
   // Delegate click events on <a data-timber-link> for SPA navigation.

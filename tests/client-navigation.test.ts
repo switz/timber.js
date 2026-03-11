@@ -227,7 +227,7 @@ describe('Router', () => {
       scrollTo: mockScrollTo,
       getCurrentUrl: () => '/dashboard',
       getScrollY: () => 0,
-    });
+          });
   });
 
   describe('navigate', () => {
@@ -294,8 +294,8 @@ describe('Router', () => {
       );
 
       await router.navigate('/projects', { scroll: false });
-      // scroll={false} restores the current scroll position after render,
-      // because React's render() on the document root can reset scroll to 0.
+      // scroll={false} captures scrollY before render and restores it after paint.
+      // In tests, getScrollY returns 0.
       expect(mockScrollTo).toHaveBeenCalledWith(0, 0);
     });
 
@@ -366,8 +366,7 @@ describe('Router', () => {
   });
 
   describe('popstate (back/forward)', () => {
-    it('scroll restoration on back/forward', async () => {
-      // Simulate having visited /projects with scrollY=250
+    it('restores scroll position on back/forward', async () => {
       router.historyStack.push('/projects', {
         payload: 'projects-payload',
         scrollY: 250,
@@ -375,7 +374,7 @@ describe('Router', () => {
 
       await router.handlePopState('/projects');
 
-      // Should restore scroll position
+      // Should restore scroll position from history entry
       expect(mockScrollTo).toHaveBeenCalledWith(0, 250);
     });
 
@@ -469,8 +468,8 @@ describe('Router', () => {
         replaceState: mockReplaceState,
         scrollTo: mockScrollTo,
         getCurrentUrl: () => '/dashboard',
-        getScrollY: () => 0,
-        decodeRsc: mockDecodeRsc as (fetchPromise: Promise<Response>) => unknown,
+      getScrollY: () => 0,
+                decodeRsc: mockDecodeRsc as (fetchPromise: Promise<Response>) => unknown,
         renderRoot: mockRenderRoot as (element: unknown) => void,
       });
     });
@@ -606,8 +605,8 @@ describe('Router', () => {
         replaceState: mockReplaceState,
         scrollTo: mockScrollTo,
         getCurrentUrl: () => '/dashboard',
-        getScrollY: () => 0,
-        decodeRsc: mockDecodeRsc as (fetchPromise: Promise<Response>) => unknown,
+      getScrollY: () => 0,
+                decodeRsc: mockDecodeRsc as (fetchPromise: Promise<Response>) => unknown,
         renderRoot: mockRenderRoot as (element: unknown) => void,
       });
 
@@ -690,8 +689,8 @@ describe('Router', () => {
         replaceState: mockReplaceState,
         scrollTo: mockScrollTo,
         getCurrentUrl: () => '/dashboard',
-        getScrollY: () => 0,
-        applyHead: mockApplyHead as (elements: unknown[]) => void,
+      getScrollY: () => 0,
+                applyHead: mockApplyHead as (elements: unknown[]) => void,
       });
     });
 
@@ -943,7 +942,7 @@ describe('state tree populated on hydration', () => {
       scrollTo: vi.fn(),
       getCurrentUrl: () => '/',
       getScrollY: () => 0,
-    });
+          });
 
     router.initSegmentCache([
       { path: '/', isAsync: false },
@@ -969,7 +968,7 @@ describe('state tree updated after navigation', () => {
       scrollTo: vi.fn(),
       getCurrentUrl: () => '/',
       getScrollY: () => 0,
-    });
+          });
 
     const segmentInfo = [
       { path: '/', isAsync: false },
@@ -1003,7 +1002,7 @@ describe('excludes async segments from state tree', () => {
       scrollTo: vi.fn(),
       getCurrentUrl: () => '/',
       getScrollY: () => 0,
-    });
+          });
 
     const segmentInfo = [
       { path: '/', isAsync: false },
@@ -1038,7 +1037,7 @@ describe('includes X-Timber-State-Tree header for segment diff skip sync', () =>
       scrollTo: vi.fn(),
       getCurrentUrl: () => '/dashboard',
       getScrollY: () => 0,
-    });
+          });
 
     // Populate segment cache (simulating hydration)
     router.initSegmentCache([

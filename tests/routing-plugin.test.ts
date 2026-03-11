@@ -43,7 +43,9 @@ beforeEach(() => {
   mkdirSync(TMP_DIR, { recursive: true });
 });
 
-afterEach(() => {
+afterEach(async () => {
+  // Wait for fire-and-forget codegen writes (writeCodegen) to settle before cleanup
+  await new Promise((resolve) => setTimeout(resolve, 100));
   rmSync(TMP_DIR, { recursive: true, force: true });
 });
 

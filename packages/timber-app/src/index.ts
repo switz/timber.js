@@ -147,4 +147,17 @@ export function timber(config?: TimberUserConfig): PluginOption[] {
   ];
 }
 
+/**
+ * Route map interface — augmented by the generated timber-routes.d.ts.
+ *
+ * Each key is a route path pattern. Values have:
+ *   params: shape of URL params (e.g. { id: string })
+ *   searchParams: parsed type from search-params.ts, or {} if none
+ *
+ * This interface is empty by default and populated via codegen.
+ * See design/09-typescript.md §"Typed Routes".
+ */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export interface Routes {}
+
 export default timber;

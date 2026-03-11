@@ -1,17 +1,11 @@
 import { searchParams } from '@timber/app/server';
 import { Link } from '@timber/app/client';
 import FilterBar from './FilterBar';
-import type searchParamsDef from './search-params';
-
-// The rsc-entry auto-parses search-params.ts before rendering this page and
-// stores the typed result in ALS. searchParams() returns that parsed object.
-// Once codegen generates per-route searchParams() overloads this cast can be removed.
-type Params = NonNullable<(typeof searchParamsDef)['_type']>;
 
 export const metadata = { title: 'Search Params Test' };
 
 export default async function SearchParamsTestPage() {
-  const { page, q, sort } = (await searchParams()) as unknown as Params;
+  const { page, q, sort } = await searchParams<'/search-params-test'>();
 
   return (
     <div data-testid="search-params-page">

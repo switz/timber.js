@@ -56,8 +56,8 @@ const TIMBER_ENV_DTS = [
  */
 function writeCodegen(ctx: PluginContext): void {
   if (!ctx.routeTree) return;
-  const content = generateRouteMap(ctx.routeTree, { appDir: ctx.appDir });
   const timberDir = join(ctx.root, '.timber');
+  const content = generateRouteMap(ctx.routeTree, { appDir: ctx.appDir, outputDir: timberDir });
   const routesPath = join(ctx.root, CODEGEN_OUTPUT);
   const envPath = join(ctx.root, 'timber-env.d.ts');
   mkdir(timberDir, { recursive: true })

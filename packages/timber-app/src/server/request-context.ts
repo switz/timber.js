@@ -10,6 +10,7 @@
  */
 
 import { AsyncLocalStorage } from 'node:async_hooks';
+import type { Routes } from '../index.js';
 
 // ─── ALS Store ────────────────────────────────────────────────────────────
 
@@ -100,6 +101,8 @@ export function cookies(): RequestCookies {
  *
  * Throws if called outside a request context.
  */
+export function searchParams<R extends keyof Routes>(): Promise<Routes[R]['searchParams']>;
+export function searchParams(): Promise<URLSearchParams | Record<string, unknown>>;
 export function searchParams(): Promise<URLSearchParams | Record<string, unknown>> {
   const store = requestContextAls.getStore();
   if (!store) {

@@ -188,7 +188,7 @@ function formatDeclarationFile(routes: RouteEntry[]): string {
 
   if (dynamicRoutes.length > 0 || pageRoutes.length > 0) {
     lines.push("declare module '@timber/app/client' {");
-    lines.push("  import type { SearchParamsDefinition } from '@timber/app/search-params'");
+    lines.push("  import type { SearchParamsDefinition, SetParams, QueryStatesOptions, SearchParamCodec } from '@timber/app/search-params'");
     lines.push('');
 
     // useParams overloads
@@ -198,6 +198,12 @@ function formatDeclarationFile(routes: RouteEntry[]): string {
         lines.push(`  export function useParams(route: '${route.urlPath}'): ${paramsType}`);
       }
       lines.push('  export function useParams(): Record<string, string | string[]>');
+      lines.push('');
+    }
+
+    // useQueryStates overloads
+    if (pageRoutes.length > 0) {
+      lines.push(...formatUseQueryStatesOverloads(pageRoutes));
       lines.push('');
     }
 
@@ -242,6 +248,33 @@ function formatSearchParamsType(route: RouteEntry): string {
     return `import('${importPath}').default extends import('@timber/app/search-params').SearchParamsDefinition<infer T> ? T : never`;
   }
   return '{}';
+}
+
+/**
+ * Generate useQueryStates overloads.
+ *
+ * For each page route:
+ * - Routes with search-params.ts get a typed overload returning the inferred T
+ * - Routes without search-params.ts get an overload returning [{}, SetParams<{}>]
+ *
+ * A fallback overload for standalone codecs (existing API) is emitted last.
+ */
+function formatUseQueryStatesOverloads(routes: RouteEntry[]): string[] {
+  const lines: string[] = [];
+
+  for (const route of routes) {
+    const searchParamsType = route.hasSearchParams ? formatSearchParamsType(route) : '{}';
+    lines.push(
+      `  export function useQueryStates<R extends '${route.urlPath}'>(route: R, options?: QueryStatesOptions): [${searchParamsType}, SetParams<${searchParamsType}>]`
+    );
+  }
+
+  // Fallback: standalone codecs (existing API)
+  lines.push(
+    '  export function useQueryStates<T extends Record<string, unknown>>(codecs: { [K in keyof T]: SearchParamCodec<T[K]> }, options?: QueryStatesOptions): [T, SetParams<T>]'
+  );
+
+  return lines;
 }
 
 /**

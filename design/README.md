@@ -60,3 +60,4 @@ We don't need to create docs for these now but future things that would be nice 
 - [ ] content security policies
 - [ ] Full text search integration, perhaps with turbopuffer or alternative vector based search?
 - [ ] Better story around async (client) react, transitions, and so on
+- [ ] Unified API for fetching data for a page? all wrapped around react.cache? like `route.fetch<routetype>()` in a file called `loader.ts` - this lets you fetch it from anywhere and it'll de-duplicate the data across `access`/metadata and so on

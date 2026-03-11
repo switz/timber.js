@@ -7,6 +7,7 @@ import { timberEntries } from './plugins/entries';
 import { timberMdx } from './plugins/mdx';
 import { timberRouting } from './plugins/routing';
 import { timberShims } from './plugins/shims';
+import { timberFonts } from './plugins/fonts';
 import { timberStaticBuild } from './plugins/static-build';
 import { timberDynamicTransform } from './plugins/dynamic-transform';
 import { timberBuildManifest } from './plugins/build-manifest';
@@ -73,12 +74,6 @@ function createPluginContext(config?: TimberUserConfig, root?: string): PluginCo
 
 function timberCache(_ctx: PluginContext): Plugin {
   return cacheTransformPlugin();
-}
-
-function timberFonts(_ctx: PluginContext): Plugin {
-  return {
-    name: 'timber-fonts',
-  };
 }
 
 export function timber(config?: TimberUserConfig): PluginOption[] {

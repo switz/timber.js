@@ -305,6 +305,14 @@ Minimal form demonstrating progressive enhancement — a single email input that
 
 ---
 
+## Network boundary, streaming, and shell
+
+The core design to get across here is getting users to understand that _all_ websites are built across the network boundary. We have two environments (server and client) and all existing frameworks (SPAs, htmx, rails, universal SSR etc.) tend to pretend one or the other doesn't exist. Since RSCs are streaming-compatible, we can stream our HTML and JS as it's ready with one caveat. Stream too early and you lose HTTP status codes, no-js forms, etc etc.
+
+So it's important for users to understand why RSCs handle both sides of the network boundary. What streaming and flush-points are. And how this framework gives visiblity into both through logging and clarity of surface APIs.
+
+This is more of guide-level than docs-level, but we'll need both on our docs site.
+
 ## AI-Generated Content Banner
 
 Every doc page displays a banner:

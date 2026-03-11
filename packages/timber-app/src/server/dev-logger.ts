@@ -227,7 +227,11 @@ function formatSpanNode(
   let timing = `${startMs}ms → ${endMs}ms`;
   if (accessResult) {
     const accessStatus = node.span.attributes['timber.deny_status'] as number | undefined;
+    const denyFile = node.span.attributes['timber.deny_file'] as string | undefined;
     timing += `  → ${accessResult.toUpperCase()}${accessStatus ? ` ${accessStatus}` : ''}`;
+    if (denyFile) {
+      timing += `  (${denyFile})`;
+    }
   }
 
   const slowHighlight = isSlow ? YELLOW : '';

@@ -19,6 +19,34 @@ export class DenySignal extends Error {
     this.status = status;
     this.data = data;
   }
+
+  /**
+   * Extract the file that called deny() from the stack trace.
+   * Returns a short path (e.g. "app/auth/access.ts") or undefined if
+   * the stack can't be parsed. Dev-only — used for dev log output.
+   */
+  get sourceFile(): string | undefined {
+    if (!this.stack) return undefined;
+    const frames = this.stack.split('\n');
+    // Skip the Error line and the deny() frame — the caller is the 3rd line.
+    // Stack format: "    at FnName (file:line:col)" or "    at file:line:col"
+    for (let i = 2; i < frames.length; i++) {
+      const frame = frames[i];
+      if (!frame) continue;
+      // Skip framework internals
+      if (frame.includes('primitives.ts') || frame.includes('node_modules')) continue;
+      // Extract file path from the frame
+      const match =
+        frame.match(/\(([^)]+?)(?::\d+:\d+)\)/) ?? frame.match(/at\s+([^\s]+?)(?::\d+:\d+)/);
+      if (match?.[1]) {
+        // Shorten to app-relative path
+        const full = match[1];
+        const appIdx = full.indexOf('/app/');
+        return appIdx >= 0 ? full.slice(appIdx + 1) : full;
+      }
+    }
+    return undefined;
+  }
 }
 
 /**

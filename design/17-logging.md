@@ -486,7 +486,15 @@ The dev logger is implemented as a Vite plugin and stripped entirely from produc
 - `onRequestError()` hook invoked for unhandled errors in proxy, middleware, and render phases
 - `slowRequestMs` config support (default 3000ms, 0 to disable)
 
+**Implemented (dev logging wiring):**
+- Dev log event emission at pipeline stages: `request-start`, `phase-start`/`phase-end` for proxy, middleware, render, `request-end`
+- `DevLogEmitter` per-request via ALS (`dev-log-context.ts`) — zero overhead in production (no emitter created)
+- `PipelineConfig.onDevLog` callback — dev server subscribes `createRequestCollector` and writes formatted output to stderr
+- `cache-hit`/`cache-miss` events emitted from `timber.cache` call sites
+- `access-result` events emitted from `AccessGate` with segment name and result (PASS/DENY/REDIRECT)
+- `TIMBER_DEV_QUIET=1` and `TIMBER_DEV_LOG=summary` environment variable support
+- `slowPhaseMs` threshold support via `createRequestCollector` config
+
 **Not yet implemented:**
-- Dev logging (grouped indented tree output to stderr)
-- `slowPhaseMs` per-phase threshold warnings (dev mode only)
-- `timber.access`, `timber.ssr`, `timber.action`, `timber.metadata` spans (access gates and SSR run inside the render phase)
+- `slowPhaseMs` config wiring from `timber.config.ts` (infrastructure works, config option not added)
+- `timber.access`, `timber.ssr`, `timber.action`, `timber.metadata` OTEL spans (access gates and SSR run inside the render phase)

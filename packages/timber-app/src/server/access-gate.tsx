@@ -15,6 +15,10 @@
 
 import { DenySignal, RedirectSignal } from './primitives.js';
 import type { AccessGateProps, SlotAccessGateProps, ReactElement } from './tree-builder.js';
+import { getDevLogEmitter } from './dev-log-context.js';
+
+// Counter for generating unique dev log event IDs when no segment name is available.
+let accessGateCounter = 0;
 
 // ─── AccessGate ─────────────────────────────────────────────────────────────
 
@@ -30,12 +34,45 @@ import type { AccessGateProps, SlotAccessGateProps, ReactElement } from './tree-
  * gets the same data by calling the same cached functions (React.cache dedup).
  */
 export async function AccessGate(props: AccessGateProps): Promise<ReactElement> {
-  const { accessFn, params, searchParams, children } = props;
+  const { accessFn, params, searchParams, segmentName, children } = props;
+  const label = `AccessGate (${segmentName ?? 'segment'})`;
+  const eventId = `access-${segmentName ?? String(accessGateCounter++)}`;
 
   // Call access.ts. If it calls deny() or redirect(), a DenySignal or
   // RedirectSignal is thrown — React catches it and the flush controller
   // produces the correct HTTP response.
-  await accessFn({ params, searchParams });
+  try {
+    await accessFn({ params, searchParams });
+  } catch (error: unknown) {
+    // Emit access-result dev log event on denial
+    const devEmitter = getDevLogEmitter();
+    if (devEmitter) {
+      const result = error instanceof DenySignal ? 'DENY' : error instanceof RedirectSignal ? 'REDIRECT' : 'ERROR';
+      const status = error instanceof DenySignal ? error.status : undefined;
+      devEmitter.emit({
+        type: 'access-result',
+        environment: 'rsc',
+        label,
+        id: eventId,
+        parentId: 'render',
+        meta: { result, status },
+      });
+    }
+    throw error;
+  }
+
+  // Emit access-result dev log event on pass
+  const devEmitter = getDevLogEmitter();
+  if (devEmitter) {
+    devEmitter.emit({
+      type: 'access-result',
+      environment: 'rsc',
+      label,
+      id: eventId,
+      parentId: 'render',
+      meta: { result: 'PASS' },
+    });
+  }
 
   // Access passed — render children (the layout and everything below).
   return children;

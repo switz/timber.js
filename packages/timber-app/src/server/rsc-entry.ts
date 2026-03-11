@@ -28,6 +28,8 @@ import { renderToReadableStream } from '@vitejs/plugin-rsc/rsc';
 import { createPipeline } from './pipeline.js';
 import type { PipelineConfig, RouteMatch } from './pipeline.js';
 import { logRenderError } from './logger.js';
+import { createRequestCollector, resolveLogMode } from './dev-logger.js';
+import type { DevLogEmitter } from './dev-log-events.js';
 import { createRouteMatcher } from './route-matcher.js';
 import type { ManifestSegmentNode } from './route-matcher.js';
 import { resolveMetadata, renderMetadataToElements } from './metadata.js';
@@ -89,12 +91,33 @@ function createRequestHandler(manifest: typeof routeManifest, runtimeConfig: typ
     buildManifest: buildManifest as BuildManifest,
   });
 
+  // Dev logging — resolve log mode once at handler creation time.
+  // In production, isDev is false and no dev log callback is installed,
+  // so the pipeline creates no emitters and has zero overhead.
+  const isDev = process.env.NODE_ENV !== 'production';
+  const devLogMode = isDev ? resolveLogMode() : 'quiet';
+
   const pipelineConfig: PipelineConfig = {
     proxy: manifest.proxy?.load,
     matchRoute,
     render: async (req: Request, match: RouteMatch, responseHeaders: Headers) => {
       return renderRoute(req, match, responseHeaders, scriptsHtml);
     },
+    onDevLog: isDev && devLogMode !== 'quiet'
+      ? (emitter: DevLogEmitter) => {
+          const collector = createRequestCollector({ mode: devLogMode });
+          emitter.on(collector.collect);
+          // Subscribe to request-end to flush formatted output to stderr.
+          emitter.on((event) => {
+            if (event.type === 'request-end') {
+              const output = collector.format(devLogMode);
+              if (output) {
+                process.stderr.write(output);
+              }
+            }
+          });
+        }
+      : undefined,
   };
 
   const pipeline = createPipeline(pipelineConfig);

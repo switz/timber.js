@@ -16,14 +16,12 @@ interface ContactFormProps {
 }
 
 export function ContactForm({ flash }: ContactFormProps) {
-  const [result, action, isPending] = useActionState(submitContact, null);
-
-  // Use flash data (no-JS path) or action result (with-JS path) for errors
-  const errorSource = flash ?? result;
-  const errors = useFormErrors(errorSource);
-
-  // Submitted values for repopulation — prefer flash (no-JS), fall back to result
-  const submitted = flash?.submittedValues ?? result?.submittedValues ?? {};
+  // Flash seeds the initial state for no-JS submissions.
+  // With JS, React manages state updates via useActionState.
+  // Either way, `result` is the single source of truth.
+  const [result, action, isPending] = useActionState(submitContact, flash);
+  const errors = useFormErrors(result);
+  const submitted = result?.submittedValues ?? {};
 
   return (
     <form action={action} data-testid="contact-form">

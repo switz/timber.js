@@ -13,6 +13,7 @@
 
 import { useActionState as reactUseActionState, useTransition } from 'react';
 import type { ActionResult, ValidationErrors } from '../server/action-client';
+import type { FormFlashData } from '../server/form-flash';
 
 // ─── Types ───────────────────────────────────────────────────────────────
 
@@ -42,7 +43,9 @@ export type UseActionStateReturn<TData> = [
  * the timber action builder's result shape.
  *
  * @param action - A server action created with createActionClient or a raw 'use server' function.
- * @param initialState - Initial state, typically `null`.
+ * @param initialState - Initial state, typically `null`. Pass `getFormFlash()` for no-JS
+ *   progressive enhancement — the flash seeds the initial state so the form has a
+ *   single source of truth for both with-JS and no-JS paths.
  * @param permalink - Optional permalink for progressive enhancement (no-JS fallback URL).
  *
  * @example
@@ -51,8 +54,8 @@ export type UseActionStateReturn<TData> = [
  * import { useActionState } from '@timber/app/client'
  * import { createTodo } from './actions'
  *
- * export function NewTodoForm() {
- *   const [result, action, isPending] = useActionState(createTodo, null)
+ * export function NewTodoForm({ flash }) {
+ *   const [result, action, isPending] = useActionState(createTodo, flash)
  *   return (
  *     <form action={action}>
  *       <input name="title" />
@@ -65,10 +68,12 @@ export type UseActionStateReturn<TData> = [
  */
 export function useActionState<TData>(
   action: UseActionStateFn<TData>,
-  initialState: ActionResult<TData> | null,
+  initialState: ActionResult<TData> | FormFlashData | null,
   permalink?: string
 ): UseActionStateReturn<TData> {
-  return reactUseActionState(action, initialState, permalink);
+  // FormFlashData is structurally compatible with ActionResult at runtime —
+  // the cast satisfies React's generic inference which would otherwise widen TData.
+  return reactUseActionState(action, initialState as ActionResult<TData> | null, permalink);
 }
 
 // ─── useFormAction ───────────────────────────────────────────────────────

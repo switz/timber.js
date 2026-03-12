@@ -241,10 +241,15 @@ async function handleFormAction(
   const formData = await req.formData();
 
   // Check if this is actually a React server action form.
-  // If there's no $ACTION_REF or $ACTION_KEY, it's a regular form POST
+  // If there's no $ACTION_REF_* or $ACTION_KEY, it's a regular form POST
   // that should be handled by the route's route handler, not here.
-  if (!formData.has('$ACTION_REF_1') && !formData.has('$ACTION_KEY')) {
-    // Not a React server action form — return null to let the pipeline handle it
+  // React uses `$ACTION_REF_` + identifierPrefix — since we don't set one,
+  // the suffix is empty. Check for any key starting with $ACTION_REF_ or $ACTION_ID_.
+  const allKeys = [...formData.keys()];
+  const hasActionField = allKeys.some(
+    (k) => k.startsWith('$ACTION_REF_') || k.startsWith('$ACTION_ID_')
+  );
+  if (!hasActionField && !formData.has('$ACTION_KEY')) {
     return null;
   }
 
@@ -266,30 +271,21 @@ async function handleFormAction(
       renderer: config.revalidateRenderer,
     });
   } catch (error) {
-    // Log full error server-side
     console.error('[timber] server action error:', error);
 
-    // Check if this is an ActionError — return as flash data for re-render
+    // Return the error as flash data for re-render.
+    // handleActionError produces { serverError } for ActionErrors
+    // and { serverError: { code: 'INTERNAL_ERROR' } } for unexpected errors.
     const errorResult = handleActionError(error);
-    if (errorResult.serverError) {
-      return {
-        rerender: {
-          validationErrors: {},
-          submittedValues,
-          serverError: errorResult.serverError,
-        },
-      };
-    }
-
-    // Fallback: redirect back to the page
-    const url = new URL(req.url);
-    return new Response(null, {
-      status: 302,
-      headers: { Location: url.pathname + url.search },
-    });
+    return {
+      rerender: {
+        ...errorResult,
+        submittedValues,
+      },
+    };
   }
 
-  // Handle redirect from the action itself
+  // Handle redirect from the action (e.g. redirect() called in the action body)
   if (result.redirectTo) {
     return new Response(null, {
       status: result.redirectStatus ?? 302,
@@ -297,25 +293,11 @@ async function handleFormAction(
     });
   }
 
-  // Check if the action returned validation errors — re-render with flash
-  // instead of redirecting (validation failures are not mutations, so PRG
-  // isn't needed). This preserves errors and submitted values.
-  const actionResult = result.actionResult as Record<string, unknown> | undefined;
-  if (actionResult && actionResult.validationErrors) {
-    const flash: FormFlashData = {
-      validationErrors: actionResult.validationErrors as FormFlashData['validationErrors'],
-      submittedValues: (actionResult.submittedValues as Record<string, unknown>) ?? submittedValues,
-    };
-    if (actionResult.serverError) {
-      flash.serverError = actionResult.serverError as FormFlashData['serverError'];
-    }
-    return { rerender: flash };
-  }
-
-  // No-JS: redirect back to the same page to show updated state (PRG pattern)
-  const url = new URL(req.url);
-  return new Response(null, {
-    status: 302,
-    headers: { Location: url.pathname + url.search },
-  });
+  // Re-render the page with the action result as flash data.
+  // The server component reads the flash via getFormFlash() and passes it
+  // to the client form component as the initial useActionState value.
+  // This handles both success ({ data }) and validation failure
+  // ({ validationErrors, submittedValues }) — the form is the single source of truth.
+  const actionResult = result.actionResult as FormFlashData;
+  return { rerender: actionResult };
 }

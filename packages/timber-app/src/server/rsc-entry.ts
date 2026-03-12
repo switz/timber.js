@@ -206,9 +206,11 @@ async function createRequestHandler(manifest: typeof routeManifest, runtimeConfi
         // Check if this is a re-render signal (no-JS validation failure)
         if ('rerender' in actionResponse) {
           const formRerender = actionResponse as FormRerender;
-          // Re-render the page with form flash data in scope.
-          // Server components can read validation errors via getFormFlash().
-          return runWithFormFlash(formRerender.rerender, () => pipeline(req));
+          // Re-render the page with the action result as flash data.
+          // Server components read it via getFormFlash() and pass it to
+          // client form components as the initial useActionState value.
+          const response = await runWithFormFlash(formRerender.rerender, () => pipeline(req));
+          return response;
         }
         return actionResponse;
       }

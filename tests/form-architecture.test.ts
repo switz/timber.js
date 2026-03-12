@@ -303,4 +303,19 @@ describe('form flash (ALS)', () => {
       expect(getFormFlash()!.validationErrors).toEqual({ a: ['outer'] });
     });
   });
+
+  it('supports success flash data (data field)', () => {
+    const flash: FormFlashData = {
+      data: { message: 'Created successfully', id: '123' },
+    };
+
+    let captured: FormFlashData | null = null;
+    runWithFormFlash(flash, () => {
+      captured = getFormFlash();
+    });
+
+    expect(captured).toEqual(flash);
+    expect(captured!.data).toEqual({ message: 'Created successfully', id: '123' });
+    expect(captured!.validationErrors).toBeUndefined();
+  });
 });

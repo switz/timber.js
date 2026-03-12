@@ -108,6 +108,78 @@ describe('parseFormData', () => {
     const result = parseFormData(fd);
     expect(result).toEqual({ items: ['one', 'three'] });
   });
+
+  // ─── No-JS form submission shape ────────────────────────────────────
+
+  it('strips all $ACTION_* variants from no-JS form submissions', () => {
+    const fd = new FormData();
+    fd.append('$ACTION_REF_1', '');
+    fd.append('$ACTION_1:0', '{"id":"/app/actions.ts#create","bound":"$@1"}');
+    fd.append('$ACTION_1:1', '[null]');
+    fd.append('$ACTION_KEY', 'kfbcc4f7c74b32a19e6a8a4ec01f87c56');
+    fd.append('$ACTION_ID_abc', 'def');
+    fd.append('title', 'Hello');
+    fd.append('description', '');
+
+    const result = parseFormData(fd);
+    expect(result).toEqual({ title: 'Hello', description: undefined });
+    expect(Object.keys(result).some((k) => k.startsWith('$ACTION_'))).toBe(false);
+  });
+
+  it('handles realistic no-JS event form submission', () => {
+    const fd = new FormData();
+    // React hidden fields
+    fd.append('$ACTION_REF_1', '');
+    fd.append('$ACTION_1:0', '{"id":"/app/forms-test/actions.ts#createEvent","bound":"$@1"}');
+    fd.append('$ACTION_1:1', '[null]');
+    fd.append('$ACTION_KEY', 'kfbcc4f7c74b32a19e6a8a4ec01f87c56');
+    // User fields
+    fd.append('title', 'React Summit 2026');
+    fd.append('description', '');
+    fd.append('date', '');
+    fd.append('category', '');
+    fd.append('maxAttendees', '');
+    fd.append('metadata', '{"source":"kitchen-sink","version":1}');
+
+    const result = parseFormData(fd);
+    expect(result).toEqual({
+      title: 'React Summit 2026',
+      description: undefined,
+      date: undefined,
+      category: undefined,
+      maxAttendees: undefined,
+      metadata: '{"source":"kitchen-sink","version":1}',
+    });
+  });
+
+  it('handles no-JS form with checkboxes and multi-select', () => {
+    const fd = new FormData();
+    fd.append('$ACTION_REF_1', '');
+    fd.append('$ACTION_KEY', 'abc123');
+    fd.append('title', 'Test');
+    fd.append('isPublic', 'on');
+    fd.append('tags', 'react');
+    fd.append('tags', 'typescript');
+
+    const result = parseFormData(fd);
+    expect(result).toEqual({
+      title: 'Test',
+      isPublic: 'on',
+      tags: ['react', 'typescript'],
+    });
+  });
+
+  it('handles no-JS form with unchecked checkbox (absent key)', () => {
+    const fd = new FormData();
+    fd.append('$ACTION_REF_1', '');
+    fd.append('$ACTION_KEY', 'abc123');
+    fd.append('title', 'Test');
+    // isPublic is absent — checkbox not checked
+
+    const result = parseFormData(fd);
+    expect(result).toEqual({ title: 'Test' });
+    expect(result).not.toHaveProperty('isPublic');
+  });
 });
 
 // ─── coerce.number ───────────────────────────────────────────────────────

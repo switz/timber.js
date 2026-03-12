@@ -1,23 +1,26 @@
-'use client';
+"use client";
 
-import { useActionState, useFormErrors } from '@timber/app/client';
-import { createEvent } from './actions';
-import type { FormFlashData } from '@timber/app/server';
+import { useActionState, useFormErrors } from "@timber/app/client";
+import { createEvent } from "./actions";
+import type { FormFlashData } from "@timber/app/server";
 
 const categories = [
-  { value: '', label: 'Select a category…' },
-  { value: 'conference', label: 'Conference' },
-  { value: 'workshop', label: 'Workshop' },
-  { value: 'meetup', label: 'Meetup' },
-  { value: 'social', label: 'Social' },
+  { value: "", label: "Select a category…" },
+  { value: "conference", label: "Conference" },
+  { value: "workshop", label: "Workshop" },
+  { value: "meetup", label: "Meetup" },
+  { value: "social", label: "Social" },
 ];
 
-const tagOptions = ['react', 'typescript', 'rust', 'ai', 'design'];
+const tagOptions = ["react", "typescript", "rust", "ai", "design"];
 
 export function EventForm({ flash }: { flash: FormFlashData | null }) {
-  const [result, action, isPending] = useActionState(createEvent, null);
-  const errors = useFormErrors(flash ?? result);
-  const submitted = flash?.submittedValues ?? result?.submittedValues ?? {};
+  // Flash seeds the initial state for no-JS submissions.
+  // With JS, React manages state updates via useActionState.
+  // Either way, `result` is the single source of truth.
+  const [result, action, isPending] = useActionState(createEvent, flash);
+  const errors = useFormErrors(result);
+  const submitted = result?.submittedValues ?? {};
 
   return (
     <div className="max-w-lg">
@@ -30,71 +33,83 @@ export function EventForm({ flash }: { flash: FormFlashData | null }) {
           {result.data.message}
         </div>
       )}
+      {errors?.hasErrors && (
+        <div
+          data-testid="error-message"
+          className="mb-4 rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-800"
+        >
+          There was an error submitting the form
+        </div>
+      )}
 
       {/* Form-level errors */}
       {errors.formErrors.length > 0 && (
         <div className="mb-4 rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-800">
-          {errors.formErrors.map((e) => <p key={e}>{e}</p>)}
+          {errors.formErrors.map((e) => (
+            <p key={e}>{e}</p>
+          ))}
         </div>
       )}
 
       <form action={action} className="space-y-5">
         {/* Text input */}
-        <Field label="Event Title" error={errors.getFieldError('title')}>
+        <Field label="Event Title" error={errors.getFieldError("title")}>
           <input
             name="title"
             data-testid="title-input"
-            defaultValue={(submitted.title as string) ?? ''}
-            className={inputClass(errors.getFieldError('title'))}
+            defaultValue={(submitted.title as string) ?? ""}
+            className={inputClass(errors.getFieldError("title"))}
             placeholder="React Summit 2026"
           />
         </Field>
 
         {/* Textarea */}
-        <Field label="Description" error={errors.getFieldError('description')}>
+        <Field label="Description" error={errors.getFieldError("description")}>
           <textarea
             name="description"
             data-testid="description-input"
             rows={3}
-            defaultValue={(submitted.description as string) ?? ''}
-            className={inputClass(errors.getFieldError('description'))}
+            defaultValue={(submitted.description as string) ?? ""}
+            className={inputClass(errors.getFieldError("description"))}
             placeholder="Tell people what this event is about…"
           />
         </Field>
 
         {/* Date input */}
-        <Field label="Date" error={errors.getFieldError('date')}>
+        <Field label="Date" error={errors.getFieldError("date")}>
           <input
             name="date"
             type="date"
             data-testid="date-input"
-            defaultValue={(submitted.date as string) ?? ''}
-            className={inputClass(errors.getFieldError('date'))}
+            defaultValue={(submitted.date as string) ?? ""}
+            className={inputClass(errors.getFieldError("date"))}
           />
         </Field>
 
         {/* Select */}
-        <Field label="Category" error={errors.getFieldError('category')}>
+        <Field label="Category" error={errors.getFieldError("category")}>
           <select
             name="category"
             data-testid="category-select"
-            defaultValue={(submitted.category as string) ?? ''}
-            className={inputClass(errors.getFieldError('category'))}
+            defaultValue={(submitted.category as string) ?? ""}
+            className={inputClass(errors.getFieldError("category"))}
           >
             {categories.map((c) => (
-              <option key={c.value} value={c.value}>{c.label}</option>
+              <option key={c.value} value={c.value}>
+                {c.label}
+              </option>
             ))}
           </select>
         </Field>
 
         {/* Number input (coerce.number) */}
-        <Field label="Max Attendees" error={errors.getFieldError('maxAttendees')}>
+        <Field label="Max Attendees" error={errors.getFieldError("maxAttendees")}>
           <input
             name="maxAttendees"
             type="number"
             data-testid="max-attendees-input"
-            defaultValue={(submitted.maxAttendees as string) ?? ''}
-            className={inputClass(errors.getFieldError('maxAttendees'))}
+            defaultValue={(submitted.maxAttendees as string) ?? ""}
+            className={inputClass(errors.getFieldError("maxAttendees"))}
             placeholder="100"
             min="1"
           />
@@ -106,7 +121,7 @@ export function EventForm({ flash }: { flash: FormFlashData | null }) {
             name="isPublic"
             type="checkbox"
             data-testid="is-public-checkbox"
-            defaultChecked={submitted.isPublic === 'on'}
+            defaultChecked={submitted.isPublic === "on"}
             className="rounded border-stone-300 text-amber-600 focus:ring-amber-500"
           />
           Public event
@@ -139,7 +154,7 @@ export function EventForm({ flash }: { flash: FormFlashData | null }) {
         <input
           type="hidden"
           name="metadata"
-          value={JSON.stringify({ source: 'kitchen-sink', version: 1 })}
+          value={JSON.stringify({ source: "kitchen-sink", version: 1 })}
         />
 
         <button
@@ -148,7 +163,7 @@ export function EventForm({ flash }: { flash: FormFlashData | null }) {
           disabled={isPending}
           className="inline-flex items-center gap-2 rounded-md bg-amber-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 disabled:opacity-50"
         >
-          {isPending ? 'Creating…' : 'Create Event'}
+          {isPending ? "Creating…" : "Create Event"}
         </button>
       </form>
 
@@ -187,7 +202,7 @@ function Field({
 
 function inputClass(error: string | null): string {
   const base =
-    'block w-full rounded-md shadow-sm text-sm py-2 px-3 border focus:outline-none focus:ring-2 focus:ring-offset-0';
+    "block w-full rounded-md shadow-sm text-sm py-2 px-3 border focus:outline-none focus:ring-2 focus:ring-offset-0";
   return error
     ? `${base} border-red-300 text-red-900 focus:border-red-500 focus:ring-red-500`
     : `${base} border-stone-300 text-stone-900 focus:border-amber-500 focus:ring-amber-500`;

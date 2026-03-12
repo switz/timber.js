@@ -97,7 +97,7 @@ test.describe('form validation (no JS)', () => {
     await context.close();
   });
 
-  test('successful no-JS submission redirects (PRG preserved)', async ({ browser }) => {
+  test('successful no-JS submission shows success message', async ({ browser }) => {
     const context = await browser.newContext({ javaScriptEnabled: false });
     const page = await context.newPage();
 
@@ -106,10 +106,13 @@ test.describe('form validation (no JS)', () => {
     await page.fill('[data-testid="email-input"]', 'diana@example.com');
     await page.click('[data-testid="submit-button"]');
 
-    // Successful submission should redirect back (PRG pattern)
+    // Should re-render with success data (no redirect)
     await expect(page).toHaveURL('/validated-form');
     // No validation errors should be shown
     await expect(page.locator('[data-testid="name-error"]')).not.toBeVisible();
+    // Success message should be visible
+    await expect(page.locator('[data-testid="success-message"]')).toBeVisible();
+    await expect(page.locator('[data-testid="success-message"]')).toContainText('Diana');
 
     await context.close();
   });

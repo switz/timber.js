@@ -66,13 +66,11 @@ describe('action validation', () => {
     const cacheHandler = new MemoryCacheHandler();
     await cacheHandler.set('product-1', { name: 'Widget' }, { ttl: 60, tags: ['products'] });
 
-    const mockPayload = new ReadableStream<Uint8Array>({
-      start(controller) {
-        controller.enqueue(new TextEncoder().encode('RSC payload'));
-        controller.close();
-      },
-    });
-    const renderer = vi.fn(async () => mockPayload);
+    const mockRevalidation = {
+      element: { type: 'div', props: { children: 'Revalidated' } },
+      headElements: [],
+    };
+    const renderer = vi.fn(async () => mockRevalidation);
 
     const client = createActionClient({
       middleware: async () => ({ user: { id: '1', role: 'admin' } }),
@@ -97,7 +95,7 @@ describe('action validation', () => {
     });
 
     expect(result.actionResult).toEqual({ data: { updated: true, name: 'New Widget' } });
-    expect(result.rscPayload).toBeDefined();
+    expect(result.revalidation).toBeDefined();
     expect(renderer).toHaveBeenCalledWith('/products');
     expect(await cacheHandler.get('product-1')).toBeNull();
   });

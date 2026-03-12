@@ -6,10 +6,11 @@ The shortest version: **if Rails or PHP could do it, so can we.** Correct HTTP s
 
 ## Basic Premises
 
-* A good dedicated server will outperform the cpu any serverless platform for most cases
+* A good dedicated server will outperform the cpu of any serverless platform for most cases
   * Owning your own CPU cycles beats sharing them
   * No cold starts
   * You can place your rendering layer as close to your data store as possible - which has compounding positive effects due to waterfalls and round trips (same machine, same rack, or at least same availability zone)
+  * It's often times cheaper and can scale just fine – it is more to manage and cognitive overhead, though
 * Serverless still has value
   * Not all web rendering needs to hit a centralized data store
   * Sometimes edge rendering is useful

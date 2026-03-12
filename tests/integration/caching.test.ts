@@ -564,14 +564,10 @@ describe('cross invalidation', () => {
     await getData();
 
     // Mock renderer for revalidatePath
-    const renderer = vi.fn(async (_path: string) => {
-      return new ReadableStream({
-        start(controller) {
-          controller.enqueue(new TextEncoder().encode('rsc-payload'));
-          controller.close();
-        },
-      });
-    });
+    const renderer = vi.fn(async (_path: string) => ({
+      element: { type: 'div', props: { children: 'Revalidated' } },
+      headElements: [],
+    }));
 
     // Action that does both tag invalidation and path revalidation
     const { revalidatePath } = await import('../../packages/timber-app/src/server/actions');
@@ -587,7 +583,7 @@ describe('cross invalidation', () => {
     });
 
     expect(result.actionResult).toBe('ok');
-    expect(result.rscPayload).toBeDefined();
+    expect(result.revalidation).toBeDefined();
     expect(renderer).toHaveBeenCalledWith('/dashboard');
 
     // Cache entry was invalidated

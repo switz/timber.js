@@ -34,7 +34,7 @@ export async function toggleTodo(id: string) {
 
 No SSE. No WebSocket. No separate request. The RSC payload piggybacks on the existing action response channel. The client action handler detects the payload type and reconciles.
 
-> **Current status:** The initial implementation uses `router.refresh()` after action completion to trigger a separate RSC fetch. This is a two-roundtrip approach. The piggybacked RSC payload optimization (single roundtrip) is tracked as a follow-up.
+The action response carries both the action result and the revalidated tree in a single RSC stream. See §"Single-Roundtrip Revalidation" below for the wire format.
 
 ---
 
@@ -206,21 +206,41 @@ React 19 wires `<form action={serverAction}>` on the client. The behavior differ
 4. The server responds with an HTTP redirect (302) to the target page
 5. The browser follows the redirect and renders the new page
 
-### RSC Payload Piggyback (Target)
+### Single-Roundtrip Revalidation
 
-The target design: when a server action calls `revalidatePath()`, the server renders the RSC payload for that path and includes it in the action response. The response is a multipart RSC stream containing both the action result and the flight payload:
+When a server action calls `revalidatePath()`, the server builds the React element tree for that path and piggybacks it on the action response — no separate fetch needed.
 
+**Wire format:** The server serializes a wrapper object through a single `renderToReadableStream` call:
+
+```typescript
+// When revalidatePath() was called:
+renderToReadableStream({
+  _action: actionResult,     // the action's return value
+  _tree: revalidatedElement, // React element tree for the revalidated path
+})
+
+// When revalidatePath() was NOT called:
+renderToReadableStream(actionResult)  // bare result, no wrapper
 ```
-Action response stream:
-  1. Action result (serialized return value or error)
-  2. RSC flight payload for revalidated path (if revalidatePath was called)
-```
 
-The client action handler detects the piggybacked payload and calls `reactRoot.render()` to reconcile the updated tree. This happens in a single roundtrip — no separate fetch for the updated page.
+The client detects piggybacked responses via the `X-Timber-Revalidation: 1` response header. Head metadata (title, meta tags) is forwarded via `X-Timber-Head`.
 
-If `revalidatePath()` is NOT called, the response contains only the action result. The page does not re-render unless the client explicitly navigates or calls `router.refresh()`.
+**How it works:**
 
-> **Current implementation:** The action response contains only the action result. After action completion, the client calls `router.refresh()` which triggers a separate GET fetch for the updated RSC payload (two roundtrips). The server-side `executeAction` infrastructure already supports capturing the revalidation RSC stream — the remaining work is combining it with the action result in the response and having the client decode both.
+1. `executeAction()` runs the action inside revalidation ALS scope
+2. If `revalidatePath(path)` was called, the revalidation renderer calls `buildRouteElement()` to produce the React element tree (not pre-serialized bytes)
+3. `handleRscAction()` wraps both the action result and element tree in a single object and serializes via `renderToReadableStream`
+4. The client's `callServer` callback decodes the response via `createFromFetch`, checks for the revalidation header, and calls `router.applyRevalidation()` to render the tree directly
+5. If no revalidation was requested, the response is a bare action result and the client falls back to `router.refresh()`
+
+This follows the same pattern as Next.js, where `renderToReadableStream({ a: actionResult, f: flightData })` serializes both values in one stream. React Flight handles progressive resolution of both values natively — no custom binary framing or stream splitting needed.
+
+**Key design decisions:**
+- The revalidation renderer returns a React element tree, not pre-serialized bytes. This allows the element tree to be serialized alongside the action result in a single `renderToReadableStream` call.
+- `buildRouteElement()` (extracted from `renderRoute()`) handles module loading, access checks, metadata resolution, and element tree construction — reusable by both the render pipeline and the revalidation renderer.
+- Actions that throw errors never include revalidation data — the error path short-circuits before `renderToReadableStream` sees the wrapper.
+
+If `revalidatePath()` is NOT called, the response contains only the action result. The client calls `router.refresh()` as a fallback to pick up any other mutations.
 
 ### No-JS Action Flow
 
@@ -322,8 +342,10 @@ The browser entry calls `setServerCallback` from `@vitejs/plugin-rsc/browser` to
 
 1. Serializes args via `encodeReply` (RSC wire format)
 2. POSTs to the current URL with `Accept: text/x-component` and `x-rsc-action: {actionId}` headers
-3. Decodes the response via `createFromFetch`
-4. Triggers `router.refresh()` to reflect mutations
+3. Intercepts the response to check `X-Timber-Revalidation` header before decoding
+4. Decodes the response via `createFromFetch`
+5. If piggybacked: unpacks `{ _action, _tree }`, calls `router.applyRevalidation()` with the tree, returns `_action`
+6. If not piggybacked: triggers `router.refresh()` as fallback, returns the decoded result
 
 The `x-rsc-action` header carries the action reference ID (format: `{fileId}#{exportName}`), which the server uses to look up the action function via `loadServerAction`.
 
@@ -335,7 +357,8 @@ The action handler intercepts POST requests before the regular render pipeline. 
 1. `loadServerAction(id)` loads the action function by reference ID
 2. `decodeReply(body)` deserializes the arguments from the RSC wire format
 3. `executeAction(fn, args)` runs the action inside revalidation ALS scope
-4. Result is serialized as RSC stream via `renderToReadableStream`
+4. If `revalidatePath()` was called: serializes wrapper `{ _action, _tree }` via `renderToReadableStream`, sets `X-Timber-Revalidation: 1` header
+5. Otherwise: serializes bare action result via `renderToReadableStream`
 
 **No-JS path** (form POST with `$ACTION_REF` / `$ACTION_KEY` hidden fields):
 1. `decodeAction(formData)` resolves the bound action function from React's hidden fields

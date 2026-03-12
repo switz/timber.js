@@ -176,15 +176,35 @@ async function handleRscAction(
   }
 
   // Render the action result as an RSC stream.
-  // If revalidatePath was called, the RSC payload is piggybacked
-  // by rendering both the result and the revalidated tree.
-  const rscStream = renderToReadableStream(result.actionResult);
+  // When revalidatePath was called, piggyback the revalidated element tree
+  // alongside the action result in a single renderToReadableStream call.
+  // The client detects the X-Timber-Revalidation header and unpacks both.
+  const headers: Record<string, string> = {
+    'Content-Type': RSC_CONTENT_TYPE,
+  };
+
+  let payload: unknown;
+  if (result.revalidation) {
+    // Wrapper object — Next.js-style pattern: action result + element tree
+    // serialized together so React Flight handles both in one stream.
+    payload = {
+      _action: result.actionResult,
+      _tree: result.revalidation.element,
+    };
+    headers['X-Timber-Revalidation'] = '1';
+    // Forward head elements as JSON so the client can update <head>.
+    if (result.revalidation.headElements.length > 0) {
+      headers['X-Timber-Head'] = JSON.stringify(result.revalidation.headElements);
+    }
+  } else {
+    payload = result.actionResult;
+  }
+
+  const rscStream = renderToReadableStream(payload);
 
   return new Response(rscStream, {
     status: 200,
-    headers: {
-      'Content-Type': RSC_CONTENT_TYPE,
-    },
+    headers,
   });
 }
 

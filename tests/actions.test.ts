@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createActionClient, ActionError } from '../packages/timber-app/src/server/action-client';
+import {
+  createActionClient,
+  ActionError,
+  handleActionError,
+} from '../packages/timber-app/src/server/action-client';
 import type { ActionResult } from '../packages/timber-app/src/server/action-client';
 import {
   revalidatePath,
@@ -574,5 +578,90 @@ describe('ActionError', () => {
     const err = new ActionError('TEST');
     expect(err).toBeInstanceOf(Error);
     expect(err).toBeInstanceOf(ActionError);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// handleActionError (exported for action-handler.ts)
+// ---------------------------------------------------------------------------
+
+describe('handleActionError', () => {
+  it('converts ActionError to structured serverError result', () => {
+    const result = handleActionError(new ActionError('UNAUTHORIZED'));
+    expect(result).toEqual({ serverError: { code: 'UNAUTHORIZED' } });
+  });
+
+  it('includes ActionError data when present', () => {
+    const result = handleActionError(new ActionError('RATE_LIMITED', { retryAfter: 60 }));
+    expect(result).toEqual({
+      serverError: { code: 'RATE_LIMITED', data: { retryAfter: 60 } },
+    });
+  });
+
+  it('returns INTERNAL_ERROR for unexpected errors in production', () => {
+    const originalEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+
+    const result = handleActionError(new Error('secret db connection string'));
+    expect(result).toEqual({ serverError: { code: 'INTERNAL_ERROR' } });
+    expect(result.serverError?.data).toBeUndefined();
+
+    process.env.NODE_ENV = originalEnv;
+  });
+
+  it('includes error message in dev mode for unexpected errors', () => {
+    const originalEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'development';
+
+    const result = handleActionError(new Error('debug info'));
+    expect(result.serverError?.code).toBe('INTERNAL_ERROR');
+    expect(result.serverError?.data).toEqual({ message: 'debug info' });
+
+    process.env.NODE_ENV = originalEnv;
+  });
+
+  it('handles non-Error thrown values', () => {
+    const originalEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+
+    const result = handleActionError('string error');
+    expect(result).toEqual({ serverError: { code: 'INTERNAL_ERROR' } });
+
+    process.env.NODE_ENV = originalEnv;
+  });
+});
+
+// ---------------------------------------------------------------------------
+// executeAction error propagation (raw 'use server' functions)
+// ---------------------------------------------------------------------------
+
+describe('executeAction error propagation', () => {
+  it('re-throws ActionError from raw action (not caught by executeAction)', async () => {
+    const action = async () => {
+      throw new ActionError('FORBIDDEN');
+    };
+
+    // executeAction only catches RedirectSignal — everything else propagates
+    await expect(executeAction(action, [])).rejects.toThrow(ActionError);
+  });
+
+  it('re-throws unexpected errors from raw action', async () => {
+    const action = async () => {
+      throw new Error('unexpected crash');
+    };
+
+    await expect(executeAction(action, [])).rejects.toThrow('unexpected crash');
+  });
+
+  it('still catches RedirectSignal (not affected by error handling)', async () => {
+    const { redirect } = await import('../packages/timber-app/src/server/primitives');
+
+    const action = async () => {
+      redirect('/success');
+    };
+
+    // RedirectSignal should be caught and returned as redirectTo
+    const result = await executeAction(action, []);
+    expect(result.redirectTo).toBe('/success');
   });
 });

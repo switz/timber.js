@@ -36,7 +36,8 @@ Features tagged as **[novel]** (not in Next.js or Vinext), **[enhanced]** (impro
 
 - **[novel]** Typed `search-params.ts` — per-route search param definitions with Zod/nuqs codecs ([23-search-params.md](design/23-search-params.md))
 - **[novel]** URL key aliasing — property names map to different URL keys ([23-search-params.md](design/23-search-params.md))
-- **[novel]** Pluggable codec protocol — Zod schemas, nuqs parsers, or custom ([23-search-params.md](design/23-search-params.md))
+- **[novel]** Pluggable codec protocol — Zod schemas, Valibot schemas, nuqs parsers, or custom via Standard Schema ([23-search-params.md](design/23-search-params.md))
+- **[enhanced]** Standard Schema support — action client and search params accept Zod, Valibot, or ArkType via `~standard` protocol ([08-forms-and-actions.md](design/08-forms-and-actions.md))
 - **[enhanced]** `useQueryStates` hook — client hook syncs typed params to URL ([23-search-params.md](design/23-search-params.md))
 
 ## Error Handling

@@ -18,7 +18,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { join } from 'node:path';
 import type { PluginContext } from '../index.js';
 import { setViteServer } from '../server/dev-warnings.js';
-import { sendErrorToOverlay, classifyErrorPhase } from './dev-error-overlay.js';
+import { sendErrorToOverlay, classifyErrorPhase, parseFirstAppFrame } from './dev-error-overlay.js';
 
 // ─── Constants ────────────────────────────────────────────────────────────
 
@@ -86,6 +86,12 @@ export function timberDevServer(ctx: PluginContext): Plugin {
       // Register Vite server for browser console warning forwarding.
       // See 21-dev-server.md §Dev-Mode Warnings.
       setViteServer(server);
+
+      // Listen for client-side errors forwarded from the browser.
+      // The browser entry sends 'timber:client-error' events via HMR
+      // for uncaught errors and unhandled rejections. We echo them back
+      // as Vite's '{ type: "error" }' payload to trigger the overlay.
+      listenForClientErrors(server, ctx.root);
 
       // Pre-hook — registers middleware before Vite's internals
       server.middlewares.use(createTimberMiddleware(server, ctx.root));
@@ -312,4 +318,55 @@ function isViteInternal(url: string): boolean {
  */
 function isAssetRequest(url: string): boolean {
   return ASSET_EXTENSIONS.test(url);
+}
+
+// ─── Client Error Listener ─────────────────────────────────────────────
+
+interface ClientErrorPayload {
+  message: string;
+  stack: string;
+  componentStack: string | null;
+}
+
+/**
+ * Listen for client-side errors forwarded from the browser via HMR.
+ *
+ * The browser entry catches uncaught errors and unhandled rejections,
+ * then sends them as 'timber:client-error' custom events. We parse
+ * the first app frame for the overlay's loc field and forward the
+ * error to Vite's overlay protocol.
+ */
+function listenForClientErrors(server: ViteDevServer, projectRoot: string): void {
+  server.hot.on('timber:client-error', (data: ClientErrorPayload) => {
+    const loc = parseFirstAppFrame(data.stack, projectRoot);
+
+    let message = data.message;
+    if (data.componentStack) {
+      message = `${data.message}\n\nComponent Stack:\n${data.componentStack.trim()}`;
+    }
+
+    // Log to stderr
+    const RED = '\x1b[31m';
+    const BOLD = '\x1b[1m';
+    const RESET = '\x1b[0m';
+    process.stderr.write(
+      `${RED}${BOLD}[timber] Client Error${RESET}\n${RED}${data.message}${RESET}\n\n`
+    );
+
+    // Forward to Vite's overlay
+    try {
+      server.hot.send({
+        type: 'error',
+        err: {
+          message,
+          stack: data.stack,
+          id: loc?.file,
+          plugin: 'timber (Client)',
+          loc: loc ? { file: loc.file, line: loc.line, column: loc.column } : undefined,
+        },
+      });
+    } catch {
+      // Overlay send must never crash the dev server
+    }
+  });
 }

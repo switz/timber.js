@@ -330,12 +330,74 @@ function bootstrap(runtimeConfig: typeof config): void {
   // See design/21-dev-server.md §"HMR Wiring"
   // Vite injects import.meta.hot in dev mode. Cast to access it without
   // requiring vite/client types in the package tsconfig.
-  const hot = (import.meta as unknown as { hot?: { on(event: string, cb: () => void): void } }).hot;
+  const hot = (
+    import.meta as unknown as {
+      hot?: {
+        on(event: string, cb: (...args: unknown[]) => void): void;
+        send(event: string, data: unknown): void;
+      };
+    }
+  ).hot;
   if (hot) {
     hot.on('rsc:update', () => {
       void router.refresh();
     });
+
+    // Listen for dev warnings forwarded from the server via WebSocket.
+    // See dev-warnings.ts — emitOnce() sends these via server.hot.send().
+    hot.on('timber:dev-warning', (data: unknown) => {
+      const warning = data as { level: string; message: string };
+      if (warning.level === 'error') {
+        console.error(warning.message);
+      } else {
+        console.warn(warning.message);
+      }
+    });
+
+    // Forward uncaught client errors to the server for the dev overlay.
+    // The server source-maps the stack and sends it back via Vite's
+    // error overlay protocol. See dev-server.ts §client error listener.
+    setupClientErrorForwarding(hot);
   }
+}
+
+// ─── Client Error Forwarding (Dev Only) ──────────────────────────
+
+/**
+ * Set up global error handlers that forward uncaught client-side
+ * errors to the dev server via Vite's HMR channel.
+ *
+ * The server receives 'timber:client-error' events, and echoes them
+ * back as Vite '{ type: "error" }' payloads to trigger the overlay.
+ */
+function setupClientErrorForwarding(hot: {
+  send(event: string, data: unknown): void;
+}): void {
+  window.addEventListener('error', (event: ErrorEvent) => {
+    // Skip errors without useful information
+    if (!event.error && !event.message) return;
+
+    const error = event.error;
+    hot.send('timber:client-error', {
+      message: error?.message ?? event.message,
+      stack: error?.stack ?? '',
+      componentStack: error?.componentStack ?? null,
+    });
+  });
+
+  window.addEventListener('unhandledrejection', (event: PromiseRejectionEvent) => {
+    const reason = event.reason;
+    if (!reason) return;
+
+    const message = reason instanceof Error ? reason.message : String(reason);
+    const stack = reason instanceof Error ? (reason.stack ?? '') : '';
+
+    hot.send('timber:client-error', {
+      message,
+      stack,
+      componentStack: null,
+    });
+  });
 }
 
 // ─── Link Click Interception ─────────────────────────────────────

@@ -93,7 +93,7 @@ function createMockServer() {
         rsc: { runner: rscRunner },
       },
       config: { root: PROJECT_ROOT },
-      hot: { send: vi.fn() },
+      hot: { send: vi.fn(), on: vi.fn() },
     } as unknown as ViteDevServer,
     handlers,
     rscRunner,
@@ -619,5 +619,124 @@ describe('dev server integration', () => {
     expect(stderrSpy).toHaveBeenCalled();
     const output = stderrSpy.mock.calls.map((c: [unknown]) => c[0] as string).join('');
     expect(output).toContain('render boom');
+  });
+});
+
+// ─── Client Error Listener ─────────────────────────────────────────────
+
+describe('client error listener', () => {
+  let stderrSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+  });
+
+  afterEach(() => {
+    stderrSpy.mockRestore();
+  });
+
+  function setupWithClientErrors() {
+    const ctx = createPluginContext();
+    const plugin = timberDevServer(ctx);
+    const mock = createMockServer();
+
+    // Track registered HMR event handlers
+    const hotListeners: Record<string, ((...args: unknown[]) => void)[]> = {};
+    (mock.server.hot as unknown as { on: ReturnType<typeof vi.fn> }).on = vi.fn(
+      (event: string, handler: (...args: unknown[]) => void) => {
+        if (!hotListeners[event]) hotListeners[event] = [];
+        hotListeners[event]!.push(handler);
+      }
+    );
+
+    const configureServer = plugin.configureServer as (s: ViteDevServer) => (() => void) | void;
+    configureServer.call({}, mock.server);
+
+    return { mock, hotListeners };
+  }
+
+  it('registers timber:client-error listener on server.hot', () => {
+    const { hotListeners } = setupWithClientErrors();
+    expect(hotListeners['timber:client-error']).toBeDefined();
+    expect(hotListeners['timber:client-error']!.length).toBe(1);
+  });
+
+  it('forwards client error to Vite overlay', () => {
+    const { mock, hotListeners } = setupWithClientErrors();
+    const handler = hotListeners['timber:client-error']![0]!;
+
+    handler({
+      message: 'Cannot read properties of null',
+      stack:
+        'TypeError: Cannot read properties of null\n' +
+        '    at Counter (/project/app/components/counter.tsx:15:10)',
+      componentStack: null,
+    });
+
+    expect(mock.raw.hot.send).toHaveBeenCalledWith({
+      type: 'error',
+      err: expect.objectContaining({
+        message: 'Cannot read properties of null',
+        plugin: 'timber (Client)',
+        loc: {
+          file: '/project/app/components/counter.tsx',
+          line: 15,
+          column: 10,
+        },
+      }),
+    });
+  });
+
+  it('includes component stack in overlay message', () => {
+    const { mock, hotListeners } = setupWithClientErrors();
+    const handler = hotListeners['timber:client-error']![0]!;
+
+    handler({
+      message: 'Hydration failed',
+      stack: 'Error: Hydration failed\n    at render (/project/app/page.tsx:5:3)',
+      componentStack:
+        '  at Counter (app/components/counter.tsx:15)\n  at Dashboard (app/dashboard/page.tsx:8)',
+    });
+
+    const payload = mock.raw.hot.send.mock.calls[0]![0] as { err: { message: string } };
+    expect(payload.err.message).toContain('Component Stack:');
+    expect(payload.err.message).toContain('Counter');
+    expect(payload.err.message).toContain('Dashboard');
+  });
+
+  it('logs client errors to stderr', () => {
+    const { hotListeners } = setupWithClientErrors();
+    const handler = hotListeners['timber:client-error']![0]!;
+
+    handler({
+      message: 'Client error occurred',
+      stack: 'Error: Client error occurred\n    at fn (/project/app/page.tsx:5:3)',
+      componentStack: null,
+    });
+
+    expect(stderrSpy).toHaveBeenCalled();
+    const output = stderrSpy.mock.calls.map((c: [unknown]) => c[0] as string).join('');
+    expect(output).toContain('Client Error');
+    expect(output).toContain('Client error occurred');
+  });
+
+  it('handles errors without app frames gracefully', () => {
+    const { mock, hotListeners } = setupWithClientErrors();
+    const handler = hotListeners['timber:client-error']![0]!;
+
+    handler({
+      message: 'Unknown error',
+      stack: 'Error: Unknown error\n    at eval (eval:1:1)',
+      componentStack: null,
+    });
+
+    expect(mock.raw.hot.send).toHaveBeenCalledWith({
+      type: 'error',
+      err: expect.objectContaining({
+        message: 'Unknown error',
+        plugin: 'timber (Client)',
+        loc: undefined,
+      }),
+    });
   });
 });

@@ -158,6 +158,95 @@ test.describe('revalidation after action', () => {
   });
 });
 
+// ─── Single-Roundtrip Revalidation (Piggybacking) ────────────────────────────
+
+test.describe('single-roundtrip revalidation', () => {
+  let sessionId: string;
+  test.beforeEach(async ({ context }) => {
+    sessionId = randomUUID();
+    await context.setExtraHTTPHeaders({ 'x-test-session': sessionId });
+  });
+
+  test('action response includes X-Timber-Revalidation header', async ({ page }) => {
+    await page.goto('/todos');
+    await waitForHydration(page);
+
+    // Intercept the action POST to inspect response headers
+    const actionResponsePromise = page.waitForResponse(
+      (res) => res.request().method() === 'POST' && res.request().headers()['x-rsc-action'] != null
+    );
+
+    await page.fill('[data-testid="todo-input"]', 'Header test');
+    await page.click('[data-testid="todo-submit"]');
+
+    const actionResponse = await actionResponsePromise;
+    expect(actionResponse.headers()['x-timber-revalidation']).toBe('1');
+    expect(actionResponse.headers()['content-type']).toContain('text/x-component');
+
+    // The todo should still appear (functional correctness)
+    await expect(page.locator('text=Header test')).toBeVisible();
+  });
+
+  test('no separate RSC GET fetch after action with revalidatePath', async ({ page }) => {
+    await page.goto('/todos');
+    await waitForHydration(page);
+
+    // Collect all requests after the action
+    const rscGetRequests: string[] = [];
+    page.on('request', (req) => {
+      if (
+        req.method() === 'GET' &&
+        req.headers()['accept']?.includes('text/x-component')
+      ) {
+        rscGetRequests.push(req.url());
+      }
+    });
+
+    await page.fill('[data-testid="todo-input"]', 'No extra fetch');
+    await page.click('[data-testid="todo-submit"]');
+
+    // Wait for the todo to appear (action + revalidation complete)
+    await expect(page.locator('text=No extra fetch')).toBeVisible();
+
+    // Wait a bit to ensure no late RSC fetch fires
+    await page.waitForTimeout(500);
+
+    // No RSC GET requests should have been made — revalidation was piggybacked
+    expect(rscGetRequests).toHaveLength(0);
+  });
+
+  test('piggybacked revalidation updates page without full reload', async ({ page }) => {
+    await page.goto('/todos');
+    await waitForHydration(page);
+
+    // Wait for layout marker
+    await page.waitForFunction(
+      () =>
+        document.querySelector('[data-testid="layout-marker"]')?.getAttribute('data-id') != null
+    );
+    const layoutMarker = await page.getAttribute('[data-testid="layout-marker"]', 'data-id');
+
+    // Intercept action response to verify piggybacking
+    const actionResponsePromise = page.waitForResponse(
+      (res) => res.request().method() === 'POST' && res.request().headers()['x-rsc-action'] != null
+    );
+
+    await page.fill('[data-testid="todo-input"]', 'Piggyback test');
+    await page.click('[data-testid="todo-submit"]');
+
+    const actionResponse = await actionResponsePromise;
+    expect(actionResponse.headers()['x-timber-revalidation']).toBe('1');
+
+    // Page updated inline
+    await expect(page.locator('text=Piggyback test')).toBeVisible();
+    await expect(page.locator('[data-testid="todo-count"]')).toHaveText('1 todos');
+
+    // No full page reload — layout marker preserved
+    const afterMarker = await page.getAttribute('[data-testid="layout-marker"]', 'data-id');
+    expect(afterMarker).toBe(layoutMarker);
+  });
+});
+
 // ─── No-JS Form Submission ───────────────────────────────────────────────────
 
 test.describe('no-js form submission', () => {

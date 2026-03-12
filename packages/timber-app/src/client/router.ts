@@ -212,16 +212,17 @@ async function fetchRscPayload(
     let headElements: HeadElement[] | null = null;
     let segmentInfo: SegmentInfo[] | null = null;
     const wrappedPromise = fetchPromise.then((response) => {
-      // Detect server-side redirects via 3xx status + Location header.
-      // RSC fetches use redirect: "manual" so the browser doesn't auto-follow
-      // 302s (which would return HTML and break createFromFetch). Instead we
-      // read the Location header and throw RedirectError for the router to
-      // handle as a soft navigation.
-      if (response.status >= 300 && response.status < 400) {
-        const location = response.headers.get('Location');
-        if (location) {
-          throw new RedirectError(location);
-        }
+      // Detect server-side redirects. The server returns 204 + X-Timber-Redirect
+      // for RSC payload requests instead of a raw 302, because fetch with
+      // redirect: "manual" turns 302s into opaque redirects (status 0, null body)
+      // which crashes createFromFetch when it tries to read the body stream.
+      const redirectLocation =
+        response.headers.get('X-Timber-Redirect') ||
+        (response.status >= 300 && response.status < 400
+          ? response.headers.get('Location')
+          : null);
+      if (redirectLocation) {
+        throw new RedirectError(redirectLocation);
       }
       headElements = extractHeadElements(response);
       segmentInfo = extractSegmentInfo(response);

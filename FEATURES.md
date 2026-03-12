@@ -92,6 +92,7 @@ Features tagged as **[novel]** (not in Next.js or Vinext), **[enhanced]** (impro
 
 - **[novel]** Environment-aware shim resolution — `next/navigation` resolves to client-only shim in browser builds, preventing server code from leaking into client bundles ([18-build-system.md](design/18-build-system.md))
 - **[novel]** Client bundle boundary tests — static import tracing ensures server modules never enter the browser entry dependency tree ([18-build-system.md](design/18-build-system.md))
+- **[novel]** Cache-tier chunk splitting — client bundles split into vendor-react (stable across deploys) and timber runtime (stable across app changes) for optimal browser caching ([27-chunking-strategy.md](design/27-chunking-strategy.md))
 
 ## Shim Compatibility
 

@@ -26,6 +26,7 @@ export default defineConfig({
 | `timber-fonts` | `resolveId`, `load`, `transform` | Google and local font handling (ported from `next/font`) |
 | `timber-mdx` | `config`, `buildStart` | Auto-detects `.mdx` files, registers `@mdx-js/rollup`, finds `mdx-components.tsx` |
 | `timber-content` | `resolveId`, `load`, `buildStart`, `configureServer` | Scans `content/` directory, validates schemas, generates content manifest virtual module, generates types |
+| `timber-chunks` | `config` | Client-only chunk splitting — separates react vendor from timber runtime for cache-tier optimization |
 | `timber-dev-server` | `configureServer` | Dev request handling — routes requests through the timber pipeline (must be last) |
 
 ```ts

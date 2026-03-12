@@ -71,6 +71,7 @@ examples/               # User-facing demo apps
 3. **Add tests first** — put test cases in `tests/*.test.ts`
 4. **Implement** — in the appropriate sub-plugin or module
 5. **Run targeted tests** — don't run the full suite during dev
+6. **Update FEATURES.md** — append a one-liner to the appropriate category, tagged `[novel]`, `[enhanced]`, or `[parity]`
 
 ### Running Tests
 

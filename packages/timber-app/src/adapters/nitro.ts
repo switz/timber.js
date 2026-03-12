@@ -153,7 +153,7 @@ export function nitro(options: NitroAdapterOptions = {}): TimberPlatformAdapter 
       const publicDir = join(outDir, 'public');
       await mkdir(publicDir, { recursive: true });
       await cp(clientDir, publicDir, { recursive: true }).catch(() => {
-        // Client dir may not exist in static+noJS mode
+        // Client dir may not exist in noClientJavascript mode
       });
 
       // Generate the Nitro entry point

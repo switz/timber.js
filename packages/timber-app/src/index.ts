@@ -44,7 +44,14 @@ export interface RewriteRule {
 
 export interface TimberUserConfig {
   output?: 'server' | 'static';
-  static?: { noJS?: boolean };
+  /**
+   * Disable all client-side JavaScript output. When true, no client JS
+   * bundles are emitted or referenced in HTML. Pages work entirely via
+   * server-rendered HTML. Works in both 'server' and 'static' modes.
+   *
+   * Server-side JS still runs — this only affects what is sent to the browser.
+   */
+  noClientJavascript?: boolean;
   adapter?: unknown;
   cacheHandler?: unknown;
   allowedOrigins?: string[];
@@ -153,9 +160,6 @@ function mergeFileConfig(ctx: PluginContext, fileConfig: TimberUserConfig): void
       : {}),
     ...(fileConfig.dev && inline.dev ? { dev: { ...fileConfig.dev, ...inline.dev } } : {}),
     ...(fileConfig.mdx && inline.mdx ? { mdx: { ...fileConfig.mdx, ...inline.mdx } } : {}),
-    ...(fileConfig.static && inline.static
-      ? { static: { ...fileConfig.static, ...inline.static } }
-      : {}),
   };
 }
 

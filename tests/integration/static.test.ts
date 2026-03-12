@@ -1,7 +1,7 @@
 /**
  * Phase 5 Integration Tests — Static Output & Pre-Rendering
  *
- * Tests the static output mode, noJS validation, dynamic boundaries,
+ * Tests the static output mode, noClientJavascript validation, dynamic boundaries,
  * and shell invalidation end-to-end.
  *
  * Each test exercises observable behavior across multiple subsystems:
@@ -53,7 +53,7 @@ function createApp(files: Record<string, string>): string {
  */
 function validateAppForStaticMode(
   files: Record<string, string>,
-  options: { noJS: boolean } = { noJS: false }
+  options: { noClientJavascript: boolean } = { noClientJavascript: false }
 ) {
   const root = createApp(files);
   const tree = scanRoutes(root);
@@ -241,17 +241,17 @@ describe('static all pages', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
-// nojs rejection — noJS mode rejects 'use client' and 'use server'
+// nojs rejection — noClientJavascript mode rejects 'use client' and 'use server'
 // ═══════════════════════════════════════════════════════════════════════════
 
 describe('nojs rejection', () => {
-  it('rejects "use client" in noJS mode', () => {
+  it('rejects "use client" in noClientJavascript mode', () => {
     const { errors } = validateAppForStaticMode(
       {
         'page.tsx': `export default function Home() { return <h1>Home</h1> }`,
         'counter/page.tsx': `'use client'\nexport default function Counter() { return <button>+</button> }`,
       },
-      { noJS: true }
+      { noClientJavascript: true }
     );
 
     expect(errors.length).toBeGreaterThan(0);
@@ -261,16 +261,16 @@ describe('nojs rejection', () => {
     const directiveError = counterErrors?.errors.find((e) => e.type === 'nojs-directive');
     expect(directiveError).toBeDefined();
     expect(directiveError?.message).toContain("'use client'");
-    expect(directiveError?.message).toContain('noJS mode');
+    expect(directiveError?.message).toContain('noClientJavascript mode');
   });
 
-  it('rejects "use server" in noJS mode', () => {
+  it('rejects "use server" in noClientJavascript mode', () => {
     const { errors } = validateAppForStaticMode(
       {
         'page.tsx': `export default function Home() { return <h1>Home</h1> }`,
         'actions.ts': `'use server'\nexport async function createPost(data) { await db.posts.create(data) }`,
       },
-      { noJS: true }
+      { noClientJavascript: true }
     );
 
     expect(errors.length).toBeGreaterThan(0);
@@ -289,7 +289,7 @@ describe('nojs rejection', () => {
         'counter/page.tsx': `'use client'\nexport default function Counter() { return <button>+</button> }`,
         'actions.ts': `'use server'\nexport async function save(data) {}`,
       },
-      { noJS: true }
+      { noClientJavascript: true }
     );
 
     // Both files should have errors
@@ -300,7 +300,7 @@ describe('nojs rejection', () => {
     expect(actionsFile).toBeDefined();
   });
 
-  it('allows server components in noJS mode', () => {
+  it('allows server components in noClientJavascript mode', () => {
     const { errors } = validateAppForStaticMode(
       {
         'page.tsx': `export default function Home() { return <h1>Home</h1> }`,
@@ -311,13 +311,13 @@ describe('nojs rejection', () => {
           }
         `,
       },
-      { noJS: true }
+      { noClientJavascript: true }
     );
 
     expect(errors).toHaveLength(0);
   });
 
-  it('rejects cookies() and use client together in noJS mode', () => {
+  it('rejects cookies() and use client together in noClientJavascript mode', () => {
     const { errors } = validateAppForStaticMode(
       {
         'page.tsx': `'use client'
@@ -327,7 +327,7 @@ export default function Page() {
   return <div>{token}</div>
 }`,
       },
-      { noJS: true }
+      { noClientJavascript: true }
     );
 
     // Should catch both the directive violation and the dynamic API usage
@@ -343,13 +343,13 @@ export default function Page() {
       {
         'widget.tsx': `'use client'\nexport default function Widget() { return <div /> }`,
       },
-      { noJS: true }
+      { noClientJavascript: true }
     );
 
     const widgetErrors = errors.find((e) => e.file === 'widget.tsx');
     const msg = widgetErrors?.errors[0].message ?? '';
-    // Error should guide users to understand what noJS mode means
-    expect(msg).toContain('noJS mode');
+    // Error should guide users to understand what noClientJavascript mode means
+    expect(msg).toContain('noClientJavascript mode');
     expect(msg).toContain('zero JavaScript');
   });
 });

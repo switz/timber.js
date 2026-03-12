@@ -54,7 +54,7 @@ async function createMockBuildDir(baseDir: string): Promise<string> {
 
 const SERVER_CONFIG: TimberConfig = { output: 'server' };
 const STATIC_CONFIG: TimberConfig = { output: 'static' };
-const STATIC_NOJS_CONFIG: TimberConfig = { output: 'static', static: { noJS: true } };
+const STATIC_NOJS_CONFIG: TimberConfig = { output: 'static', noClientJavascript: true };
 
 let tempDir: string;
 
@@ -371,8 +371,8 @@ describe('static export', () => {
     expect(files).toContain('public');
   });
 
-  it('static+noJS mode gracefully handles missing client dir', async () => {
-    // Create a build dir without client/ directory (noJS mode)
+  it('static+noClientJavascript mode gracefully handles missing client dir', async () => {
+    // Create a build dir without client/ directory (noClientJavascript mode)
     const buildDir = join(tempDir, '.timber', 'build');
     const serverDir = join(buildDir, 'server');
     await mkdir(serverDir, { recursive: true });

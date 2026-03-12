@@ -486,4 +486,4 @@ On page load, the browser entry:
 
 `createFromReadableStream` resolves its thenable when the first Flight row (the shell) is decoded, not when the stream closes. This means hydration can begin as soon as the shell arrives — Suspense boundaries resolve progressively as their RSC chunks stream in.
 
-If no RSC payload is available (e.g., `noJS` mode or incomplete inlining), a non-hydrated `createRoot(document)` is used as a fallback — the first client navigation will replace the SSR HTML with a React-managed tree.
+If no RSC payload is available (e.g., `noClientJavascript` mode or incomplete inlining), a non-hydrated `createRoot(document)` is used as a fallback — the first client navigation will replace the SSR HTML with a React-managed tree.

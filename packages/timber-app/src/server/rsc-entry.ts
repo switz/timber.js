@@ -105,7 +105,7 @@ async function createRequestHandler(manifest: typeof routeManifest, runtimeConfi
   const matchRoute = createRouteMatcher(manifest);
 
   // Build the client bootstrap configuration.
-  // In noJS mode (output: static + noJS: true), no scripts are injected.
+  // When noClientJavascript is true, no scripts are injected.
   // In production, uses hashed chunk URLs from the build manifest.
   const clientBootstrap = buildClientScripts({
     ...runtimeConfig,

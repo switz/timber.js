@@ -430,7 +430,7 @@ Nestable image routes in a segment are linked only for pages within that segment
 - `generateMetadata()` runs at build time. It cannot read `cookies()` or `headers()` (build error). It can read `params` (from the static params set) and `searchParams` (empty at build time)
 - Metadata routes execute at build time and emit static files
 
-### `static` + `noJS` Mode
+### `static` + `noClientJavascript` Mode
 
 Same as `static` for metadata resolution. Metadata tags are rendered into the static HTML `<head>`. No client-side hydration needed — the output is complete HTML with all metadata in place.
 

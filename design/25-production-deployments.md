@@ -449,18 +449,18 @@ export default {
 - `middleware.ts` per-request logic — runs once at build time.
 - `route.ts` API endpoints — no server to handle them.
 
-### `output: 'static'` + `noJS: true`
+### `output: 'static'` + `noClientJavascript: true`
 
 Zero-JavaScript output. Pure HTML. No React runtime, no hydration, no SPA navigation. Links are plain `<a>` tags.
 
 ```typescript
 export default {
   output: 'static',
-  static: { noJS: true },
+  noClientJavascript: true,
 };
 ```
 
-**Build errors in `noJS` mode:**
+**Build errors in `noClientJavascript` mode:**
 
 - `'use client'` → build error. No client runtime to run client components.
 - `'use server'` → build error. No server to handle actions.

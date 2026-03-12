@@ -405,7 +405,7 @@ Static builds and the opt-in static shell optimization for server mode. Signific
 - [ ] `generateMetadata` runs at build time in static mode
 - [ ] Server actions extracted as separate API endpoints by adapter
 - [ ] `revalidatePath()` in static mode requires two roundtrips (documented)
-- [ ] `output: 'static', static: { noJS: true }`:
+- [ ] `output: 'static', noClientJavascript: true`:
   - [ ] `'use client'` → hard build error
   - [ ] `'use server'` → hard build error
   - [ ] No React runtime in output

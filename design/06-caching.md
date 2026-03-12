@@ -244,12 +244,12 @@ export default {
 // static site, zero JavaScript
 export default {
   output: 'static',
-  static: { noJS: true },
+  noClientJavascript: true,
 };
 ```
 
 - **`server`** (default) — every request renders fresh. `<Suspense>` streams after the status commits. `middleware.ts` and `access.ts` run per-request.
-- **`static`** — fully built at build time. No server. No `route.ts` API endpoints. `middleware.ts` files run at build time only. `<Suspense>` is client-initiated only. React client runtime is included for hydration and SPA navigation. Server actions are deployed as separate API endpoints via the adapter (see [Forms & Server Actions](08-forms-and-actions.md#server-actions-in-static-mode)). Set `static: { noJS: true }` for zero JavaScript output — no React runtime, no SPA navigation, pure `<a>` tags. `'use client'` is a hard build error in `noJS` mode. `'use server'` is a build error in `noJS` mode.
+- **`static`** — fully built at build time. No server. No `route.ts` API endpoints. `middleware.ts` files run at build time only. `<Suspense>` is client-initiated only. React client runtime is included for hydration and SPA navigation. Server actions are deployed as separate API endpoints via the adapter (see [Forms & Server Actions](08-forms-and-actions.md#server-actions-in-static-mode)). Set `noClientJavascript: true` for zero JavaScript output — no React runtime, no SPA navigation, pure `<a>` tags. `'use client'` is a hard build error in `noClientJavascript` mode. `'use server'` is a build error in `noClientJavascript` mode.
 
 ### `access.ts` in Static Mode
 

@@ -1,11 +1,19 @@
 {
   "name": "@timber/website",
   "private": true,
+  "type": "module",
   "scripts": {
-    "dev": "wrangler dev",
-    "deploy": "wrangler deploy"
+    "dev": "vite",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "@timber/app": "workspace:*",
+    "react": "19.3.0-canary-46103596-20260305",
+    "react-dom": "19.3.0-canary-46103596-20260305"
   },
   "devDependencies": {
-    "wrangler": "^4.0.0"
+    "@tailwindcss/vite": "^4.0.0",
+    "tailwindcss": "^4.2.1",
+    "vite": "^7.0.0"
   }
 }

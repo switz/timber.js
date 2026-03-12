@@ -17,6 +17,7 @@ import { timberBuildManifest } from './plugins/build-manifest';
 import { timberDevLogs } from './plugins/dev-logs';
 import { timberReactProd } from './plugins/react-prod';
 import { timberChunks } from './plugins/chunks';
+import { timberBuildReport } from './plugins/build-report';
 import type { RouteTree } from './routing/types';
 import type { BuildManifest } from './server/build-manifest';
 import type { StartupTimer } from './utils/startup-timer';
@@ -249,6 +250,7 @@ export function timber(config?: TimberUserConfig): PluginOption[] {
     timberMdx(ctx),
     timberContent(ctx),
     timberChunks(),
+    timberBuildReport(ctx), // Post-build: route table with bundle sizes
     timberDevLogs(ctx), // Dev-only: forward server console.* to browser console
     timberDevServer(ctx), // Must be last — configureServer post-hook runs after all watchers
   ];

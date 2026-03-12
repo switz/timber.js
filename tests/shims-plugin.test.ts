@@ -206,6 +206,70 @@ describe('timber-shims plugin', () => {
     });
   });
 
+  describe('resolveId — server-only / client-only poison pills', () => {
+    it('resolves server-only to virtual module', () => {
+      const resolveId = createResolveId();
+      expect(resolveId('server-only')).toBe('\0timber:server-only');
+    });
+
+    it('resolves client-only to virtual module', () => {
+      const resolveId = createResolveId();
+      expect(resolveId('client-only')).toBe('\0timber:client-only');
+    });
+  });
+
+  describe('load — server-only / client-only poison pills', () => {
+    /** Create load function bound to a mock `this` context with environment name. */
+    function createLoad(envName?: string) {
+      const ctx = createPluginContext();
+      const plugin = timberShims(ctx);
+      const load = plugin.load as (this: unknown, id: string) => string | null;
+      const thisCtx = envName ? { environment: { name: envName } } : {};
+      return (id: string) => load.call(thisCtx, id);
+    }
+
+    it('server-only is no-op in rsc environment', () => {
+      const load = createLoad('rsc');
+      expect(load('\0timber:server-only')).toBe('export {};');
+    });
+
+    it('server-only is no-op in ssr environment', () => {
+      const load = createLoad('ssr');
+      expect(load('\0timber:server-only')).toBe('export {};');
+    });
+
+    it('server-only throws in client environment', () => {
+      const load = createLoad('client');
+      const result = load('\0timber:server-only');
+      expect(result).toContain('throw new Error');
+      expect(result).toContain('cannot be imported from a Client Component');
+    });
+
+    it('client-only is no-op in client environment', () => {
+      const load = createLoad('client');
+      expect(load('\0timber:client-only')).toBe('export {};');
+    });
+
+    it('client-only throws in rsc environment', () => {
+      const load = createLoad('rsc');
+      const result = load('\0timber:client-only');
+      expect(result).toContain('throw new Error');
+      expect(result).toContain('cannot be imported from a Server Component');
+    });
+
+    it('client-only throws in ssr environment', () => {
+      const load = createLoad('ssr');
+      const result = load('\0timber:client-only');
+      expect(result).toContain('throw new Error');
+      expect(result).toContain('cannot be imported from a Server Component');
+    });
+
+    it('returns null for unrelated virtual modules', () => {
+      const load = createLoad('rsc');
+      expect(load('\0some-other-module')).toBeNull();
+    });
+  });
+
   describe('navigation-client shim re-exports', () => {
     it('exports client hooks but not server redirect', async () => {
       const mod = await import('../packages/timber-app/src/shims/navigation-client.js');

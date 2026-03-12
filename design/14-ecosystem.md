@@ -135,6 +135,19 @@ next-intl has five entry points with different `next/*` dependencies:
 
 ---
 
+## Poison Pill Packages
+
+timber supports the `server-only` and `client-only` npm packages natively via environment-aware virtual modules in the `timber-shims` plugin. No npm install required — the shims plugin intercepts these imports at resolution time.
+
+| Package | Correct Environment | Wrong Environment |
+|---------|-------------------|------------------|
+| `server-only` | rsc, ssr → no-op (`export {}`) | client → `throw new Error(...)` |
+| `client-only` | client → no-op (`export {}`) | rsc, ssr → `throw new Error(...)` |
+
+The error messages match the Next.js ecosystem convention so that developers see familiar diagnostics.
+
+---
+
 ## Not Shimmed (Intentional)
 
 These Next.js modules are **not shimmed** and will produce import errors:

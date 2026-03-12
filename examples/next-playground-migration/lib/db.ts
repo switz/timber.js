@@ -2,8 +2,7 @@
 // parts of the app not relevant to the demo. It is not intended
 // as a learning resource or example of best practices.
 
-// Note: 'server-only' package removed — timber enforces RSC boundaries
-// through its build system rather than runtime package guards.
+import 'server-only';
 import {
   data,
   type Category,

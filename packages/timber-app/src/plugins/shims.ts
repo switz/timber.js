@@ -17,6 +17,16 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const SHIMS_DIR = resolve(__dirname, '..', 'shims');
 
 /**
+ * Virtual module IDs for server-only and client-only poison pills.
+ *
+ * These packages cause build errors when imported in the wrong environment:
+ * - `server-only` errors when imported in a client component
+ * - `client-only` errors when imported in a server component
+ */
+const SERVER_ONLY_VIRTUAL = '\0timber:server-only';
+const CLIENT_ONLY_VIRTUAL = '\0timber:client-only';
+
+/**
  * Map from next/* import specifiers to shim file paths.
  *
  * The shim map is a separate data structure (not embedded in the plugin)
@@ -72,7 +82,7 @@ function stripJsExtension(id: string): string {
 /**
  * Create the timber-shims Vite plugin.
  *
- * Hooks: resolveId
+ * Hooks: resolveId, load
  */
 export function timberShims(_ctx: PluginContext): Plugin {
   return {
@@ -82,12 +92,17 @@ export function timberShims(_ctx: PluginContext): Plugin {
      * Resolve next/* and @timber/app/* imports to shim/source files.
      *
      * Resolution order:
-     * 1. Strip .js extension from the import specifier
-     * 2. Check next/* shim map
-     * 3. Check @timber/app/* subpath map
-     * 4. Return null (pass through) for unrecognized imports
+     * 1. Check server-only / client-only poison pill packages
+     * 2. Strip .js extension from the import specifier
+     * 3. Check next/* shim map
+     * 4. Check @timber/app/* subpath map
+     * 5. Return null (pass through) for unrecognized imports
      */
     resolveId(id: string) {
+      // Poison pill packages — resolve to virtual modules handled by load()
+      if (id === 'server-only') return SERVER_ONLY_VIRTUAL;
+      if (id === 'client-only') return CLIENT_ONLY_VIRTUAL;
+
       const cleanId = stripJsExtension(id);
 
       // Check next/* shim map.
@@ -104,6 +119,42 @@ export function timberShims(_ctx: PluginContext): Plugin {
       // Check @timber/app/* subpath map
       if (cleanId in TIMBER_SUBPATH_MAP) {
         return TIMBER_SUBPATH_MAP[cleanId];
+      }
+
+      return null;
+    },
+
+    /**
+     * Serve virtual modules for server-only / client-only poison pills.
+     *
+     * In the correct environment, the module is a no-op (empty export).
+     * In the wrong environment, it throws a build-time error message that
+     * clearly identifies the boundary violation.
+     */
+    load(id: string) {
+      const envName = (this as unknown as { environment?: { name?: string } }).environment?.name;
+      const isClient = envName === 'client';
+
+      if (id === SERVER_ONLY_VIRTUAL) {
+        if (isClient) {
+          return `throw new Error(
+  "This module cannot be imported from a Client Component module. " +
+  "It should only be used from a Server Component."
+);`;
+        }
+        // No-op in server environments (rsc, ssr)
+        return 'export {};';
+      }
+
+      if (id === CLIENT_ONLY_VIRTUAL) {
+        if (!isClient) {
+          return `throw new Error(
+  "This module cannot be imported from a Server Component module. " +
+  "It should only be used from a Client Component."
+);`;
+        }
+        // No-op in client environment
+        return 'export {};';
       }
 
       return null;

@@ -55,7 +55,7 @@ export default {
 
 ### Update `package.json`
 
-- Remove: `next`, `@next/mdx`, `server-only`
+- Remove: `next`, `@next/mdx`
 - Add: `@timber/app: workspace:*`
 - Keep: `react`, `react-dom`, codehike, mdx packages
 
@@ -369,16 +369,15 @@ export async function GET(ctx: RouteContext): Promise<Response> {
 
 ---
 
-## 12. `server-only` → Remove
+## 12. `server-only` / `client-only` → Keep as-is
 
-**Rule:** The `server-only` npm package throws at import time if the module is accidentally bundled for the client. timber enforces RSC/server boundaries via its build system — the package is unnecessary.
+**Rule:** timber supports the `server-only` and `client-only` poison pill packages natively. Imports work without installing the npm packages — timber's shims plugin resolves them to environment-aware virtual modules that error at build time when imported in the wrong environment.
 
-**Before**
 ```ts
-import 'server-only';
+import 'server-only'; // Works — errors if this file is bundled for the client
 ```
 
-**After:** Delete the import.
+No changes needed.
 
 ---
 

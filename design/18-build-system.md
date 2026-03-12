@@ -27,6 +27,7 @@ export default defineConfig({
 | `timber-mdx` | `config`, `buildStart` | Auto-detects `.mdx` files, registers `@mdx-js/rollup`, finds `mdx-components.tsx` |
 | `timber-content` | `resolveId`, `load`, `buildStart`, `configureServer` | Scans `content/` directory, validates schemas, generates content manifest virtual module, generates types |
 | `timber-chunks` | `config` | Client-only chunk splitting — separates react vendor from timber runtime for cache-tier optimization |
+| `timber-build-report` | `generateBundle`, `closeBundle` | Post-build route table — per-route bundle sizes, route type classification, first-load JS |
 | `timber-dev-server` | `configureServer` | Dev request handling — routes requests through the timber pipeline (must be last) |
 
 ```ts
@@ -44,6 +45,7 @@ export function timber(config?: TimberUserConfig): Plugin[] {
     timberFonts(ctx),
     timberMdx(ctx),
     timberContent(ctx),
+    timberBuildReport(ctx),      // post-build: route table with bundle sizes
     timberDevServer(ctx),        // must be last — see 21-dev-server.md
   ]
 }

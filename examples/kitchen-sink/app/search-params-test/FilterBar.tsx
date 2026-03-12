@@ -16,57 +16,95 @@ export default function FilterBar() {
   const [{ sort: shallowSort }, setShallowParams] = useShallowSort();
 
   return (
-    <div data-testid="filter-bar">
-      <div data-testid="client-page">page: {page}</div>
-      <div data-testid="client-q">q: {q ?? '(null)'}</div>
-      <div data-testid="client-sort">sort: {sort}</div>
-
-      <div>
-        <label>
-          Search:{' '}
-          <input
-            data-testid="q-input"
-            value={q ?? ''}
-            onChange={(e) => setParams({ q: e.target.value || null }, { shallow: true })}
-          />
-        </label>
-      </div>
-
-      <div>
-        <label>
-          Sort:{' '}
-          <select
-            data-testid="sort-select"
-            value={sort}
-            onChange={(e) =>
-              setParams({
-                sort: e.target.value as 'relevance' | 'price-asc' | 'price-desc' | 'newest',
-              })
-            }
-          >
-            <option value="relevance">Relevance</option>
-            <option value="price-asc">Price: Low to High</option>
-            <option value="price-desc">Price: High to Low</option>
-            <option value="newest">Newest</option>
-          </select>
-        </label>
-      </div>
-
-      <div>
-        <button data-testid="next-page-btn" onClick={() => setParams({ page: page + 1 })}>
-          Next page
-        </button>
-      </div>
-
-      <div data-testid="shallow-sort-demo">
-        <p>Shallow mode (no server roundtrip):</p>
-        <div data-testid="shallow-sort-value">shallow sort: {shallowSort}</div>
-        <button
-          data-testid="shallow-sort-btn"
-          onClick={() => setShallowParams({ sort: 'newest' }, { shallow: true })}
+    <div data-testid="filter-bar" className="space-y-4">
+      {/* Current state badges */}
+      <div className="flex flex-wrap gap-2">
+        <span
+          data-testid="client-page"
+          className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 border border-blue-200 px-3 py-1 text-xs font-medium text-blue-700"
         >
-          Set sort=newest (shallow)
-        </button>
+          <span className="text-blue-400">page</span> {page}
+        </span>
+        <span
+          data-testid="client-q"
+          className="inline-flex items-center gap-1.5 rounded-full bg-violet-50 border border-violet-200 px-3 py-1 text-xs font-medium text-violet-700"
+        >
+          <span className="text-violet-400">q</span> {q ?? <em className="text-violet-300">null</em>}
+        </span>
+        <span
+          data-testid="client-sort"
+          className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200 px-3 py-1 text-xs font-medium text-emerald-700"
+        >
+          <span className="text-emerald-400">sort</span> {sort}
+        </span>
+      </div>
+
+      {/* Controls */}
+      <div className="rounded-lg border border-stone-200 bg-white p-4 space-y-4">
+        <div className="flex items-center gap-4">
+          <label className="flex items-center gap-2 text-sm">
+            <span className="text-stone-500 font-medium w-12">Search</span>
+            <input
+              data-testid="q-input"
+              value={q ?? ''}
+              onChange={(e) => setParams({ q: e.target.value || null }, { shallow: true })}
+              placeholder="Type to search..."
+              className="rounded-md border border-stone-300 px-3 py-1.5 text-sm shadow-sm focus:border-blue-400 focus:ring-1 focus:ring-blue-400 focus:outline-none w-48"
+            />
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <span className="text-stone-500 font-medium w-12">Sort</span>
+            <select
+              data-testid="sort-select"
+              value={sort}
+              onChange={(e) =>
+                setParams({
+                  sort: e.target.value as 'relevance' | 'price-asc' | 'price-desc' | 'newest',
+                })
+              }
+              className="rounded-md border border-stone-300 px-3 py-1.5 text-sm shadow-sm focus:border-blue-400 focus:ring-1 focus:ring-blue-400 focus:outline-none"
+            >
+              <option value="relevance">Relevance</option>
+              <option value="price-asc">Price: Low to High</option>
+              <option value="price-desc">Price: High to Low</option>
+              <option value="newest">Newest</option>
+            </select>
+          </label>
+        </div>
+
+        <div>
+          <button
+            data-testid="next-page-btn"
+            onClick={() => setParams({ page: page + 1 })}
+            className="rounded-md bg-stone-900 px-3 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-stone-800 transition-colors"
+          >
+            Next page &rarr;
+          </button>
+        </div>
+      </div>
+
+      {/* Shallow mode demo */}
+      <div data-testid="shallow-sort-demo" className="rounded-lg border border-dashed border-stone-300 bg-stone-50 p-4 space-y-2">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-semibold uppercase tracking-wider text-stone-400">
+            Shallow mode
+          </span>
+          <span className="rounded-full bg-stone-200 px-2 py-0.5 text-[10px] font-medium text-stone-500">
+            no server roundtrip
+          </span>
+        </div>
+        <div className="flex items-center gap-3">
+          <span data-testid="shallow-sort-value" className="text-sm font-mono text-stone-600">
+            sort: {shallowSort}
+          </span>
+          <button
+            data-testid="shallow-sort-btn"
+            onClick={() => setShallowParams({ sort: 'newest' }, { shallow: true })}
+            className="rounded-md border border-stone-300 bg-white px-3 py-1 text-xs font-medium text-stone-600 shadow-sm hover:bg-stone-50 transition-colors"
+          >
+            Set sort=newest (shallow)
+          </button>
+        </div>
       </div>
     </div>
   );

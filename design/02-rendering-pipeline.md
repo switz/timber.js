@@ -411,7 +411,7 @@ Segment 1 AccessGate fails (user not authenticated):
 
 Result:
   RootLayout (rendered successfully)
-    → redirect('/login'), HTTP 302
+    → redirect('/login'), HTTP 302 (or X-Timber-Redirect for RSC payload requests)
 
 Segment 3 AccessGate fails (user not workspace member):
 

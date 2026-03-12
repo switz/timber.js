@@ -256,6 +256,32 @@ function isRscPayloadRequest(req: Request): boolean {
 }
 
 /**
+ * Build a redirect response appropriate for the request type.
+ *
+ * For RSC payload requests (client-side SPA navigation): returns a 204 with
+ * `X-Timber-Redirect` header. The client reads this header and calls
+ * router.navigate() for a seamless SPA transition. We can't use HTTP 302
+ * because fetch with `redirect: 'manual'` returns an opaque response
+ * (status 0, empty headers) — the client can't read the Location header.
+ *
+ * For regular requests (full page load): returns a standard HTTP 302/3xx
+ * redirect that the browser follows natively.
+ */
+function buildRedirectResponse(
+  req: Request,
+  location: string,
+  status: number,
+  responseHeaders: Headers
+): Response {
+  if (isRscPayloadRequest(req)) {
+    responseHeaders.set('X-Timber-Redirect', location);
+    return new Response(null, { status: 204, headers: responseHeaders });
+  }
+  responseHeaders.set('Location', location);
+  return new Response(null, { status, headers: responseHeaders });
+}
+
+/**
  * Render a matched route to an HTML Response via RSC → SSR pipeline,
  * or return a raw RSC Flight stream for client-side navigation requests.
  *
@@ -313,11 +339,7 @@ async function renderRoute(
         );
       }
       if (signal instanceof RedirectSignal) {
-        responseHeaders.set('Location', signal.location);
-        return new Response(null, {
-          status: signal.status,
-          headers: responseHeaders,
-        });
+        return buildRedirectResponse(_req, signal.location, signal.status, responseHeaders);
       }
     }
     // No PageComponent found
@@ -444,13 +466,10 @@ async function renderRoute(
   }
 
   // Synchronous redirect — redirect() in access.ts or a non-async component
-  // throws during renderToReadableStream creation. Return HTTP redirect.
+  // throws during renderToReadableStream creation. Return redirect response
+  // (RSC-aware for SPA navigation, HTTP 302 for full page loads).
   if (redirectSignal) {
-    responseHeaders.set('Location', redirectSignal.location);
-    return new Response(null, {
-      status: redirectSignal.status,
-      headers: responseHeaders,
-    });
+    return buildRedirectResponse(_req, redirectSignal.location, redirectSignal.status, responseHeaders);
   }
 
   // Synchronous deny — deny() in a non-async component throws during
@@ -550,16 +569,13 @@ async function renderRoute(
     // SSR shell rendering failed — the error was outside Suspense
     // (inside Suspense errors stream after shell succeeds).
 
-    // RedirectSignal outside Suspense → HTTP redirect
+    // RedirectSignal outside Suspense → redirect response
+    // (RSC-aware for SPA navigation, HTTP 302 for full page loads).
     // Note: redirectSignal is assigned inside onError callback — TS narrowing
     // doesn't track mutations in callbacks, so we cast.
     const trackedRedirect = redirectSignal as RedirectSignal | null;
     if (trackedRedirect) {
-      responseHeaders.set('Location', trackedRedirect.location);
-      return new Response(null, {
-        status: trackedRedirect.status,
-        headers: responseHeaders,
-      });
+      return buildRedirectResponse(_req, trackedRedirect.location, trackedRedirect.status, responseHeaders);
     }
 
     // DenySignal outside Suspense → render deny page with correct 4xx status
@@ -665,8 +681,7 @@ async function handleApiRoute(
             return renderApiDeny(error, segments, responseHeaders);
           }
           if (error instanceof RedirectSignal) {
-            responseHeaders.set('Location', error.location);
-            return new Response(null, { status: error.status, headers: responseHeaders });
+            return buildRedirectResponse(req, error.location, error.status, responseHeaders);
           }
           throw error;
         }

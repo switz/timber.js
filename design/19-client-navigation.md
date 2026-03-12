@@ -120,6 +120,16 @@ Parsed payloads are stored in the segment tree. Each segment's payload is cached
 
 The wire format is identical — partial payloads are just full payloads with some segments missing. The client detects which segments are present and fills in cached data for the rest.
 
+### Server-Side Redirects During Navigation
+
+When the server encounters a `redirect()` during an RSC navigation request (e.g., `access.ts` calls `redirect('/login')`), it cannot return a standard HTTP 302. The browser's `fetch()` API with `redirect: 'manual'` returns an opaque response (status 0, empty headers, null body) — the client cannot read the `Location` header. With `redirect: 'follow'` (default), the browser auto-follows the 302 and returns the HTML page, not the RSC stream — causing a `stream is null` crash.
+
+**Solution:** The server detects RSC payload requests via `Accept: text/x-component` and returns a `204` response with an `X-Timber-Redirect` header instead of a 302. The client reads this header and calls `router.navigate()` for a seamless SPA transition.
+
+**No-JS is unaffected:** Regular browser navigations send `Accept: text/html`, so they receive a standard HTTP 302 and the browser follows it natively.
+
+This same pattern applies to server action redirects — see [Forms & Actions — redirect()](08-forms-and-actions.md#redirect-is-relative-only).
+
 ---
 
 ## History Stack

@@ -201,16 +201,19 @@ async function fetchRscPayload(
     let headElements: HeadElement[] | null = null;
     let segmentInfo: SegmentInfo[] | null = null;
     const wrappedPromise = fetchPromise.then((response) => {
-      // Detect server-side redirects via 3xx status + Location header.
-      // RSC fetches use redirect: "manual" so the browser doesn't auto-follow
-      // 302s (which would return HTML and break createFromFetch). Instead we
-      // read the Location header and throw RedirectError for the router to
-      // handle as a soft navigation.
-      if (response.status >= 300 && response.status < 400) {
-        const location = response.headers.get('Location');
-        if (location) {
-          throw new RedirectError(location);
-        }
+      // Detect server-side redirects via X-Timber-Redirect header.
+      // The server returns a 204 with this header instead of HTTP 302 for
+      // RSC payload requests, because fetch with redirect: 'manual' returns
+      // opaque responses (status 0, empty headers) that we can't inspect.
+      const redirectLocation = response.headers.get('X-Timber-Redirect');
+      if (redirectLocation) {
+        throw new RedirectError(redirectLocation);
+      }
+      // Fallback: detect opaque redirect responses (redirect: 'manual').
+      // These have type 'opaqueredirect' with status 0 and null body.
+      if (response.type === 'opaqueredirect') {
+        // Can't read Location from opaque responses — fall back to full reload
+        throw new RedirectError(url);
       }
       headElements = extractHeadElements(response);
       segmentInfo = extractSegmentInfo(response);
@@ -226,11 +229,9 @@ async function fetchRscPayload(
   // Test/fallback path: return raw text
   const response = await deps.fetch(rscUrl, { headers, redirect: 'manual' });
   // Check for redirect in test path too
-  if (response.status >= 300 && response.status < 400) {
-    const location = response.headers.get('Location');
-    if (location) {
-      throw new RedirectError(location);
-    }
+  const redirectLocation = response.headers.get('X-Timber-Redirect');
+  if (redirectLocation) {
+    throw new RedirectError(redirectLocation);
   }
   return {
     payload: await response.text(),

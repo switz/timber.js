@@ -536,13 +536,13 @@ describe('Router', () => {
   });
 
   describe('server redirect handling', () => {
-    it('soft navigates to redirect target on 302 response', async () => {
-      // First fetch returns a 302 redirect (redirect: manual means we get the raw 302)
+    it('soft navigates to redirect target on X-Timber-Redirect response', async () => {
+      // First fetch returns a 204 with X-Timber-Redirect header (RSC-aware redirect)
       mockFetch
         .mockResolvedValueOnce(
           new Response(null, {
-            status: 302,
-            headers: { Location: '/login' },
+            status: 204,
+            headers: { 'X-Timber-Redirect': '/login' },
           })
         )
         .mockResolvedValueOnce(
@@ -553,7 +553,7 @@ describe('Router', () => {
 
       await router.navigate('/protected');
 
-      // Should have made two fetches: one for /protected (302), one for /login
+      // Should have made two fetches: one for /protected (redirect), one for /login
       expect(mockFetch).toHaveBeenCalledTimes(2);
       const [secondUrl] = mockFetch.mock.calls[1] as [string, RequestInit];
       expect(secondUrl).toMatch(/^\/login\?_rsc=/);
@@ -561,7 +561,7 @@ describe('Router', () => {
       expect(mockReplaceState).toHaveBeenCalledWith(expect.anything(), '', '/login');
     });
 
-    it('uses redirect: manual to prevent auto-follow', async () => {
+    it('uses redirect: manual as safety net', async () => {
       mockFetch.mockResolvedValueOnce(
         new Response('payload', {
           headers: { 'content-type': 'text/x-component' },
@@ -578,8 +578,8 @@ describe('Router', () => {
       mockFetch
         .mockResolvedValueOnce(
           new Response(null, {
-            status: 302,
-            headers: { Location: '/login' },
+            status: 204,
+            headers: { 'X-Timber-Redirect': '/login' },
           })
         )
         .mockResolvedValueOnce(
@@ -605,16 +605,16 @@ describe('Router', () => {
         replaceState: mockReplaceState,
         scrollTo: mockScrollTo,
         getCurrentUrl: () => '/dashboard',
-      getScrollY: () => 0,
-                decodeRsc: mockDecodeRsc as (fetchPromise: Promise<Response>) => unknown,
+        getScrollY: () => 0,
+        decodeRsc: mockDecodeRsc as (fetchPromise: Promise<Response>) => unknown,
         renderRoot: mockRenderRoot as (element: unknown) => void,
       });
 
       mockFetch
         .mockResolvedValueOnce(
           new Response(null, {
-            status: 302,
-            headers: { Location: '/login' },
+            status: 204,
+            headers: { 'X-Timber-Redirect': '/login' },
           })
         )
         .mockResolvedValueOnce(

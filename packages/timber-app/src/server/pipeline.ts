@@ -53,6 +53,24 @@ export interface RouteMatch {
 /** Function that matches a canonical pathname to a route. */
 export type RouteMatcher = (pathname: string) => RouteMatch | null;
 
+const RSC_CONTENT_TYPE = 'text/x-component';
+
+/**
+ * Build a redirect response that's compatible with RSC payload requests.
+ * RSC requests get X-Timber-Redirect header + 204; regular requests get HTTP 302.
+ * See rsc-entry.ts buildRedirectResponse for the full explanation.
+ */
+function pipelineRedirectResponse(req: Request, location: string, status: number): Response {
+  const accept = req.headers.get('Accept') ?? '';
+  if (accept.includes(RSC_CONTENT_TYPE)) {
+    return new Response(null, {
+      status: 204,
+      headers: { 'X-Timber-Redirect': location },
+    });
+  }
+  return new Response(null, { status, headers: { Location: location } });
+}
+
 /** Function that renders a matched route into a Response. */
 export type RouteRenderer = (
   req: Request,
@@ -204,10 +222,7 @@ export function createPipeline(config: PipelineConfig): (req: Request) => Promis
     const redirectResult = matchRedirect(canonicalPathname);
     if (redirectResult) {
       if (redirectResult.type === 'redirect') {
-        return new Response(null, {
-          status: redirectResult.status,
-          headers: { Location: redirectResult.destination },
-        });
+        return pipelineRedirectResponse(req, redirectResult.destination, redirectResult.status);
       }
       // Rewrite: transparently change the pathname for route matching
       canonicalPathname = redirectResult.destination;

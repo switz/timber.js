@@ -34,6 +34,8 @@ export async function toggleTodo(id: string) {
 
 No SSE. No WebSocket. No separate request. The RSC payload piggybacks on the existing action response channel. The client action handler detects the payload type and reconciles.
 
+> **Current status:** The initial implementation uses `router.refresh()` after action completion to trigger a separate RSC fetch. This is a two-roundtrip approach. The piggybacked RSC payload optimization (single roundtrip) is tracked as a follow-up.
+
 ---
 
 ## Middleware for Server Actions
@@ -204,9 +206,9 @@ React 19 wires `<form action={serverAction}>` on the client. The behavior differ
 4. The server responds with an HTTP redirect (302) to the target page
 5. The browser follows the redirect and renders the new page
 
-### RSC Payload Piggyback
+### RSC Payload Piggyback (Target)
 
-When a server action calls `revalidatePath()`, the server renders the RSC payload for that path and includes it in the action response. The response is a multipart RSC stream containing both the action result and the flight payload:
+The target design: when a server action calls `revalidatePath()`, the server renders the RSC payload for that path and includes it in the action response. The response is a multipart RSC stream containing both the action result and the flight payload:
 
 ```
 Action response stream:
@@ -217,6 +219,8 @@ Action response stream:
 The client action handler detects the piggybacked payload and calls `reactRoot.render()` to reconcile the updated tree. This happens in a single roundtrip — no separate fetch for the updated page.
 
 If `revalidatePath()` is NOT called, the response contains only the action result. The page does not re-render unless the client explicitly navigates or calls `router.refresh()`.
+
+> **Current implementation:** The action response contains only the action result. After action completion, the client calls `router.refresh()` which triggers a separate GET fetch for the updated RSC payload (two roundtrips). The server-side `executeAction` infrastructure already supports capturing the revalidation RSC stream — the remaining work is combining it with the action result in the response and having the client decode both.
 
 ### No-JS Action Flow
 
@@ -307,3 +311,39 @@ export default {
   },
 }
 ```
+
+---
+
+## Implementation Architecture
+
+### Client Side (`browser-entry.ts`)
+
+The browser entry calls `setServerCallback` from `@vitejs/plugin-rsc/browser` to register the `callServer` function. When React invokes a server reference (from `'use server'` modules), it calls `callServer(id, args)` which:
+
+1. Serializes args via `encodeReply` (RSC wire format)
+2. POSTs to the current URL with `Accept: text/x-component` and `x-rsc-action: {actionId}` headers
+3. Decodes the response via `createFromFetch`
+4. Triggers `router.refresh()` to reflect mutations
+
+The `x-rsc-action` header carries the action reference ID (format: `{fileId}#{exportName}`), which the server uses to look up the action function via `loadServerAction`.
+
+### Server Side (`action-handler.ts`)
+
+The action handler intercepts POST requests before the regular render pipeline. It handles two paths:
+
+**With-JS path** (has `x-rsc-action` header):
+1. `loadServerAction(id)` loads the action function by reference ID
+2. `decodeReply(body)` deserializes the arguments from the RSC wire format
+3. `executeAction(fn, args)` runs the action inside revalidation ALS scope
+4. Result is serialized as RSC stream via `renderToReadableStream`
+
+**No-JS path** (form POST with `$ACTION_REF` / `$ACTION_KEY` hidden fields):
+1. `decodeAction(formData)` resolves the bound action function from React's hidden fields
+2. Action executes
+3. Server responds with 302 redirect back to the page (PRG pattern)
+
+Both paths run inside `runWithRequestContext` so `headers()` and `cookies()` work during action execution. CSRF validation runs before any action logic.
+
+### Why `serverHandler: false`
+
+Timber uses `serverHandler: false` with `@vitejs/plugin-rsc` because timber has its own dev server (`timber-dev-server`) that handles request routing through the full pipeline (proxy → canonicalize → route match → middleware → render). The RSC plugin's default server handler would conflict with timber's pipeline. This means timber is responsible for wiring up both the client-side `callServer` callback and server-side action dispatch.

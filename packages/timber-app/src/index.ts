@@ -14,6 +14,7 @@ import { timberFonts } from './plugins/fonts';
 import { timberStaticBuild } from './plugins/static-build';
 import { timberDynamicTransform } from './plugins/dynamic-transform';
 import { timberBuildManifest } from './plugins/build-manifest';
+import { timberDevLogs } from './plugins/dev-logs';
 import type { RouteTree } from './routing/types';
 import type { BuildManifest } from './server/build-manifest';
 
@@ -223,6 +224,7 @@ export function timber(config?: TimberUserConfig): PluginOption[] {
     timberFonts(ctx),
     timberMdx(ctx),
     timberContent(ctx),
+    timberDevLogs(ctx), // Dev-only: forward server console.* to browser console
     timberDevServer(ctx), // Must be last — configureServer post-hook runs after all watchers
   ];
 }

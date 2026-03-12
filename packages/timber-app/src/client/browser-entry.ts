@@ -370,11 +370,101 @@ function bootstrap(runtimeConfig: typeof config): void {
       }
     });
 
+    // Listen for server console logs forwarded via WebSocket.
+    // Replays them in the browser console with a [SERVER] prefix
+    // so developers can see server output without switching to the terminal.
+    // See plugins/dev-logs.ts.
+    setupServerLogReplay(hot);
+
     // Forward uncaught client errors to the server for the dev overlay.
     // The server source-maps the stack and sends it back via Vite's
     // error overlay protocol. See dev-server.ts §client error listener.
     setupClientErrorForwarding(hot);
   }
+}
+
+// ─── Server Log Replay (Dev Only) ─────────────────────────────────
+
+/** Payload shape from plugins/dev-logs.ts */
+interface ServerLogPayload {
+  level: 'log' | 'warn' | 'error' | 'debug' | 'info';
+  args: unknown[];
+  location: string | null;
+  timestamp: number;
+}
+
+/**
+ * Deserialize a serialized arg back into a console-friendly value.
+ *
+ * Handles Error objects (serialized as { __type: 'Error', ... }),
+ * Maps, Sets, and passes everything else through.
+ */
+function deserializeArg(arg: unknown): unknown {
+  if (arg === '[undefined]') return undefined;
+  if (arg === null || typeof arg !== 'object') return arg;
+
+  const obj = arg as Record<string, unknown>;
+
+  if (obj.__type === 'Error') {
+    const err = new Error(obj.message as string);
+    err.name = obj.name as string;
+    if (obj.stack) err.stack = obj.stack as string;
+    return err;
+  }
+
+  if (obj.__type === 'Map') {
+    return new Map(
+      Object.entries(obj.entries as Record<string, unknown>).map(([k, v]) => [
+        k,
+        deserializeArg(v),
+      ])
+    );
+  }
+
+  if (obj.__type === 'Set') {
+    return new Set((obj.values as unknown[]).map(deserializeArg));
+  }
+
+  if (Array.isArray(arg)) {
+    return arg.map(deserializeArg);
+  }
+
+  // Plain object — recurse
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    result[key] = deserializeArg(value);
+  }
+  return result;
+}
+
+/**
+ * Set up the HMR listener that replays server console output in the browser.
+ *
+ * Each message arrives with a log level and serialized args. We prepend
+ * a styled "[SERVER]" badge and call the matching console method.
+ */
+function setupServerLogReplay(hot: { on(event: string, cb: (...args: unknown[]) => void): void }): void {
+  /** CSS styles for the [SERVER] badge in browser console. */
+  const BADGE_STYLES: Record<string, string> = {
+    log: 'background: #0070f3; color: white; padding: 1px 5px; border-radius: 3px; font-weight: bold;',
+    info: 'background: #0070f3; color: white; padding: 1px 5px; border-radius: 3px; font-weight: bold;',
+    warn: 'background: #f5a623; color: white; padding: 1px 5px; border-radius: 3px; font-weight: bold;',
+    error: 'background: #e00; color: white; padding: 1px 5px; border-radius: 3px; font-weight: bold;',
+    debug: 'background: #666; color: white; padding: 1px 5px; border-radius: 3px; font-weight: bold;',
+  };
+
+  hot.on('timber:server-log', (data: unknown) => {
+    const payload = data as ServerLogPayload;
+    const level = payload.level;
+    const fn = console[level] ?? console.log;
+    const args = payload.args.map(deserializeArg);
+
+    const badge = `%cSERVER`;
+    const style = BADGE_STYLES[level] ?? BADGE_STYLES.log;
+    const locationSuffix = payload.location ? ` (${payload.location})` : '';
+
+    fn.call(console, badge, style, ...args, locationSuffix ? `\n  → ${payload.location}` : '');
+  });
 }
 
 // ─── Client Error Forwarding (Dev Only) ──────────────────────────

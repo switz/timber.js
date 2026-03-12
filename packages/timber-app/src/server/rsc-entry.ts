@@ -60,6 +60,7 @@ import type { RouteContext } from './types.js';
 import { setParsedSearchParams } from './request-context.js';
 import type { SearchParamsDefinition } from '../search-params/create.js';
 import { isActionRequest, handleActionRequest } from './action-handler.js';
+import type { BodyLimitsConfig } from './body-limits.js';
 
 /**
  * Create a debug channel sink that discards all debug data.
@@ -177,6 +178,7 @@ async function createRequestHandler(manifest: typeof routeManifest, runtimeConfi
     if (isActionRequest(req)) {
       const actionResponse = await handleActionRequest(req, {
         csrf: csrfConfig,
+        bodyLimits: { limits: (runtimeConfig as Record<string, unknown>).limits as BodyLimitsConfig['limits'] },
         revalidateRenderer: async (path: string) => {
           // Re-render the route at `path` to produce an RSC flight payload.
           // This is called when an action calls revalidatePath().

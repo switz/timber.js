@@ -11,6 +11,7 @@
     "nuqs": "^2.0.0",
     "react": "19.3.0-canary-46103596-20260305",
     "react-dom": "19.3.0-canary-46103596-20260305",
+    "valibot": "^1.2.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {

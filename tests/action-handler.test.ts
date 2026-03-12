@@ -39,7 +39,20 @@ import {
   handleActionRequest,
   isActionRequest,
   type ActionDispatchConfig,
+  type FormRerender,
 } from '../packages/timber-app/src/server/action-handler';
+
+/**
+ * Narrow the handleActionRequest result to a Response.
+ * All existing tests operate on the with-JS path or CSRF/body-limit paths,
+ * which always return Response (never FormRerender).
+ */
+function asResponse(result: Response | FormRerender | null): Response | null {
+  if (result && 'rerender' in result) {
+    throw new Error('Expected Response but got FormRerender');
+  }
+  return result;
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
 
@@ -85,7 +98,7 @@ describe('handleActionRequest — body limits', () => {
       contentLength: String(500_000), // 500KB — under 1MB
     });
 
-    const res = await handleActionRequest(req, defaultConfig);
+    const res = asResponse(await handleActionRequest(req, defaultConfig));
     expect(res).not.toBeNull();
     expect(res!.status).not.toBe(413);
   });
@@ -96,7 +109,7 @@ describe('handleActionRequest — body limits', () => {
       contentLength: String(2_000_000), // 2MB — over 1MB default
     });
 
-    const res = await handleActionRequest(req, defaultConfig);
+    const res = asResponse(await handleActionRequest(req, defaultConfig));
     expect(res).not.toBeNull();
     expect(res!.status).toBe(413);
   });
@@ -108,7 +121,7 @@ describe('handleActionRequest — body limits', () => {
       contentLength: String(20_000_000), // 20MB — over 10MB default
     });
 
-    const res = await handleActionRequest(req, defaultConfig);
+    const res = asResponse(await handleActionRequest(req, defaultConfig));
     expect(res).not.toBeNull();
     expect(res!.status).toBe(413);
   });
@@ -124,7 +137,7 @@ describe('handleActionRequest — body limits', () => {
     // since we're not providing real multipart data. What matters is
     // it doesn't return 413.
     try {
-      const res = await handleActionRequest(req, defaultConfig);
+      const res = asResponse(await handleActionRequest(req, defaultConfig));
       expect(res).not.toBeNull();
       expect(res!.status).not.toBe(413);
     } catch (e) {
@@ -148,7 +161,7 @@ describe('handleActionRequest — body limits', () => {
       actionId: 'file#action',
       contentLength: String(400_000), // ~390KB
     });
-    const resOk = await handleActionRequest(reqOk, config);
+    const resOk = asResponse(await handleActionRequest(reqOk, config));
     expect(resOk).not.toBeNull();
     expect(resOk!.status).not.toBe(413);
 
@@ -157,7 +170,7 @@ describe('handleActionRequest — body limits', () => {
       actionId: 'file#action',
       contentLength: String(600_000), // ~585KB — over 512KB
     });
-    const resBig = await handleActionRequest(reqBig, config);
+    const resBig = asResponse(await handleActionRequest(reqBig, config));
     expect(resBig).not.toBeNull();
     expect(resBig!.status).toBe(413);
   });
@@ -172,7 +185,7 @@ describe('handleActionRequest — body limits', () => {
       contentLength: String(2_000_000),
     });
 
-    const res = await handleActionRequest(req, defaultConfig);
+    const res = asResponse(await handleActionRequest(req, defaultConfig));
     expect(res).not.toBeNull();
     expect(res!.status).toBe(403);
   });
@@ -185,7 +198,7 @@ describe('handleActionRequest — body limits', () => {
       contentLength: String(2_000_000), // Over limit
     });
 
-    const res = await handleActionRequest(req, defaultConfig);
+    const res = asResponse(await handleActionRequest(req, defaultConfig));
     expect(res!.status).toBe(413);
 
     // executeAction should NOT have been called
@@ -204,7 +217,7 @@ describe('handleActionRequest — body limits', () => {
       body: 'test',
     });
 
-    const res = await handleActionRequest(req, defaultConfig);
+    const res = asResponse(await handleActionRequest(req, defaultConfig));
     expect(res).not.toBeNull();
     expect(res!.status).not.toBe(413);
   });
@@ -228,7 +241,7 @@ describe('handleActionRequest — piggybacked revalidation', () => {
     });
 
     const req = makeActionRequest({ actionId: 'file#action' });
-    const res = await handleActionRequest(req, defaultConfig);
+    const res = asResponse(await handleActionRequest(req, defaultConfig));
 
     expect(res).not.toBeNull();
     expect(res!.status).toBe(200);
@@ -260,7 +273,7 @@ describe('handleActionRequest — piggybacked revalidation', () => {
 
   it('does not set X-Timber-Revalidation header when no revalidation', async () => {
     const req = makeActionRequest({ actionId: 'file#action' });
-    const res = await handleActionRequest(req, defaultConfig);
+    const res = asResponse(await handleActionRequest(req, defaultConfig));
 
     expect(res).not.toBeNull();
     expect(res!.status).toBe(200);
@@ -282,7 +295,7 @@ describe('handleActionRequest — piggybacked revalidation', () => {
     });
 
     const req = makeActionRequest({ actionId: 'file#action' });
-    const res = await handleActionRequest(req, defaultConfig);
+    const res = asResponse(await handleActionRequest(req, defaultConfig));
 
     expect(res!.headers.get('X-Timber-Head')).toBe(JSON.stringify(headElements));
   });
@@ -298,7 +311,7 @@ describe('handleActionRequest — piggybacked revalidation', () => {
     });
 
     const req = makeActionRequest({ actionId: 'file#action' });
-    const res = await handleActionRequest(req, defaultConfig);
+    const res = asResponse(await handleActionRequest(req, defaultConfig));
 
     expect(res!.headers.get('X-Timber-Head')).toBeNull();
   });
@@ -308,7 +321,7 @@ describe('handleActionRequest — piggybacked revalidation', () => {
     (executeAction as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('boom'));
 
     const req = makeActionRequest({ actionId: 'file#action' });
-    const res = await handleActionRequest(req, defaultConfig);
+    const res = asResponse(await handleActionRequest(req, defaultConfig));
 
     expect(res).not.toBeNull();
     expect(res!.status).toBe(200); // Error responses are 200 with structured error
@@ -332,7 +345,7 @@ describe('handleActionRequest — redirect in with-JS path', () => {
     });
 
     const req = makeActionRequest({ actionId: 'file#action' });
-    const res = await handleActionRequest(req, defaultConfig);
+    const res = asResponse(await handleActionRequest(req, defaultConfig));
 
     expect(res).not.toBeNull();
     // Should be 200 (RSC stream), not 302 (HTTP redirect)
@@ -409,7 +422,7 @@ describe('handleFormAction — redirect remains HTTP 302', () => {
       body: formData,
     });
 
-    const res = await handleActionRequest(req, defaultConfig);
+    const res = asResponse(await handleActionRequest(req, defaultConfig));
     expect(res).not.toBeNull();
     expect(res!.status).toBe(302);
     expect(res!.headers.get('Location')).toBe('/success');

@@ -104,12 +104,19 @@ export type ActionMiddleware<TCtx = Record<string, unknown>> = () => Promise<TCt
 
 /** The result type returned to the client. */
 export type ActionResult<TData = unknown> =
-  | { data: TData; validationErrors?: never; serverError?: never }
-  | { data?: never; validationErrors: ValidationErrors; serverError?: never }
+  | { data: TData; validationErrors?: never; serverError?: never; submittedValues?: never }
+  | {
+      data?: never;
+      validationErrors: ValidationErrors;
+      serverError?: never;
+      /** Raw input values on validation failure — for repopulating form fields. */
+      submittedValues?: Record<string, unknown>;
+    }
   | {
       data?: never;
       validationErrors?: never;
       serverError: { code: string; data?: Record<string, unknown> };
+      submittedValues?: never;
     };
 
 /** Context passed to the action body. */
@@ -172,26 +179,15 @@ async function runActionMiddleware<TCtx>(
   return await middleware();
 }
 
+// Re-export parseFormData for use throughout the framework
+import { parseFormData } from './form-data.js';
+
 /**
- * Parse FormData into a plain object for schema validation.
- * Handles multi-value fields (multiple values for the same key become arrays).
+ * @deprecated Use parseFormData() from './form-data.js' instead.
+ * Kept as internal alias for backward compatibility within action handler.
  */
 function formDataToObject(formData: FormData): Record<string, unknown> {
-  const obj: Record<string, unknown> = {};
-
-  for (const key of new Set(formData.keys())) {
-    // Skip React internal fields
-    if (key.startsWith('$ACTION_')) continue;
-
-    const values = formData.getAll(key);
-    if (values.length === 1) {
-      obj[key] = values[0];
-    } else {
-      obj[key] = values;
-    }
-  }
-
-  return obj;
+  return parseFormData(formData);
 }
 
 /**
@@ -306,6 +302,10 @@ export function createActionClient<TCtx = Record<string, never>>(
           rawInput = args[0];
         }
 
+        // Capture submitted values for repopulation on validation failure.
+        // Exclude File objects (can't serialize, shouldn't echo back).
+        const submittedValues = schema ? stripFiles(rawInput) : undefined;
+
         // Validate with schema if provided
         let input: TInput;
         if (schema) {
@@ -318,13 +318,13 @@ export function createActionClient<TCtx = Record<string, never>>(
               );
             }
             if (result.issues) {
-              return { validationErrors: extractStandardSchemaErrors(result.issues) };
+              return { validationErrors: extractStandardSchemaErrors(result.issues), submittedValues };
             }
             input = result.value;
           } else if (typeof schema.safeParse === 'function') {
             const result = schema.safeParse(rawInput);
             if (!result.success) {
-              return { validationErrors: extractValidationErrors(result.error) };
+              return { validationErrors: extractValidationErrors(result.error), submittedValues };
             }
             input = result.data;
           } else {
@@ -333,6 +333,7 @@ export function createActionClient<TCtx = Record<string, never>>(
             } catch (parseError) {
               return {
                 validationErrors: extractValidationErrors(parseError as SchemaError),
+                submittedValues,
               };
             }
           }
@@ -363,4 +364,57 @@ export function createActionClient<TCtx = Record<string, never>>(
       return buildAction(undefined, fn as (ctx: ActionContext<TCtx, unknown>) => Promise<TData>);
     },
   };
+}
+
+// ─── validated() ────────────────────────────────────────────────────────
+
+/**
+ * Convenience wrapper for the common case: validate input, run handler.
+ * No middleware needed.
+ *
+ * @example
+ * ```ts
+ * 'use server'
+ * import { validated } from '@timber/app/server'
+ * import { z } from 'zod'
+ *
+ * export const createTodo = validated(
+ *   z.object({ title: z.string().min(1) }),
+ *   async (input) => {
+ *     await db.todos.create(input)
+ *   }
+ * )
+ * ```
+ */
+export function validated<TInput, TData>(
+  schema: ActionSchema<TInput>,
+  handler: (input: TInput) => Promise<TData>
+): ActionFn<TData> {
+  return createActionClient()
+    .schema(schema)
+    .action(async ({ input }) => handler(input));
+}
+
+// ─── Helpers ────────────────────────────────────────────────────────────
+
+/**
+ * Strip File objects from a value, returning a plain object safe for
+ * serialization. File objects can't be serialized and shouldn't be echoed back.
+ */
+function stripFiles(value: unknown): Record<string, unknown> | undefined {
+  if (value === null || value === undefined) return undefined;
+  if (typeof value !== 'object') return undefined;
+
+  const result: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+    if (v instanceof File) continue;
+    if (Array.isArray(v)) {
+      result[k] = v.filter((item) => !(item instanceof File));
+    } else if (typeof v === 'object' && v !== null && !(v instanceof File)) {
+      result[k] = stripFiles(v) ?? {};
+    } else {
+      result[k] = v;
+    }
+  }
+  return result;
 }

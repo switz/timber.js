@@ -63,6 +63,12 @@ const navSections = [
     ],
   },
   {
+    label: "Forms",
+    links: [
+      { href: "/forms-test", testid: "link-forms", text: "Validated Form" },
+    ],
+  },
+  {
     label: "Other",
     links: [
       { href: "/search-params-test", testid: "link-search-params", text: "Search Params" },

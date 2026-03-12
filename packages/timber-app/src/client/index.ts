@@ -35,8 +35,8 @@ export { HistoryStack } from './history';
 export type { HistoryEntry } from './history';
 
 // Forms
-export { useActionState, useFormAction } from './form';
-export type { UseActionStateFn, UseActionStateReturn } from './form';
+export { useActionState, useFormAction, useFormErrors } from './form';
+export type { UseActionStateFn, UseActionStateReturn, FormErrorsResult } from './form';
 
 // Params
 export { useParams, setCurrentParams } from './use-params';

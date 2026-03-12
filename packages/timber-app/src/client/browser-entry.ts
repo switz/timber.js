@@ -24,12 +24,60 @@ import config from 'virtual:timber-config';
 
 import { createElement } from 'react';
 import { hydrateRoot, createRoot, type Root } from 'react-dom/client';
-import { createFromReadableStream, createFromFetch } from '@vitejs/plugin-rsc/browser';
+import {
+  createFromReadableStream,
+  createFromFetch,
+  setServerCallback,
+  encodeReply,
+} from '@vitejs/plugin-rsc/browser';
 import { createRouter } from './router.js';
 import type { RouterDeps, RouterInstance } from './router.js';
 import { applyHeadElements } from './head.js';
-import { setGlobalRouter } from './router-ref.js';
+import { setGlobalRouter, getRouter } from './router-ref.js';
 import { TimberNuqsAdapter } from './nuqs-adapter.js';
+
+// ─── Server Action Dispatch ──────────────────────────────────────
+
+/**
+ * Register the callServer callback for server action dispatch.
+ *
+ * When React encounters a server reference (from `'use server'` modules),
+ * it calls `callServer(id, args)` to dispatch the action to the server.
+ * The RSC plugin delegates to `globalThis.__viteRscCallServer` which is
+ * set by `setServerCallback`.
+ *
+ * The callback:
+ * 1. Serializes args via `encodeReply` (RSC wire format)
+ * 2. POSTs to the current URL with `Accept: text/x-component`
+ * 3. Decodes the RSC response stream
+ *
+ * See design/08-forms-and-actions.md §"Client-Side Form Mechanics"
+ */
+setServerCallback(async (id: string, args: unknown[]) => {
+  const body = await encodeReply(args);
+  const response = fetch(window.location.href, {
+    method: 'POST',
+    headers: {
+      Accept: 'text/x-component',
+      'x-rsc-action': id,
+    },
+    body,
+  });
+  const result = await createFromFetch(response);
+
+  // After the action completes, refresh the page to reflect mutations.
+  // This triggers a client-side RSC re-fetch (no full page reload).
+  // TODO: Piggyback the revalidation RSC payload on the action response
+  // instead of making a separate fetch (design/08-forms-and-actions.md).
+  try {
+    const router = getRouter();
+    void router.refresh();
+  } catch {
+    // Router not yet initialized (rare edge case during bootstrap)
+  }
+
+  return result;
+});
 
 // ─── Bootstrap ───────────────────────────────────────────────────
 

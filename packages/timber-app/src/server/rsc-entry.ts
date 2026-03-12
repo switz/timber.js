@@ -59,6 +59,7 @@ import type { RouteModule } from './route-handler.js';
 import type { RouteContext } from './types.js';
 import { setParsedSearchParams } from './request-context.js';
 import type { SearchParamsDefinition } from '../search-params/create.js';
+import { isActionRequest, handleActionRequest } from './action-handler.js';
 
 /**
  * Create a debug channel sink that discards all debug data.
@@ -161,7 +162,42 @@ async function createRequestHandler(manifest: typeof routeManifest, runtimeConfi
   };
 
   const pipeline = createPipeline(pipelineConfig);
-  return pipeline;
+
+  // Wrap the pipeline to intercept server action requests before rendering.
+  // Actions bypass the normal pipeline (no route matching, no middleware)
+  // per design/08-forms-and-actions.md §"Middleware for Server Actions".
+  const csrfConfig = {
+    csrf: runtimeConfig.csrf,
+    allowedOrigins: (runtimeConfig as Record<string, unknown>).allowedOrigins as
+      | string[]
+      | undefined,
+  };
+
+  return async (req: Request): Promise<Response> => {
+    if (isActionRequest(req)) {
+      const actionResponse = await handleActionRequest(req, {
+        csrf: csrfConfig,
+        revalidateRenderer: async (path: string) => {
+          // Re-render the route at `path` to produce an RSC flight payload.
+          // This is called when an action calls revalidatePath().
+          // Forward original request headers (cookies, session IDs, etc.)
+          // but override Accept to request an RSC payload.
+          const revalidateHeaders = new Headers(req.headers);
+          revalidateHeaders.set('Accept', 'text/x-component');
+          const revalidateReq = new Request(new URL(path, req.url), {
+            headers: revalidateHeaders,
+          });
+          const response = await pipeline(revalidateReq);
+          if (!response.body) {
+            throw new Error(`revalidatePath('${path}') produced no body`);
+          }
+          return response.body;
+        },
+      });
+      if (actionResponse) return actionResponse;
+    }
+    return pipeline(req);
+  };
 }
 
 /** RSC content type for client navigation payload requests. */

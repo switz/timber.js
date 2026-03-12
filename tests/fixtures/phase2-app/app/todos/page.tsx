@@ -10,24 +10,23 @@
  *
  * Design doc: design/08-forms-and-actions.md
  */
+import { getTodos } from './store';
+import { headers } from '@timber/app/server';
 import { TodoForm } from './todo-form';
-
-// In a real app, this would read from a database.
-// For the fixture, we use a server-side in-memory store.
-const todos: string[] = [];
+import { TodoList } from './todo-list';
+import { ResetButton } from './reset-button';
 
 export default function TodosPage() {
+  const sessionId = headers().get('x-test-session') ?? undefined;
+  const todos = getTodos(sessionId);
+
   return (
     <div data-testid="todos-content">
       <h1>Todos</h1>
-
-      <ul data-testid="todo-list">
-        {todos.map((todo, i) => (
-          <li key={i}>{todo}</li>
-        ))}
-      </ul>
-
+      <TodoList todos={todos} />
       <TodoForm />
+      <p data-testid="todo-count">{todos.length} todos</p>
+      <ResetButton />
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { timberRouting } from '../packages/timber-app/src/plugins/routing.js';
 import type { PluginContext } from '../packages/timber-app/src/index.js';
+import { createNoopTimer } from '../packages/timber-app/src/utils/startup-timer';
 
 const TMP_DIR = join(import.meta.dirname, '.tmp-routing-plugin-test');
 
@@ -32,6 +33,7 @@ function createPluginContext(overrides: Partial<PluginContext> = {}): PluginCont
     root: TMP_DIR,
     dev: false,
     buildManifest: null,
+    timer: createNoopTimer(),
     ...overrides,
   };
 }

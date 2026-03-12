@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import type { ViteDevServer } from 'vite';
 import { timberDevServer } from '../packages/timber-app/src/plugins/dev-server.js';
 import type { PluginContext } from '../packages/timber-app/src/index.js';
+import { createNoopTimer } from '../packages/timber-app/src/utils/startup-timer';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
 // vi.mock isRunnableDevEnvironment to always return true in tests
@@ -23,6 +24,7 @@ function createPluginContext(overrides: Partial<PluginContext> = {}): PluginCont
     root: '/test',
     dev: false,
     buildManifest: null,
+    timer: createNoopTimer(),
     ...overrides,
   };
 }

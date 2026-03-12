@@ -3,6 +3,7 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { timberEntries } from '../packages/timber-app/src/plugins/entries.js';
 import type { PluginContext } from '../packages/timber-app/src/index.js';
+import { createNoopTimer } from '../packages/timber-app/src/utils/startup-timer';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = resolve(__dirname, '..');
@@ -16,6 +17,7 @@ function createPluginContext(overrides: Partial<PluginContext> = {}): PluginCont
     root: PROJECT_ROOT,
     dev: false,
     buildManifest: null,
+    timer: createNoopTimer(),
     ...overrides,
   };
 }

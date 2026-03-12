@@ -15,6 +15,7 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { timberEntries } from '../packages/timber-app/src/plugins/entries.js';
 import type { PluginContext, TimberUserConfig } from '../packages/timber-app/src/index.js';
+import { createNoopTimer } from '../packages/timber-app/src/utils/startup-timer';
 import { formatSpanTree } from '../packages/timber-app/src/server/dev-logger.js';
 import type { ReadableSpan } from '@opentelemetry/sdk-trace-base';
 
@@ -29,6 +30,7 @@ function createPluginContext(config?: TimberUserConfig): PluginContext {
     root: PROJECT_ROOT,
     dev: true,
     buildManifest: null,
+    timer: createNoopTimer(),
   };
 }
 

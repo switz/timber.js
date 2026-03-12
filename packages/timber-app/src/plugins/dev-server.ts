@@ -95,6 +95,14 @@ export function timberDevServer(ctx: PluginContext): Plugin {
 
       // Pre-hook — registers middleware before Vite's internals
       server.middlewares.use(createTimberMiddleware(server, ctx.root));
+
+      // Log startup timing summary. configureServer runs on all plugins
+      // before the server listens, so this captures the full cold start.
+      ctx.timer.end('dev-server-setup');
+      const summary = ctx.timer.formatSummary();
+      if (summary) {
+        console.log(summary);
+      }
     },
   };
 }

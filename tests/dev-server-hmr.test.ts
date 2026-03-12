@@ -18,6 +18,7 @@ import { join } from 'node:path';
 import { timberDevServer } from '../packages/timber-app/src/plugins/dev-server.js';
 import { timber } from '../packages/timber-app/src/index.js';
 import type { PluginContext } from '../packages/timber-app/src/index.js';
+import { createNoopTimer } from '../packages/timber-app/src/utils/startup-timer';
 
 // Mock isRunnableDevEnvironment to always return true in tests
 vi.mock('vite', async (importOriginal) => {
@@ -38,6 +39,7 @@ function createPluginContext(overrides: Partial<PluginContext> = {}): PluginCont
     root: '/test',
     dev: false,
     buildManifest: null,
+    timer: createNoopTimer(),
     ...overrides,
   };
 }

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { timberContent } from '../packages/timber-app/src/plugins/content';
 import type { PluginContext } from '../packages/timber-app/src/index';
+import { createNoopTimer } from '../packages/timber-app/src/utils/startup-timer';
 
 function createCtx(overrides?: Partial<PluginContext>): PluginContext {
   return {
@@ -13,6 +14,7 @@ function createCtx(overrides?: Partial<PluginContext>): PluginContext {
     root: '/project',
     dev: false,
     buildManifest: null,
+    timer: createNoopTimer(),
     ...overrides,
   };
 }

@@ -128,7 +128,9 @@ export function timberMdx(ctx: PluginContext): Plugin {
     enforce: 'pre',
 
     async buildStart(options) {
+      ctx.timer.start('mdx-activate');
       await activate();
+      ctx.timer.end('mdx-activate');
       if (!innerPlugin) return;
       if (typeof innerPlugin.buildStart === 'function') {
         await (innerPlugin.buildStart as (options: unknown) => void | Promise<void>).call(

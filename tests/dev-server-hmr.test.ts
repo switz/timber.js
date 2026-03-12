@@ -96,6 +96,7 @@ function createMockServer() {
     },
     hot: {
       send: vi.fn(),
+      on: vi.fn(),
     },
     config: {
       root: '/test',

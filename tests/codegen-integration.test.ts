@@ -119,7 +119,7 @@ describe('codegen-integration', () => {
         add: vi.fn(),
       },
       environments: {},
-      hot: { send: vi.fn() },
+      hot: { send: vi.fn(), on: vi.fn() },
     };
 
     const configureServer = plugin.configureServer as (server: unknown) => void;

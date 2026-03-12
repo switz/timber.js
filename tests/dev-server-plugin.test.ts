@@ -119,6 +119,7 @@ function createMockServer(
     },
     hot: {
       send: vi.fn(),
+      on: vi.fn(),
     },
   } as unknown as ViteDevServer;
 

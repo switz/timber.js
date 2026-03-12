@@ -151,3 +151,4 @@ export function fromArraySchema<T>(schema: StandardSchemaV1<T>): SearchParamCode
     },
   };
 }
+

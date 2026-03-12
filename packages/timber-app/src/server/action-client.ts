@@ -33,15 +33,64 @@ export class ActionError<TCode extends string = string> extends Error {
   }
 }
 
-// ─── Types ───────────────────────────────────────────────────────────────
+// ─── Standard Schema ──────────────────────────────────────────────────────
 
-/** Minimal schema interface — compatible with Zod, Valibot, ArkType, etc. */
-export interface ActionSchema<T = unknown> {
-  parse(data: unknown): T;
-  safeParse?(data: unknown): { success: true; data: T } | { success: false; error: SchemaError };
+/**
+ * Standard Schema v1 interface (subset).
+ * Zod ≥3.24, Valibot ≥1.0, and ArkType all implement this.
+ * See https://github.com/standard-schema/standard-schema
+ *
+ * We use permissive types here to accept all compliant libraries without
+ * requiring exact structural matches on issues/path shapes.
+ */
+interface StandardSchemaV1<Output = unknown> {
+  '~standard': {
+    validate(value: unknown): StandardSchemaResult<Output> | Promise<StandardSchemaResult<Output>>;
+  };
 }
 
-/** Schema validation error shape. */
+type StandardSchemaResult<Output> =
+  | { value: Output; issues?: undefined }
+  | { value?: undefined; issues: ReadonlyArray<StandardSchemaIssue> };
+
+interface StandardSchemaIssue {
+  message: string;
+  path?: ReadonlyArray<PropertyKey | { key: PropertyKey }>;
+}
+
+/** Check if a schema implements the Standard Schema protocol. */
+function isStandardSchema(schema: unknown): schema is StandardSchemaV1 {
+  return (
+    typeof schema === 'object' &&
+    schema !== null &&
+    '~standard' in schema &&
+    typeof (schema as StandardSchemaV1)['~standard'].validate === 'function'
+  );
+}
+
+// ─── Types ───────────────────────────────────────────────────────────────
+
+/**
+ * Minimal schema interface — compatible with Zod, Valibot, ArkType, etc.
+ *
+ * Accepts either:
+ * - Standard Schema (preferred): any object with `~standard.validate()`
+ * - Legacy parse interface: objects with `.parse()` / `.safeParse()`
+ *
+ * At runtime, Standard Schema is detected via `~standard` property and
+ * takes priority over the legacy interface.
+ */
+export type ActionSchema<T = unknown> = StandardSchemaV1<T> | LegacyActionSchema<T>;
+
+/** Legacy schema interface with .parse() / .safeParse(). */
+interface LegacyActionSchema<T = unknown> {
+  parse(data: unknown): T;
+  safeParse?(data: unknown): { success: true; data: T } | { success: false; error: SchemaError };
+  // Exclude Standard Schema objects from matching this interface
+  '~standard'?: never;
+}
+
+/** Schema validation error shape (for legacy .safeParse()/.parse() interface). */
 export interface SchemaError {
   issues?: Array<{ path?: Array<string | number>; message: string }>;
   flatten?(): { fieldErrors: Record<string, string[]> };
@@ -170,6 +219,25 @@ function extractValidationErrors(error: SchemaError): ValidationErrors {
 }
 
 /**
+ * Extract validation errors from Standard Schema issues.
+ */
+function extractStandardSchemaErrors(issues: ReadonlyArray<StandardSchemaIssue>): ValidationErrors {
+  const errors: ValidationErrors = {};
+  for (const issue of issues) {
+    const path = issue.path
+      ?.map((p) => {
+        // Standard Schema path items can be { key: ... } objects or bare PropertyKey values
+        if (typeof p === 'object' && p !== null && 'key' in p) return String(p.key);
+        return String(p);
+      })
+      .join('.') ?? '_root';
+    if (!errors[path]) errors[path] = [];
+    errors[path].push(issue.message);
+  }
+  return Object.keys(errors).length > 0 ? errors : { _root: ['Validation failed'] };
+}
+
+/**
  * Wrap unexpected errors into a safe server error result.
  * ActionError → typed result. Other errors → INTERNAL_ERROR (no leak).
  *
@@ -241,7 +309,19 @@ export function createActionClient<TCtx = Record<string, never>>(
         // Validate with schema if provided
         let input: TInput;
         if (schema) {
-          if (typeof schema.safeParse === 'function') {
+          if (isStandardSchema(schema)) {
+            // Standard Schema protocol (Zod ≥3.24, Valibot ≥1.0, ArkType)
+            const result = schema['~standard'].validate(rawInput);
+            if (result instanceof Promise) {
+              throw new Error(
+                '[timber] createActionClient: schema returned a Promise — only sync schemas are supported.'
+              );
+            }
+            if (result.issues) {
+              return { validationErrors: extractStandardSchemaErrors(result.issues) };
+            }
+            input = result.value;
+          } else if (typeof schema.safeParse === 'function') {
             const result = schema.safeParse(rawInput);
             if (!result.success) {
               return { validationErrors: extractValidationErrors(result.error) };

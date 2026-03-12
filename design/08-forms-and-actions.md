@@ -100,7 +100,7 @@ export function NewTodoForm() {
 
 `@timber/app/client` exports a typed `useActionState` that understands the action builder's result shape. `result` is typed to `{ data: Awaited<ReturnType> } | { validationErrors: SchemaErrors } | { serverError: { code: string; data?: Record<string, unknown> } } | null` — no casting, no `any`. The action builder emits a function that satisfies both the direct call signature and React's `(prevState, formData) => Promise<State>` contract, so it passes to `useActionState` without wrapping.
 
-`createActionClient` creates a typed action builder. `.schema()` declares the input schema (Zod, Valibot, ArkType — anything with a `.parse()` method). `.action()` receives the validated `input` and the middleware `ctx`. If middleware throws an `ActionError`, the action short-circuits and the error is returned to the client as a typed value.
+`createActionClient` creates a typed action builder. `.schema()` declares the input schema — any library implementing the [Standard Schema](https://github.com/standard-schema/standard-schema) protocol (Zod ≥3.24, Valibot ≥1.0, ArkType). Legacy schemas with `.parse()` / `.safeParse()` are also accepted for backward compatibility. `.action()` receives the validated `input` and the middleware `ctx`. If middleware throws an `ActionError`, the action short-circuits and the error is returned to the client as a typed value.
 
 Multiple middleware layers can be composed:
 
@@ -182,7 +182,7 @@ Forms wired to server actions work without JavaScript. The `<form action={action
 
 ## Validation Pattern
 
-`.schema()` accepts any schema library with a `.parse()` / `.safeParse()` interface. Validation errors are returned to the client as `result.validationErrors` — typed to the schema's shape. The action body only runs if validation passes.
+`.schema()` accepts any schema library implementing the [Standard Schema](https://github.com/standard-schema/standard-schema) protocol (`~standard.validate`). This includes Zod ≥3.24, Valibot ≥1.0, and ArkType. Legacy schemas with `.parse()` / `.safeParse()` are also accepted. Validation errors are returned to the client as `result.validationErrors` — typed to the schema's shape. The action body only runs if validation passes.
 
 ---
 

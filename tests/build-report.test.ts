@@ -32,31 +32,40 @@ function makeSegment(overrides: Partial<SegmentNode> = {}): SegmentNode {
 // ─── classifyRoute ────────────────────────────────────────────────────────
 
 describe('classifyRoute', () => {
-  it('returns "static" for a page with all static segments', () => {
+  it('returns "dynamic" for all pages in server output mode (default)', () => {
     const segments = [
       makeSegment({ segmentName: '', urlPath: '/' }),
       makeSegment({ segmentName: 'about', urlPath: '/about' }),
     ];
-    expect(classifyRoute(segments)).toBe('static');
+    expect(classifyRoute(segments)).toBe('dynamic');
+    expect(classifyRoute(segments, 'server')).toBe('dynamic');
   });
 
-  it('returns "dynamic" when any segment is dynamic', () => {
+  it('returns "static" for all-static segments in static output mode', () => {
+    const segments = [
+      makeSegment({ segmentName: '', urlPath: '/' }),
+      makeSegment({ segmentName: 'about', urlPath: '/about' }),
+    ];
+    expect(classifyRoute(segments, 'static')).toBe('static');
+  });
+
+  it('returns "dynamic" for dynamic segments in static output mode', () => {
     const segments = [
       makeSegment({ segmentName: '', urlPath: '/' }),
       makeSegment({ segmentName: '[id]', segmentType: 'dynamic', urlPath: '/[id]' }),
     ];
-    expect(classifyRoute(segments)).toBe('dynamic');
+    expect(classifyRoute(segments, 'static')).toBe('dynamic');
   });
 
-  it('returns "dynamic" for catch-all segments', () => {
+  it('returns "dynamic" for catch-all segments in static mode', () => {
     const segments = [
       makeSegment({ segmentName: '', urlPath: '/' }),
       makeSegment({ segmentName: '[...slug]', segmentType: 'catch-all', urlPath: '/[...slug]' }),
     ];
-    expect(classifyRoute(segments)).toBe('dynamic');
+    expect(classifyRoute(segments, 'static')).toBe('dynamic');
   });
 
-  it('returns "dynamic" for optional catch-all segments', () => {
+  it('returns "dynamic" for optional catch-all segments in static mode', () => {
     const segments = [
       makeSegment({
         segmentName: '[[...slug]]',
@@ -64,7 +73,7 @@ describe('classifyRoute', () => {
         urlPath: '/[[...slug]]',
       }),
     ];
-    expect(classifyRoute(segments)).toBe('dynamic');
+    expect(classifyRoute(segments, 'static')).toBe('dynamic');
   });
 
   it('returns "function" when leaf has route.ts', () => {
@@ -92,13 +101,22 @@ describe('classifyRoute', () => {
     expect(classifyRoute(segments)).toBe('function');
   });
 
-  it('treats group segments as static', () => {
+  it('treats group segments as static in static mode', () => {
     const segments = [
       makeSegment({ segmentName: '', urlPath: '/' }),
       makeSegment({ segmentName: '(auth)', segmentType: 'group', urlPath: '/' }),
       makeSegment({ segmentName: 'login', urlPath: '/login' }),
     ];
-    expect(classifyRoute(segments)).toBe('static');
+    expect(classifyRoute(segments, 'static')).toBe('static');
+  });
+
+  it('treats group segments as dynamic in server mode', () => {
+    const segments = [
+      makeSegment({ segmentName: '', urlPath: '/' }),
+      makeSegment({ segmentName: '(auth)', segmentType: 'group', urlPath: '/' }),
+      makeSegment({ segmentName: 'login', urlPath: '/login' }),
+    ];
+    expect(classifyRoute(segments, 'server')).toBe('dynamic');
   });
 });
 
@@ -164,10 +182,8 @@ describe('buildRouteReport', () => {
 
     const lines = buildRouteReport(entries, 83000);
 
-    // Each route line should have consistent width (all lines between separators
-    // should be the same length, accounting for Unicode characters)
-    // Filter to only route lines (start with icon + space + /)
-    const routeLines = lines.filter((l) => /^[○λƒ]\s+\//.test(l));
+    // Filter to only route lines (indented icon + space + /)
+    const routeLines = lines.filter((l) => /^\s+[○λƒ]\s+\//.test(l));
     expect(routeLines.length).toBe(2);
   });
 
@@ -186,7 +202,7 @@ describe('buildRouteReport', () => {
     ];
 
     const lines = buildRouteReport(entries, 0);
-    const routeLines = lines.filter((l) => /^[○λƒ]\s+\//.test(l));
+    const routeLines = lines.filter((l) => /^\s+[○λƒ]\s+\//.test(l));
     const paths = routeLines.map((l) => l.trim().split(/\s+/)[1]);
     expect(paths).toEqual(['/a-page', '/m-page', '/z-page']);
   });

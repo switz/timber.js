@@ -13,7 +13,8 @@
  * Task: TIM-287
  */
 
-import type { Plugin, Logger } from 'vite';
+import { gzipSync } from 'node:zlib';
+import type { Plugin, Logger, UserConfig } from 'vite';
 import type { PluginContext } from '../index.js';
 import type { SegmentNode, RouteTree } from '../routing/types.js';
 
@@ -28,8 +29,12 @@ export interface RouteEntry {
   firstLoadSize: number;
 }
 
-/** Map from output chunk fileName to byte size. */
-export type ChunkSizeMap = Map<string, number>;
+/** Map from output chunk fileName to raw and gzip byte sizes. */
+export interface ChunkSize {
+  raw: number;
+  gzip: number;
+}
+export type ChunkSizeMap = Map<string, ChunkSize>;
 
 // ─── Route classification ─────────────────────────────────────────────────
 
@@ -40,13 +45,17 @@ const ROUTE_TYPE_ICONS: Record<RouteType, string> = {
 };
 
 /**
- * Classify a route based on its segment chain.
+ * Classify a route based on its segment chain and output mode.
  *
  * - `function`: leaf has `route.ts` (API endpoint)
- * - `dynamic`: any segment is dynamic, catch-all, or optional catch-all
- * - `static`: all segments are static or groups
+ * - `dynamic`: server-rendered page (any page in server output mode,
+ *   or pages with dynamic segments in static mode)
+ * - `static`: only in static output mode — pages with all-static segments
+ *
+ * In server output mode (the default, Cloudflare Workers), every page
+ * is server-rendered on each request, so all pages are dynamic.
  */
-export function classifyRoute(segments: SegmentNode[]): RouteType {
+export function classifyRoute(segments: SegmentNode[], outputMode: 'server' | 'static' = 'server'): RouteType {
   const leaf = segments[segments.length - 1];
 
   // Function routes (API endpoints) take precedence
@@ -54,7 +63,12 @@ export function classifyRoute(segments: SegmentNode[]): RouteType {
     return 'function';
   }
 
-  // Check for dynamic segments anywhere in the chain
+  // In server output mode, all pages are dynamically rendered
+  if (outputMode === 'server') {
+    return 'dynamic';
+  }
+
+  // In static mode, check for dynamic segments
   for (const segment of segments) {
     if (
       segment.segmentType === 'dynamic' ||
@@ -154,12 +168,12 @@ export function buildRouteReport(entries: RouteEntry[], sharedSize: number): str
   // Column headers
   const header = 'Route (app)';
   const sizeHeader = 'Size';
-  const firstLoadHeader = 'First Load JS';
+  const firstLoadHeader = 'First Load JS (gzip)';
 
   // Compute column widths
   const pathColWidth = Math.max(
     header.length + 2,
-    ...sorted.map((e) => e.path.length + 4) // +4 for "○ " prefix + padding
+    ...sorted.map((e) => e.path.length + 6) // +6 for "  ○ " prefix + padding
   );
   const sizeColWidth = Math.max(sizeHeader.length, 10);
   const firstLoadColWidth = Math.max(firstLoadHeader.length, 10);
@@ -174,10 +188,10 @@ export function buildRouteReport(entries: RouteEntry[], sharedSize: number): str
   // Separator
   lines.push('─'.repeat(totalWidth));
 
-  // Route entries
+  // Route entries (indented so they sit under the header)
   for (const entry of sorted) {
     const icon = ROUTE_TYPE_ICONS[entry.type];
-    const pathStr = `${icon} ${entry.path}`;
+    const pathStr = `  ${icon} ${entry.path}`;
     const sizeStr = formatSize(entry.size);
     const firstLoadStr = formatSize(entry.firstLoadSize);
 
@@ -230,9 +244,9 @@ interface OutputChunkLike {
 }
 
 /**
- * Collect byte sizes from a Vite output bundle.
+ * Collect raw and gzip byte sizes from a Vite output bundle.
  *
- * Returns a map of fileName → byte size for all chunks and CSS assets.
+ * Returns a map of fileName → { raw, gzip } for all chunks and CSS assets.
  */
 export function collectChunkSizes(
   bundle: Record<string, OutputChunkLike>
@@ -241,18 +255,19 @@ export function collectChunkSizes(
 
   for (const [fileName, item] of Object.entries(bundle)) {
     if (item.type === 'chunk' && item.code) {
-      sizes.set(fileName, byteLength(item.code));
+      sizes.set(fileName, measureSize(item.code));
     } else if (item.type === 'asset' && fileName.endsWith('.css') && item.source != null) {
       const source = typeof item.source === 'string' ? item.source : new TextDecoder().decode(item.source);
-      sizes.set(fileName, byteLength(source));
+      sizes.set(fileName, measureSize(source));
     }
   }
 
   return sizes;
 }
 
-function byteLength(str: string): number {
-  return new TextEncoder().encode(str).length;
+function measureSize(content: string): ChunkSize {
+  const buf = new TextEncoder().encode(content);
+  return { raw: buf.length, gzip: gzipSync(buf).length };
 }
 
 /**
@@ -297,12 +312,40 @@ export function timberBuildReport(ctx: PluginContext): Plugin {
   let chunkSizes: ChunkSizeMap | null = null;
   let clientBundle: Record<string, OutputChunkLike> | null = null;
   let reported = false;
+  const buildStart = performance.now();
 
   return {
     name: 'timber-build-report',
 
+    config(_userConfig: UserConfig, { command }: { command: string }) {
+      if (command !== 'build') return;
+
+      // Suppress per-chunk output for RSC and SSR environments —
+      // only the client build chunks matter to developers.
+      // The build report replaces Vite's default chunk listing with
+      // a route-level summary. We intercept logger.info and filter out
+      // lines containing dist/rsc/ or dist/ssr/ paths.
+      // The regex avoids anchoring to ^ because Vite prepends ANSI color codes.
+      return {
+        environments: {
+          rsc: { build: { reportCompressedSize: false } },
+          ssr: { build: { reportCompressedSize: false } },
+        },
+      };
+    },
+
     configResolved(config) {
       logger = config.logger;
+
+      if (config.command !== 'build') return;
+
+      // Wrap logger.info to suppress RSC/SSR chunk listing lines.
+      // Uses a non-anchored regex because Vite prepends ANSI color codes.
+      const origInfo = config.logger.info.bind(config.logger);
+      config.logger.info = (msg: string, options?: { timestamp?: boolean }) => {
+        if (typeof msg === 'string' && /dist\/(rsc|ssr)\//.test(msg)) return;
+        origInfo(msg, options);
+      };
     },
 
     generateBundle(_options, bundle) {
@@ -328,10 +371,10 @@ export function timberBuildReport(ctx: PluginContext): Plugin {
       // Collect routes from the tree
       const routeInfos = collectRoutes(ctx.routeTree);
 
-      // Compute total shared size (all chunks) and per-route sizes
-      let totalClientSize = 0;
+      // Compute total gzip size (all chunks) for first-load JS
+      let totalGzip = 0;
       for (const size of chunkSizes.values()) {
-        totalClientSize += size;
+        totalGzip += size.gzip;
       }
 
       // Track which chunks are route-specific
@@ -339,43 +382,51 @@ export function timberBuildReport(ctx: PluginContext): Plugin {
       const entries: RouteEntry[] = [];
 
       for (const info of routeInfos) {
-        let routeSize = 0;
+        let routeRaw = 0;
+        let routeGzip = 0;
 
         if (info.entryFilePath) {
           const chunkFile = findChunkForFile(info.entryFilePath, clientBundle);
           if (chunkFile) {
-            routeSize = chunkSizes.get(chunkFile) ?? 0;
+            const s = chunkSizes.get(chunkFile);
+            if (s) {
+              routeRaw = s.raw;
+              routeGzip = s.gzip;
+            }
             routeChunkFiles.add(chunkFile);
           }
         }
 
         entries.push({
           path: info.path,
-          type: classifyRoute(info.segments),
-          size: routeSize,
-          firstLoadSize: 0, // computed after shared size is known
+          type: classifyRoute(info.segments, ctx.config.output ?? 'server'),
+          size: routeRaw,
+          firstLoadSize: routeGzip, // placeholder — adjusted below
         });
       }
 
-      // Shared size = total - sum of route-specific chunks
-      let routeSpecificTotal = 0;
+      // Shared size = total - sum of route-specific chunks (gzip for first-load)
+      let routeSpecificGzip = 0;
       for (const file of routeChunkFiles) {
-        routeSpecificTotal += chunkSizes.get(file) ?? 0;
+        routeSpecificGzip += chunkSizes.get(file)?.gzip ?? 0;
       }
-      const sharedSize = totalClientSize - routeSpecificTotal;
+      const sharedGzip = totalGzip - routeSpecificGzip;
 
-      // Compute first-load size for each route
+      // Compute first-load gzip size for each route
       for (const entry of entries) {
-        entry.firstLoadSize = entry.size + sharedSize;
+        entry.firstLoadSize = entry.firstLoadSize + sharedGzip;
       }
 
       // Format and log the report
-      const lines = buildRouteReport(entries, sharedSize);
+      const elapsed = ((performance.now() - buildStart) / 1000).toFixed(2);
+      const lines = buildRouteReport(entries, sharedGzip);
 
       logger.info('');
       for (const line of lines) {
         logger.info(line);
       }
+      logger.info('');
+      logger.info(`✓ built ${entries.length} routes in ${elapsed}s`);
       logger.info('');
     },
   };

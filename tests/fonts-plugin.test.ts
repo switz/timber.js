@@ -232,6 +232,11 @@ describe('parses Google font imports', () => {
     const names = parseGoogleFontImports("import { useState } from 'react'");
     expect(names).toEqual([]);
   });
+
+  it('parses next/font/google imports (compat)', () => {
+    const names = parseGoogleFontImports("import { Geist, Geist_Mono } from 'next/font/google'");
+    expect(names).toEqual(['Geist', 'Geist_Mono']);
+  });
 });
 
 describe('parses Google font families', () => {
@@ -252,6 +257,13 @@ describe('parses Google font families', () => {
       "import { Inter as MyFont } from '@timber/fonts/google'"
     );
     expect(families.get('MyFont')).toBe('Inter');
+  });
+
+  it('parses next/font/google families (compat)', () => {
+    const families = parseGoogleFontFamilies(
+      "import { Geist_Mono } from 'next/font/google'"
+    );
+    expect(families.get('Geist_Mono')).toBe('Geist Mono');
   });
 });
 

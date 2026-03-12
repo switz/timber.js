@@ -232,22 +232,11 @@ packages/timber-app/src/
 
 ---
 
-## Shim Updates
+## Next.js Font Compatibility
 
-The current `next/font/google` shim (`shims/font-google.ts`) returns empty values. Once the `timber-fonts` plugin is implemented:
+`next/font/google` and `next/font/local` are resolved by the `timber-shims` plugin directly to the `timber-fonts` virtual modules (`\0@timber/fonts/google` and `\0@timber/fonts/local`). No separate stub files are needed — the same virtual module serves both import paths.
 
-- The shim continues to exist for import resolution
-- The plugin's `transform` hook replaces the stub return values with real font data at build time
-- In dev mode, the shim returns values pointing to CDN-hosted fonts
-
-A new `next/font/local` shim should be added with the same pattern:
-
-```ts
-// shims/font-local.ts
-export default function localFont(_config?: LocalFontConfig): FontResult {
-  return { className: '', style: { fontFamily: '' } };
-}
-```
+The `timber-fonts` transform hook recognizes both `@timber/fonts/google` and `next/font/google` import specifiers in source code, so migrating apps can use either import path and get the same build-time font processing.
 
 ---
 

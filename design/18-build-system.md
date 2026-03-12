@@ -75,7 +75,7 @@ next/link        → packages/timber-app/src/shims/link.ts
 next/image       → packages/timber-app/src/shims/image.ts
 next/navigation  → packages/timber-app/src/shims/navigation.ts
 next/headers     → packages/timber-app/src/shims/headers.ts
-next/font/google → packages/timber-app/src/shims/font-google.ts
+next/font/google → \0@timber/fonts/google (timber-fonts virtual module)
 ```
 
 The `resolveId` hook intercepts these imports and redirects to the shim files. The `.js` extension is stripped before matching — libraries like `nuqs` import `next/navigation.js` with an explicit extension.

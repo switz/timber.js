@@ -110,12 +110,21 @@ export function detectDynamicFontCall(source: string, importedNames: string[]): 
 }
 
 /**
- * Parse import specifiers from a source file that imports from @timber/fonts/google.
+ * Regex that matches imports from either `@timber/fonts/google` or `next/font/google`.
+ * The shims plugin resolves `next/font/google` to the same virtual module,
+ * but the source code still contains the original import specifier.
+ */
+const GOOGLE_FONT_IMPORT_RE =
+  /import\s*\{([^}]+)\}\s*from\s*['"](?:@timber\/fonts\/google|next\/font\/google)['"]/g;
+
+/**
+ * Parse import specifiers from a source file that imports from
+ * `@timber/fonts/google` or `next/font/google`.
  *
  * Returns the list of imported font names (e.g. ['Inter', 'JetBrains_Mono']).
  */
 export function parseGoogleFontImports(source: string): string[] {
-  const importPattern = /import\s*\{([^}]+)\}\s*from\s*['"]@timber\/fonts\/google['"]/g;
+  const importPattern = new RegExp(GOOGLE_FONT_IMPORT_RE.source, 'g');
   const names: string[] = [];
 
   let match;
@@ -141,7 +150,7 @@ export function parseGoogleFontImports(source: string): string[] {
  * e.g. { Inter: 'Inter', JetBrains_Mono: 'JetBrains Mono' }
  */
 export function parseGoogleFontFamilies(source: string): Map<string, string> {
-  const importPattern = /import\s*\{([^}]+)\}\s*from\s*['"]@timber\/fonts\/google['"]/g;
+  const importPattern = new RegExp(GOOGLE_FONT_IMPORT_RE.source, 'g');
   const families = new Map<string, string>();
 
   let match;
@@ -265,7 +274,7 @@ export function generateAllFontCss(registry: FontRegistry): string {
  *   import myLoader from '@timber/fonts/local'
  */
 export function parseLocalFontImportName(source: string): string | null {
-  const match = source.match(/import\s+(\w+)\s+from\s*['"]@timber\/fonts\/local['"]/);
+  const match = source.match(/import\s+(\w+)\s+from\s*['"](?:@timber\/fonts\/local|next\/font\/local)['"]/);
   return match ? match[1] : null;
 }
 
@@ -329,7 +338,7 @@ function transformLocalFonts(
 
   // Remove the import statement
   transformedCode = transformedCode.replace(
-    /import\s+\w+\s+from\s*['"]@timber\/fonts\/local['"];?\s*\n?/g,
+    /import\s+\w+\s+from\s*['"](?:@timber\/fonts\/local|next\/font\/local)['"];?\s*\n?/g,
     ''
   );
 
@@ -395,8 +404,10 @@ export function timberFonts(ctx: PluginContext): Plugin {
       // Skip virtual modules and node_modules
       if (id.startsWith('\0') || id.includes('node_modules')) return null;
 
-      const hasGoogleImport = code.includes('@timber/fonts/google');
-      const hasLocalImport = code.includes('@timber/fonts/local');
+      const hasGoogleImport =
+        code.includes('@timber/fonts/google') || code.includes('next/font/google');
+      const hasLocalImport =
+        code.includes('@timber/fonts/local') || code.includes('next/font/local');
       if (!hasGoogleImport && !hasLocalImport) return null;
 
       let transformedCode = code;
@@ -468,7 +479,7 @@ export function timberFonts(ctx: PluginContext): Plugin {
           }
 
           transformedCode = transformedCode.replace(
-            /import\s*\{[^}]+\}\s*from\s*['"]@timber\/fonts\/google['"];?\s*\n?/g,
+            /import\s*\{[^}]+\}\s*from\s*['"](?:@timber\/fonts\/google|next\/font\/google)['"];?\s*\n?/g,
             ''
           );
         }

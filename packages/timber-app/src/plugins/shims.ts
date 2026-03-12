@@ -27,8 +27,10 @@ const SHIM_MAP: Record<string, string> = {
   'next/image': resolve(SHIMS_DIR, 'image.ts'),
   'next/navigation': resolve(SHIMS_DIR, 'navigation.ts'),
   'next/headers': resolve(SHIMS_DIR, 'headers.ts'),
-  'next/font/google': resolve(SHIMS_DIR, 'font-google.ts'),
-  'next/font/local': resolve(SHIMS_DIR, 'font-local.ts'),
+  // next/font/* redirects to the timber-fonts virtual modules.
+  // The fonts plugin's load hook serves the actual module code.
+  'next/font/google': '\0@timber/fonts/google',
+  'next/font/local': '\0@timber/fonts/local',
 };
 
 /**

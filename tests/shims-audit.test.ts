@@ -238,42 +238,35 @@ describe('next/headers shim', () => {
   });
 });
 
-// ─── next/font/google shim ───────────────────────────────────────────────────
+// ─── next/font/google → @timber/fonts/google redirect ────────────────────────
 
-describe('next/font/google shim', () => {
-  it('exports a default font loader function', async () => {
-    const mod = await import('../packages/timber-app/src/shims/font-google.js');
-    expect(typeof mod.default).toBe('function');
-  });
-
-  it('font loader returns className and style.fontFamily', async () => {
-    const mod = await import('../packages/timber-app/src/shims/font-google.js');
-    const result = mod.default({ weight: '400', subsets: ['latin'] });
-    expect(result).toHaveProperty('className');
-    expect(result).toHaveProperty('style');
-    expect(result.style).toHaveProperty('fontFamily');
-  });
-
-  it('font loader accepts all Next.js font config options', async () => {
-    const mod = await import('../packages/timber-app/src/shims/font-google.js');
-    // Should not throw with any valid config
-    const result = mod.default({
-      weight: ['400', '700'],
-      subsets: ['latin', 'latin-ext'],
-      display: 'swap',
-      variable: '--font-inter',
-      style: ['normal', 'italic'],
-      preload: true,
+describe('next/font/google redirect', () => {
+  it('resolves to timber-fonts virtual module (not a stub file)', async () => {
+    const { timberShims } = await import('../packages/timber-app/src/plugins/shims.js');
+    const plugin = timberShims({
+      config: { output: 'server' },
+      routeTree: null,
+      appDir: resolve(__dirname, '..', 'app'),
+      root: resolve(__dirname, '..'),
+      dev: false,
+      buildManifest: null,
     });
-    expect(result).toHaveProperty('className');
-    expect(result).toHaveProperty('style');
+    const resolveId = plugin.resolveId as (id: string) => string | null;
+    expect(resolveId.call({}, 'next/font/google')).toBe('\0@timber/fonts/google');
   });
 
-  it('font loader works with no arguments', async () => {
-    const mod = await import('../packages/timber-app/src/shims/font-google.js');
-    const result = mod.default();
-    expect(result).toHaveProperty('className');
-    expect(result).toHaveProperty('style');
+  it('resolves next/font/local to timber-fonts virtual module', async () => {
+    const { timberShims } = await import('../packages/timber-app/src/plugins/shims.js');
+    const plugin = timberShims({
+      config: { output: 'server' },
+      routeTree: null,
+      appDir: resolve(__dirname, '..', 'app'),
+      root: resolve(__dirname, '..'),
+      dev: false,
+      buildManifest: null,
+    });
+    const resolveId = plugin.resolveId as (id: string) => string | null;
+    expect(resolveId.call({}, 'next/font/local')).toBe('\0@timber/fonts/local');
   });
 });
 

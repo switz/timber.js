@@ -15,6 +15,7 @@ import { timberStaticBuild } from './plugins/static-build';
 import { timberDynamicTransform } from './plugins/dynamic-transform';
 import { timberBuildManifest } from './plugins/build-manifest';
 import { timberDevLogs } from './plugins/dev-logs';
+import { timberReactProd } from './plugins/react-prod';
 import type { RouteTree } from './routing/types';
 import type { BuildManifest } from './server/build-manifest';
 import type { StartupTimer } from './utils/startup-timer';
@@ -229,6 +230,7 @@ export function timber(config?: TimberUserConfig): PluginOption[] {
 
   return [
     rootSync,
+    timberReactProd(),
     // @vitejs/plugin-react provides React Fast Refresh (state-preserving HMR)
     // for client components via Babel transform. Placed before @vitejs/plugin-rsc
     // following Vinext's convention — the RSC plugin's virtual browser entry

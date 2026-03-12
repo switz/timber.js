@@ -342,10 +342,11 @@ The browser entry calls `setServerCallback` from `@vitejs/plugin-rsc/browser` to
 
 1. Serializes args via `encodeReply` (RSC wire format)
 2. POSTs to the current URL with `Accept: text/x-component` and `x-rsc-action: {actionId}` headers
-3. Intercepts the response to check `X-Timber-Revalidation` header before decoding
+3. Intercepts the response to check `X-Timber-Revalidation` and `X-Timber-Redirect` headers before decoding
 4. Decodes the response via `createFromFetch`
-5. If piggybacked: unpacks `{ _action, _tree }`, calls `router.applyRevalidation()` with the tree, returns `_action`
-6. If not piggybacked: triggers `router.refresh()` as fallback, returns the decoded result
+5. If redirect: unpacks `{ _redirect, _status }`, calls `router.navigate()` for SPA transition
+6. If piggybacked: unpacks `{ _action, _tree }`, calls `router.applyRevalidation()` with the tree, returns `_action`
+7. If not piggybacked: triggers `router.refresh()` as fallback, returns the decoded result
 
 The `x-rsc-action` header carries the action reference ID (format: `{fileId}#{exportName}`), which the server uses to look up the action function via `loadServerAction`.
 
@@ -357,8 +358,9 @@ The action handler intercepts POST requests before the regular render pipeline. 
 1. `loadServerAction(id)` loads the action function by reference ID
 2. `decodeReply(body)` deserializes the arguments from the RSC wire format
 3. `executeAction(fn, args)` runs the action inside revalidation ALS scope
-4. If `revalidatePath()` was called: serializes wrapper `{ _action, _tree }` via `renderToReadableStream`, sets `X-Timber-Revalidation: 1` header
-5. Otherwise: serializes bare action result via `renderToReadableStream`
+4. If `redirect()` was called: serializes `{ _redirect, _status }` via `renderToReadableStream`, sets `X-Timber-Redirect` header. The client performs a SPA `router.navigate()` instead of following an HTTP 302.
+5. If `revalidatePath()` was called: serializes wrapper `{ _action, _tree }` via `renderToReadableStream`, sets `X-Timber-Revalidation: 1` header
+6. Otherwise: serializes bare action result via `renderToReadableStream`
 
 **No-JS path** (form POST with `$ACTION_REF` / `$ACTION_KEY` hidden fields):
 1. `decodeAction(formData)` resolves the bound action function from React's hidden fields

@@ -60,6 +60,7 @@ setServerCallback(async (id: string, args: unknown[]) => {
   // We intercept the fetch promise to read headers before createFromFetch
   // consumes the body stream.
   let hasRevalidation = false;
+  let hasRedirect = false;
   let headElementsJson: string | null = null;
 
   const response = fetch(window.location.href, {
@@ -71,11 +72,26 @@ setServerCallback(async (id: string, args: unknown[]) => {
     body,
   }).then((res) => {
     hasRevalidation = res.headers.get('X-Timber-Revalidation') === '1';
+    hasRedirect = res.headers.get('X-Timber-Redirect') != null;
     headElementsJson = res.headers.get('X-Timber-Head');
     return res;
   });
 
   const decoded = await createFromFetch(response);
+
+  // Handle redirect — server encoded the redirect location in the RSC stream
+  // instead of returning HTTP 302. Perform a client-side SPA navigation.
+  if (hasRedirect) {
+    const wrapper = decoded as { _redirect: string; _status: number };
+    try {
+      const router = getRouter();
+      void router.navigate(wrapper._redirect);
+    } catch {
+      // Router not yet initialized — fall back to full navigation
+      window.location.href = wrapper._redirect;
+    }
+    return undefined;
+  }
 
   if (hasRevalidation) {
     // Piggybacked response: wrapper object { _action, _tree }

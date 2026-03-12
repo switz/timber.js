@@ -316,6 +316,106 @@ describe('handleActionRequest — piggybacked revalidation', () => {
   });
 });
 
+// ─── Redirect Handling Tests ──────────────────────────────────────────────
+
+describe('handleActionRequest — redirect in with-JS path', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('encodes redirect in RSC stream instead of HTTP 302', async () => {
+    const { executeAction } = await import('../packages/timber-app/src/server/actions');
+    (executeAction as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      actionResult: undefined,
+      redirectTo: '/dashboard',
+      redirectStatus: 302,
+    });
+
+    const req = makeActionRequest({ actionId: 'file#action' });
+    const res = await handleActionRequest(req, defaultConfig);
+
+    expect(res).not.toBeNull();
+    // Should be 200 (RSC stream), not 302 (HTTP redirect)
+    expect(res!.status).toBe(200);
+    expect(res!.headers.get('Content-Type')).toContain('text/x-component');
+    expect(res!.headers.get('X-Timber-Redirect')).toBe('/dashboard');
+  });
+
+  it('serializes redirect payload with location and status', async () => {
+    const { renderToReadableStream } = await import('@vitejs/plugin-rsc/rsc');
+    const { executeAction } = await import('../packages/timber-app/src/server/actions');
+
+    (executeAction as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      actionResult: undefined,
+      redirectTo: '/success',
+      redirectStatus: 303,
+    });
+
+    const req = makeActionRequest({ actionId: 'file#action' });
+    await handleActionRequest(req, defaultConfig);
+
+    expect(renderToReadableStream).toHaveBeenCalledWith({
+      _redirect: '/success',
+      _status: 303,
+    });
+  });
+
+  it('defaults redirect status to 302', async () => {
+    const { renderToReadableStream } = await import('@vitejs/plugin-rsc/rsc');
+    const { executeAction } = await import('../packages/timber-app/src/server/actions');
+
+    (executeAction as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      actionResult: undefined,
+      redirectTo: '/home',
+    });
+
+    const req = makeActionRequest({ actionId: 'file#action' });
+    await handleActionRequest(req, defaultConfig);
+
+    expect(renderToReadableStream).toHaveBeenCalledWith({
+      _redirect: '/home',
+      _status: 302,
+    });
+  });
+});
+
+// ─── No-JS redirect still uses HTTP 302 ──────────────────────────────────
+
+describe('handleFormAction — redirect remains HTTP 302', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('no-JS form action redirect returns HTTP 302', async () => {
+    const { executeAction } = await import('../packages/timber-app/src/server/actions');
+    const { decodeAction } = await import('@vitejs/plugin-rsc/rsc');
+    (executeAction as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      actionResult: undefined,
+      redirectTo: '/success',
+      redirectStatus: 302,
+    });
+    // decodeAction returns a bound function
+    (decodeAction as ReturnType<typeof vi.fn>).mockResolvedValueOnce(async () => ({}));
+
+    const formData = new FormData();
+    formData.append('$ACTION_REF_1', 'ref');
+
+    const req = new Request('http://localhost/page', {
+      method: 'POST',
+      headers: {
+        Host: 'localhost',
+        Origin: 'http://localhost',
+      },
+      body: formData,
+    });
+
+    const res = await handleActionRequest(req, defaultConfig);
+    expect(res).not.toBeNull();
+    expect(res!.status).toBe(302);
+    expect(res!.headers.get('Location')).toBe('/success');
+  });
+});
+
 describe('isActionRequest', () => {
   it('detects POST with x-rsc-action header', () => {
     const req = new Request('http://localhost/', {

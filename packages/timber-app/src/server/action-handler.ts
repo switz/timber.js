@@ -167,11 +167,21 @@ async function handleRscAction(
     });
   }
 
-  // Handle redirect
+  // Handle redirect — encode in RSC stream for client-side SPA navigation.
+  // The client detects X-Timber-Redirect and calls router.navigate() instead
+  // of following an HTTP 302 (which would cause a full page reload).
   if (result.redirectTo) {
-    return new Response(null, {
-      status: result.redirectStatus ?? 302,
-      headers: { Location: result.redirectTo },
+    const redirectPayload = {
+      _redirect: result.redirectTo,
+      _status: result.redirectStatus ?? 302,
+    };
+    const rscStream = renderToReadableStream(redirectPayload);
+    return new Response(rscStream, {
+      status: 200,
+      headers: {
+        'Content-Type': RSC_CONTENT_TYPE,
+        'X-Timber-Redirect': result.redirectTo,
+      },
     });
   }
 

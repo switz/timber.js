@@ -1,52 +1,58 @@
 'use client';
 
-import { useState } from 'react';
-
 /**
  * Client component form for the todos page.
  *
- * Progressive enhancement:
- * - Without JS: standard form POST + redirect (method="POST")
- * - With JS: inline submission via action, no page reload
+ * Uses React's useActionState for progressive enhancement:
+ * - Without JS: standard form POST + redirect (via permalink)
+ * - With JS: inline submission via server action, no page reload
  *
  * Test IDs:
  * - todo-form: the <form> element
  * - todo-input: text input for new todo
  * - todo-submit: submit button
  * - validation-error: error message shown when submitting empty
+ * - form-pending: pending indicator during submission
  */
+import { useActionState } from 'react';
+import { addTodoAction } from './actions';
+import { useRef, useEffect } from 'react';
+
+type AddTodoResult = {
+  data?: string;
+  validationErrors?: Record<string, string[]>;
+} | null;
+
 export function TodoForm() {
-  const [error, setError] = useState<string | null>(null);
+  const [result, formAction, isPending] = useActionState<AddTodoResult, FormData>(
+    addTodoAction,
+    null,
+    '/todos'
+  );
+  const formRef = useRef<HTMLFormElement>(null);
 
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    const form = e.currentTarget;
-    const input = form.elements.namedItem('title') as HTMLInputElement;
-
-    if (!input.value.trim()) {
-      e.preventDefault();
-      setError('Title is required');
-      return;
+  // Clear the input after successful submission
+  useEffect(() => {
+    if (result?.data && formRef.current) {
+      formRef.current.reset();
     }
-
-    // With JS enabled, the framework's action client would handle this.
-    // For now, let the form submit naturally (no-JS path).
-    setError(null);
-  }
+  }, [result]);
 
   return (
-    <form method="POST" action="/todos" data-testid="todo-form" onSubmit={handleSubmit}>
+    <form ref={formRef} action={formAction} data-testid="todo-form">
       <input
         type="text"
         name="title"
         data-testid="todo-input"
         placeholder="What needs to be done?"
       />
-      <button type="submit" data-testid="todo-submit">
+      <button type="submit" data-testid="todo-submit" disabled={isPending}>
         Add Todo
       </button>
-      {error && (
+      {isPending && <span data-testid="form-pending">Saving...</span>}
+      {result?.validationErrors?.title && (
         <p data-testid="validation-error" role="alert">
-          {error}
+          {result.validationErrors.title[0]}
         </p>
       )}
     </form>

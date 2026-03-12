@@ -70,7 +70,7 @@ export function RootShell({ children }: { children: React.ReactNode }) {
       {/* Navigation pending indicator */}
       <div
         data-testid="nav-pending"
-        style={{ display: pending ? 'block' : 'none' }}
+        style={{ position: 'fixed', top: 8, right: 8, display: pending ? 'block' : 'none' }}
         aria-hidden={!pending}
       >
         Loading…

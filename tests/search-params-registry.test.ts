@@ -25,6 +25,7 @@ import {
 import { useQueryStates } from '../packages/timber-app/src/client/use-query-states.js';
 import { timberRouting } from '../packages/timber-app/src/plugins/routing.js';
 import type { PluginContext } from '../packages/timber-app/src/index.js';
+import { createNoopTimer } from '../packages/timber-app/src/utils/startup-timer';
 import { vi } from 'vitest';
 
 // ─── Codecs ─────────────────────────────────────────────────────
@@ -166,6 +167,7 @@ function createPluginContext(overrides: Partial<PluginContext> = {}): PluginCont
     root: TMP_DIR,
     dev: false,
     buildManifest: null,
+    timer: createNoopTimer(),
     ...overrides,
   };
 }

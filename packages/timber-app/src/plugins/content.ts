@@ -76,7 +76,9 @@ export function timberContent(ctx: PluginContext): Plugin {
 
     async config(config, env) {
       const root = config.root ?? ctx.root;
+      ctx.timer.start('content-activate');
       await activate(root);
+      ctx.timer.end('content-activate');
       if (!innerPlugin) return;
       if (typeof innerPlugin.config === 'function') {
         return innerPlugin.config.call(this, config, env);

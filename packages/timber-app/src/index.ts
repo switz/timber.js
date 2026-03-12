@@ -17,6 +17,8 @@ import { timberBuildManifest } from './plugins/build-manifest';
 import { timberDevLogs } from './plugins/dev-logs';
 import type { RouteTree } from './routing/types';
 import type { BuildManifest } from './server/build-manifest';
+import type { StartupTimer } from './utils/startup-timer';
+import { createStartupTimer, createNoopTimer } from './utils/startup-timer';
 
 /** A redirect rule: source pattern → destination, with HTTP status. */
 export interface RedirectRule {
@@ -92,10 +94,13 @@ export interface PluginContext {
   dev: boolean;
   /** CSS build manifest (populated by adapter after client build, null in dev) */
   buildManifest: BuildManifest | null;
+  /** Startup timer for profiling cold start phases (active in dev, no-op in prod) */
+  timer: StartupTimer;
 }
 
 function createPluginContext(config?: TimberUserConfig, root?: string): PluginContext {
   const projectRoot = root ?? process.cwd();
+  // Timer starts as active — swapped to noop in configResolved for production builds
   return {
     config: {
       output: 'server',
@@ -106,6 +111,7 @@ function createPluginContext(config?: TimberUserConfig, root?: string): PluginCo
     root: projectRoot,
     dev: false,
     buildManifest: null,
+    timer: createStartupTimer(),
   };
 }
 
@@ -164,8 +170,16 @@ export function timber(config?: TimberUserConfig): PluginOption[] {
       ctx.root = resolved.root;
       ctx.appDir = join(resolved.root, 'app');
       ctx.dev = resolved.command === 'serve';
+      // In production builds, swap to a no-op timer to avoid overhead
+      if (!ctx.dev) {
+        ctx.timer = createNoopTimer();
+      } else {
+        // Start the overall dev server setup timer — ends in timber-dev-server
+        ctx.timer.start('dev-server-setup');
+      }
     },
     async buildStart() {
+      ctx.timer.start('config-load');
       // Load timber.config.ts and merge into ctx.config.
       // Inline config (from vite.config.ts) takes precedence over file config.
       // This runs before other plugins' buildStart (plugin ordering in the array).
@@ -173,6 +187,7 @@ export function timber(config?: TimberUserConfig): PluginOption[] {
       if (fileConfig) {
         mergeFileConfig(ctx, fileConfig);
       }
+      ctx.timer.end('config-load');
     },
   };
   // @vitejs/plugin-rsc handles:
@@ -193,8 +208,10 @@ export function timber(config?: TimberUserConfig): PluginOption[] {
   //   preamble coordination with @vitejs/plugin-react)
   // customClientEntry: true — timber manages its own browser entry and
   //   preloading; skips RSC plugin's default "index" client entry convention
-  const rscPluginsPromise = import('@vitejs/plugin-rsc').then(({ default: vitePluginRsc }) =>
-    vitePluginRsc({
+  ctx.timer.start('rsc-plugin-import');
+  const rscPluginsPromise = import('@vitejs/plugin-rsc').then(({ default: vitePluginRsc }) => {
+    ctx.timer.end('rsc-plugin-import');
+    return vitePluginRsc({
       serverHandler: false,
       customBuildApp: true,
       customClientEntry: true,
@@ -203,8 +220,8 @@ export function timber(config?: TimberUserConfig): PluginOption[] {
         ssr: 'virtual:timber-ssr-entry',
         client: 'virtual:timber-browser-entry',
       },
-    })
-  );
+    });
+  });
 
   return [
     rootSync,

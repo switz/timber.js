@@ -13,6 +13,7 @@
 import { describe, it, expect } from 'vitest';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createNoopTimer } from '../packages/timber-app/src/utils/startup-timer';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SRC_DIR = resolve(__dirname, '..', 'packages/timber-app/src');
@@ -250,6 +251,7 @@ describe('next/font/google redirect', () => {
       root: resolve(__dirname, '..'),
       dev: false,
       buildManifest: null,
+      timer: createNoopTimer(),
     });
     const resolveId = plugin.resolveId as (id: string) => string | null;
     expect(resolveId.call({}, 'next/font/google')).toBe('\0@timber/fonts/google');
@@ -264,6 +266,7 @@ describe('next/font/google redirect', () => {
       root: resolve(__dirname, '..'),
       dev: false,
       buildManifest: null,
+      timer: createNoopTimer(),
     });
     const resolveId = plugin.resolveId as (id: string) => string | null;
     expect(resolveId.call({}, 'next/font/local')).toBe('\0@timber/fonts/local');
@@ -293,6 +296,7 @@ describe('nuqs compatibility', () => {
       root: resolve(__dirname, '..'),
       dev: false,
       buildManifest: null,
+      timer: createNoopTimer(),
     });
     const resolveId = plugin.resolveId as (id: string) => string | null;
     const result = resolveId.call({}, 'next/navigation.js');
@@ -381,6 +385,7 @@ describe('next-intl compatibility', () => {
         root: resolve(__dirname, '..'),
         dev: false,
         buildManifest: null,
+        timer: createNoopTimer(),
       });
       const resolveId = plugin.resolveId as (id: string) => string | null;
       const result = resolveId.call({}, 'next/server');

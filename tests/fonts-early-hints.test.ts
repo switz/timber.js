@@ -27,6 +27,7 @@ import type {
 } from '../packages/timber-app/src/server/build-manifest.js';
 import { timberFonts } from '../packages/timber-app/src/plugins/fonts.js';
 import type { PluginContext } from '../packages/timber-app/src/index.js';
+import { createNoopTimer } from '../packages/timber-app/src/utils/startup-timer';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = resolve(__dirname, '..');
@@ -39,6 +40,7 @@ function createPluginContext(overrides?: Partial<PluginContext>): PluginContext 
     root: PROJECT_ROOT,
     dev: false,
     buildManifest: null,
+    timer: createNoopTimer(),
     ...overrides,
   };
 }

@@ -24,6 +24,7 @@ import {
 } from '../packages/timber-app/src/plugins/dev-error-overlay';
 import { timberDevServer } from '../packages/timber-app/src/plugins/dev-server';
 import type { PluginContext } from '../packages/timber-app/src/index';
+import { createNoopTimer } from '../packages/timber-app/src/utils/startup-timer';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
 // Mock isRunnableDevEnvironment to always return true in tests
@@ -59,6 +60,7 @@ function createPluginContext(overrides: Partial<PluginContext> = {}): PluginCont
     root: PROJECT_ROOT,
     dev: false,
     buildManifest: null,
+    timer: createNoopTimer(),
     ...overrides,
   };
 }

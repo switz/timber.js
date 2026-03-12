@@ -234,6 +234,25 @@ Each Vite environment (RSC, SSR, Browser) has its own module graph and HMR chann
 
 `timber-routing` watches the `app/` directory for file changes. When a new `page.tsx`, `layout.tsx`, `middleware.ts`, or `access.ts` is created or deleted, the virtual route manifest is regenerated and dependent modules are invalidated.
 
+### Startup Timing
+
+The plugin context includes a `StartupTimer` that records per-phase durations using `performance.now()`. In dev mode, a timing summary is logged when the dev server finishes setup.
+
+Instrumented phases:
+
+| Phase | Hook | What it measures |
+|-------|------|-----------------|
+| `rsc-plugin-import` | `timber()` call | Dynamic `import('@vitejs/plugin-rsc')` |
+| `config-load` | `buildStart` (root-sync) | Loading and merging `timber.config.ts` |
+| `route-scan` | `buildStart` / `configureServer` | File system traversal of `app/` directory |
+| `mdx-activate` | `buildStart` (mdx) | Dynamic import of `@mdx-js/rollup` |
+| `content-activate` | `config` (content) | Dynamic import of `@content-collections/vite` |
+| `dev-server-setup` | `configResolved` → `configureServer` | Total wall time from Vite config resolved to dev server ready |
+
+**Optimization: single route scan in dev.** The route scanner (`scanRoutes`) used to run twice during dev startup — once in `buildStart` and again in `configureServer`. Since `configureServer` always runs after `buildStart` in dev mode, the `buildStart` scan is now skipped when `ctx.dev` is true.
+
+In production builds, the timer is swapped to a no-op implementation with zero overhead.
+
 ---
 
 ## File Budgets

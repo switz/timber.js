@@ -76,9 +76,11 @@ function writeCodegen(ctx: PluginContext): void {
 
 export function timberRouting(ctx: PluginContext): Plugin {
   function rescan(): void {
+    ctx.timer.start('route-scan');
     ctx.routeTree = scanRoutes(ctx.appDir, {
       pageExtensions: ctx.config.pageExtensions,
     });
+    ctx.timer.end('route-scan');
     writeCodegen(ctx);
   }
 
@@ -127,9 +129,13 @@ export function timberRouting(ctx: PluginContext): Plugin {
     },
 
     /**
-     * Scan routes at build start (production builds).
+     * Scan routes at build start.
+     *
+     * In dev mode, skip — configureServer runs after buildStart and will
+     * do its own scan. Avoids a redundant FS traversal on cold start.
      */
     buildStart() {
+      if (ctx.dev) return;
       rescan();
     },
 
@@ -141,7 +147,7 @@ export function timberRouting(ctx: PluginContext): Plugin {
      * dependent modules via HMR.
      */
     configureServer(devServer: ViteDevServer) {
-      // Initial scan
+      // Initial scan (only scan point in dev — buildStart is skipped)
       rescan();
 
       // Watch the app directory

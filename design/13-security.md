@@ -34,6 +34,21 @@ These are the specific attack classes that timber.js's design mitigates (identif
 | 22 | XSS via Link component URL scheme | `<Link>` rejects `javascript:`, `data:`, `vbscript:` | [Routing](07-routing.md) |
 | 24 | Cache key collision via weak hash | SHA-256 for default cache keys | [Caching](06-caching.md) |
 | 25 | Server component source leak via RSC debug channel | `debugChannel` sink separates debug data from client payload; source code never inlined | [Rendering Pipeline](02-rendering-pipeline.md) |
+| 26 | Middleware header deletion bypass | `headers()` returns frozen proxy; middleware overlay is additive-only; original request never mutated | [Routing](07-routing.md) |
+
+## Middleware Header Immutability
+
+Middleware cannot delete or silently modify request headers that downstream handlers (access checks, server components, server actions) rely on for auth. This is enforced at three layers:
+
+1. **`headers()` is frozen.** The `headers()` function returns a Proxy-wrapped `Headers` object. Calling `.set()`, `.append()`, or `.delete()` throws a runtime error. Downstream code cannot mutate request headers.
+
+2. **Middleware overlay is additive-only.** `ctx.requestHeaders` in `middleware.ts` is a fresh `Headers` object — an overlay merged on top of the original request headers after middleware completes. Middleware can add or override headers, but the operation is explicit and auditable. The original request headers are preserved in the ALS store and are never mutated.
+
+3. **Original `Request` is immutable.** `ctx.req` in middleware is the original `Request` object. `Request.headers` is read-only per the web spec. The pipeline always uses the original request for route matching and rendering — `proxy.ts` cannot replace it.
+
+4. **`proxy.ts` cannot swap the request.** The proxy function receives `(req, next)` and controls the response via `next()`. The `req` passed to `handleRequest()` is captured by closure from the original request — the proxy cannot substitute a different request object into the pipeline.
+
+This architecture is structurally immune to the Vinext-style middleware header deletion bypass, where middleware could delete `Authorization` or session headers before they reached auth handlers.
 
 ## Security Testing Checklist
 
@@ -62,3 +77,7 @@ These are the specific attack classes that timber.js's design mitigates (identif
 | 21 | Slot access `redirect()` | Slot `access.ts` calls `redirect()` | Dev-mode error — only `deny()` allowed in slot access |
 | 22 | API route auth | `GET /api/users` with no session, segment has `access.ts` | `access.ts` runs, returns 401/redirect |
 | 23 | RSC source leak | Initial HTML and RSC navigation payload inspected for `$E` function bodies | No server component source code in client-visible payloads |
+| 24 | Header mutation in render | `headers().set('Authorization', 'x')` in server component | Throws "read-only" error |
+| 25 | Header deletion in render | `headers().delete('Authorization')` in server component | Throws "read-only" error |
+| 26 | Middleware overlay immutability | Middleware sets `ctx.requestHeaders`, original `req.headers` inspected | Original request headers unchanged |
+| 27 | Proxy request substitution | `proxy.ts` creates modified Request, `headers()` checked in render | Render sees original request headers, not proxy's |

@@ -1,0 +1,16 @@
+{
+  "name": "benchmark-fixture",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build"
+  },
+  "dependencies": {
+    "@timber/app": "workspace:*",
+    "react": "19.3.0-canary-46103596-20260305",
+    "react-dom": "19.3.0-canary-46103596-20260305"
+  },
+  "devDependencies": {
+    "vite": "^7.0.0"
+  }
+}

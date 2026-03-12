@@ -1,0 +1,58 @@
+name: Benchmarks
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  build-bench:
+    name: Build Performance
+    runs-on: [self-hosted, piper]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Run build benchmarks
+        id: bench
+        run: |
+          node benchmarks/run.js --runs 3 --json > bench-results.json
+          cat bench-results.json
+
+      - name: Format benchmark comment
+        id: comment
+        run: |
+          node -e "
+          const fs = require('fs');
+          const r = JSON.parse(fs.readFileSync('bench-results.json', 'utf8'));
+          const fmt = (b) => b < 1024 ? b + ' B' : b < 1048576 ? (b/1024).toFixed(1) + ' KB' : (b/1048576).toFixed(2) + ' MB';
+          const fms = (ms) => ms < 1000 ? ms + 'ms' : (ms/1000).toFixed(2) + 's';
+          const lines = [
+            '## Build Benchmarks',
+            '',
+            '| Metric | Value |',
+            '|--------|-------|',
+            '| Cold build (median) | ' + fms(r.build.cold_build_ms.median) + ' |',
+            '| Cold build (min/max) | ' + fms(r.build.cold_build_ms.min) + ' / ' + fms(r.build.cold_build_ms.max) + ' |',
+            '| Output size (total) | ' + fmt(r.output_size.total_bytes) + ' |',
+          ];
+          for (const [cat, bytes] of Object.entries(r.output_size.categories)) {
+            lines.push('| Output: ' + cat + ' | ' + fmt(bytes) + ' |');
+          }
+          lines.push('', '<details><summary>Raw JSON</summary>', '', '\`\`\`json', JSON.stringify(r, null, 2), '\`\`\`', '</details>');
+          fs.writeFileSync('bench-comment.md', lines.join('\n'));
+          "
+
+      - name: Post benchmark results as PR comment
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: build-benchmarks
+          path: bench-comment.md

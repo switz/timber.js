@@ -629,6 +629,45 @@ describe('Router', () => {
       expect(mockRenderRoot).toHaveBeenCalledWith({ decoded: 'login-rsc-data' });
       expect(mockReplaceState).toHaveBeenCalledWith(expect.anything(), '', '/login');
     });
+
+    it('handles X-Timber-Redirect header (204 response for RSC redirects)', async () => {
+      const mockDecodeRsc = vi.fn((fetchPromise: Promise<Response>) =>
+        fetchPromise.then((r) => r.text()).then((text) => ({ decoded: text }))
+      );
+      const mockRenderRoot = vi.fn();
+
+      const routerWithRsc = createRouter({
+        fetch: mockFetch,
+        pushState: mockPushState,
+        replaceState: mockReplaceState,
+        scrollTo: mockScrollTo,
+        getCurrentUrl: () => '/dashboard',
+        getScrollY: () => 0,
+        decodeRsc: mockDecodeRsc as (fetchPromise: Promise<Response>) => unknown,
+        renderRoot: mockRenderRoot as (element: unknown) => void,
+      });
+
+      // Server returns 204 + X-Timber-Redirect instead of 302 for RSC requests.
+      // This avoids the opaque redirect issue where redirect: "manual" returns
+      // a response with null body, crashing createFromFetch's getReader() call.
+      mockFetch
+        .mockResolvedValueOnce(
+          new Response(null, {
+            status: 204,
+            headers: { 'X-Timber-Redirect': '/login' },
+          })
+        )
+        .mockResolvedValueOnce(
+          new Response('login-rsc-data', {
+            headers: { 'content-type': 'text/x-component' },
+          })
+        );
+
+      await routerWithRsc.navigate('/protected');
+
+      expect(mockRenderRoot).toHaveBeenCalledWith({ decoded: 'login-rsc-data' });
+      expect(mockReplaceState).toHaveBeenCalledWith(expect.anything(), '', '/login');
+    });
   });
 
   describe('prefetch', () => {

@@ -172,8 +172,11 @@ function extractValidationErrors(error: SchemaError): ValidationErrors {
 /**
  * Wrap unexpected errors into a safe server error result.
  * ActionError → typed result. Other errors → INTERNAL_ERROR (no leak).
+ *
+ * Exported for use by action-handler.ts to catch errors from raw 'use server'
+ * functions that don't use createActionClient.
  */
-function handleActionError(error: unknown): ActionResult<never> {
+export function handleActionError(error: unknown): ActionResult<never> {
   if (error instanceof ActionError) {
     return {
       serverError: {

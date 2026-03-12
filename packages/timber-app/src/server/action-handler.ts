@@ -23,6 +23,7 @@ import {
 import { validateCsrf, type CsrfConfig } from './csrf.js';
 import { executeAction, type RevalidateRenderer } from './actions.js';
 import { runWithRequestContext } from './request-context.js';
+import { handleActionError } from './action-client.js';
 
 // ─── Types ────────────────────────────────────────────────────────────────
 
@@ -130,10 +131,28 @@ async function handleRscAction(
     args = (await decodeReply(body)) as unknown[];
   }
 
-  // Execute the action with revalidation tracking
-  const result = await executeAction(actionFn, args, {
-    renderer: config.revalidateRenderer,
-  });
+  // Execute the action with revalidation tracking.
+  // Errors are caught here so raw 'use server' functions (not using
+  // createActionClient) still return structured error responses instead
+  // of leaking stack traces as 500s.
+  let result;
+  try {
+    result = await executeAction(actionFn, args, {
+      renderer: config.revalidateRenderer,
+    });
+  } catch (error) {
+    // Log full error server-side for debugging
+    console.error('[timber] server action error:', error);
+
+    // Return structured error response — ActionError gets its code/data,
+    // unexpected errors get sanitized { code: 'INTERNAL_ERROR' }
+    const errorResult = handleActionError(error);
+    const rscStream = renderToReadableStream(errorResult);
+    return new Response(rscStream, {
+      status: 200,
+      headers: { 'Content-Type': RSC_CONTENT_TYPE },
+    });
+  }
 
   // Handle redirect
   if (result.redirectTo) {
@@ -186,9 +205,25 @@ async function handleFormAction(
   ) => Promise<unknown>;
 
   // Execute the action — no additional args needed (form data is already bound).
-  const result = await executeAction(actionFn, [], {
-    renderer: config.revalidateRenderer,
-  });
+  // Errors are caught to prevent stack traces from leaking in the response.
+  let result;
+  try {
+    result = await executeAction(actionFn, [], {
+      renderer: config.revalidateRenderer,
+    });
+  } catch (error) {
+    // Log full error server-side
+    console.error('[timber] server action error:', error);
+
+    // No-JS path: redirect back to the page. There's no RSC client to
+    // receive structured error data, so the best we can do is redirect
+    // back and not leak error details. The error is logged server-side.
+    const url = new URL(req.url);
+    return new Response(null, {
+      status: 302,
+      headers: { Location: url.pathname + url.search },
+    });
+  }
 
   // Handle redirect from the action itself
   if (result.redirectTo) {

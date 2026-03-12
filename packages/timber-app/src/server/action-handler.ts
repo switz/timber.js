@@ -24,6 +24,7 @@ import { validateCsrf, type CsrfConfig } from './csrf.js';
 import { executeAction, type RevalidateRenderer } from './actions.js';
 import { runWithRequestContext } from './request-context.js';
 import { handleActionError } from './action-client.js';
+import { enforceBodyLimits, type BodyLimitsConfig } from './body-limits.js';
 
 // ─── Types ────────────────────────────────────────────────────────────────
 
@@ -33,6 +34,8 @@ export interface ActionDispatchConfig {
   csrf: CsrfConfig;
   /** Renderer for revalidatePath — produces RSC flight payloads. */
   revalidateRenderer?: RevalidateRenderer;
+  /** Body size limits (from timber.config.ts). */
+  bodyLimits?: BodyLimitsConfig;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────
@@ -83,6 +86,16 @@ export async function handleActionRequest(
   const csrfResult = validateCsrf(req, config.csrf);
   if (!csrfResult.ok) {
     return new Response(null, { status: csrfResult.status });
+  }
+
+  // Body size limits — reject oversized requests before parsing.
+  // Multipart requests (file uploads) get a higher limit than regular actions.
+  const bodyKind = (req.headers.get('Content-Type') ?? '').includes('multipart/form-data')
+    ? 'upload'
+    : 'action';
+  const limitsResult = enforceBodyLimits(req, bodyKind, config.bodyLimits ?? {});
+  if (!limitsResult.ok) {
+    return new Response(null, { status: limitsResult.status });
   }
 
   // Run inside request context so headers(), cookies() work in actions.

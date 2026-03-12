@@ -37,7 +37,10 @@ test.describe('no-js forms', () => {
     await context.close();
   });
 
-  test('form works with JS enabled (enhanced with RSC inline update)', async ({ context, page }) => {
+  test('form works with JS enabled (enhanced with RSC inline update)', async ({
+    context,
+    page,
+  }) => {
     await context.setExtraHTTPHeaders({ 'x-test-session': randomUUID() });
     await page.goto('/todos');
     await waitForHydration(page);
@@ -66,7 +69,7 @@ test.describe('csrf protection', () => {
     const response = await request.post('/todos', {
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
-        Origin: 'https://evil.com',
+        'Origin': 'https://evil.com',
       },
       data: 'title=hacked',
     });
@@ -78,7 +81,7 @@ test.describe('csrf protection', () => {
     const response = await request.post('/todos', {
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
-        Origin: 'http://localhost:3000',
+        'Origin': 'http://localhost:3000',
       },
       data: 'title=Buy+groceries',
     });

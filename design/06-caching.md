@@ -5,42 +5,42 @@
 `timber.cache` is the primary caching API. It replaces the Next.js data cache entirely — no patched `fetch`, no `unstable_cache`, no implicit caching. If you wrap a function with `timber.cache`, it's cached. If you don't, it's not.
 
 ```typescript
-import { cache } from '@timber/app/cache'
+import { cache } from '@timber/app/cache';
 
 export const getPopularProducts = cache(
   async () => {
-    return db.products.findPopular()
+    return db.products.findPopular();
   },
   { ttl: 300, tags: () => ['products'] }
-)
+);
 ```
 
 ### What it replaces
 
-| Next.js concept | `timber.cache` equivalent |
-|---|---|
-| `fetch(..., { next: { revalidate: 60 } })` | `timber.cache(fn, { ttl: 60 })` |
-| `unstable_cache(fn, ['key'], { tags: ['x'] })` | `timber.cache(fn, { tags: () => ['x'] })` |
-| `revalidateTag('x')` | `timber.cache.invalidate({ tag: 'x' })` |
-| `revalidatePath('/foo')` | `timber.cache.invalidate({ tag: 'path:/foo' })` |
-| ISR data cache on disk | Cache handler (pluggable) |
-| Patched `fetch` with implicit caching | Plain `fetch`, no patching |
+| Next.js concept                                | `timber.cache` equivalent                       |
+| ---------------------------------------------- | ----------------------------------------------- |
+| `fetch(..., { next: { revalidate: 60 } })`     | `timber.cache(fn, { ttl: 60 })`                 |
+| `unstable_cache(fn, ['key'], { tags: ['x'] })` | `timber.cache(fn, { tags: () => ['x'] })`       |
+| `revalidateTag('x')`                           | `timber.cache.invalidate({ tag: 'x' })`         |
+| `revalidatePath('/foo')`                       | `timber.cache.invalidate({ tag: 'path:/foo' })` |
+| ISR data cache on disk                         | Cache handler (pluggable)                       |
+| Patched `fetch` with implicit caching          | Plain `fetch`, no patching                      |
 
 ### API
 
 ```typescript
 const getUser = timber.cache(
   async (userId: string) => {
-    return await db.users.findUnique({ where: { id: userId } })
+    return await db.users.findUnique({ where: { id: userId } });
   },
   {
-    ttl: 60,                                     // seconds
-    key: (userId) => `user:${userId}`,           // explicit key (optional — default: fn identity + serialized args)
-    staleWhileRevalidate: true,                  // serve stale while refetching in background
-    tags: (userId) => [`user:${userId}`],        // function form: receives same args as the wrapped function
+    ttl: 60, // seconds
+    key: (userId) => `user:${userId}`, // explicit key (optional — default: fn identity + serialized args)
+    staleWhileRevalidate: true, // serve stale while refetching in background
+    tags: (userId) => [`user:${userId}`], // function form: receives same args as the wrapped function
     // tags: ['users'],                          // static array form also accepted
   }
-)
+);
 ```
 
 ### `tags` Type
@@ -48,18 +48,16 @@ const getUser = timber.cache(
 `tags` accepts either a static array or a function:
 
 ```typescript
-type Tags<Fn extends (...args: any[]) => any> =
-  | string[]
-  | ((...args: Parameters<Fn>) => string[])
+type Tags<Fn extends (...args: any[]) => any> = string[] | ((...args: Parameters<Fn>) => string[]);
 ```
 
 - **Static array** — use when the tags don't depend on the function's arguments:
   ```typescript
-  timber.cache(fn, { tags: ['products'] })
+  timber.cache(fn, { tags: ['products'] });
   ```
 - **Function form** — receives the same arguments as the wrapped function. Use for per-entity tags:
   ```typescript
-  timber.cache(fn, { tags: (userId) => [`user:${userId}`] })
+  timber.cache(fn, { tags: (userId) => [`user:${userId}`] });
   ```
 
 The function form is called at cache-set time with the original arguments — not at invalidation time. Both forms produce an array of strings stored alongside the cached entry for tag-based invalidation.
@@ -98,11 +96,11 @@ Request 3 (70s later): getUser("abc")
 
 **When to use which:**
 
-| Need | Use |
-|---|---|
-| Per-request dedup, no persistence | `React.cache` (from `'react'`) |
-| Cross-request caching with TTL/tags | `timber.cache` |
-| Both dedup and persistence | `timber.cache` (cacheHandler provides inherent dedup) |
+| Need                                | Use                                                   |
+| ----------------------------------- | ----------------------------------------------------- |
+| Per-request dedup, no persistence   | `React.cache` (from `'react'`)                        |
+| Cross-request caching with TTL/tags | `timber.cache`                                        |
+| Both dedup and persistence          | `timber.cache` (cacheHandler provides inherent dedup) |
 
 **Important context differences:** `React.cache` is only active inside `renderToReadableStream`. It is NOT available in `middleware.ts` or API route handlers (`route.ts`). Auth functions that need to work across all contexts (page routes, API routes, middleware.ts) should use `timber.cache`, not `React.cache`.
 
@@ -113,10 +111,11 @@ Request 3 (70s later): getUser("abc")
 When `staleWhileRevalidate: true`, an expired cache entry is served immediately while a background refetch runs. The next request after the refetch completes gets fresh data.
 
 ```typescript
-timber.cache(fn, { ttl: 60, staleWhileRevalidate: true })
+timber.cache(fn, { ttl: 60, staleWhileRevalidate: true });
 ```
 
 The behavior:
+
 - **0-60s:** Fresh. Served from cache.
 - **60s+:** Stale. Served from cache immediately. Background refetch starts. The refetch result replaces the stale entry.
 - **If refetch fails:** Stale entry continues to be served. Error is logged.
@@ -151,11 +150,11 @@ These are distinct functions with different purposes:
 To invalidate cached data AND refresh the current page, call both:
 
 ```typescript
-'use server'
+'use server';
 export async function updateProduct(id: string, data: ProductUpdate) {
-  await db.products.update(id, data)
-  timber.cache.invalidate({ tag: `product:${id}` })  // purge cached data
-  return revalidatePath(`/products/${id}`)             // refresh current page
+  await db.products.update(id, data);
+  timber.cache.invalidate({ tag: `product:${id}` }); // purge cached data
+  return revalidatePath(`/products/${id}`); // refresh current page
 }
 ```
 
@@ -165,21 +164,21 @@ The cache handler is the deployment adapter for data caching. The framework does
 
 ```typescript
 interface CacheHandler {
-  get(key: string): Promise<{ value: unknown, stale: boolean } | null>
-  set(key: string, value: unknown, opts: { ttl: number, tags: string[] }): Promise<void>
-  invalidate(opts: { key?: string, tag?: string }): Promise<void>
+  get(key: string): Promise<{ value: unknown; stale: boolean } | null>;
+  set(key: string, value: unknown, opts: { ttl: number; tags: string[] }): Promise<void>;
+  invalidate(opts: { key?: string; tag?: string }): Promise<void>;
 }
 ```
 
 ```typescript
 // timber.config.ts
-import { MemoryCacheHandler, RedisCacheHandler } from '@timber/app/cache'
+import { MemoryCacheHandler, RedisCacheHandler } from '@timber/app/cache';
 
 export default {
   cacheHandler: process.env.REDIS_URL
     ? new RedisCacheHandler(process.env.REDIS_URL)
-    : new MemoryCacheHandler()  // default: in-process LRU
-}
+    : new MemoryCacheHandler(), // default: in-process LRU
+};
 ```
 
 **Distributed invalidation** is the cache handler's responsibility. `revalidateTag(tag)` calls `invalidate({ tag })` on the configured cache handler. Whether that invalidation propagates across multiple server instances depends entirely on the handler:
@@ -197,11 +196,11 @@ No patching, no magic caching, no `{ next: { revalidate } }` options. If you wan
 ```typescript
 const getProducts = timber.cache(
   async (category: string) => {
-    const res = await fetch(`https://api.example.com/products?cat=${category}`)
-    return res.json()
+    const res = await fetch(`https://api.example.com/products?cat=${category}`);
+    return res.json();
   },
   { ttl: 300, tags: (cat) => [`products`, `products:${cat}`] }
-)
+);
 ```
 
 ---
@@ -234,19 +233,19 @@ The project-wide output mode is set in `timber.config.ts`. One decision: does th
 ```ts
 // timber.config.ts
 export default {
-  output: 'server' // default
-}
+  output: 'server', // default
+};
 
 // static site with React hydration
 export default {
-  output: 'static'
-}
+  output: 'static',
+};
 
 // static site, zero JavaScript
 export default {
   output: 'static',
-  static: { noJS: true }
-}
+  static: { noJS: true },
+};
 ```
 
 - **`server`** (default) — every request renders fresh. `<Suspense>` streams after the status commits. `middleware.ts` and `access.ts` run per-request.
@@ -274,11 +273,11 @@ An opt-in optimization within `server` mode — cached shells with per-request d
 
 The caching system is split across three files with distinct responsibilities:
 
-| File | Responsibility |
-|------|---------------|
-| `cache-handler.ts` | `CacheHandler` interface + `MemoryCacheHandler` default implementation |
+| File               | Responsibility                                                                                               |
+| ------------------ | ------------------------------------------------------------------------------------------------------------ |
+| `cache-handler.ts` | `CacheHandler` interface + `MemoryCacheHandler` default implementation                                       |
 | `cache-runtime.ts` | `"use cache"` transform runtime: `registerCachedFunction()`, RSC payload serialization, cache key generation |
-| `cache.ts` | Public API: `timber.cache()` wrapper, `timber.cache.invalidate()`, exports for `@timber/app/cache` |
+| `cache.ts`         | Public API: `timber.cache()` wrapper, `timber.cache.invalidate()`, exports for `@timber/app/cache`           |
 
 `cache-handler.ts` is a standalone module with no framework dependencies — it can be tested in isolation. `cache-runtime.ts` depends on the RSC environment (it serializes React element trees). `cache.ts` ties them together and provides the developer-facing API.
 
@@ -287,27 +286,30 @@ The caching system is split across three files with distinct responsibilities:
 The Vite plugin transforms `"use cache"` directives into `registerCachedFunction()` calls. The transform runs in the RSC environment only — client components cannot use `"use cache"`.
 
 Before transform:
+
 ```tsx
 async function PopularProducts() {
-  'use cache'
-  cacheLife('1h')
-  const products = await db.products.findPopular()
-  return <ProductGrid products={products} />
+  'use cache';
+  cacheLife('1h');
+  const products = await db.products.findPopular();
+  return <ProductGrid products={products} />;
 }
 ```
 
 After transform:
+
 ```tsx
 const PopularProducts = registerCachedFunction(
   async function PopularProducts() {
-    const products = await db.products.findPopular()
-    return <ProductGrid products={products} />
+    const products = await db.products.findPopular();
+    return <ProductGrid products={products} />;
   },
   { ttl: 3600, id: 'app/components/PopularProducts#PopularProducts' }
-)
+);
 ```
 
 The transform:
+
 1. Detects the `'use cache'` directive in the function body
 2. Extracts `cacheLife()` calls and converts to TTL options
 3. Wraps the function in `registerCachedFunction()` with a stable ID derived from file path + function name
@@ -341,11 +343,13 @@ Combined with `staleWhileRevalidate`: at most one execution per instance per key
 timber.js's caching system is informed by the design space explored by Vinext's `cache-runtime.ts`, but is a fresh implementation:
 
 **Concepts carried forward (reimplemented from scratch):**
+
 - RSC payload serialization for `"use cache"` (React Flight format)
 - SHA-256 key generation with `stableStringify`
 - The `registerCachedFunction` pattern
 
 **Concepts explicitly rejected:**
+
 - ISR integration (no ISR in timber.js)
 - `cacheLife` minimum-wins semantics (timber.js uses last-wins — the component's `cacheLife()` is authoritative)
 - `noStore()` / dynamic opt-out (timber.js has no implicit caching to opt out of)

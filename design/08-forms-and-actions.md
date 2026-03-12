@@ -9,10 +9,10 @@ After a server action mutates data, there are three tools:
 Use when the user should land somewhere new. The action calls `redirect('/success')`, which triggers a navigation. The client runs the full waterfall for the new route.
 
 ```typescript
-'use server'
+'use server';
 export async function createProject(formData: FormData) {
-  const project = await db.projects.create(formData)
-  redirect(`/projects/${project.id}`)
+  const project = await db.projects.create(formData);
+  redirect(`/projects/${project.id}`);
 }
 ```
 
@@ -25,10 +25,10 @@ Use when the action's return value is sufficient to update the UI. The client up
 Use when parts of the current page need to reflect new server state without a URL change. The action calls `revalidatePath(path)` on the server, which re-runs the handler + access checks + render for that path and returns the RSC flight payload as part of the action response. The client receives the action response, detects the RSC payload, and reconciles.
 
 ```typescript
-'use server'
+'use server';
 export async function toggleTodo(id: string) {
-  await db.todos.toggle(id)
-  return revalidatePath('/dashboard')  // returns RSC flight for /dashboard
+  await db.todos.toggle(id);
+  return revalidatePath('/dashboard'); // returns RSC flight for /dashboard
 }
 ```
 
@@ -44,49 +44,49 @@ The action response carries both the action result and the revalidated tree in a
 
 ```typescript
 // lib/action.ts — define your action clients once, reuse across the app
-import { createActionClient, ActionError } from '@timber/app/server'
-import { getUser } from '@/lib/auth'
+import { createActionClient, ActionError } from '@timber/app/server';
+import { getUser } from '@/lib/auth';
 
 export const action = createActionClient({
   middleware: async () => {
-    const user = await getUser()
-    if (!user) throw new ActionError('UNAUTHORIZED')
-    return { user }  // merged into ctx in the action body
+    const user = await getUser();
+    if (!user) throw new ActionError('UNAUTHORIZED');
+    return { user }; // merged into ctx in the action body
   },
-})
+});
 
 export const adminAction = createActionClient({
   middleware: async () => {
-    const user = await getUser()
-    if (!user) throw new ActionError('UNAUTHORIZED')
-    if (!user.isAdmin) throw new ActionError('FORBIDDEN')
-    return { user }
+    const user = await getUser();
+    if (!user) throw new ActionError('UNAUTHORIZED');
+    if (!user.isAdmin) throw new ActionError('FORBIDDEN');
+    return { user };
   },
-})
+});
 ```
 
 ```typescript
 // app/todos/actions.ts
-'use server'
-import { z } from 'zod/v4'
-import { action } from '@/lib/action'
+'use server';
+import { z } from 'zod/v4';
+import { action } from '@/lib/action';
 
 export const createTodo = action
   .schema(z.object({ title: z.string().min(1) }))
   .action(async ({ input, ctx }) => {
-    await db.todos.create({ ...input, userId: ctx.user.id })
-    return revalidatePath('/todos')
-  })
+    await db.todos.create({ ...input, userId: ctx.user.id });
+    return revalidatePath('/todos');
+  });
 ```
 
 ```tsx
 // app/todos/new-todo-form.tsx
-'use client'
-import { useActionState } from '@timber/app/client'
-import { createTodo } from './actions'
+'use client';
+import { useActionState } from '@timber/app/client';
+import { createTodo } from './actions';
 
 export function NewTodoForm() {
-  const [result, action, isPending] = useActionState(createTodo, null)
+  const [result, action, isPending] = useActionState(createTodo, null);
 
   return (
     <form action={action}>
@@ -94,7 +94,7 @@ export function NewTodoForm() {
       {result?.validationErrors?.title && <p>{result.validationErrors.title}</p>}
       <button disabled={isPending}>Add</button>
     </form>
-  )
+  );
 }
 ```
 
@@ -107,7 +107,7 @@ Multiple middleware layers can be composed:
 ```typescript
 export const billedAction = createActionClient({
   middleware: [authMiddleware, billingMiddleware],
-})
+});
 ```
 
 Each middleware in the array runs sequentially. Their return values are merged and available as `ctx`.
@@ -117,19 +117,19 @@ Each middleware in the array runs sequentially. Their return values are merged a
 `ActionError` is the typed error class for server actions. It carries a string code and optional plain-data context.
 
 ```typescript
-import { ActionError } from '@timber/app/server'
+import { ActionError } from '@timber/app/server';
 
 // In middleware:
-throw new ActionError('UNAUTHORIZED')
+throw new ActionError('UNAUTHORIZED');
 
 // With data:
-throw new ActionError('RATE_LIMITED', { retryAfter: 60 })
+throw new ActionError('RATE_LIMITED', { retryAfter: 60 });
 ```
 
 When an `ActionError` is thrown — from middleware or the action body — the action short-circuits and the client receives `result.serverError`:
 
 ```typescript
-result.serverError
+result.serverError;
 // → { code: 'UNAUTHORIZED' }
 // → { code: 'RATE_LIMITED', data: { retryAfter: 60 } }
 ```
@@ -153,11 +153,11 @@ For actions that don't need auth or validation, a raw `'use server'` function wo
 
 ```typescript
 // app/todos/actions.ts
-'use server'
+'use server';
 
 export async function deleteTodo(id: string) {
-  await db.todos.delete(id)
-  return revalidatePath('/todos')
+  await db.todos.delete(id);
+  return revalidatePath('/todos');
 }
 ```
 
@@ -166,6 +166,7 @@ export async function deleteTodo(id: string) {
 In `static` output mode, there is no server to execute actions at request time. Server actions are extracted by the adapter and deployed as separate API endpoints (serverless functions or a standalone API server). The static site calls these endpoints via fetch.
 
 **Limitations in static mode:**
+
 - `revalidatePath()` cannot return an inline RSC payload — there is no server-side renderer to produce one. After the action completes, the client performs a separate navigation fetch to get fresh data (two roundtrips).
 - The adapter must support split deployment (static assets + API functions). The Nitro adapter handles this for platforms like Vercel, Netlify, etc.
 - `'use server'` is a build error in `static` + `noJS` mode — that mode ships zero JavaScript and cannot call server functions.
@@ -193,6 +194,7 @@ Forms wired to server actions work without JavaScript. The `<form action={action
 React 19 wires `<form action={serverAction}>` on the client. The behavior differs based on JavaScript availability:
 
 **With JavaScript (default):**
+
 1. React intercepts the form `submit` event
 2. `FormData` is serialized from the form fields
 3. React sends a POST request to the RSC action endpoint with the serialized FormData
@@ -200,6 +202,7 @@ React 19 wires `<form action={serverAction}>` on the client. The behavior differ
 5. React receives the response and updates the UI via `useActionState` / transitions
 
 **Without JavaScript (progressive enhancement):**
+
 1. Standard HTML `<form>` submits via POST to the current URL
 2. The server receives the `FormData` as a standard form POST
 3. The server action executes
@@ -215,12 +218,12 @@ When a server action calls `revalidatePath()`, the server builds the React eleme
 ```typescript
 // When revalidatePath() was called:
 renderToReadableStream({
-  _action: actionResult,     // the action's return value
+  _action: actionResult, // the action's return value
   _tree: revalidatedElement, // React element tree for the revalidated path
-})
+});
 
 // When revalidatePath() was NOT called:
-renderToReadableStream(actionResult)  // bare result, no wrapper
+renderToReadableStream(actionResult); // bare result, no wrapper
 ```
 
 The client detects piggybacked responses via the `X-Timber-Revalidation: 1` response header. Head metadata (title, meta tags) is forwarded via `X-Timber-Head`.
@@ -236,6 +239,7 @@ The client detects piggybacked responses via the `X-Timber-Revalidation: 1` resp
 This follows the same pattern as Next.js, where `renderToReadableStream({ a: actionResult, f: flightData })` serializes both values in one stream. React Flight handles progressive resolution of both values natively — no custom binary framing or stream splitting needed.
 
 **Key design decisions:**
+
 - The revalidation renderer returns a React element tree, not pre-serialized bytes. This allows the element tree to be serialized alongside the action result in a single `renderToReadableStream` call.
 - `buildRouteElement()` (extracted from `renderRoute()`) handles module loading, access checks, metadata resolution, and element tree construction — reusable by both the render pipeline and the revalidation renderer.
 - Actions that throw errors never include revalidation data — the error path short-circuits before `renderToReadableStream` sees the wrapper.
@@ -259,14 +263,14 @@ Test with Playwright in JS-disabled mode:
 
 ```typescript
 test('form works without JS', async ({ browser }) => {
-  const context = await browser.newContext({ javaScriptEnabled: false })
-  const page = await context.newPage()
-  await page.goto('/todos')
-  await page.fill('input[name=title]', 'Buy groceries')
-  await page.click('button[type=submit]')
-  await expect(page).toHaveURL('/todos')
-  await expect(page.locator('text=Buy groceries')).toBeVisible()
-})
+  const context = await browser.newContext({ javaScriptEnabled: false });
+  const page = await context.newPage();
+  await page.goto('/todos');
+  await page.fill('input[name=title]', 'Buy groceries');
+  await page.click('button[type=submit]');
+  await expect(page).toHaveURL('/todos');
+  await expect(page.locator('text=Buy groceries')).toBeVisible();
+});
 ```
 
 ### Action Response Encoding
@@ -286,12 +290,9 @@ For multi-origin deployments (CDN with a different domain, staging environments,
 ```ts
 // timber.config.ts
 export default {
-  allowedOrigins: [
-    'https://myapp.com',
-    'https://staging.myapp.com',
-  ],
+  allowedOrigins: ['https://myapp.com', 'https://staging.myapp.com'],
   // csrf: false  — disable entirely (not recommended)
-}
+};
 ```
 
 When `allowedOrigins` is set, the `Host`-based auto-derivation is replaced by the explicit list. The incoming `Origin` must match one of the listed values exactly (no wildcard matching). To disable CSRF protection entirely, set `csrf: false` — not recommended outside of local development.
@@ -305,10 +306,10 @@ Session cookies should use `SameSite=Lax` or `SameSite=Strict`. The framework do
 For external redirects, use `redirectExternal(url, allowList)`:
 
 ```typescript
-import { redirectExternal } from '@timber/app/server'
+import { redirectExternal } from '@timber/app/server';
 
 // Requires an explicit allow-list
-redirectExternal(url, ['https://accounts.google.com', 'https://github.com'])
+redirectExternal(url, ['https://accounts.google.com', 'https://github.com']);
 ```
 
 This prevents open redirect attacks where user-controlled input flows into `redirect()`.
@@ -329,7 +330,7 @@ export default {
     uploadBodySize: '10mb',
     maxFields: 100,
   },
-}
+};
 ```
 
 ---
@@ -355,6 +356,7 @@ The `x-rsc-action` header carries the action reference ID (format: `{fileId}#{ex
 The action handler intercepts POST requests before the regular render pipeline. It handles two paths:
 
 **With-JS path** (has `x-rsc-action` header):
+
 1. `loadServerAction(id)` loads the action function by reference ID
 2. `decodeReply(body)` deserializes the arguments from the RSC wire format
 3. `executeAction(fn, args)` runs the action inside revalidation ALS scope
@@ -363,6 +365,7 @@ The action handler intercepts POST requests before the regular render pipeline. 
 6. Otherwise: serializes bare action result via `renderToReadableStream`
 
 **No-JS path** (form POST with `$ACTION_REF` / `$ACTION_KEY` hidden fields):
+
 1. `decodeAction(formData)` resolves the bound action function from React's hidden fields
 2. Action executes
 3. Server responds with 302 redirect back to the page (PRG pattern)
@@ -379,15 +382,16 @@ Timber uses `serverHandler: false` with `@vitejs/plugin-rsc` because timber has 
 
 ### `parseFormData()`
 
-Schema-agnostic FormData-to-object conversion that runs *before* schema validation. Imported from `@timber/app/server`.
+Schema-agnostic FormData-to-object conversion that runs _before_ schema validation. Imported from `@timber/app/server`.
 
 ```typescript
-import { parseFormData } from '@timber/app/server'
+import { parseFormData } from '@timber/app/server';
 
-const obj = parseFormData(formData)
+const obj = parseFormData(formData);
 ```
 
 Handles:
+
 - **Duplicate keys → arrays**: `tags=js&tags=ts` → `{ tags: ["js", "ts"] }`
 - **Nested dot-paths**: `user.name=Alice` → `{ user: { name: "Alice" } }`
 - **Empty strings → undefined**: Enables `.optional()` semantics in schemas
@@ -401,21 +405,22 @@ Replaces the framework's internal `formDataToObject()`. Automatically used by `c
 Schema-agnostic coercion primitives for common FormData patterns:
 
 ```typescript
-import { coerce } from '@timber/app/server'
+import { coerce } from '@timber/app/server';
 
-coerce.number("42")      // → 42
-coerce.number("")         // → undefined
-coerce.checkbox("on")     // → true
-coerce.checkbox(undefined) // → false
-coerce.json('{"a":1}')   // → { a: 1 }
+coerce.number('42'); // → 42
+coerce.number(''); // → undefined
+coerce.checkbox('on'); // → true
+coerce.checkbox(undefined); // → false
+coerce.json('{"a":1}'); // → { a: 1 }
 ```
 
 These compose with any schema library's transform pipeline:
+
 ```typescript
 // Zod
-z.preprocess(coerce.number, z.number())
+z.preprocess(coerce.number, z.number());
 // Valibot
-v.pipe(v.unknown(), v.transform(coerce.number), v.number())
+v.pipe(v.unknown(), v.transform(coerce.number), v.number());
 ```
 
 ---
@@ -425,16 +430,13 @@ v.pipe(v.unknown(), v.transform(coerce.number), v.number())
 For the 90% case where you don't need middleware:
 
 ```typescript
-'use server'
-import { validated } from '@timber/app/server'
-import { z } from 'zod'
+'use server';
+import { validated } from '@timber/app/server';
+import { z } from 'zod';
 
-export const createTodo = validated(
-  z.object({ title: z.string().min(1) }),
-  async (input) => {
-    await db.todos.create(input)
-  }
-)
+export const createTodo = validated(z.object({ title: z.string().min(1) }), async (input) => {
+  await db.todos.create(input);
+});
 ```
 
 Thin wrapper over `createActionClient().schema(schema).action()`.
@@ -446,10 +448,10 @@ Thin wrapper over `createActionClient().schema(schema).action()`.
 Client-side error extraction hook for `ActionResult`:
 
 ```tsx
-import { useFormErrors } from '@timber/app/client'
+import { useFormErrors } from '@timber/app/client';
 
-const [result, action, isPending] = useActionState(createTodo, null)
-const errors = useFormErrors(result)
+const [result, action, isPending] = useActionState(createTodo, null);
+const errors = useFormErrors(result);
 
 // errors.fieldErrors    — Record<string, string[]>
 // errors.formErrors     — string[] (from _root key)
@@ -470,7 +472,7 @@ When schema validation fails, `ActionResult` includes the raw input for form rep
 type ActionResult<TData> =
   | { data: TData }
   | { validationErrors: ValidationErrors; submittedValues?: Record<string, unknown> }
-  | { serverError: { code: string; data?: Record<string, unknown> } }
+  | { serverError: { code: string; data?: Record<string, unknown> } };
 ```
 
 File objects are stripped from `submittedValues` (can't serialize, shouldn't echo back). Use `defaultValue` props to repopulate form fields on validation failure.
@@ -507,6 +509,7 @@ export default function ContactPage() {
 6. Page renders with errors displayed and form fields repopulated
 
 **Key decisions:**
+
 - Flash data is server-side only (ALS) — never serialized to cookies or headers
 - Validation failures are not mutations → PRG is unnecessary, re-render is correct
 - Successful actions still 302 redirect (PRG preserved for the happy path)

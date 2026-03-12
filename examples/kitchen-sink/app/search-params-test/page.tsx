@@ -49,11 +49,10 @@ export default async function SearchParamsTestPage() {
       <section className="rounded-lg border border-amber-200 bg-amber-50 p-4">
         <h2 className="text-sm font-semibold text-amber-800">URL key aliasing</h2>
         <p className="mt-1 text-sm text-amber-700">
-          <code className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-mono">?pg=</code>{' '}
-          maps to{' '}
+          <code className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-mono">?pg=</code> maps to{' '}
           <code className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-mono">page</code>,{' '}
-          <code className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-mono">?s=</code> maps
-          to <code className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-mono">sort</code>
+          <code className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-mono">?s=</code> maps to{' '}
+          <code className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-mono">sort</code>
         </p>
       </section>
 

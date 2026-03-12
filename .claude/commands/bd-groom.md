@@ -9,6 +9,7 @@ lb list --status in_progress --json
 ```
 
 For each in-progress issue, check `updated_at`. If stale (>7 days, no recent PR/commit activity), reset to open:
+
 ```bash
 lb update <id> --status open --json
 ```
@@ -24,6 +25,7 @@ Verify each pair manually. Only close confirmed duplicates (same root problem, f
 ## Check 3: Design contradiction scan
 
 Read design docs, then scan for prohibited patterns in open issues:
+
 - ISR / incremental static regeneration (`06-caching.md`)
 - Implicit fetch caching (`06-caching.md`)
 - `loading.tsx` auto-insertion (timber never auto-inserts Suspense)

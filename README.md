@@ -10,7 +10,7 @@ A Vite-native React framework for Servers and Serverless (Vercel, Cloudflare Wor
 
 Streaming-first frameworks (Next.js, Remix) commit to HTTP 200 the instant bytes start flowing — before the server knows what the page actually contains. A page that 404s returns 200. A redirect returns 200. An auth failure returns 200. The real outcome is communicated through client-side JavaScript, invisible to CDNs, search engines, curl, and APM tools.
 
-timber.js takes a different approach: **block the flush until the shell is ready.** The server renders the page, discovers the outcome (200, 404, 302, 403), and *then* sends the status line and headers. The trade-off is ~20ms of additional server-side buffering before TTFB, in exchange for:
+timber.js takes a different approach: **block the flush until the shell is ready.** The server renders the page, discovers the outcome (200, 404, 302, 403), and _then_ sends the status line and headers. The trade-off is ~20ms of additional server-side buffering before TTFB, in exchange for:
 
 - **Real HTTP status codes** — 404s are 404s, redirects are 302s, auth failures are 403s
 - **Pages that work without JavaScript** — no hydration required for primary content
@@ -30,7 +30,7 @@ timber.js takes a different approach: **block the flush until the shell is ready
 - **Dynamic builds** – server-based builds are portable and deployable anywhere
 - **Static builds with NO javascript** - you can build a static site and ship genuinely zero JS. Or ship a static site with JS. It's a parlor trick, but it works.
 
-Next.js often leans on *magic* that hides optimizations from the developer. Here, everything works transparently. We'd rather you write an inefficient site that you understand than a site that you don't understand. Less confusion about _where things run_ or _when they run_, more clarity into each phase of the rendering.
+Next.js often leans on _magic_ that hides optimizations from the developer. Here, everything works transparently. We'd rather you write an inefficient site that you understand than a site that you don't understand. Less confusion about _where things run_ or _when they run_, more clarity into each phase of the rendering.
 
 We adopt next's great design decisions (like routing and layouting), and drop it's backwards compatibility (pages router) in favor of looking forward. We deeply integrate searchParams fully typed. We focus on rendering full pages, rather than streaming loading states for a less anxious web experience (though you can still do that if you want/need to). We add nice features like `access.ts` gates and true `middleware.ts`. It's all built on vite for insanely fast dev-iteration and builds.
 
@@ -59,16 +59,16 @@ examples/                  # User-facing demo apps
 
 ## Key Design Decisions
 
-| Decision | Detail |
-|----------|--------|
-| Blocking flush | Single `renderToReadableStream` call, held until `onShellReady` |
-| Plugin architecture | Returns array of sub-plugins, not a monolith |
-| Entry modules | Real TypeScript files, not codegen strings |
-| Middleware | `middleware(ctx: MiddlewareContext)` — one-arg signature, runs before render |
-| Route handlers | `GET(ctx: RouteContext)` — one-arg signature |
-| Authorization | Single `AccessContext` for segments and slots via `access.ts` |
-| Streaming | Opt-in only — `<Suspense>` for deferred secondary content |
-| File budget | No file over 500 lines |
+| Decision            | Detail                                                                       |
+| ------------------- | ---------------------------------------------------------------------------- |
+| Blocking flush      | Single `renderToReadableStream` call, held until `onShellReady`              |
+| Plugin architecture | Returns array of sub-plugins, not a monolith                                 |
+| Entry modules       | Real TypeScript files, not codegen strings                                   |
+| Middleware          | `middleware(ctx: MiddlewareContext)` — one-arg signature, runs before render |
+| Route handlers      | `GET(ctx: RouteContext)` — one-arg signature                                 |
+| Authorization       | Single `AccessContext` for segments and slots via `access.ts`                |
+| Streaming           | Opt-in only — `<Suspense>` for deferred secondary content                    |
+| File budget         | No file over 500 lines                                                       |
 
 ## Getting Started
 

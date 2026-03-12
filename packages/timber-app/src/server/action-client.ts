@@ -84,8 +84,8 @@ export type ActionSchema<T = unknown> = StandardSchemaV1<T> | LegacyActionSchema
 
 /** Legacy schema interface with .parse() / .safeParse(). */
 interface LegacyActionSchema<T = unknown> {
-  parse(data: unknown): T;
-  safeParse?(data: unknown): { success: true; data: T } | { success: false; error: SchemaError };
+  'parse'(data: unknown): T;
+  'safeParse'?(data: unknown): { success: true; data: T } | { success: false; error: SchemaError };
   // Exclude Standard Schema objects from matching this interface
   '~standard'?: never;
 }
@@ -220,13 +220,14 @@ function extractValidationErrors(error: SchemaError): ValidationErrors {
 function extractStandardSchemaErrors(issues: ReadonlyArray<StandardSchemaIssue>): ValidationErrors {
   const errors: ValidationErrors = {};
   for (const issue of issues) {
-    const path = issue.path
-      ?.map((p) => {
-        // Standard Schema path items can be { key: ... } objects or bare PropertyKey values
-        if (typeof p === 'object' && p !== null && 'key' in p) return String(p.key);
-        return String(p);
-      })
-      .join('.') ?? '_root';
+    const path =
+      issue.path
+        ?.map((p) => {
+          // Standard Schema path items can be { key: ... } objects or bare PropertyKey values
+          if (typeof p === 'object' && p !== null && 'key' in p) return String(p.key);
+          return String(p);
+        })
+        .join('.') ?? '_root';
     if (!errors[path]) errors[path] = [];
     errors[path].push(issue.message);
   }
@@ -318,7 +319,10 @@ export function createActionClient<TCtx = Record<string, never>>(
               );
             }
             if (result.issues) {
-              return { validationErrors: extractStandardSchemaErrors(result.issues), submittedValues };
+              return {
+                validationErrors: extractStandardSchemaErrors(result.issues),
+                submittedValues,
+              };
             }
             input = result.value;
           } else if (typeof schema.safeParse === 'function') {

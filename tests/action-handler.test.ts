@@ -207,8 +207,8 @@ describe('handleActionRequest — body limits', () => {
 
   it('no Content-Length header — allows request (no limit to enforce)', async () => {
     const headers: Record<string, string> = {
-      Host: 'localhost',
-      Origin: 'http://localhost',
+      'Host': 'localhost',
+      'Origin': 'http://localhost',
       'x-rsc-action': 'file#action',
     };
     const req = new Request('http://localhost/action', {

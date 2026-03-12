@@ -1,83 +1,81 @@
-import { type ReactNode } from "react";
-import type { Metadata } from "@timber/app/server";
-import { Link } from "@timber/app/client";
-import Counter from "./Counter";
-import "./globals.css";
+import { type ReactNode } from 'react';
+import type { Metadata } from '@timber/app/server';
+import { Link } from '@timber/app/client';
+import Counter from './Counter';
+import './globals.css';
 
 export const metadata: Metadata = {
   title: {
-    default: "Kitchen Sink",
-    template: "%s | Kitchen Sink",
+    default: 'Kitchen Sink',
+    template: '%s | Kitchen Sink',
   },
-  description: "Comprehensive timber.js feature showcase",
+  description: 'Comprehensive timber.js feature showcase',
 };
 
 const navSections = [
   {
-    label: "Streaming",
+    label: 'Streaming',
     links: [
-      { href: "/streaming/suspense", testid: "link-streaming-suspense", text: "Suspense" },
-      { href: "/streaming/deferred", testid: "link-streaming-deferred", text: "Deferred" },
-      { href: "/streaming/deny-inside", testid: "link-streaming-deny", text: "Deny Inside" },
+      { href: '/streaming/suspense', testid: 'link-streaming-suspense', text: 'Suspense' },
+      { href: '/streaming/deferred', testid: 'link-streaming-deferred', text: 'Deferred' },
+      { href: '/streaming/deny-inside', testid: 'link-streaming-deny', text: 'Deny Inside' },
     ],
   },
   {
-    label: "Errors",
+    label: 'Errors',
     links: [
-      { href: "/errors/crash", testid: "link-errors-crash", text: "Crash" },
-      { href: "/errors/render-error", testid: "link-errors-render", text: "RenderError" },
-      { href: "/errors/deny-403", testid: "link-errors-deny-403", text: "Deny 403" },
-      { href: "/errors/deny-401", testid: "link-errors-deny-401", text: "Deny 401" },
-      { href: "/errors/deny-404", testid: "link-errors-deny-404", text: "Deny 404" },
+      { href: '/errors/crash', testid: 'link-errors-crash', text: 'Crash' },
+      { href: '/errors/render-error', testid: 'link-errors-render', text: 'RenderError' },
+      { href: '/errors/deny-403', testid: 'link-errors-deny-403', text: 'Deny 403' },
+      { href: '/errors/deny-401', testid: 'link-errors-deny-401', text: 'Deny 401' },
+      { href: '/errors/deny-404', testid: 'link-errors-deny-404', text: 'Deny 404' },
     ],
   },
   {
-    label: "Middleware",
+    label: 'Middleware',
     links: [
-      { href: "/middleware-test/headers", testid: "link-mw-headers", text: "Headers" },
-      { href: "/middleware-test/inject", testid: "link-mw-inject", text: "Inject" },
+      { href: '/middleware-test/headers', testid: 'link-mw-headers', text: 'Headers' },
+      { href: '/middleware-test/inject', testid: 'link-mw-inject', text: 'Inject' },
       {
-        href: "/middleware-test/short-circuit",
-        testid: "link-mw-short-circuit",
-        text: "Short-Circuit",
+        href: '/middleware-test/short-circuit',
+        testid: 'link-mw-short-circuit',
+        text: 'Short-Circuit',
       },
-      { href: "/middleware-test/nav-target", testid: "link-mw-nav-target", text: "Nav Target" },
+      { href: '/middleware-test/nav-target', testid: 'link-mw-nav-target', text: 'Nav Target' },
     ],
   },
   {
-    label: "Auth",
+    label: 'Auth',
     links: [
-      { href: "/auth-test/denied", testid: "link-auth-denied", text: "Denied" },
-      { href: "/auth-test/redirect", testid: "link-auth-redirect", text: "Redirect" },
-      { href: "/auth-test/parallel", testid: "link-auth-parallel", text: "Parallel Slot" },
+      { href: '/auth-test/denied', testid: 'link-auth-denied', text: 'Denied' },
+      { href: '/auth-test/redirect', testid: 'link-auth-redirect', text: 'Redirect' },
+      { href: '/auth-test/parallel', testid: 'link-auth-parallel', text: 'Parallel Slot' },
     ],
   },
   {
-    label: "Routes",
+    label: 'Routes',
     links: [
-      { href: "/routes-test/42", testid: "link-routes-dynamic", text: "Dynamic" },
-      { href: "/routes-test/catch/a/b", testid: "link-routes-catch", text: "Catch-All" },
-      { href: "/routes-test/optional", testid: "link-routes-optional", text: "Optional" },
-      { href: "/routes-test/grouped-a", testid: "link-routes-group-a", text: "Group A" },
-      { href: "/routes-test/grouped-b", testid: "link-routes-group-b", text: "Group B" },
+      { href: '/routes-test/42', testid: 'link-routes-dynamic', text: 'Dynamic' },
+      { href: '/routes-test/catch/a/b', testid: 'link-routes-catch', text: 'Catch-All' },
+      { href: '/routes-test/optional', testid: 'link-routes-optional', text: 'Optional' },
+      { href: '/routes-test/grouped-a', testid: 'link-routes-group-a', text: 'Group A' },
+      { href: '/routes-test/grouped-b', testid: 'link-routes-group-b', text: 'Group B' },
     ],
   },
   {
-    label: "Forms",
-    links: [
-      { href: "/forms-test", testid: "link-forms", text: "Validated Form" },
-    ],
+    label: 'Forms',
+    links: [{ href: '/forms-test', testid: 'link-forms', text: 'Validated Form' }],
   },
   {
-    label: "Other",
+    label: 'Other',
     links: [
-      { href: "/search-params-test", testid: "link-search-params", text: "Search Params" },
-      { href: "/meta-test", testid: "link-meta-test", text: "Meta: Title" },
-      { href: "/meta-test/absolute", testid: "link-meta-absolute", text: "Meta: Absolute" },
-      { href: "/meta-test/abc", testid: "link-meta-dynamic", text: "Meta: Dynamic" },
-      { href: "/scroll-test/page-a", testid: "link-scroll-page-a", text: "Scroll A" },
-      { href: "/scroll-test/page-b", testid: "link-scroll-page-b", text: "Scroll B" },
-      { href: "/scroll-test/parallel", testid: "link-scroll-parallel", text: "Scroll Parallel" },
+      { href: '/search-params-test', testid: 'link-search-params', text: 'Search Params' },
+      { href: '/meta-test', testid: 'link-meta-test', text: 'Meta: Title' },
+      { href: '/meta-test/absolute', testid: 'link-meta-absolute', text: 'Meta: Absolute' },
+      { href: '/meta-test/abc', testid: 'link-meta-dynamic', text: 'Meta: Dynamic' },
+      { href: '/scroll-test/page-a', testid: 'link-scroll-page-a', text: 'Scroll A' },
+      { href: '/scroll-test/page-b', testid: 'link-scroll-page-b', text: 'Scroll B' },
+      { href: '/scroll-test/parallel', testid: 'link-scroll-parallel', text: 'Scroll Parallel' },
     ],
   },
 ];

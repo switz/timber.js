@@ -33,6 +33,7 @@ ENDDESC
 ```
 
 ## Key rules:
+
 - **Context**: Explain the current state, the gap, and cite design docs
 - **Approach Constraints**: DO/DO NOT lists with specific technical guidance
 - **Files**: MODIFY/CREATE/READ-ONLY with parenthetical explanation

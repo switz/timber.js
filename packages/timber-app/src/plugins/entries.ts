@@ -185,13 +185,11 @@ export function timberEntries(ctx: PluginContext): Plugin {
             other.code = other.code.replaceAll(oldBase, newBase);
           }
           if (other.imports) {
-            other.imports = other.imports.map((i) =>
-              i === fileName ? newFileName : i,
-            );
+            other.imports = other.imports.map((i) => (i === fileName ? newFileName : i));
           }
           if (other.dynamicImports) {
             other.dynamicImports = other.dynamicImports.map((i) =>
-              i === fileName ? newFileName : i,
+              i === fileName ? newFileName : i
             );
           }
         }

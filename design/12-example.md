@@ -20,38 +20,38 @@ app/
 
 ```typescript
 // app/(authenticated)/access.ts
-import { cookies, redirect } from '@timber/app/server'
-import { requireUser } from '@/lib/auth'
+import { cookies, redirect } from '@timber/app/server';
+import { requireUser } from '@/lib/auth';
 
 export default async function access() {
-  await requireUser()  // redirects to /login if no session
+  await requireUser(); // redirects to /login if no session
 }
 ```
 
 ```typescript
 // app/(authenticated)/dashboard/projects/[projectId]/middleware.ts
-import { requireUser } from '@/lib/auth'
-import { getProject, getTaskCounts } from '@/lib/data'
+import { requireUser } from '@/lib/auth';
+import { getProject, getTaskCounts } from '@/lib/data';
 
 export default async function middleware(ctx: MiddlewareContext): Promise<Response | void> {
-  ctx.headers.set('Cache-Control', 'private, no-cache')
+  ctx.headers.set('Cache-Control', 'private, no-cache');
 
   // Fire all data fetches in parallel via timber.cache — do NOT await
-  void requireUser()
-  void getProject(ctx.params.projectId)
-  void getTaskCounts(ctx.params.projectId)
+  void requireUser();
+  void getProject(ctx.params.projectId);
+  void getTaskCounts(ctx.params.projectId);
   // middleware returns immediately → cache is warm when rendering starts
 }
 ```
 
 ```tsx
 // app/(authenticated)/dashboard/projects/[projectId]/page.tsx
-import { Suspense } from 'react'
-import { getProject, getTaskCounts } from '@/lib/data'
+import { Suspense } from 'react';
+import { getProject, getTaskCounts } from '@/lib/data';
 
 export default async function ProjectPage({ params }) {
-  const project = await getProject(params.projectId)  // timber.cache HIT (handler warmed it)
-  if (!project) deny(404)                                // real HTTP 404
+  const project = await getProject(params.projectId); // timber.cache HIT (handler warmed it)
+  if (!project) deny(404); // real HTTP 404
 
   return (
     <div>
@@ -63,22 +63,22 @@ export default async function ProjectPage({ params }) {
         <RecentActivity projectId={project.id} />
       </Suspense>
     </div>
-  )
+  );
 }
 ```
 
 ```typescript
 // app/(authenticated)/dashboard/projects/[projectId]/actions.ts
-'use server'
-import { action } from '@/lib/action'
-import { z } from 'zod/v4'
+'use server';
+import { action } from '@/lib/action';
+import { z } from 'zod/v4';
 
 export const updateProject = action
   .schema(z.object({ projectId: z.string(), name: z.string().min(1), description: z.string() }))
   .action(async ({ input, ctx }) => {
-    await db.projects.update(input.projectId, { name: input.name, description: input.description })
-    return revalidatePath(`/dashboard/projects/${input.projectId}`)
-  })
+    await db.projects.update(input.projectId, { name: input.name, description: input.description });
+    return revalidatePath(`/dashboard/projects/${input.projectId}`);
+  });
 ```
 
 ### What Happens on Each Request
@@ -114,21 +114,21 @@ app/
 ```typescript
 // app/products/[id]/middleware.ts
 export default async function middleware(ctx: MiddlewareContext): Promise<Response | void> {
-  ctx.headers.set('Cache-Control', 'public, max-age=60')
+  ctx.headers.set('Cache-Control', 'public, max-age=60');
   // Warm caches — do NOT await
-  void getProduct(ctx.params.id)
-  void getProductReviews(ctx.params.id)
+  void getProduct(ctx.params.id);
+  void getProductReviews(ctx.params.id);
 }
 ```
 
 ```tsx
 // app/products/[id]/page.tsx
-import { Suspense } from 'react'
-import { getProduct } from '@/lib/data'
+import { Suspense } from 'react';
+import { getProduct } from '@/lib/data';
 
 export default async function ProductPage({ params }) {
-  const product = await getProduct(params.id)  // timber.cache HIT (handler warmed it)
-  if (!product) deny(404)                        // real HTTP 404
+  const product = await getProduct(params.id); // timber.cache HIT (handler warmed it)
+  if (!product) deny(404); // real HTTP 404
 
   return (
     <div>
@@ -140,21 +140,21 @@ export default async function ProductPage({ params }) {
         <ProductReviews productId={product.id} />
       </Suspense>
     </div>
-  )
+  );
 }
 ```
 
 ```typescript
 // app/products/[id]/actions.ts
-'use server'
+'use server';
 
 export async function addToCart(productId: string) {
-  const user = await getUser()
-  if (!user) return redirect('/login')
+  const user = await getUser();
+  if (!user) return redirect('/login');
 
-  await db.cart.add(user.id, productId)
-  timber.cache.invalidate({ tag: `cart:${user.id}` })
-  return revalidatePath(`/products/${productId}`)
+  await db.cart.add(user.id, productId);
+  timber.cache.invalidate({ tag: `cart:${user.id}` });
+  return revalidatePath(`/products/${productId}`);
 }
 ```
 

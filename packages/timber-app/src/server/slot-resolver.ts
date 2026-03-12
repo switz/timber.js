@@ -46,7 +46,8 @@ export async function resolveSlotElement(
   // it instead of the normal slot match. This enables the modal pattern:
   // the slot shows the intercepted content on soft navigation.
   const slotMatch = interception
-    ? findInterceptingMatch(slotNode, interception.targetPathname) ?? findSlotMatch(slotNode, match)
+    ? (findInterceptingMatch(slotNode, interception.targetPathname) ??
+      findSlotMatch(slotNode, match))
     : findSlotMatch(slotNode, match);
 
   if (slotMatch) {
@@ -181,10 +182,7 @@ interface SlotMatchResult {
  * We compare the matched route's segment chain against the slot's children
  * to find the deepest matching page.
  */
-function findSlotMatch(
-  slotNode: ManifestSegmentNode,
-  match: RouteMatch
-): SlotMatchResult | null {
+function findSlotMatch(slotNode: ManifestSegmentNode, match: RouteMatch): SlotMatchResult | null {
   const segments = match.segments as unknown as ManifestSegmentNode[];
 
   // Find the parent segment that owns this slot by comparing urlPaths.

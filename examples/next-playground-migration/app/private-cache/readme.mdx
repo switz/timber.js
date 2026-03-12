@@ -46,9 +46,7 @@ async function Recommendations({ productId }: { productId: string }) {
 
 export const unstable_prefetch = {
   mode: 'runtime',
-  samples: [
-    { params: { id: '1' }, cookies: [{ name: 'session-id', value: '1' }] },
-  ],
+  samples: [{ params: { id: '1' }, cookies: [{ name: 'session-id', value: '1' }] }],
 };
 ```
 

@@ -478,7 +478,7 @@ Can be wired up after Phase 1 pipeline is runnable.
 
 ## Open Questions
 
-*(none — all resolved)*
+_(none — all resolved)_
 
 ---
 

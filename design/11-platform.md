@@ -10,20 +10,20 @@ export default {
   // 'server' | 'static'
   // Default: 'server'
   output: 'server',
-}
+};
 
 // static with zero JavaScript
 export default {
   output: 'static',
   static: { noJS: true },
-}
+};
 ```
 
-| Option | Server required | Client JS | Server Actions |
-|---|---|---|---|
-| `server` | Yes | Yes | Yes |
-| `static` | No | Yes (hydration + SPA nav) | Split deployment via adapter |
-| `static` + `noJS: true` | No | None (`'use client'` is a build error) | Build error |
+| Option                  | Server required | Client JS                              | Server Actions               |
+| ----------------------- | --------------- | -------------------------------------- | ---------------------------- |
+| `server`                | Yes             | Yes                                    | Yes                          |
+| `static`                | No              | Yes (hydration + SPA nav)              | Split deployment via adapter |
+| `static` + `noJS: true` | No              | None (`'use client'` is a build error) | Build error                  |
 
 In `static` mode, `middleware.ts` files run at build time only — there is no server to run them at request time. Server actions are extracted and deployed as separate API endpoints by the adapter (see [Forms & Server Actions](08-forms-and-actions.md#server-actions-in-static-mode)). With `noJS: true`, `'use server'` is also a build error.
 
@@ -32,14 +32,14 @@ An opt-in static shell optimization within `server` mode (`'use dynamic'`, `prer
 The adapter and cache handler are also specified in `timber.config.ts`:
 
 ```ts
-import { cloudflare } from '@timber/app/adapters/cloudflare'
-import { MemoryCacheHandler } from '@timber/app/cache'
+import { cloudflare } from '@timber/app/adapters/cloudflare';
+import { MemoryCacheHandler } from '@timber/app/cache';
 
 export default {
   output: 'server',
   adapter: cloudflare(),
-  cacheHandler: new MemoryCacheHandler(),  // default, pluggable for Redis/KV/etc.
-}
+  cacheHandler: new MemoryCacheHandler(), // default, pluggable for Redis/KV/etc.
+};
 ```
 
 ---
@@ -52,15 +52,15 @@ timber.js defines a formal adapter interface. An adapter is responsible for tran
 
 ```ts
 interface TimberPlatformAdapter {
-  name: string
+  name: string;
 
   // Transform the build output for the target platform.
   // Called at the end of `timber build`.
-  buildOutput(config: TimberConfig, buildDir: string): Promise<void>
+  buildOutput(config: TimberConfig, buildDir: string): Promise<void>;
 
   // Optional: start a local preview server for the built output.
   // Falls back to the built-in Node.js preview server if not provided.
-  preview?(config: TimberConfig, buildDir: string): Promise<void>
+  preview?(config: TimberConfig, buildDir: string): Promise<void>;
 }
 ```
 
@@ -75,14 +75,14 @@ timber.js ships exactly two adapters. See [Production Deployments](25-production
 **`@timber/app/adapters/nitro`** — Everything else. Node.js (Docker, VPS), Bun, Vercel, Netlify, AWS Lambda, Deno Deploy, Azure Functions. Nitro handles platform-specific wiring (compression, graceful shutdown, static file serving, serverless function shape).
 
 ```ts
-import { nitro } from '@timber/app/adapters/nitro'
+import { nitro } from '@timber/app/adapters/nitro';
 
 export default {
   output: 'server',
-  adapter: nitro({ preset: 'vercel' }),     // Vercel serverless
+  adapter: nitro({ preset: 'vercel' }), // Vercel serverless
   // adapter: nitro({ preset: 'node-server' }), // Docker, VPS, bare metal
   // adapter: nitro({ preset: 'bun' }),          // Bun.serve()
-}
+};
 ```
 
 ### Community Adapters
@@ -147,11 +147,13 @@ This warning appears once at startup, not per-call. It is not a build error — 
 timber.js is a fresh implementation, not a fork of Vinext. However, it operates in the same design space (Vite + RSC) and takes inspiration from concepts Vinext explored. Where applicable, we monitor Vinext and Next.js upstream for bug fixes and security patches that may apply to the same vulnerability classes in our independent codebase.
 
 **What timber.js shares conceptually** (reimplemented independently):
+
 - The Vite plugin architecture pattern and three-environment model (RSC/SSR/browser)
 - `next/*` shim approach for ecosystem library compatibility
 - `waitUntil()` — maps directly to `ExtendableEvent.waitUntil()` on Cloudflare, framework-managed on Node.js
 
 **Where timber.js intentionally diverges:**
+
 - No ISR, no patched `fetch`, no implicit caching — replaced by explicit `timber.cache` and `"use cache"`
 - No pages router — App Router only
 - `proxy.ts` for global middleware + per-route `middleware.ts` (not a single global `middleware.ts`)
@@ -165,21 +167,21 @@ timber.js is a fresh implementation, not a fork of Vinext. However, it operates 
 
 The main `timber()` export returns an array of Vite plugins. Each sub-plugin has a focused responsibility:
 
-| Plugin | Responsibility |
-|--------|---------------|
-| `timber-shims` | Resolves `next/*` and `@timber/app/*` imports to shim files |
-| `timber-routing` | Scans `app/` directory, generates virtual route modules |
-| `timber-entries` | Generates RSC/SSR/browser entry virtual modules |
-| `timber-cache` | Transforms `"use cache"` directives into `registerCachedFunction()` calls |
-| `timber-fonts` | Google and local font handling (ported from `next/font` shim) |
-| `timber-mdx` | Auto-detects `.mdx` files and registers `@mdx-js/rollup` |
+| Plugin           | Responsibility                                                            |
+| ---------------- | ------------------------------------------------------------------------- |
+| `timber-shims`   | Resolves `next/*` and `@timber/app/*` imports to shim files               |
+| `timber-routing` | Scans `app/` directory, generates virtual route modules                   |
+| `timber-entries` | Generates RSC/SSR/browser entry virtual modules                           |
+| `timber-cache`   | Transforms `"use cache"` directives into `registerCachedFunction()` calls |
+| `timber-fonts`   | Google and local font handling (ported from `next/font` shim)             |
+| `timber-mdx`     | Auto-detects `.mdx` files and registers `@mdx-js/rollup`                  |
 
 The core `timber()` function coordinates sub-plugins via shared state (a closure-scoped context object). Each sub-plugin is a standard Vite plugin that registers its own hooks.
 
 ```ts
 // packages/timber-app/src/index.ts
 export function timber(config?: TimberConfig): Plugin[] {
-  const ctx = createPluginContext(config)
+  const ctx = createPluginContext(config);
   return [
     timberShims(ctx),
     timberRouting(ctx),
@@ -187,7 +189,7 @@ export function timber(config?: TimberConfig): Plugin[] {
     timberCache(ctx),
     timberFonts(ctx),
     timberMdx(ctx),
-  ]
+  ];
 }
 ```
 
@@ -205,10 +207,10 @@ Entry modules are **real TypeScript files** with dynamic imports configured via 
 
 ```typescript
 // packages/timber-app/src/server/rsc-entry.ts (real file, not generated string)
-import { createRequestHandler } from './request-handler'
-import routeManifest from 'virtual:timber-route-manifest'
+import { createRequestHandler } from './request-handler';
+import routeManifest from 'virtual:timber-route-manifest';
 
-export default createRequestHandler(routeManifest)
+export default createRequestHandler(routeManifest);
 ```
 
 The route manifest is a virtual module generated by `timber-routing`. The entry file itself is a real TypeScript file that imports the virtual module. This avoids the string codegen antipattern (thousands of lines of template strings producing JavaScript) and provides proper type checking, source maps, and IDE support.
@@ -217,11 +219,11 @@ The route manifest is a virtual module generated by `timber-routing`. The entry 
 
 Vite maintains three separate module graphs with separate module instances:
 
-| Environment | Purpose | Module graph |
-|-------------|---------|-------------|
-| RSC | Server components, `"use server"` actions, `access.ts`, `middleware.ts` | Server-only. No DOM APIs. `React.cache` active during render. |
-| SSR | Client component hydration markup | Server-side render of `"use client"` components. Receives RSC stream. |
-| Browser | Client runtime | Runs in the browser. Hydration, navigation, form interception. |
+| Environment | Purpose                                                                 | Module graph                                                          |
+| ----------- | ----------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| RSC         | Server components, `"use server"` actions, `access.ts`, `middleware.ts` | Server-only. No DOM APIs. `React.cache` active during render.         |
+| SSR         | Client component hydration markup                                       | Server-side render of `"use client"` components. Receives RSC stream. |
+| Browser     | Client runtime                                                          | Runs in the browser. Hydration, navigation, form interception.        |
 
 State passing between RSC and SSR happens via `handleSsr(rscStream, navContext)`. Per-request state (pathname, searchParams, params, headers, cookies) is explicitly passed — the environments do NOT share module instances.
 
@@ -231,12 +233,12 @@ State passing between RSC and SSR happens via `handleSsr(rscStream, navContext)`
 
 The `timber` CLI is the developer-facing entry point for all framework commands.
 
-| Command | Description |
-|---|---|
-| `timber dev` | Start the Vite-based dev server with HMR |
-| `timber build` | Production build — runs the RSC/SSR/client multi-environment build pipeline |
-| `timber preview` | Serve the production build locally via the adapter's `preview()` method (falls back to built-in Node.js preview server) |
-| `timber check` | Type-check + run the framework's static analysis (route map codegen, `search-params.ts` analyzability, unsupported config detection) without building |
+| Command          | Description                                                                                                                                           |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `timber dev`     | Start the Vite-based dev server with HMR                                                                                                              |
+| `timber build`   | Production build — runs the RSC/SSR/client multi-environment build pipeline                                                                           |
+| `timber preview` | Serve the production build locally via the adapter's `preview()` method (falls back to built-in Node.js preview server)                               |
+| `timber check`   | Type-check + run the framework's static analysis (route map codegen, `search-params.ts` analyzability, unsupported config detection) without building |
 
 All commands accept `--config <path>` to specify an alternative `timber.config.ts` location.
 
@@ -246,11 +248,11 @@ All commands accept `--config <path>` to specify an alternative `timber.config.t
 
 All `TIMBER_*` variables are framework-owned. Application-level env vars are the developer's concern.
 
-| Variable | Default | Description |
-|---|---|---|
-| `TIMBER_RUNTIME` | `'node'` | The server runtime. Set by adapters at build time: `'node'`, `'bun'`, `'cloudflare'`. Used in `instrumentation.ts` to conditionally import platform-specific SDKs. |
-| `TIMBER_DEV_QUIET` | unset | Set to `1` to suppress dev console output entirely. |
-| `TIMBER_DEV_LOG` | `'tree'` | Dev log verbosity. `'tree'` (default) for full indented tree, `'summary'` for one-line-per-request. |
+| Variable           | Default  | Description                                                                                                                                                        |
+| ------------------ | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `TIMBER_RUNTIME`   | `'node'` | The server runtime. Set by adapters at build time: `'node'`, `'bun'`, `'cloudflare'`. Used in `instrumentation.ts` to conditionally import platform-specific SDKs. |
+| `TIMBER_DEV_QUIET` | unset    | Set to `1` to suppress dev console output entirely.                                                                                                                |
+| `TIMBER_DEV_LOG`   | `'tree'` | Dev log verbosity. `'tree'` (default) for full indented tree, `'summary'` for one-line-per-request.                                                                |
 
 `TIMBER_RUNTIME` is set automatically by the adapter — developers do not set it manually in normal usage. It is available in `instrumentation.ts` `register()` for conditional SDK initialization (e.g., `@opentelemetry/sdk-node` is Node-only).
 

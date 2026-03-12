@@ -83,10 +83,10 @@ export default {
   output: 'server',
   pageExtensions: ['tsx', 'ts', 'jsx', 'js', 'mdx'],
   mdx: {
-    remarkPlugins: [],    // add remark-gfm, etc. as needed
+    remarkPlugins: [], // add remark-gfm, etc. as needed
     rehypePlugins: [],
   },
-}
+};
 ```
 
 Server mode is intentional. The site demonstrates:
@@ -103,12 +103,12 @@ A static export would lose all of these. The docs site should be the canonical p
 Follows the existing example pattern:
 
 ```ts
-import { defineConfig } from 'vite'
-import { resolve } from 'node:path'
-import { timber } from '../../packages/timber-app/src/index'
-import tailwindcss from '@tailwindcss/vite'
+import { defineConfig } from 'vite';
+import { resolve } from 'node:path';
+import { timber } from '../../packages/timber-app/src/index';
+import tailwindcss from '@tailwindcss/vite';
 
-const root = resolve(import.meta.dirname, '../..')
+const root = resolve(import.meta.dirname, '../..');
 
 export default defineConfig({
   plugins: [timber(), tailwindcss()],
@@ -131,7 +131,7 @@ export default defineConfig({
       '@timber/app': resolve(root, 'packages/timber-app/src/index.ts'),
     },
   },
-})
+});
 ```
 
 ### Styling
@@ -140,13 +140,13 @@ Tailwind v4 via `@tailwindcss/vite`. Zero-config — no `tailwind.config.js` or 
 
 ```css
 /* app/globals.css */
-@import "tailwindcss";
+@import 'tailwindcss';
 
 @theme {
   --color-timber: #2d5016;
   --color-timber-light: #4a7c28;
-  --font-sans: "Inter", system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 }
 ```
 
@@ -168,14 +168,14 @@ const docs = defineCollection({
   schema: z.object({
     title: z.string(),
     description: z.string(),
-    order: z.number(),              // sidebar sort order
+    order: z.number(), // sidebar sort order
     section: z.string().optional(), // grouping: "Getting Started", "API", etc.
   }),
   transform: async (document, context) => {
-    const mdx = await compileMDX(context, document)
-    return { ...document, mdx }
+    const mdx = await compileMDX(context, document);
+    return { ...document, mdx };
   },
-})
+});
 ```
 
 ### Blog Collection
@@ -194,10 +194,10 @@ const blog = defineCollection({
     draft: z.boolean().default(false),
   }),
   transform: async (document, context) => {
-    const mdx = await compileMDX(context, document)
-    return { ...document, mdx }
+    const mdx = await compileMDX(context, document);
+    return { ...document, mdx };
   },
-})
+});
 ```
 
 ---
@@ -208,14 +208,14 @@ const blog = defineCollection({
 
 Marketing page. Hero section with tagline and CTA. Feature grid highlighting timber.js design values:
 
-| Feature | Copy |
-|---------|------|
-| Correct HTTP | Real status codes, real headers. No more 200-for-everything. |
-| No loading spinners | Primary content renders before the shell flushes. Pages arrive complete. |
-| Vite-native | Built on Vite 7. ESM-first. Sub-second HMR. |
-| Deploy anywhere | Servers, serverless, edge, or static. Adapters for Node, Cloudflare, Vercel, and more. |
-| Server actions | Forms that work without JavaScript. Progressive enhancement by default. |
-| React Server Components | Server-rendered by default. Client JS only where you ask for it. |
+| Feature                 | Copy                                                                                   |
+| ----------------------- | -------------------------------------------------------------------------------------- |
+| Correct HTTP            | Real status codes, real headers. No more 200-for-everything.                           |
+| No loading spinners     | Primary content renders before the shell flushes. Pages arrive complete.               |
+| Vite-native             | Built on Vite 7. ESM-first. Sub-second HMR.                                            |
+| Deploy anywhere         | Servers, serverless, edge, or static. Adapters for Node, Cloudflare, Vercel, and more. |
+| Server actions          | Forms that work without JavaScript. Progressive enhancement by default.                |
+| React Server Components | Server-rendered by default. Client JS only where you ask for it.                       |
 
 No animations. No JavaScript for the landing page beyond hydration.
 
@@ -260,12 +260,12 @@ A working contact form that demonstrates:
 
 ```tsx
 // app/examples/contact/page.tsx
-'use client'
-import { useActionState } from 'react'
-import { submitContact } from './actions'
+'use client';
+import { useActionState } from 'react';
+import { submitContact } from './actions';
 
 export default function ContactPage() {
-  const [state, action, pending] = useActionState(submitContact, null)
+  const [state, action, pending] = useActionState(submitContact, null);
 
   return (
     <form action={action}>
@@ -277,26 +277,28 @@ export default function ContactPage() {
       {state?.error && <p className="text-red-600">{state.error}</p>}
       {state?.success && <p className="text-green-600">Message sent!</p>}
     </form>
-  )
+  );
 }
 ```
 
 ```ts
 // app/examples/contact/actions.ts
-'use server'
-import { action } from '@/lib/action'
-import { z } from 'zod/v4'
+'use server';
+import { action } from '@/lib/action';
+import { z } from 'zod/v4';
 
 export const submitContact = action
-  .schema(z.object({
-    email: z.string().email(),
-    message: z.string().min(10).max(1000),
-  }))
+  .schema(
+    z.object({
+      email: z.string().email(),
+      message: z.string().min(10).max(1000),
+    })
+  )
   .action(async ({ input }) => {
     // In production: send email, store in DB, etc.
-    console.log('Contact form submission:', input)
-    return { success: true }
-  })
+    console.log('Contact form submission:', input);
+    return { success: true };
+  });
 ```
 
 ### `/examples/newsletter` — Newsletter Signup Demo
@@ -328,7 +330,7 @@ export function AiDocsBanner() {
         Hand-written documentation is coming soon.
       </p>
     </div>
-  )
+  );
 }
 ```
 
@@ -340,16 +342,17 @@ This component is imported in `app/docs/[slug]/page.tsx` and rendered above the 
 
 ```tsx
 // app/layout.tsx
-import { Link } from '@timber/app/client'
-import './globals.css'
+import { Link } from '@timber/app/client';
+import './globals.css';
 
 export const metadata = {
   title: {
     template: '%s | timber.js',
     default: 'timber.js — Vite-native React framework',
   },
-  description: 'A web framework built on Vite and React Server Components. Correct HTTP semantics, real status codes, pages that work without JavaScript.',
-}
+  description:
+    'A web framework built on Vite and React Server Components. Correct HTTP semantics, real status codes, pages that work without JavaScript.',
+};
 
 export default function RootLayout({ children }) {
   return (
@@ -357,23 +360,25 @@ export default function RootLayout({ children }) {
       <body className="font-sans antialiased">
         <header className="border-b">
           <nav className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
-            <Link href="/" className="font-bold text-lg">timber.js</Link>
+            <Link href="/" className="font-bold text-lg">
+              timber.js
+            </Link>
             <div className="flex gap-6">
               <Link href="/docs">Docs</Link>
               <Link href="/blog">Blog</Link>
-              <a href="https://github.com/AshMartian/timber-js" target="_blank" rel="noopener">GitHub</a>
+              <a href="https://github.com/AshMartian/timber-js" target="_blank" rel="noopener">
+                GitHub
+              </a>
             </div>
           </nav>
         </header>
         <main>{children}</main>
         <footer className="border-t mt-16 py-8">
-          <div className="max-w-6xl mx-auto px-4 text-sm text-gray-500">
-            timber.js
-          </div>
+          <div className="max-w-6xl mx-auto px-4 text-sm text-gray-500">timber.js</div>
         </footer>
       </body>
     </html>
-  )
+  );
 }
 ```
 
@@ -454,11 +459,11 @@ app/
 ```ts
 // app/docs/[slug]/middleware.ts
 // Catches /docs/getting-started (no version) and redirects to latest
-import { redirect } from '@timber/app/server'
-import { LATEST_VERSION } from '@/lib/docs'
+import { redirect } from '@timber/app/server';
+import { LATEST_VERSION } from '@/lib/docs';
 
 export default async function middleware(ctx) {
-  redirect(`/docs/${LATEST_VERSION}/${ctx.params.slug}`)
+  redirect(`/docs/${LATEST_VERSION}/${ctx.params.slug}`);
 }
 ```
 
@@ -466,21 +471,19 @@ The `[slug]` route exists only for the redirect — it has no `page.tsx`. The `[
 
 ```ts
 // app/docs/[version]/[slug]/page.tsx
-import { allDocs } from 'content-collections'
-import { deny } from '@timber/app/server'
-import { LATEST_VERSION } from '@/lib/docs'
+import { allDocs } from 'content-collections';
+import { deny } from '@timber/app/server';
+import { LATEST_VERSION } from '@/lib/docs';
 
 export default async function DocPage({ params }) {
-  const { version, slug } = await params
+  const { version, slug } = await params;
 
   // Resolve "latest" to the actual version for content lookup — no redirect.
   // The URL stays as /docs/latest/routing.
-  const resolvedVersion = version === 'latest' ? LATEST_VERSION : version
+  const resolvedVersion = version === 'latest' ? LATEST_VERSION : version;
 
-  const doc = allDocs.find(
-    (d) => d.version === resolvedVersion && d._meta.fileName === slug
-  )
-  if (!doc) deny(404)
+  const doc = allDocs.find((d) => d.version === resolvedVersion && d._meta.fileName === slug);
+  if (!doc) deny(404);
 
   // render doc...
 }
@@ -516,11 +519,11 @@ const docs = defineCollection({
     section: z.string().optional(),
   }),
   transform: async (document, context) => {
-    const mdx = await compileMDX(context, document)
+    const mdx = await compileMDX(context, document);
     // _meta.directory is "v1", "v2", etc.
-    return { ...document, mdx, version: document._meta.directory }
+    return { ...document, mdx, version: document._meta.directory };
   },
-})
+});
 ```
 
 ### Version Configuration
@@ -529,8 +532,8 @@ A single constant defines the current version:
 
 ```ts
 // lib/docs.ts
-export const LATEST_VERSION = 'v1'
-export const ALL_VERSIONS = ['v1'] as const
+export const LATEST_VERSION = 'v1';
+export const ALL_VERSIONS = ['v1'] as const;
 ```
 
 When v2 ships, add it to `ALL_VERSIONS` and update `LATEST_VERSION`. Old version content stays in place — no migration, no breaking URLs.
@@ -541,18 +544,20 @@ The docs layout includes a version dropdown. It preserves the current slug when 
 
 ```tsx
 // app/docs/layout.tsx
-import { ALL_VERSIONS, LATEST_VERSION } from '@/lib/docs'
+import { ALL_VERSIONS, LATEST_VERSION } from '@/lib/docs';
 
 export default function DocsLayout({ children }) {
   return (
     <div>
       <div className="flex items-center gap-2 px-4 py-2 border-b">
-        <label htmlFor="version" className="text-sm text-gray-500">Version:</label>
+        <label htmlFor="version" className="text-sm text-gray-500">
+          Version:
+        </label>
         <VersionSelector versions={ALL_VERSIONS} latest={LATEST_VERSION} />
       </div>
       {children}
     </div>
-  )
+  );
 }
 ```
 
@@ -564,18 +569,18 @@ export default function DocsLayout({ children }) {
 
 ```tsx
 // app/docs/[version]/page.tsx
-import { LATEST_VERSION } from '@/lib/docs'
+import { LATEST_VERSION } from '@/lib/docs';
 
 export default async function VersionIndex({ params }) {
-  const { version } = await params
-  const resolvedVersion = version === 'latest' ? LATEST_VERSION : version
+  const { version } = await params;
+  const resolvedVersion = version === 'latest' ? LATEST_VERSION : version;
 
   return (
     <div className="prose dark:prose-invert">
       <h1>timber.js {resolvedVersion} Documentation</h1>
       <p>Select a topic from the sidebar to get started.</p>
     </div>
-  )
+  );
 }
 ```
 
@@ -585,17 +590,17 @@ The sidebar layout inside `[version]/` filters docs to the current version:
 
 ```tsx
 // app/docs/[version]/layout.tsx
-import { allDocs } from 'content-collections'
-import { LATEST_VERSION } from '@/lib/docs'
+import { allDocs } from 'content-collections';
+import { LATEST_VERSION } from '@/lib/docs';
 
 export default async function VersionedDocsLayout({ children, params }) {
-  const { version } = await params
-  const resolvedVersion = version === 'latest' ? LATEST_VERSION : version
+  const { version } = await params;
+  const resolvedVersion = version === 'latest' ? LATEST_VERSION : version;
   const versionDocs = allDocs
     .filter((d) => d.version === resolvedVersion)
-    .sort((a, b) => a.order - b.order)
+    .sort((a, b) => a.order - b.order);
 
-  const sections = groupBy(versionDocs, 'section')
+  const sections = groupBy(versionDocs, 'section');
 
   return (
     <div className="flex">
@@ -606,9 +611,7 @@ export default async function VersionedDocsLayout({ children, params }) {
             <ul>
               {docs.map((doc) => (
                 <li key={doc._meta.path}>
-                  <Link href={`/docs/${version}/${doc._meta.fileName}`}>
-                    {doc.title}
-                  </Link>
+                  <Link href={`/docs/${version}/${doc._meta.fileName}`}>{doc.title}</Link>
                 </li>
               ))}
             </ul>
@@ -617,7 +620,7 @@ export default async function VersionedDocsLayout({ children, params }) {
       </nav>
       <main className="flex-1 min-w-0">{children}</main>
     </div>
-  )
+  );
 }
 ```
 
@@ -632,18 +635,21 @@ All of these should include the AI header.
 ### Design Decisions
 
 **Why URL-prefix versioning, not query params or a toggle?**
+
 - Each version has a distinct, linkable, cacheable URL
 - Search engines index version-specific content
 - Old links never break — `/docs/v1/routing` works forever
 - Middleware handles all the redirect logic with zero client JS
 
 **Why `latest` renders in-place instead of redirecting?**
+
 - `/docs/latest/routing` is a stable, shareable URL that always shows current docs
 - No redirect chain — faster page loads
 - When `LATEST_VERSION` changes from v1 to v2, `/docs/latest/*` URLs serve v2 content automatically
 - Versioned URLs (`/docs/v1/routing`) still work forever for pinned references
 
 **Why content directories, not frontmatter `version` field?**
+
 - Directory structure mirrors URL structure — predictable
 - Easy to copy an entire version: `cp -r content/docs/v1 content/docs/v2`
 - No risk of frontmatter typos creating phantom versions

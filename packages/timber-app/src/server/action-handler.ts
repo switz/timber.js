@@ -62,10 +62,7 @@ export function isActionRequest(req: Request): boolean {
 
   // No-JS case: check Content-Type for form data
   const ct = req.headers.get('Content-Type') ?? '';
-  if (
-    ct.includes('application/x-www-form-urlencoded') ||
-    ct.includes('multipart/form-data')
-  ) {
+  if (ct.includes('application/x-www-form-urlencoded') || ct.includes('multipart/form-data')) {
     return true;
   }
 
@@ -133,9 +130,7 @@ async function handleRscAction(
   config: ActionDispatchConfig
 ): Promise<Response> {
   // Load the server action function by reference ID
-  const actionFn = (await loadServerAction(actionId)) as (
-    ...args: unknown[]
-  ) => Promise<unknown>;
+  const actionFn = (await loadServerAction(actionId)) as (...args: unknown[]) => Promise<unknown>;
 
   // Decode the args from the request body (RSC wire format)
   const contentType = req.headers.get('Content-Type') ?? '';
@@ -259,9 +254,7 @@ async function handleFormAction(
 
   // decodeAction resolves the action function from the form data's hidden fields.
   // It returns a bound function with the form data already applied.
-  const actionFn = (await decodeAction(formData)) as (
-    ...args: unknown[]
-  ) => Promise<unknown>;
+  const actionFn = (await decodeAction(formData)) as (...args: unknown[]) => Promise<unknown>;
 
   // Execute the action — no additional args needed (form data is already bound).
   // Errors are caught to prevent stack traces from leaking in the response.

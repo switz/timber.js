@@ -48,7 +48,7 @@ const ROUTE_TYPE_ICONS: Record<RouteType, string> = {
  */
 export function classifyRoute(
   segments: SegmentNode[],
-  outputMode: 'server' | 'static' = 'server',
+  outputMode: 'server' | 'static' = 'server'
 ): RouteType {
   const leaf = segments[segments.length - 1];
   if (leaf?.route) return 'function';
@@ -58,7 +58,7 @@ export function classifyRoute(
     (s) =>
       s.segmentType === 'dynamic' ||
       s.segmentType === 'catch-all' ||
-      s.segmentType === 'optional-catch-all',
+      s.segmentType === 'optional-catch-all'
   );
   return isDynamic ? 'dynamic' : 'static';
 }
@@ -125,7 +125,9 @@ export function buildRouteReport(entries: RouteEntry[], sharedSize: number): str
   const lines: string[] = [];
 
   // Header
-  lines.push(`${pad(header, pathW)}  ${pad(sizeHeader, sizeW, 'left')}  ${pad(firstLoadHeader, flW, 'left')}`);
+  lines.push(
+    `${pad(header, pathW)}  ${pad(sizeHeader, sizeW, 'left')}  ${pad(firstLoadHeader, flW, 'left')}`
+  );
   lines.push(sep);
 
   // Routes
@@ -134,12 +136,16 @@ export function buildRouteReport(entries: RouteEntry[], sharedSize: number): str
     const pathStr = `  ${icon} ${entry.path}`;
     const sizeStr = entry.size === 0 ? green('zero unique JS') : formatSize(entry.size);
     const flStr = formatSize(entry.firstLoadSize);
-    lines.push(`${pad(pathStr, pathW)}  ${pad(sizeStr, sizeW, 'left')}  ${pad(flStr, flW, 'left')}`);
+    lines.push(
+      `${pad(pathStr, pathW)}  ${pad(sizeStr, sizeW, 'left')}  ${pad(flStr, flW, 'left')}`
+    );
   }
 
   // Footer
   lines.push(sep);
-  lines.push(`${pad('  Shared by all', pathW)}  ${pad('', sizeW, 'left')}  ${pad(formatSize(sharedSize), flW, 'left')}`);
+  lines.push(
+    `${pad('  Shared by all', pathW)}  ${pad('', sizeW, 'left')}  ${pad(formatSize(sharedSize), flW, 'left')}`
+  );
   lines.push('');
   lines.push('○  (Static)   λ  (Dynamic)   ƒ  (Function)');
 
@@ -179,7 +185,8 @@ export function collectChunkSizes(bundle: Record<string, OutputChunkLike>): Map<
     if (item.type === 'chunk' && item.code) {
       sizes.set(fileName, measure(item.code));
     } else if (item.type === 'asset' && fileName.endsWith('.css') && item.source != null) {
-      const src = typeof item.source === 'string' ? item.source : new TextDecoder().decode(item.source);
+      const src =
+        typeof item.source === 'string' ? item.source : new TextDecoder().decode(item.source);
       sizes.set(fileName, measure(src));
     }
   }
@@ -194,7 +201,7 @@ function measure(content: string): ChunkSize {
 /** Find the output chunk that contains a given input file. */
 export function findChunkForFile(
   filePath: string,
-  bundle: Record<string, OutputChunkLike>,
+  bundle: Record<string, OutputChunkLike>
 ): string | null {
   for (const [fileName, item] of Object.entries(bundle)) {
     if (item.type !== 'chunk') continue;
@@ -210,7 +217,7 @@ function buildEntries(
   routeTree: RouteTree,
   chunkSizes: Map<string, ChunkSize>,
   bundle: Record<string, OutputChunkLike>,
-  outputMode: 'server' | 'static',
+  outputMode: 'server' | 'static'
 ): { entries: RouteEntry[]; sharedGzip: number } {
   const routeInfos = collectRoutes(routeTree);
 
@@ -230,7 +237,10 @@ function buildEntries(
       const chunk = findChunkForFile(info.entryFilePath, bundle);
       if (chunk) {
         const s = chunkSizes.get(chunk);
-        if (s) { raw = s.raw; gzip = s.gzip; }
+        if (s) {
+          raw = s.raw;
+          gzip = s.gzip;
+        }
         routeChunkFiles.add(chunk);
       }
     }
@@ -311,19 +321,29 @@ export function timberBuildReport(ctx: PluginContext): Plugin {
 
       // The client build's closeBundle fires before SSR starts.
       // Defer one cycle so the report appears after all builds complete.
-      if (deferReport) { deferReport = false; return; }
+      if (deferReport) {
+        deferReport = false;
+        return;
+      }
       if (!ctx.routeTree || !chunkSizes || !clientBundle || !logger) return;
 
       reported = true;
       const outputMode = ctx.config.output ?? 'server';
-      const { entries, sharedGzip } = buildEntries(ctx.routeTree, chunkSizes, clientBundle, outputMode);
+      const { entries, sharedGzip } = buildEntries(
+        ctx.routeTree,
+        chunkSizes,
+        clientBundle,
+        outputMode
+      );
       const elapsed = ((performance.now() - buildStart) / 1000).toFixed(2);
       const lines = buildRouteReport(entries, sharedGzip);
 
       logger.info('');
       for (const line of lines) logger.info(line);
       logger.info('');
-      logger.info(`✓ built ${entries.length} routes for all three environments (rsc, ssr, client) in ${elapsed}s`);
+      logger.info(
+        `✓ built ${entries.length} routes for all three environments (rsc, ssr, client) in ${elapsed}s`
+      );
       logger.info('');
     },
   };

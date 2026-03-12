@@ -4,12 +4,12 @@ If $ARGUMENTS is set (a commit SHA), check that specific commit. Otherwise compa
 
 ## Regression thresholds
 
-| Metric | Threshold | Severity |
-|--------|-----------|----------|
-| Build time | >20% increase | P2 |
-| Bundle size (gzip) | >10% increase | P1 |
-| Dev cold start | >30% increase | P2 |
-| Dev peak RSS | >40% increase | P3 |
+| Metric             | Threshold     | Severity |
+| ------------------ | ------------- | -------- |
+| Build time         | >20% increase | P2       |
+| Bundle size (gzip) | >10% increase | P1       |
+| Dev cold start     | >30% increase | P2       |
+| Dev peak RSS       | >40% increase | P3       |
 
 ## Workflow
 
@@ -21,6 +21,7 @@ If $ARGUMENTS is set (a commit SHA), check that specific commit. Otherwise compa
 6. Print performance report table
 
 ## Rules
+
 - One issue per metric per commit
 - Improvements are not actionable (note in report, don't file issues)
 - Null metrics are not regressions

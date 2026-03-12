@@ -3,6 +3,7 @@ Monitor recent commits from Vinext (Cloudflare's RSC-on-Vite framework) and tria
 ## Design authority
 
 Read the relevant design documents in `design/` before triaging. Key docs:
+
 - `01-philosophy.md` — flush after `onShellReady`, no HTTP 200 lies
 - `06-caching.md` — `timber.cache()`, no ISR, no implicit fetch patching
 - `07-routing.md` — `proxy.ts` + per-route `middleware.ts`, one-arg signatures
@@ -13,6 +14,7 @@ Read the relevant design documents in `design/` before triaging. Key docs:
 ## Setup
 
 Ensure the vinext upstream remote is configured:
+
 ```bash
 git remote get-url vinext 2>/dev/null || git remote add vinext https://github.com/nickvdp/vinext.git
 ```
@@ -20,6 +22,7 @@ git remote get-url vinext 2>/dev/null || git remote add vinext https://github.co
 ## Workflow
 
 ### Step 1: Fetch upstream
+
 ```bash
 git fetch vinext main
 git log main..vinext/main --oneline
@@ -35,6 +38,7 @@ For each new upstream commit, `git show <sha>` and classify:
 - **NOT-APPLICABLE** — Irrelevant (vinext-specific examples, CLI, infrastructure)
 
 ### Step 3: File lb issues for APPLICABLE commits
+
 ```bash
 lb create "upstream: <description>" \
   -d "Upstream Vinext commit <sha>. <summary>. <why it applies to timber.js>. <implementation notes>" \

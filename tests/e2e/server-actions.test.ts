@@ -140,8 +140,7 @@ test.describe('revalidation after action', () => {
 
     // Wait for layout marker to be stamped (useEffect after mount)
     await page.waitForFunction(
-      () =>
-        document.querySelector('[data-testid="layout-marker"]')?.getAttribute('data-id') != null
+      () => document.querySelector('[data-testid="layout-marker"]')?.getAttribute('data-id') != null
     );
     const layoutMarker = await page.getAttribute('[data-testid="layout-marker"]', 'data-id');
 
@@ -194,10 +193,7 @@ test.describe('single-roundtrip revalidation', () => {
     // Collect all requests after the action
     const rscGetRequests: string[] = [];
     page.on('request', (req) => {
-      if (
-        req.method() === 'GET' &&
-        req.headers()['accept']?.includes('text/x-component')
-      ) {
+      if (req.method() === 'GET' && req.headers()['accept']?.includes('text/x-component')) {
         rscGetRequests.push(req.url());
       }
     });
@@ -221,8 +217,7 @@ test.describe('single-roundtrip revalidation', () => {
 
     // Wait for layout marker
     await page.waitForFunction(
-      () =>
-        document.querySelector('[data-testid="layout-marker"]')?.getAttribute('data-id') != null
+      () => document.querySelector('[data-testid="layout-marker"]')?.getAttribute('data-id') != null
     );
     const layoutMarker = await page.getAttribute('[data-testid="layout-marker"]', 'data-id');
 
@@ -298,7 +293,7 @@ test.describe('csrf protection', () => {
     const response = await request.post('/todos', {
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
-        Origin: 'https://evil.com',
+        'Origin': 'https://evil.com',
       },
       data: 'title=hacked',
     });
@@ -310,7 +305,7 @@ test.describe('csrf protection', () => {
     const response = await request.post('/todos', {
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
-        Origin: 'http://localhost:3000',
+        'Origin': 'http://localhost:3000',
       },
       data: 'title=legit',
     });

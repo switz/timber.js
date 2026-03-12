@@ -22,8 +22,7 @@ test.describe('action redirect with JS (SPA)', () => {
 
     // Capture the layout marker to verify no full page reload
     await page.waitForFunction(
-      () =>
-        document.querySelector('[data-testid="layout-marker"]')?.getAttribute('data-id') != null
+      () => document.querySelector('[data-testid="layout-marker"]')?.getAttribute('data-id') != null
     );
     const layoutMarker = await page.getAttribute('[data-testid="layout-marker"]', 'data-id');
 

@@ -22,11 +22,11 @@ Multiple components calling the same async function within the same request is n
 
 ```typescript
 // lib/data.ts
-import { cache } from 'react'
+import { cache } from 'react';
 
 export const getUser = cache(async (req?: Request) => {
-  return db.users.findBySession(req ?? headers())
-})
+  return db.users.findBySession(req ?? headers());
+});
 ```
 
 Any component at any depth in the tree can call `getUser()`. It executes once per request. No prop drilling. No context. No query client.
@@ -83,12 +83,12 @@ Failed data fetches propagate as render errors through the React tree:
 ```typescript
 export const getProduct = timber.cache(
   async (id: string) => {
-    const product = await db.products.find(id)
-    if (!product) deny(404)  // expected — renders 404.tsx with correct status
-    return product
+    const product = await db.products.find(id);
+    if (!product) deny(404); // expected — renders 404.tsx with correct status
+    return product;
   },
   { ttl: 60, tags: (id) => [`product:${id}`] }
-)
+);
 ```
 
 ---
@@ -108,21 +108,21 @@ Each data file exports `timber.cache`-wrapped functions. `React.cache` wrappers 
 
 ```typescript
 // lib/products.ts
-import { cache } from 'react'
-import { cache as timberCache } from '@timber/app/cache'
+import { cache } from 'react';
+import { cache as timberCache } from '@timber/app/cache';
 
 // Cross-request cached — TTL, tags, shared across requests
-export const getProduct = timberCache(
-  async (id: string) => db.products.find(id),
-  { ttl: 60, tags: (id) => [`product:${id}`] }
-)
+export const getProduct = timberCache(async (id: string) => db.products.find(id), {
+  ttl: 60,
+  tags: (id) => [`product:${id}`],
+});
 
 // Per-request dedup only — no cross-request caching
 // Use for functions that must always be fresh per-request
 export const getCurrentCart = cache(async () => {
-  const user = await requireUser()
-  return db.carts.findByUser(user.id)
-})
+  const user = await requireUser();
+  return db.carts.findByUser(user.id);
+});
 ```
 
 **Why separate files?** Data functions are shared across routes. A `getProduct()` function is called from `products/[id]/page.tsx`, `products/[id]/middleware.ts`, `products/[id]/access.ts`, and potentially `cart/page.tsx`. Co-locating with one route file would make the others import across route boundaries.
@@ -141,9 +141,9 @@ The framework provides two tools to mitigate waterfalls:
 // app/products/[id]/middleware.ts
 export default async function middleware(ctx: MiddlewareContext) {
   // Fire all fetches in parallel — do NOT await
-  void getProduct(ctx.params.id)
-  void getProductReviews(ctx.params.id)
-  void getRelatedProducts(ctx.params.id)
+  void getProduct(ctx.params.id);
+  void getProductReviews(ctx.params.id);
+  void getRelatedProducts(ctx.params.id);
 }
 ```
 

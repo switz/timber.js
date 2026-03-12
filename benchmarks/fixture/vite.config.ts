@@ -28,9 +28,7 @@ function benchmarkAnalyze(): Plugin {
           other: 0,
         };
 
-        for (const [moduleId, info] of Object.entries(
-          (chunk as OutputChunk).modules,
-        )) {
+        for (const [moduleId, info] of Object.entries((chunk as OutputChunk).modules)) {
           const size = info.renderedLength;
           if (
             moduleId.includes('node_modules/react-dom') ||
@@ -59,7 +57,7 @@ function benchmarkAnalyze(): Plugin {
       // Write analysis alongside the dist output
       writeFileSync(
         resolve(import.meta.dirname, 'dist/client-analysis.json'),
-        JSON.stringify(analysis, null, 2),
+        JSON.stringify(analysis, null, 2)
       );
     },
   };

@@ -24,26 +24,26 @@ The existing `timber-fonts` plugin stub and `next/font/google` shim provide the 
 
 ```tsx
 // app/layout.tsx
-import { Inter, JetBrains_Mono } from '@timber/fonts/google'
+import { Inter, JetBrains_Mono } from '@timber/fonts/google';
 
 const inter = Inter({
   subsets: ['latin'],
   display: 'swap',
   variable: '--font-sans',
-})
+});
 
 const jetbrainsMono = JetBrains_Mono({
   subsets: ['latin'],
   display: 'swap',
   variable: '--font-mono',
-})
+});
 
 export default function RootLayout({ children }) {
   return (
     <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`}>
       <body>{children}</body>
     </html>
-  )
+  );
 }
 ```
 
@@ -51,9 +51,9 @@ export default function RootLayout({ children }) {
 
 ```ts
 interface FontResult {
-  className: string       // Scoped class that applies font-family
-  style: { fontFamily: string }  // Inline style with full font stack
-  variable?: string       // CSS custom property name (e.g. "--font-sans")
+  className: string; // Scoped class that applies font-family
+  style: { fontFamily: string }; // Inline style with full font stack
+  variable?: string; // CSS custom property name (e.g. "--font-sans")
 }
 ```
 
@@ -62,7 +62,7 @@ The call looks like a runtime function but is a **build-time transform**. The `t
 ### Local Fonts
 
 ```tsx
-import localFont from '@timber/fonts/local'
+import localFont from '@timber/fonts/local';
 
 const myFont = localFont({
   src: [
@@ -71,7 +71,7 @@ const myFont = localFont({
   ],
   display: 'swap',
   variable: '--font-custom',
-})
+});
 ```
 
 Local fonts skip the download step but still go through the build pipeline for manifest registration, `@font-face` generation, and Early Hints integration.
@@ -222,13 +222,13 @@ packages/timber-app/src/
 
 ### Plugin Hooks
 
-| Hook | Purpose |
-|------|---------|
-| `resolveId` | Resolve `@timber/fonts/google` and `@timber/fonts/local` to virtual modules |
-| `load` | Return generated font loader code for virtual modules |
-| `transform` | Scan for font function calls, extract static config |
-| `buildStart` | Download/cache Google Fonts (production only) |
-| `generateBundle` | Emit font files and `@font-face` CSS into build output |
+| Hook             | Purpose                                                                     |
+| ---------------- | --------------------------------------------------------------------------- |
+| `resolveId`      | Resolve `@timber/fonts/google` and `@timber/fonts/local` to virtual modules |
+| `load`           | Return generated font loader code for virtual modules                       |
+| `transform`      | Scan for font function calls, extract static config                         |
+| `buildStart`     | Download/cache Google Fonts (production only)                               |
+| `generateBundle` | Emit font files and `@font-face` CSS into build output                      |
 
 ---
 
@@ -246,17 +246,17 @@ The docs site (`packages/docs-site`) uses this system for Inter and JetBrains Mo
 
 ```tsx
 // packages/docs-site/app/layout.tsx
-import { Inter, JetBrains_Mono } from '@timber/fonts/google'
+import { Inter, JetBrains_Mono } from '@timber/fonts/google';
 
-const inter = Inter({ subsets: ['latin'], display: 'swap', variable: '--font-sans' })
-const mono = JetBrains_Mono({ subsets: ['latin'], display: 'swap', variable: '--font-mono' })
+const inter = Inter({ subsets: ['latin'], display: 'swap', variable: '--font-sans' });
+const mono = JetBrains_Mono({ subsets: ['latin'], display: 'swap', variable: '--font-mono' });
 
 export default function RootLayout({ children }) {
   return (
     <html lang="en" className={`${inter.variable} ${mono.variable}`}>
       <body>{children}</body>
     </html>
-  )
+  );
 }
 ```
 

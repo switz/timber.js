@@ -29,7 +29,7 @@ Content collections are imported as typed arrays. Filter and sort at query time:
 ```tsx
 const published = allBlogs
   .filter((p) => !p.draft)
-  .sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime())
+  .sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime());
 ```
 
 No database, no API — just typed data at build time.

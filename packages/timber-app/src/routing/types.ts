@@ -24,12 +24,7 @@ export type SegmentType =
 export type InterceptionMarker = '(.)' | '(..)' | '(...)' | '(..)(..)';
 
 /** All recognized interception markers, ordered longest-first for parsing. */
-export const INTERCEPTION_MARKERS: InterceptionMarker[] = [
-  '(..)(..)',
-  '(.)',
-  '(..)',
-  '(...)',
-];
+export const INTERCEPTION_MARKERS: InterceptionMarker[] = ['(..)(..)', '(.)', '(..)', '(...)'];
 
 /** A single file discovered in a route segment */
 export interface RouteFile {

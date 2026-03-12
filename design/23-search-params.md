@@ -36,7 +36,7 @@ nuqs supports framework adapters (Next.js, React Router, Remix, etc.). timber pr
 
 ```tsx
 // packages/timber-app/src/client/nuqs-adapter.tsx
-'use client'
+'use client';
 
 // Implements nuqs's UseAdapterHook interface
 // Returns { searchParams, updateUrl } conforming to AdapterInterface
@@ -44,13 +44,13 @@ nuqs supports framework adapters (Next.js, React Router, Remix, etc.). timber pr
 
 **Adapter behavior:**
 
-| nuqs calls `updateUrl(search, options)` | Adapter action |
-|---|---|
-| `options.shallow === true` | `pushState`/`replaceState` only — no server roundtrip |
-| `options.shallow === false` (default) | Update URL + call `getRouter().navigate(newUrl)` to fetch fresh RSC payload |
-| `options.history === 'push'` | `history.pushState` |
-| `options.history === 'replace'` | `history.replaceState` |
-| `options.scroll === true` | `window.scrollTo(0, 0)` after update |
+| nuqs calls `updateUrl(search, options)` | Adapter action                                                              |
+| --------------------------------------- | --------------------------------------------------------------------------- |
+| `options.shallow === true`              | `pushState`/`replaceState` only — no server roundtrip                       |
+| `options.shallow === false` (default)   | Update URL + call `getRouter().navigate(newUrl)` to fetch fresh RSC payload |
+| `options.history === 'push'`            | `history.pushState`                                                         |
+| `options.history === 'replace'`         | `history.replaceState`                                                      |
+| `options.scroll === true`               | `window.scrollTo(0, 0)` after update                                        |
 
 **Default options** (override nuqs defaults):
 
@@ -83,7 +83,7 @@ function bridgeCodec<T>(codec: SearchParamCodec<T>) {
     serialize: (v: T) => codec.serialize(v) ?? '',
     defaultValue: codec.parse(undefined),
     eq: (a: T, b: T) => codec.serialize(a) === codec.serialize(b),
-  }
+  };
 }
 ```
 
@@ -98,8 +98,8 @@ nuqs parsers (`parseAsInteger`, `parseAsString`, etc.) are valid `SearchParamCod
 Today, client components must import a route's `search-params.ts` explicitly:
 
 ```tsx
-import searchParamsDef from '@/app/products/search-params'
-const [params, setParams] = searchParamsDef.useQueryStates()
+import searchParamsDef from '@/app/products/search-params';
+const [params, setParams] = searchParamsDef.useQueryStates();
 ```
 
 This works but requires the component to know the file path of the definition. For components rendered under a known route, a generic approach is more ergonomic.
@@ -107,12 +107,12 @@ This works but requires the component to know the file path of the definition. F
 ### API
 
 ```tsx
-'use client'
-import { useQueryStates } from '@timber/app/client'
+'use client';
+import { useQueryStates } from '@timber/app/client';
 
 export function ProductFilters() {
   // Route string provides full type narrowing
-  const [{ page, category, sort }, setParams] = useQueryStates<'/products'>('/products')
+  const [{ page, category, sort }, setParams] = useQueryStates<'/products'>('/products');
   // page: number, category: string | null, sort: 'price-asc' | ...
 }
 ```
@@ -150,14 +150,14 @@ When a route's modules load (during initial page load or client navigation), the
 
 ```ts
 // search-params/registry.ts
-const registry = new Map<string, SearchParamsDefinition<any>>()
+const registry = new Map<string, SearchParamsDefinition<any>>();
 
 export function registerSearchParams(route: string, def: SearchParamsDefinition<any>) {
-  registry.set(route, def)
+  registry.set(route, def);
 }
 
 export function getSearchParams(route: string): SearchParamsDefinition<any> | undefined {
-  return registry.get(route)
+  return registry.get(route);
 }
 ```
 
@@ -192,34 +192,34 @@ Shared search param bases live in normal modules (not `search-params.ts` route f
 
 ```typescript
 // lib/search-params/pagination.ts
-import { createSearchParams, fromSchema } from '@timber/app/search-params'
-import { z } from 'zod/v4'
+import { createSearchParams, fromSchema } from '@timber/app/search-params';
+import { z } from 'zod/v4';
 
 export const pagination = createSearchParams({
   page: fromSchema(z.coerce.number().int().min(1).default(1)),
   pageSize: fromSchema(z.coerce.number().int().min(1).max(100).default(20)),
-})
+});
 ```
 
 ### Searchable
 
 ```typescript
 // lib/search-params/searchable.ts
-import { createSearchParams, fromSchema } from '@timber/app/search-params'
-import { z } from 'zod/v4'
+import { createSearchParams, fromSchema } from '@timber/app/search-params';
+import { z } from 'zod/v4';
 
 export const searchable = createSearchParams({
   q: fromSchema(z.string().nullable().default(null)),
-})
+});
 ```
 
 ### Sortable
 
 ```typescript
 // lib/search-params/sortable.ts
-import { createSearchParams } from '@timber/app/search-params'
+import { createSearchParams } from '@timber/app/search-params';
 
-type SortDir = 'asc' | 'desc'
+type SortDir = 'asc' | 'desc';
 
 export const sortable = createSearchParams({
   sortBy: {
@@ -227,33 +227,36 @@ export const sortable = createSearchParams({
     serialize: (v) => v,
   },
   sortDir: {
-    parse: (v) => (v === 'asc' || v === 'desc' ? v : 'asc' as SortDir),
+    parse: (v) => (v === 'asc' || v === 'desc' ? v : ('asc' as SortDir)),
     serialize: (v) => v,
   },
-})
+});
 ```
 
 ### Route Composition
 
 ```typescript
 // app/products/search-params.ts
-import { pagination } from '@/lib/search-params/pagination'
-import { searchable } from '@/lib/search-params/searchable'
-import { fromSchema } from '@timber/app/search-params'
-import { z } from 'zod/v4'
+import { pagination } from '@/lib/search-params/pagination';
+import { searchable } from '@/lib/search-params/searchable';
+import { fromSchema } from '@timber/app/search-params';
+import { z } from 'zod/v4';
 
-export default pagination.extend(searchable.codecs).extend({
-  category: fromSchema(z.string().nullable().default(null)),
-  sort: {
-    parse: (v) => {
-      const valid = ['price-asc', 'price-desc', 'newest', 'popular'] as const
-      return valid.includes(v as any) ? (v as typeof valid[number]) : 'popular'
+export default pagination.extend(searchable.codecs).extend(
+  {
+    category: fromSchema(z.string().nullable().default(null)),
+    sort: {
+      parse: (v) => {
+        const valid = ['price-asc', 'price-desc', 'newest', 'popular'] as const;
+        return valid.includes(v as any) ? (v as (typeof valid)[number]) : 'popular';
+      },
+      serialize: (v) => v,
     },
-    serialize: (v) => v,
   },
-}, {
-  urlKeys: { q: 'search', category: 'cat' },
-})
+  {
+    urlKeys: { q: 'search', category: 'cat' },
+  }
+);
 // Type: { page: number; pageSize: number; q: string | null; category: string | null; sort: ... }
 ```
 
@@ -261,13 +264,13 @@ export default pagination.extend(searchable.codecs).extend({
 
 ```typescript
 // app/products/product-filters.tsx
-'use client'
-import searchParamsDef from './search-params'
+'use client';
+import searchParamsDef from './search-params';
 
-const filterParams = searchParamsDef.pick('category', 'sort', 'q')
+const filterParams = searchParamsDef.pick('category', 'sort', 'q');
 
 export function ProductFilters() {
-  const [{ category, sort, q }, setParams] = filterParams.useQueryStates()
+  const [{ category, sort, q }, setParams] = filterParams.useQueryStates();
   // setParams only accepts { category?, sort?, q? } — page/pageSize not exposed
 }
 ```
@@ -286,22 +289,26 @@ export function ProductFilters() {
 URL key aliasing maps TypeScript property names to different URL query parameter keys. Keeps code descriptive while URLs stay short.
 
 ```typescript
-export default createSearchParams({
-  search: fromSchema(z.string().nullable().default(null)),
-  itemsPerPage: fromSchema(z.coerce.number().int().default(20)),
-}, {
-  urlKeys: { search: 'q', itemsPerPage: 'limit' },
-})
+export default createSearchParams(
+  {
+    search: fromSchema(z.string().nullable().default(null)),
+    itemsPerPage: fromSchema(z.coerce.number().int().default(20)),
+  },
+  {
+    urlKeys: { search: 'q', itemsPerPage: 'limit' },
+  }
+);
 // ?q=shoes&limit=50 → { search: 'shoes', itemsPerPage: 50 }
 ```
 
 The `urlKeys` map is exposed as a read-only accessor on `SearchParamsDefinition` so the nuqs bridge can pass it through:
 
 ```typescript
-definition.urlKeys  // { search: 'q', itemsPerPage: 'limit' }
+definition.urlKeys; // { search: 'q', itemsPerPage: 'limit' }
 ```
 
 Aliasing rules:
+
 - `.extend()` does not inherit aliases from the base — set `urlKeys` in the second argument
 - `.pick()` preserves aliases for the picked keys
 - URL key collisions (two props → same URL key) are a TypeScript error
@@ -326,11 +333,13 @@ Auto-parsing uses the ALS (AsyncLocalStorage) store populated at the request bou
 `search-params.ts` files must be statically analyzable. The build extracts `T` from `SearchParamsDefinition<T>` using TypeScript's type parameter — not by executing the file.
 
 **Allowed patterns:**
+
 - `createSearchParams()` call
 - `.extend()` chain on a `SearchParamsDefinition`
 - `.pick()` chain on a `SearchParamsDefinition`
 
 **Disallowed patterns:**
+
 - Arbitrary factory functions
 - Runtime conditionals (ternaries, `if` blocks)
 - Opaque variable references
@@ -347,10 +356,10 @@ This is a deliberate departure from nuqs's default. In timber.js, search params 
 
 ```typescript
 // Default: server navigation (fetch fresh data)
-setParams({ page: 2 })
+setParams({ page: 2 });
 
 // Opt-in: client-only URL update
-setParams({ tab: 'settings' }, { shallow: true })
+setParams({ tab: 'settings' }, { shallow: true });
 ```
 
 This integrates with `useNavigationPending()` — the hook returns `true` while the RSC fetch is in flight, enabling loading indicators on param changes.

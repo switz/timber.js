@@ -14,7 +14,11 @@ export function ResetButton() {
 
   return (
     <form action={formAction}>
-      <button type="submit" data-testid="todo-reset" style={{ position: 'absolute', left: '-9999px' }}>
+      <button
+        type="submit"
+        data-testid="todo-reset"
+        style={{ position: 'absolute', left: '-9999px' }}
+      >
         Reset
       </button>
     </form>

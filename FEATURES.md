@@ -100,5 +100,5 @@ Features tagged as **[novel]** (not in Next.js or Vinext), **[enhanced]** (impro
 
 - **[parity]** ALS-backed `headers()` and `cookies()` for server components ([07-routing.md](design/07-routing.md))
 - **[parity]** next-intl compatibility ([07-routing.md](design/07-routing.md))
-- **[parity]** next/font/* shims redirected to timber-fonts virtual modules ([24-fonts.md](design/24-fonts.md))
+- **[parity]** next/font/\* shims redirected to timber-fonts virtual modules ([24-fonts.md](design/24-fonts.md))
 - **[parity]** `server-only` / `client-only` poison pill packages — build-time error when imported in the wrong environment ([14-ecosystem.md](design/14-ecosystem.md))

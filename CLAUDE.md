@@ -49,16 +49,16 @@ examples/               # User-facing demo apps
 
 ### Key Architectural Decisions
 
-| Decision | Reference |
-|----------|-----------|
-| Plugin returns array of sub-plugins, not monolith | [18-build-system.md](design/18-build-system.md) |
-| Entry modules are real TypeScript files, not codegen strings | [18-build-system.md](design/18-build-system.md) |
-| No file >500 lines | [18-build-system.md](design/18-build-system.md) |
+| Decision                                                              | Reference                                                   |
+| --------------------------------------------------------------------- | ----------------------------------------------------------- |
+| Plugin returns array of sub-plugins, not monolith                     | [18-build-system.md](design/18-build-system.md)             |
+| Entry modules are real TypeScript files, not codegen strings          | [18-build-system.md](design/18-build-system.md)             |
+| No file >500 lines                                                    | [18-build-system.md](design/18-build-system.md)             |
 | Single `renderToReadableStream` call, flush held until `onShellReady` | [02-rendering-pipeline.md](design/02-rendering-pipeline.md) |
-| `middleware(ctx: MiddlewareContext)` — one-arg signature | [07-routing.md](design/07-routing.md) |
-| `GET(ctx: RouteContext)` — one-arg signature | [07-routing.md](design/07-routing.md) |
-| Single `AccessContext` for segments and slots | [04-authorization.md](design/04-authorization.md) |
-| `dangerouslyPassData` prop for RSC→client data in error/denial | [10-error-handling.md](design/10-error-handling.md) |
+| `middleware(ctx: MiddlewareContext)` — one-arg signature              | [07-routing.md](design/07-routing.md)                       |
+| `GET(ctx: RouteContext)` — one-arg signature                          | [07-routing.md](design/07-routing.md)                       |
+| Single `AccessContext` for segments and slots                         | [04-authorization.md](design/04-authorization.md)           |
+| `dangerouslyPassData` prop for RSC→client data in error/denial        | [10-error-handling.md](design/10-error-handling.md)         |
 
 ---
 
@@ -93,6 +93,7 @@ gh search code "middleware" --repo vercel/next.js --filename "*.test.*" --limit 
 ```
 
 Port relevant test cases and link back:
+
 ```ts
 // Ported from Next.js: test/e2e/app-dir/...
 ```
@@ -104,6 +105,7 @@ Port relevant test cases and link back:
 ### Prefer Node.js Built-in APIs
 
 Use Node.js built-ins before reaching for third-party packages:
+
 - `node:crypto` `randomUUID()` for UUIDs
 - `node:fs/promises` for async file operations
 - `URL` and `URLSearchParams` for URL manipulation
@@ -171,6 +173,7 @@ lb sync               # Sync with Linear
 Shell commands like `cp`, `mv`, and `rm` may be aliased to include `-i` (interactive) mode on some systems, causing the agent to hang indefinitely waiting for y/n input.
 
 **Use these forms instead:**
+
 ```bash
 # Force overwrite without prompting
 cp -f source dest           # NOT: cp source dest
@@ -183,6 +186,7 @@ cp -rf source dest          # NOT: cp -r source dest
 ```
 
 **Other commands that may prompt:**
+
 - `scp` - use `-o BatchMode=yes` for non-interactive
 - `ssh` - use `-o BatchMode=yes` to fail instead of prompting
 - `apt-get` - use `-y` flag
@@ -293,8 +297,8 @@ lb automatically syncs with Linear:
 7. **Hand off** - Provide context for next session
 
 **CRITICAL RULES:**
+
 - Work is NOT complete until `git push` succeeds
 - NEVER stop before pushing - that leaves work stranded locally
 - NEVER say "ready to push when you are" - YOU must push
 - If push fails, resolve and retry until it succeeds
-

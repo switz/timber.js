@@ -274,7 +274,9 @@ export function generateAllFontCss(registry: FontRegistry): string {
  *   import myLoader from '@timber/fonts/local'
  */
 export function parseLocalFontImportName(source: string): string | null {
-  const match = source.match(/import\s+(\w+)\s+from\s*['"](?:@timber\/fonts\/local|next\/font\/local)['"]/);
+  const match = source.match(
+    /import\s+(\w+)\s+from\s*['"](?:@timber\/fonts\/local|next\/font\/local)['"]/
+  );
   return match ? match[1] : null;
 }
 

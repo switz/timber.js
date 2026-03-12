@@ -29,7 +29,8 @@ export default function FilterBar() {
           data-testid="client-q"
           className="inline-flex items-center gap-1.5 rounded-full bg-violet-50 border border-violet-200 px-3 py-1 text-xs font-medium text-violet-700"
         >
-          <span className="text-violet-400">q</span> {q ?? <em className="text-violet-300">null</em>}
+          <span className="text-violet-400">q</span>{' '}
+          {q ?? <em className="text-violet-300">null</em>}
         </span>
         <span
           data-testid="client-sort"
@@ -89,7 +90,10 @@ export default function FilterBar() {
       </div>
 
       {/* Shallow mode demo (no server roundtrip) */}
-      <div data-testid="shallow-sort-demo" className="rounded-lg border border-dashed border-stone-300 bg-stone-50 p-4 space-y-3">
+      <div
+        data-testid="shallow-sort-demo"
+        className="rounded-lg border border-dashed border-stone-300 bg-stone-50 p-4 space-y-3"
+      >
         <div className="flex items-center gap-2">
           <span className="text-xs font-semibold uppercase tracking-wider text-stone-400">
             Shallow mode

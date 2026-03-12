@@ -15,6 +15,7 @@ Error boundaries are injected per-segment during element tree construction, wrap
 Error boundaries are **not keyed** per-route — a route-based key would force React to unmount/remount the boundary subtree on every navigation, destroying layout client component state (counters, form inputs, etc.). Instead, `componentDidUpdate` resets the error state when `children` change on client-side navigation.
 
 The wrapping order per segment (innermost to outermost):
+
 1. Specific status files (`403.tsx`, `503.tsx`) — highest priority
 2. Category catch-alls (`4xx.tsx`, `5xx.tsx`)
 3. `error.tsx` — catches anything unmatched
@@ -27,7 +28,7 @@ The general React error boundary. Co-located with route segments. Catches any un
 
 ```tsx
 // app/dashboard/error.tsx
-'use client'
+'use client';
 
 export default function DashboardError({ error, reset }) {
   return (
@@ -35,7 +36,7 @@ export default function DashboardError({ error, reset }) {
       <h2>Something went wrong</h2>
       <button onClick={reset}>Try again</button>
     </div>
-  )
+  );
 }
 ```
 
@@ -62,21 +63,25 @@ The `error` prop received by error boundaries (`error.tsx`, `5xx.tsx`, etc.) is 
 timber.js solves this with `RenderError` — a typed throw that carries a plain-data digest alongside the error, with an optional HTTP status code.
 
 ```typescript
-import { RenderError } from '@timber/app/server'
+import { RenderError } from '@timber/app/server';
 
 // In a server component:
 if (!product) {
   throw new RenderError('PRODUCT_NOT_FOUND', {
     title: 'Product not found',
     resourceId: params.id,
-  })
+  });
 }
 
 // With custom status code (default is 500):
 if (!user.canView(resource)) {
-  throw new RenderError('FORBIDDEN', {
-    title: 'Access denied',
-  }, { status: 403 })
+  throw new RenderError(
+    'FORBIDDEN',
+    {
+      title: 'Access denied',
+    },
+    { status: 403 }
+  );
 }
 ```
 
@@ -86,25 +91,25 @@ The digest is a plain JSON-serializable object. timber.js serializes it into the
 
 ```tsx
 // app/products/error.tsx
-'use client'
+'use client';
 
-import type { RenderErrorDigest } from '@timber/app/client'
+import type { RenderErrorDigest } from '@timber/app/client';
 
 export default function ProductError({
   error,
   digest,
   reset,
 }: {
-  error: Error
-  digest: RenderErrorDigest<'PRODUCT_NOT_FOUND', { title: string; resourceId: string }> | null
-  reset: () => void
+  error: Error;
+  digest: RenderErrorDigest<'PRODUCT_NOT_FOUND', { title: string; resourceId: string }> | null;
+  reset: () => void;
 }) {
   return (
     <div>
       <h2>{digest?.data.title ?? 'Something went wrong'}</h2>
       <button onClick={reset}>Try again</button>
     </div>
-  )
+  );
 }
 ```
 
@@ -131,14 +136,14 @@ Serializing arbitrary `Error` subclasses across the RSC boundary is a security f
 `deny()` is the universal denial primitive. Accepts any 4xx status code. It produces the correct HTTP status code based on context:
 
 ```typescript
-import { deny } from '@timber/app/server'
+import { deny } from '@timber/app/server';
 
-deny()      // 403 Forbidden (default)
-deny(404)   // 404 Not Found
-deny(401)   // 401 Unauthorized
-deny(403)   // 403 Forbidden (explicit)
-deny(429)   // 429 Too Many Requests
-deny(404, { resourceId: params.id })  // data passed as dangerouslyPassData prop to status-code file
+deny(); // 403 Forbidden (default)
+deny(404); // 404 Not Found
+deny(401); // 401 Unauthorized
+deny(403); // 403 Forbidden (explicit)
+deny(429); // 429 Too Many Requests
+deny(404, { resourceId: params.id }); // data passed as dangerouslyPassData prop to status-code file
 ```
 
 ### Behavior by Context
@@ -208,10 +213,16 @@ The prop is named `dangerouslyPassData` to signal that this data crosses the RSC
 
 ```tsx
 // app/404.tsx
-'use client'
+'use client';
 
-export default function NotFound({ status, dangerouslyPassData }: { status: number; dangerouslyPassData?: unknown }) {
-  return <h1>Page not found</h1>
+export default function NotFound({
+  status,
+  dangerouslyPassData,
+}: {
+  status: number;
+  dangerouslyPassData?: unknown;
+}) {
+  return <h1>Page not found</h1>;
 }
 ```
 
@@ -219,7 +230,7 @@ export default function NotFound({ status, dangerouslyPassData }: { status: numb
 
 ```tsx
 // app/error.tsx
-'use client'
+'use client';
 
 export default function ErrorBoundary({ error, reset }: { error: Error; reset: () => void }) {
   return (
@@ -227,7 +238,7 @@ export default function ErrorBoundary({ error, reset }: { error: Error; reset: (
       <h2>Something went wrong</h2>
       <button onClick={reset}>Try again</button>
     </div>
-  )
+  );
 }
 ```
 
@@ -263,7 +274,7 @@ When `deny()` fires, the framework selects the response format based on context:
 Component and JSON files form separate fallback chains. Page routes try the component chain first, then the JSON chain. Route handlers use the JSON chain exclusively.
 
 **Component chain (page routes, primary):**
-`401.tsx` → `4xx.tsx` → walk up segments → legacy compat → `error.tsx` → *then try JSON chain* → framework default HTML.
+`401.tsx` → `4xx.tsx` → walk up segments → legacy compat → `error.tsx` → _then try JSON chain_ → framework default HTML.
 
 **JSON chain (route handlers, or page route fallback):**
 `401.json` → `4xx.json` → walk up segments → framework default JSON (`{"error": true, "status": <N>}`).
@@ -278,10 +289,16 @@ Status-code files can opt out of the shell by exporting `shell = false`:
 
 ```tsx
 // app/api/401.tsx
-export const shell = false;  // render without root/segment layouts
+export const shell = false; // render without root/segment layouts
 
 export default function Unauthorized({ status }: { status: number }) {
-  return <html><body><h1>401 Unauthorized</h1></body></html>
+  return (
+    <html>
+      <body>
+        <h1>401 Unauthorized</h1>
+      </body>
+    </html>
+  );
 }
 ```
 
@@ -299,22 +316,28 @@ Slots use `denied.tsx` instead of status-code files because slot denial has no H
 
 ```tsx
 // @admin/denied.tsx
-export default function AdminDenied({ slot, dangerouslyPassData }: { slot: string; dangerouslyPassData?: unknown }) {
-  return <div className="text-muted">Admin access required</div>
+export default function AdminDenied({
+  slot,
+  dangerouslyPassData,
+}: {
+  slot: string;
+  dangerouslyPassData?: unknown;
+}) {
+  return <div className="text-muted">Admin access required</div>;
 }
 ```
 
 ### Relationship to Other Primitives
 
-| Primitive | HTTP Status | Renders | Use When |
-|---|---|---|---|
-| `redirect(path)` | 302 | Nothing (location change) | User should go somewhere else |
-| `deny()` | 403 (default) | `403.tsx` → `4xx.tsx` → `error.tsx` | Authenticated but not authorized |
-| `deny(404)` | 404 | `404.tsx` → `4xx.tsx` → `error.tsx` | Resource doesn't exist |
-| `deny(401)` | 401 | `401.tsx` → `4xx.tsx` → `error.tsx` | Not authenticated |
-| `deny(status, data)` | Any 4xx | `{status}.tsx` → `4xx.tsx` → `error.tsx` | Denial with typed context |
+| Primitive                    | HTTP Status          | Renders                                  | Use When                             |
+| ---------------------------- | -------------------- | ---------------------------------------- | ------------------------------------ |
+| `redirect(path)`             | 302                  | Nothing (location change)                | User should go somewhere else        |
+| `deny()`                     | 403 (default)        | `403.tsx` → `4xx.tsx` → `error.tsx`      | Authenticated but not authorized     |
+| `deny(404)`                  | 404                  | `404.tsx` → `4xx.tsx` → `error.tsx`      | Resource doesn't exist               |
+| `deny(401)`                  | 401                  | `401.tsx` → `4xx.tsx` → `error.tsx`      | Not authenticated                    |
+| `deny(status, data)`         | Any 4xx              | `{status}.tsx` → `4xx.tsx` → `error.tsx` | Denial with typed context            |
 | `throw new RenderError(...)` | Custom (default 500) | `{status}.tsx` → `5xx.tsx` → `error.tsx` | Application error with typed context |
-| Unhandled throw | 500 | `5xx.tsx` → `error.tsx` | Unexpected crash |
+| Unhandled throw              | 500                  | `5xx.tsx` → `error.tsx`                  | Unexpected crash                     |
 
 `deny(401)` vs `redirect('/login')`: Use `deny(401)` when the client should know the request was rejected due to missing auth (API consumers, `curl`, CDNs that cache by status code). Use `redirect('/login')` when the user should be seamlessly sent to a login page (browser-facing pages).
 

@@ -13,9 +13,11 @@ If $ARGUMENTS is set (a file path, directory, or glob pattern), refactor only th
 Scan the target files and identify:
 
 1. **Oversized files** — Count non-blank, non-comment lines:
+
    ```bash
    awk '!/^[[:space:]]*$/ && !/^[[:space:]]*\/\//' <file> | wc -l
    ```
+
    Flag any file exceeding 500 lines (blank lines and comments don't count toward the limit).
 
 2. **DRY violations** — Duplicate or near-duplicate code blocks across files (shared logic, repeated patterns, copy-pasted helpers).
@@ -49,6 +51,7 @@ pnpm run lint
 ```
 
 If any check fails:
+
 1. Revert the change (`git checkout -- .`)
 2. Try a different decomposition approach
 3. If the refactor cannot be done safely, skip it and note why in the report

@@ -227,7 +227,7 @@ describe('Router', () => {
       scrollTo: mockScrollTo,
       getCurrentUrl: () => '/dashboard',
       getScrollY: () => 0,
-          });
+    });
   });
 
   describe('navigate', () => {
@@ -468,8 +468,8 @@ describe('Router', () => {
         replaceState: mockReplaceState,
         scrollTo: mockScrollTo,
         getCurrentUrl: () => '/dashboard',
-      getScrollY: () => 0,
-                decodeRsc: mockDecodeRsc as (fetchPromise: Promise<Response>) => unknown,
+        getScrollY: () => 0,
+        decodeRsc: mockDecodeRsc as (fetchPromise: Promise<Response>) => unknown,
         renderRoot: mockRenderRoot as (element: unknown) => void,
       });
     });
@@ -605,8 +605,8 @@ describe('Router', () => {
         replaceState: mockReplaceState,
         scrollTo: mockScrollTo,
         getCurrentUrl: () => '/dashboard',
-      getScrollY: () => 0,
-                decodeRsc: mockDecodeRsc as (fetchPromise: Promise<Response>) => unknown,
+        getScrollY: () => 0,
+        decodeRsc: mockDecodeRsc as (fetchPromise: Promise<Response>) => unknown,
         renderRoot: mockRenderRoot as (element: unknown) => void,
       });
 
@@ -728,8 +728,8 @@ describe('Router', () => {
         replaceState: mockReplaceState,
         scrollTo: mockScrollTo,
         getCurrentUrl: () => '/dashboard',
-      getScrollY: () => 0,
-                applyHead: mockApplyHead as (elements: unknown[]) => void,
+        getScrollY: () => 0,
+        applyHead: mockApplyHead as (elements: unknown[]) => void,
       });
     });
 
@@ -1051,7 +1051,7 @@ describe('state tree populated on hydration', () => {
       scrollTo: vi.fn(),
       getCurrentUrl: () => '/',
       getScrollY: () => 0,
-          });
+    });
 
     router.initSegmentCache([
       { path: '/', isAsync: false },
@@ -1077,7 +1077,7 @@ describe('state tree updated after navigation', () => {
       scrollTo: vi.fn(),
       getCurrentUrl: () => '/',
       getScrollY: () => 0,
-          });
+    });
 
     const segmentInfo = [
       { path: '/', isAsync: false },
@@ -1111,7 +1111,7 @@ describe('excludes async segments from state tree', () => {
       scrollTo: vi.fn(),
       getCurrentUrl: () => '/',
       getScrollY: () => 0,
-          });
+    });
 
     const segmentInfo = [
       { path: '/', isAsync: false },
@@ -1146,7 +1146,7 @@ describe('includes X-Timber-State-Tree header for segment diff skip sync', () =>
       scrollTo: vi.fn(),
       getCurrentUrl: () => '/dashboard',
       getScrollY: () => 0,
-          });
+    });
 
     // Populate segment cache (simulating hydration)
     router.initSegmentCache([

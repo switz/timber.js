@@ -12,12 +12,12 @@ export default [
   cors({ origins: ['https://example.com'] }),
   rateLimit({ requests: 100, window: '1m' }),
   securityHeaders(),
-]
+];
 
 // Function form — full control
 export default function proxy(req: Request, next: () => Promise<Response>) {
-  if (req.method === 'OPTIONS') return new Response(null, { status: 204 })
-  return next()
+  if (req.method === 'OPTIONS') return new Response(null, { status: 204 });
+  return next();
 }
 ```
 
@@ -75,10 +75,8 @@ export default {
     { source: '/old/:slug', destination: '/new/:slug', permanent: true },
     { source: '/legacy', destination: '/modern' },
   ],
-  rewrites: [
-    { source: '/api/v1/:path*', destination: '/api/v2/:path*' },
-  ],
-}
+  rewrites: [{ source: '/api/v1/:path*', destination: '/api/v2/:path*' }],
+};
 ```
 
 **Patterns:** `:param` matches a single segment, `:param*` matches one or more segments (catch-all). Static segments are matched literally.
@@ -143,12 +141,12 @@ Intercepting routes conditionally render a different page component on **soft na
 
 Intercepting routes are defined by directory names that start with a marker indicating how many levels up to resolve the intercepted URL:
 
-| Marker | Meaning | Example |
-|--------|---------|---------|
-| `(.)` | Same level | `@modal/(.)photo/[id]/page.tsx` intercepts `/feed/photo/[id]` from `/feed` |
-| `(..)` | One level up | `@modal/(..)photo/[id]/page.tsx` intercepts `/photo/[id]` from one level up |
-| `(...)` | Root level | `@modal/(...)photo/[id]/page.tsx` intercepts `/photo/[id]` from anywhere |
-| `(..)(..)` | Two levels up | `@modal/(..)(..)photo/page.tsx` intercepts from two levels up |
+| Marker     | Meaning       | Example                                                                     |
+| ---------- | ------------- | --------------------------------------------------------------------------- |
+| `(.)`      | Same level    | `@modal/(.)photo/[id]/page.tsx` intercepts `/feed/photo/[id]` from `/feed`  |
+| `(..)`     | One level up  | `@modal/(..)photo/[id]/page.tsx` intercepts `/photo/[id]` from one level up |
+| `(...)`    | Root level    | `@modal/(...)photo/[id]/page.tsx` intercepts `/photo/[id]` from anywhere    |
+| `(..)(..)` | Two levels up | `@modal/(..)(..)photo/page.tsx` intercepts from two levels up               |
 
 ### Example: Photo Modal
 
@@ -195,7 +193,7 @@ Middleware runs **before rendering starts** (blocking). It can set response head
 ```typescript
 // app/dashboard/settings/middleware.ts
 export default async function middleware(ctx: MiddlewareContext): Promise<Response | void> {
-  ctx.headers.set('Cache-Control', 'private, max-age=0')
+  ctx.headers.set('Cache-Control', 'private, max-age=0');
   // return nothing → continue to access checks + render
 }
 ```
@@ -204,11 +202,11 @@ The middleware function receives a single context object:
 
 ```typescript
 interface MiddlewareContext {
-  req: Request                    // the original incoming request (immutable)
-  requestHeaders: Headers         // mutable — visible downstream via headers()
-  headers: Headers                // response headers — applied at flush time
-  params: Record<string, string>
-  searchParams: T                 // parsed & typed when search-params.ts exists; URLSearchParams otherwise
+  req: Request; // the original incoming request (immutable)
+  requestHeaders: Headers; // mutable — visible downstream via headers()
+  headers: Headers; // response headers — applied at flush time
+  params: Record<string, string>;
+  searchParams: T; // parsed & typed when search-params.ts exists; URLSearchParams otherwise
 }
 ```
 
@@ -221,9 +219,9 @@ When a route has a co-located `search-params.ts`, the framework parses the raw `
 `ctx.headers` provides read/write access to **response** headers for the current request. It is a standard web `Headers` object:
 
 ```typescript
-ctx.headers.get('Cache-Control')                          // read a header
-ctx.headers.set('Cache-Control', 'private, max-age=0')    // set key/value
-ctx.headers.set('Vary', 'Accept')                         // set another
+ctx.headers.get('Cache-Control'); // read a header
+ctx.headers.set('Cache-Control', 'private, max-age=0'); // set key/value
+ctx.headers.set('Vary', 'Accept'); // set another
 ```
 
 The framework reads `ctx.headers` at flush time and applies them to the final response. Headers set by `proxy.ts` are also included.
@@ -236,11 +234,11 @@ The framework reads `ctx.headers` at flush time and applies them to the final re
 // app/[locale]/dashboard/middleware.ts
 export default async function middleware(ctx: MiddlewareContext) {
   // Derive locale from route param and inject for components to read
-  ctx.requestHeaders.set('X-Locale', ctx.params.locale)
+  ctx.requestHeaders.set('X-Locale', ctx.params.locale);
 
   // Inject a feature flag resolved from a remote config service
-  const flags = await getFeatureFlags(ctx.req)
-  ctx.requestHeaders.set('X-Feature-Flags', JSON.stringify(flags))
+  const flags = await getFeatureFlags(ctx.req);
+  ctx.requestHeaders.set('X-Feature-Flags', JSON.stringify(flags));
 }
 ```
 
@@ -257,6 +255,7 @@ export default async function DashboardPage() {
 **Visibility:** Request headers injected by `middleware.ts` are visible to everything downstream in the pipeline — `access.ts`, all server components, server actions, and `route.ts` handlers. They are NOT visible to `proxy.ts`, which already ran before route matching. The original incoming request headers are never mutated — the framework maintains an overlay that is merged with the originals when `headers()` is called.
 
 **`ctx.headers` vs `ctx.requestHeaders`:** These are two distinct APIs with different directions:
+
 - `ctx.headers` — **response** headers (what you send back to the client)
 - `ctx.requestHeaders` — **request** headers (what downstream server code reads via `headers()`)
 
@@ -266,24 +265,24 @@ Middleware can perform lightweight auth checks — validating a token from a req
 
 ```typescript
 // app/api/internal/middleware.ts
-import { cookies } from '@timber/app/server'
+import { cookies } from '@timber/app/server';
 
 export default async function middleware(ctx: MiddlewareContext): Promise<Response | void> {
-  const token = ctx.req.headers.get('Authorization')?.replace('Bearer ', '')
+  const token = ctx.req.headers.get('Authorization')?.replace('Bearer ', '');
   if (!token || !(await validateToken(token))) {
-    return new Response(null, { status: 401 })
+    return new Response(null, { status: 401 });
   }
 }
 ```
 
 **When to use `middleware.ts` vs `access.ts` for auth:**
 
-| | `middleware.ts` | `access.ts` |
-|---|---|---|
-| Runs | Before React tree | Inside React tree (via `AccessGate`) |
-| `React.cache` | Not active | Active — shares scope with layouts/page |
-| Best for | Lightweight token checks, API route auth, rejecting requests early | Segment auth that shares data with layouts and pages |
-| Denial | Return `new Response(null, { status: 401 })` | Call `deny()` or `redirect()` |
+|               | `middleware.ts`                                                    | `access.ts`                                          |
+| ------------- | ------------------------------------------------------------------ | ---------------------------------------------------- |
+| Runs          | Before React tree                                                  | Inside React tree (via `AccessGate`)                 |
+| `React.cache` | Not active                                                         | Active — shares scope with layouts/page              |
+| Best for      | Lightweight token checks, API route auth, rejecting requests early | Segment auth that shares data with layouts and pages |
+| Denial        | Return `new Response(null, { status: 401 })`                       | Call `deny()` or `redirect()`                        |
 
 For page routes where auth needs to share data with the layout (e.g., `requireUser()` called in both `access.ts` and the layout), `access.ts` is the right place — `React.cache` deduplicates. For API routes or lightweight token validation that doesn't need `React.cache`, `middleware.ts` is sufficient.
 
@@ -294,6 +293,7 @@ If middleware returns a Response (redirect, error), rendering never starts. The 
 ### What Middleware Is and Is Not
 
 **Middleware is for:**
+
 - Request-level redirects — canonical URLs, feature flags, A/B routing
 - Setting response headers — `Cache-Control`, `Vary`, custom headers
 - Injecting request headers — locale, feature flags, tenant context for downstream components
@@ -301,6 +301,7 @@ If middleware returns a Response (redirect, error), rendering never starts. The 
 - Lightweight auth — token validation, early rejection before rendering
 
 **Middleware is not for:**
+
 - Segment auth that shares data with layouts — use `access.ts` (see [Authorization](04-authorization.md))
 - Loading data for components to consume
 - Shared infrastructure across routes — that belongs in `proxy.ts`
@@ -319,12 +320,12 @@ React renders a single tree top-down: a parent async server component must resol
 ```typescript
 // app/dashboard/projects/[projectId]/middleware.ts
 export default async function middleware(ctx: MiddlewareContext): Promise<Response | void> {
-  ctx.headers.set('Cache-Control', 'private, no-cache')
+  ctx.headers.set('Cache-Control', 'private, no-cache');
 
   // Optional: prefetch to eliminate data waterfall
-  void requireUser()
-  void getOrg()
-  void getProject(ctx.params.projectId)
+  void requireUser();
+  void getOrg();
+  void getProject(ctx.params.projectId);
 }
 ```
 
@@ -366,7 +367,9 @@ Without JavaScript, `<Link>` renders as a standard `<a>` tag. Clicking it trigge
 Opt-in, hover only. No automatic viewport intersection prefetching. Each prefetch triggers a full server render — the framework does not hide this cost by making it automatic.
 
 ```tsx
-<Link href="/dashboard" prefetch>Dashboard</Link>
+<Link href="/dashboard" prefetch>
+  Dashboard
+</Link>
 ```
 
 ### Typed `params` and `searchParams` on `<Link>`
@@ -399,6 +402,7 @@ Opt-in, hover only. No automatic viewport intersection prefetching. Each prefetc
 All typing is derived from the generated route map at build/dev time — no runtime validation overhead.
 
 **`params` prop:**
+
 - `href` accepts route patterns with `[param]` segments — e.g., `/products/[id]`, `/blog/[...slug]`
 - `params` is typed per-route from the route map. For `/products/[id]`, params is `{ id: string | number }`
 - Values are automatically stringified — passing `{ id: 123 }` produces `/products/123`
@@ -406,6 +410,7 @@ All typing is derived from the generated route map at build/dev time — no runt
 - `params` prop and a fully-resolved string `href` (no `[param]` segments) are mutually exclusive
 
 **`searchParams` prop:**
+
 - The framework serializes the values using the route's `search-params.ts` definition (respecting `urlKeys` and default-omission)
 - TypeScript validates the object against the route's searchParams type
 - Default values are omitted from the rendered URL
@@ -417,8 +422,12 @@ The `useNavigationPending()` hook returns `true` while a client-side navigation 
 
 ```tsx
 function NavLink({ href, children }) {
-  const pending = useNavigationPending()
-  return <a href={href} aria-busy={pending}>{children}</a>
+  const pending = useNavigationPending();
+  return (
+    <a href={href} aria-busy={pending}>
+      {children}
+    </a>
+  );
 }
 ```
 
@@ -479,10 +488,10 @@ The client maintains a lightweight representation of its mounted segment hierarc
 ```typescript
 // Conceptual shape — not necessarily the wire format
 type RouterStateNode = [
-  segmentPath: string,          // e.g., "/dashboard"
-  children: RouterStateNode[],  // child segments + page
-  parallelSlots?: Record<string, RouterStateNode>
-]
+  segmentPath: string, // e.g., "/dashboard"
+  children: RouterStateNode[], // child segments + page
+  parallelSlots?: Record<string, RouterStateNode>,
+];
 ```
 
 On client-side navigation, the client serializes this tree and sends it as a header:
@@ -497,15 +506,15 @@ The server knows at build time which layouts are async. Combined with the client
 
 For each segment in the target route's chain, the server decides: render or skip?
 
-| Segment type | In client tree? | Async? | Decision |
-|---|---|---|---|
-| Layout (sync) | Yes (same path, still mounted) | No | **SKIP** — client has it |
-| Layout (async) | Yes (same path, still mounted) | Yes | **RENDER** — async layouts always re-render |
-| Layout | No (new layout entering tree) | — | **RENDER** |
-| Page | Any | — | **ALWAYS RENDER** |
-| Parallel slot layout (sync) | Yes (same slot, same path) | No | **SKIP** |
-| Parallel slot layout (async) | Yes (same slot, same path) | Yes | **RENDER** |
-| Parallel slot layout | No | — | **RENDER** |
+| Segment type                 | In client tree?                | Async? | Decision                                    |
+| ---------------------------- | ------------------------------ | ------ | ------------------------------------------- |
+| Layout (sync)                | Yes (same path, still mounted) | No     | **SKIP** — client has it                    |
+| Layout (async)               | Yes (same path, still mounted) | Yes    | **RENDER** — async layouts always re-render |
+| Layout                       | No (new layout entering tree)  | —      | **RENDER**                                  |
+| Page                         | Any                            | —      | **ALWAYS RENDER**                           |
+| Parallel slot layout (sync)  | Yes (same slot, same path)     | No     | **SKIP**                                    |
+| Parallel slot layout (async) | Yes (same slot, same path)     | Yes    | **RENDER**                                  |
+| Parallel slot layout         | No                             | —      | **RENDER**                                  |
 
 The rule is simple: **async layouts always re-render, sync layouts are skipped when mounted.** This means any layout that fetches data, reads cookies, or accesses params will always produce fresh output on every navigation. Sync layouts that are purely presentational (accepting `children` and rendering static chrome) are safely cached.
 
@@ -553,8 +562,8 @@ Client: Root layout stays mounted, children slot updated.
 When the developer knows layout data has changed and wants a fresh render:
 
 ```tsx
-const router = useRouter()
-router.refresh() // re-fetches full tree, no state tree header sent
+const router = useRouter();
+router.refresh(); // re-fetches full tree, no state tree header sent
 ```
 
 Use cases: after a server action that changes data displayed in a layout (user updated their name, role changed), or when `revalidatePath()` isn't appropriate.
@@ -588,8 +597,8 @@ Route discovery recognizes files by extension. The default set is `tsx`, `ts`, `
 ```typescript
 // timber.config.ts
 export default {
-  pageExtensions: ['tsx', 'ts', 'jsx', 'js', 'mdx', 'md']
-}
+  pageExtensions: ['tsx', 'ts', 'jsx', 'js', 'mdx', 'md'],
+};
 ```
 
 When `mdx` or `md` is included, those files are valid route segments — a `page.mdx` is a page, a `layout.mdx` is a layout. MDX files are server components by default (RSC). This means you can write content-heavy routes as MDX and they render on the server with zero client JS:
@@ -616,17 +625,17 @@ API endpoints are defined by `route.ts` files co-located with route segments. Th
 
 ```typescript
 // app/api/users/route.ts
-import type { RouteContext } from '@timber/app/server'
+import type { RouteContext } from '@timber/app/server';
 
 export async function GET(ctx: RouteContext) {
-  const users = await db.users.findAll()
-  return Response.json(users)
+  const users = await db.users.findAll();
+  return Response.json(users);
 }
 
 export async function POST(ctx: RouteContext) {
-  const body = await ctx.req.json()
-  const user = await db.users.create(body)
-  return Response.json(user, { status: 201 })
+  const body = await ctx.req.json();
+  const user = await db.users.create(body);
+  return Response.json(user, { status: 201 });
 }
 ```
 
@@ -667,10 +676,10 @@ Request arrives
 
 ```typescript
 interface RouteContext {
-  req: Request                     // the original incoming request
-  params: Record<string, string>
-  searchParams: URLSearchParams    // raw; auto-parsed when search-params.ts exists
-  headers: Headers                 // response headers — applied to the final response
+  req: Request; // the original incoming request
+  params: Record<string, string>;
+  searchParams: URLSearchParams; // raw; auto-parsed when search-params.ts exists
+  headers: Headers; // response headers — applied to the final response
 }
 ```
 
@@ -683,14 +692,14 @@ export async function GET(ctx: RouteContext) {
   const stream = new ReadableStream({
     start(controller) {
       const interval = setInterval(() => {
-        controller.enqueue(`data: ${JSON.stringify({ time: Date.now() })}\n\n`)
-      }, 1000)
-      ctx.req.signal.addEventListener('abort', () => clearInterval(interval))
+        controller.enqueue(`data: ${JSON.stringify({ time: Date.now() })}\n\n`);
+      }, 1000);
+      ctx.req.signal.addEventListener('abort', () => clearInterval(interval));
     },
-  })
+  });
   return new Response(stream, {
     headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' },
-  })
+  });
 }
 ```
 
@@ -745,15 +754,15 @@ Locale detection belongs in `proxy.ts` or `middleware.ts`:
 ```typescript
 // app/proxy.ts
 export default async function proxy(req: Request, next: () => Promise<Response>) {
-  const url = new URL(req.url)
-  const pathLocale = url.pathname.split('/')[1]
+  const url = new URL(req.url);
+  const pathLocale = url.pathname.split('/')[1];
 
   if (!['en', 'fr', 'de'].includes(pathLocale)) {
-    const preferred = negotiateLocale(req.headers.get('Accept-Language'))
-    return Response.redirect(new URL(`/${preferred}${url.pathname}`, url), 302)
+    const preferred = negotiateLocale(req.headers.get('Accept-Language'));
+    return Response.redirect(new URL(`/${preferred}${url.pathname}`, url), 302);
   }
 
-  return next()
+  return next();
 }
 ```
 

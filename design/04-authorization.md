@@ -6,15 +6,15 @@ Authentication and authorization live in `access.ts` files co-located with route
 
 ```typescript
 // app/(authenticated)/access.ts
-import type { AccessContext } from '@timber/app/server'
-import { cookies, redirect } from '@timber/app/server'
+import type { AccessContext } from '@timber/app/server';
+import { cookies, redirect } from '@timber/app/server';
 
 export default async function access(ctx: AccessContext) {
-  const session = getSessionFromCookie(cookies())
-  if (!session) redirect('/login')
+  const session = getSessionFromCookie(cookies());
+  if (!session) redirect('/login');
   // Fetch user and orgs — this warms the cache for the layout below
-  await getUser(session.userId)
-  await db.organizations.findByUser(session.userId)
+  await getUser(session.userId);
+  await db.organizations.findByUser(session.userId);
 }
 ```
 
@@ -45,10 +45,10 @@ Deeper segments can have their own `access.ts` for additional checks:
 ```typescript
 // app/(authenticated)/dashboard/workspace/projects/[projectId]/access.ts
 export default async function access(ctx: AccessContext) {
-  await requireUser()  // cache HIT — parent segment's AccessGate already resolved this
-  const project = await getProject(ctx.params.projectId)
-  if (!project) deny(404)
-  if (project.orgId !== (await requireUser()).orgId) deny()  // default 403
+  await requireUser(); // cache HIT — parent segment's AccessGate already resolved this
+  const project = await getProject(ctx.params.projectId);
+  if (!project) deny(404);
+  if (project.orgId !== (await requireUser()).orgId) deny(); // default 403
 }
 ```
 
@@ -66,19 +66,19 @@ There is a single `AccessContext` type used for both segment access and slot acc
 
 ```typescript
 interface AccessContext {
-  params: Record<string, string>
-  searchParams: T   // parsed & typed when search-params.ts exists; URLSearchParams otherwise
+  params: Record<string, string>;
+  searchParams: T; // parsed & typed when search-params.ts exists; URLSearchParams otherwise
 }
 ```
 
 `AccessContext` does **not** include `cookies` or `headers`. Those are imported directly from `@timber/app/server` — they are ALS-backed and work the same way in `access.ts` as everywhere else in server code:
 
 ```typescript
-import { cookies, headers } from '@timber/app/server'
+import { cookies, headers } from '@timber/app/server';
 
 export default async function access(ctx: AccessContext) {
-  const session = getSessionFromCookie(cookies())  // imported, not ctx.cookies
-  if (!session) redirect('/login')
+  const session = getSessionFromCookie(cookies()); // imported, not ctx.cookies
+  if (!session) redirect('/login');
 }
 ```
 
@@ -95,14 +95,14 @@ There is no `parentAccess` or cascading. Each `access.ts` is fully self-containe
 ```typescript
 // (authenticated)/access.ts
 export default async function access(ctx: AccessContext) {
-  await requireUser()  // first call — executes (or timber.cache HIT)
+  await requireUser(); // first call — executes (or timber.cache HIT)
 }
 
 // dashboard/workspace/access.ts
 export default async function access(ctx: AccessContext) {
-  const user = await requireUser()  // cache HIT → no DB
-  const workspace = await getWorkspace(ctx.params.workspaceId)
-  if (!workspace.members.includes(user.id)) deny()
+  const user = await requireUser(); // cache HIT → no DB
+  const workspace = await getWorkspace(ctx.params.workspaceId);
+  if (!workspace.members.includes(user.id)) deny();
 }
 ```
 
@@ -116,21 +116,21 @@ Auth functions live in `lib/auth.ts` and are called from `access.ts`:
 // lib/auth.ts
 export const getUser = timber.cache(
   async (userId: string) => {
-    return await db.users.findUnique({ where: { id: userId } })
+    return await db.users.findUnique({ where: { id: userId } });
   },
   { ttl: 60, tags: (userId) => [`user:${userId}`] }
-)
+);
 
 export async function requireUser() {
-  const session = getSessionFromCookie(cookies())
-  if (!session) redirect('/login')
-  return await getUser(session.userId)
+  const session = getSessionFromCookie(cookies());
+  if (!session) redirect('/login');
+  return await getUser(session.userId);
 }
 
 export async function requireAdmin() {
-  const user = await requireUser()
-  if (user.role !== 'admin') deny()  // default 403
-  return user
+  const user = await requireUser();
+  if (user.role !== 'admin') deny(); // default 403
+  return user;
 }
 ```
 
@@ -207,10 +207,10 @@ For auth functions that need to work seamlessly across page routes, API routes, 
 
 ```typescript
 // lib/auth.ts — works in all contexts
-export const getUser = timber.cache(
-  async (userId: string) => db.users.find(userId),
-  { ttl: 60, tags: (id) => [`user:${id}`] }
-)
+export const getUser = timber.cache(async (userId: string) => db.users.find(userId), {
+  ttl: 60,
+  tags: (id) => [`user:${id}`],
+});
 
 // This works in page routes (React.cache available), API routes (no React.cache),
 // and middleware.ts (no React.cache) — timber.cache handles dedup in all cases.

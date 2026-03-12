@@ -9,6 +9,7 @@ Research document for intelligent per-route chunking and user/library code split
 Currently Vite/Rollup produces a small number of chunks with no explicit `manualChunks` configuration:
 
 **Benchmark fixture** (3 routes):
+
 ```
 index-*.js              256 KB (81 KB gzip)   ← react + react-dom + timber runtime + scheduler
 page-*.js                 0.35 KB             ← single client component (Counter)
@@ -16,6 +17,7 @@ rsc-client-entry-*.js     1.63 KB             ← RSC client reference facades
 ```
 
 **Kitchen-sink** (12+ routes):
+
 ```
 index-*.js              258 KB (82 KB gzip)   ← react + react-dom + timber + scheduler
 page-*.js                74 KB (20 KB gzip)   ← search-params page (large client component)
@@ -26,6 +28,7 @@ rsc-client-entry-*.js     1.5 KB              ← RSC facades
 ```
 
 **Composition of the main client chunk** (from benchmark analysis):
+
 - React + React-DOM + scheduler: 671 KB (raw) — 87% of chunk
 - timber runtime: 89 KB (raw) — 12%
 - Other: 5 KB — 1%
@@ -56,12 +59,12 @@ rsc-client-entry-*.js     1.5 KB              ← RSC facades
 
 Next.js uses webpack's `splitChunks` with multiple cache groups:
 
-| Cache Group | Contents | Update Frequency |
-|-------------|----------|-----------------|
-| `framework` | react, react-dom, scheduler, next internals | Monthly |
-| `lib-[name]` | Any npm package >160 KB | Varies by package |
-| `commons` | Code shared by >50% of pages | Per deploy |
-| Per-page | Code unique to a single page | Per deploy |
+| Cache Group  | Contents                                    | Update Frequency  |
+| ------------ | ------------------------------------------- | ----------------- |
+| `framework`  | react, react-dom, scheduler, next internals | Monthly           |
+| `lib-[name]` | Any npm package >160 KB                     | Varies by package |
+| `commons`    | Code shared by >50% of pages                | Per deploy        |
+| Per-page     | Code unique to a single page                | Per deploy        |
 
 Key insight: **cache tiers based on update frequency**. Users who deploy daily don't want to invalidate a 80 KB gzipped react chunk on every deploy.
 
@@ -120,12 +123,12 @@ config(config) {
 
 **Measured impact (benchmark fixture):**
 
-| Chunk | Before | After | Change |
-|-------|--------|-------|--------|
-| `vendor-react-*.js` | — | 217 KB (68 KB gzip) | Extracted from monolith |
-| `index-*.js` (timber) | — | 40 KB (14 KB gzip) | Extracted from monolith |
-| `index-*.js` (monolith) | 256 KB (81 KB gzip) | — | Split into above |
-| Route chunks | 0.35 KB | 0.36 KB | No change |
+| Chunk                   | Before              | After               | Change                  |
+| ----------------------- | ------------------- | ------------------- | ----------------------- |
+| `vendor-react-*.js`     | —                   | 217 KB (68 KB gzip) | Extracted from monolith |
+| `index-*.js` (timber)   | —                   | 40 KB (14 KB gzip)  | Extracted from monolith |
+| `index-*.js` (monolith) | 256 KB (81 KB gzip) | —                   | Split into above        |
+| Route chunks            | 0.35 KB             | 0.36 KB             | No change               |
 
 **Cache benefit:** The `vendor-react` chunk hash is stable across deploys that don't change React versions. Users who deploy daily save ~68 KB gzip on repeat visits.
 
@@ -134,12 +137,14 @@ config(config) {
 ### Server Environments: No Custom Chunking (Yet)
 
 **RSC and SSR run on Cloudflare Workers**, where:
+
 - There are no network requests between chunks — everything is loaded from the single worker bundle
 - Dynamic `import()` works but adds no benefit since all code ships in one deployment
 - The 10 MB compressed bundle limit (paid) is not close to being hit
 - Cold start time is dominated by V8 parsing, not chunk count
 
 **Recommendation: Leave server chunking to Vite defaults.** The per-route splitting already happening is sufficient. Optimizing server chunk count would add complexity with no measurable benefit. Revisit if:
+
 - Worker bundles approach the 10 MB limit
 - Cold start measurements show parsing overhead from large single chunks
 
@@ -167,12 +172,12 @@ For apps importing large client-side libraries (e.g., chart.js, Monaco editor, t
 
 ### Cloudflare Workers Constraints
 
-| Constraint | Impact |
-|-----------|--------|
-| 10 MB compressed bundle limit (paid) | Not close to hitting — no action needed |
-| 1 MB free tier limit | Could matter for small apps — monitor |
-| No persistent disk cache | Server chunking provides no cache benefit |
-| Cold start time | Dominated by V8 compile, not chunk organization |
+| Constraint                           | Impact                                          |
+| ------------------------------------ | ----------------------------------------------- |
+| 10 MB compressed bundle limit (paid) | Not close to hitting — no action needed         |
+| 1 MB free tier limit                 | Could matter for small apps — monitor           |
+| No persistent disk cache             | Server chunking provides no cache benefit       |
+| Cold start time                      | Dominated by V8 compile, not chunk organization |
 
 ---
 

@@ -325,8 +325,7 @@ function scanChildren(dirPath: string, parentNode: SegmentNode, extSet: Set<stri
       continue;
     }
 
-    const { type, paramName, interceptionMarker, interceptedSegmentName } =
-      classifySegment(entry);
+    const { type, paramName, interceptionMarker, interceptedSegmentName } = classifySegment(entry);
     const urlPath = computeUrlPath(parentNode.urlPath, entry, type);
     const childNode = createSegmentNode(
       entry,

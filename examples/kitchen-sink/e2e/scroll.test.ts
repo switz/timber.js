@@ -23,11 +23,9 @@ import { test, expect, type Page } from '@playwright/test';
  */
 async function scrollToAndWait(page: Page, y: number) {
   await page.evaluate((scrollY) => window.scrollTo(0, scrollY), y);
-  await page.waitForFunction(
-    (target) => Math.abs(window.scrollY - target) < 10,
-    y,
-    { timeout: 5_000 }
-  );
+  await page.waitForFunction((target) => Math.abs(window.scrollY - target) < 10, y, {
+    timeout: 5_000,
+  });
 }
 
 /**
@@ -37,10 +35,11 @@ async function scrollToAndWait(page: Page, y: number) {
  * Returns a promise that resolves when the event fires.
  */
 function setupScrollRestoredListener(page: Page): Promise<void> {
-  return page.evaluate(() =>
-    new Promise<void>((resolve) => {
-      window.addEventListener('timber:scroll-restored', () => resolve(), { once: true });
-    })
+  return page.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        window.addEventListener('timber:scroll-restored', () => resolve(), { once: true });
+      })
   );
 }
 
@@ -73,12 +72,15 @@ async function clickLinkAndWait(page: Page, linkTestId: string, targetTestId: st
   // Set up the scroll-restored listener before clicking to avoid races.
   // The click and listener setup happen in one evaluate call so the
   // listener is registered synchronously before the async navigation starts.
-  await page.evaluate((id) =>
-    new Promise<void>((resolve) => {
-      window.addEventListener('timber:scroll-restored', () => resolve(), { once: true });
-      const el = document.querySelector(`[data-testid="${id}"]`) as HTMLElement;
-      el.click();
-    }), linkTestId);
+  await page.evaluate(
+    (id) =>
+      new Promise<void>((resolve) => {
+        window.addEventListener('timber:scroll-restored', () => resolve(), { once: true });
+        const el = document.querySelector(`[data-testid="${id}"]`) as HTMLElement;
+        el.click();
+      }),
+    linkTestId
+  );
   await waitForNav(page, targetTestId);
 }
 

@@ -17,9 +17,11 @@ gh api repos/{owner}/{repo}/pulls/$ARGUMENTS/comments
 ## Step 3: Make fixes
 
 Work in the PR branch. After fixing:
+
 ```bash
 pnpm test tests/<relevant>.test.ts && pnpm run typecheck && pnpm run lint
 ```
+
 Commit and push.
 
 ## Step 4: Reply to comments

@@ -15,9 +15,6 @@ export async function redirectToTodos(): Promise<never> {
  * Uses the useActionState contract (prevState, formData) so it can
  * be wired to a <form> for both with-JS and no-JS testing.
  */
-export async function redirectFromForm(
-  _prevState: null,
-  _formData: FormData
-): Promise<never> {
+export async function redirectFromForm(_prevState: null, _formData: FormData): Promise<never> {
   redirect('/action-redirect-test/target');
 }

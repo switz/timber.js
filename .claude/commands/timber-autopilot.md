@@ -13,6 +13,7 @@ If an issue is already claimed, there is work being done on it in parallel. Pick
 Before touching any code, read the relevant design documents. The task will tell you what area it touches — read that design doc in full before writing a single line of code. Ask questions we need to solve before implementation.
 
 All design documents are in `design/`. Key references:
+
 - `01-philosophy.md` — timber's core HTTP correctness guarantee, no pages router, no ISR
 - `02-rendering-pipeline.md` — flush point, AccessGate, rendering lifecycle
 - `06-caching.md` — `timber.cache()`, no ISR, no implicit fetch patching
@@ -34,6 +35,7 @@ All design documents are in `design/`. Key references:
 ## Phase 3: Self-review
 
 Before requesting external review:
+
 1. Re-read the diff against the design docs
 2. Check security against `design/13-security.md`
 3. Run lint and typecheck and fix issues

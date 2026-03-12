@@ -8,17 +8,17 @@ timber.js ships two first-party adapters. All deployment targets are covered by 
 
 **`nitro({ preset })`** — Everything else. Nitro handles the platform-specific wiring (compression, graceful shutdown, static file serving, serverless function shape) so timber.js doesn't have to. Supported presets:
 
-| Preset | Platform | `waitUntil()` | Notes |
-|--------|----------|---------------|-------|
-| `node-server` | Any Node.js host, Docker, VPS | Yes | Default. Graceful SIGTERM shutdown. |
-| `bun` | Bun.serve() | Yes | Native Request/Response. |
-| `vercel` | Vercel Serverless Functions | Yes | `maxDuration`, `regions` config passthrough. |
-| `vercel-edge` | Vercel Edge Functions | Yes | V8 isolate, similar constraints to Workers. |
-| `netlify` | Netlify Functions | No | Lambda-based. |
-| `netlify-edge` | Netlify Edge Functions | Yes | Deno-based, supports `waitUntil()`. |
-| `aws-lambda` | AWS Lambda (direct or via API Gateway) | No | Best-effort `waitUntil()`. |
-| `deno-deploy` | Deno Deploy | Yes | Web standard APIs. |
-| `azure-functions` | Azure Functions | No | Best-effort `waitUntil()`. |
+| Preset            | Platform                               | `waitUntil()` | Notes                                        |
+| ----------------- | -------------------------------------- | ------------- | -------------------------------------------- |
+| `node-server`     | Any Node.js host, Docker, VPS          | Yes           | Default. Graceful SIGTERM shutdown.          |
+| `bun`             | Bun.serve()                            | Yes           | Native Request/Response.                     |
+| `vercel`          | Vercel Serverless Functions            | Yes           | `maxDuration`, `regions` config passthrough. |
+| `vercel-edge`     | Vercel Edge Functions                  | Yes           | V8 isolate, similar constraints to Workers.  |
+| `netlify`         | Netlify Functions                      | No            | Lambda-based.                                |
+| `netlify-edge`    | Netlify Edge Functions                 | Yes           | Deno-based, supports `waitUntil()`.          |
+| `aws-lambda`      | AWS Lambda (direct or via API Gateway) | No            | Best-effort `waitUntil()`.                   |
+| `deno-deploy`     | Deno Deploy                            | Yes           | Web standard APIs.                           |
+| `azure-functions` | Azure Functions                        | No            | Best-effort `waitUntil()`.                   |
 
 ### Why Not Nitro for Cloudflare?
 
@@ -43,9 +43,9 @@ Any package that exports a `TimberPlatformAdapter` is a valid adapter. The inter
 
 ```typescript
 interface TimberPlatformAdapter {
-  name: string
-  buildOutput(config: TimberConfig, buildDir: string): Promise<void>
-  preview?(config: TimberConfig, buildDir: string): Promise<void>
+  name: string;
+  buildOutput(config: TimberConfig, buildDir: string): Promise<void>;
+  preview?(config: TimberConfig, buildDir: string): Promise<void>;
 }
 ```
 
@@ -112,11 +112,11 @@ Cross-request caching of data and rendered RSC payloads. Controlled entirely by 
 
 **Cache handler selection by deployment target:**
 
-| Deployment | Recommended Handler | Why |
-|-----------|-------------------|-----|
-| Single server (VPS, Docker) | `MemoryCacheHandler` | In-process LRU. No external dependency. Fast. |
-| Multi-instance (k8s, ECS) | `RedisCacheHandler` | Shared store. Tag-based invalidation propagates across instances. |
-| Cloudflare Workers | `KVCacheHandler` | Workers KV. Eventually consistent (seconds). Global edge distribution. |
+| Deployment                  | Recommended Handler                          | Why                                                                                                            |
+| --------------------------- | -------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Single server (VPS, Docker) | `MemoryCacheHandler`                         | In-process LRU. No external dependency. Fast.                                                                  |
+| Multi-instance (k8s, ECS)   | `RedisCacheHandler`                          | Shared store. Tag-based invalidation propagates across instances.                                              |
+| Cloudflare Workers          | `KVCacheHandler`                             | Workers KV. Eventually consistent (seconds). Global edge distribution.                                         |
 | Serverless (Vercel, Lambda) | `RedisCacheHandler` or `UpstashCacheHandler` | Serverless functions are ephemeral — in-process cache evaporates between invocations. Must use external store. |
 
 **Key constraint: serverless cache is ephemeral.** A `MemoryCacheHandler` on a serverless function only lives for the duration of the function invocation (or a warm instance). For serverless deployments, always use an external cache handler. The framework does not warn about this automatically — it's a deployment topology decision.
@@ -132,17 +132,17 @@ HTTP-level caching at the CDN or reverse proxy. The developer sets `Cache-Contro
 export default async function proxy(ctx: MiddlewareContext) {
   // Public marketing pages — cache at CDN for 5 minutes
   if (ctx.pathname.startsWith('/marketing/')) {
-    ctx.headers.set('Cache-Control', 'public, max-age=300, stale-while-revalidate=60')
+    ctx.headers.set('Cache-Control', 'public, max-age=300, stale-while-revalidate=60');
   }
 
   // API routes — never cache at CDN
   if (ctx.pathname.startsWith('/api/')) {
-    ctx.headers.set('Cache-Control', 'private, no-store')
+    ctx.headers.set('Cache-Control', 'private, no-store');
   }
 
   // Authenticated pages — CDN must not cache
   if (ctx.pathname.startsWith('/dashboard/')) {
-    ctx.headers.set('Cache-Control', 'private, no-cache')
+    ctx.headers.set('Cache-Control', 'private, no-cache');
   }
 }
 ```
@@ -154,6 +154,7 @@ export default async function proxy(ctx: MiddlewareContext) {
 - **Self-hosted (behind Nginx/Varnish/Fastly)** — standard HTTP caching. The developer configures the reverse proxy. timber.js' only responsibility is setting correct headers.
 
 **Security interaction.** CDN caching of authenticated responses is the #1 production caching bug. timber.js mitigates this:
+
 - `access.ts` runs on every request, before headers are set
 - The framework does not set `Cache-Control` automatically — the developer must opt in
 - Dev-mode warnings fire if a `"use cache"` component reads request-specific context
@@ -178,13 +179,13 @@ Early Hints are the right tool for perceived performance in timber.js's model. B
 
 **Platform support:**
 
-| Platform | 103 Early Hints |
-|----------|----------------|
-| Cloudflare | Yes — native support via `cf-early-hints` or `Link` header |
-| Vercel | Yes — via `103` response |
-| Node.js (direct) | Requires HTTP/2. `res.writeEarlyHints()` in Node 18.11+. |
-| Behind Nginx | Nginx 1.25.3+ with `proxy_early_hints on` |
-| Behind Fastly/Cloudfront | Varies. Check platform docs. |
+| Platform                 | 103 Early Hints                                            |
+| ------------------------ | ---------------------------------------------------------- |
+| Cloudflare               | Yes — native support via `cf-early-hints` or `Link` header |
+| Vercel                   | Yes — via `103` response                                   |
+| Node.js (direct)         | Requires HTTP/2. `res.writeEarlyHints()` in Node 18.11+.   |
+| Behind Nginx             | Nginx 1.25.3+ with `proxy_early_hints on`                  |
+| Behind Fastly/Cloudfront | Varies. Check platform docs.                               |
 
 The adapter is responsible for emitting Early Hints in the platform-appropriate format. The framework provides the `Link` header values from the build manifest.
 
@@ -223,12 +224,12 @@ The recommended deployment for applications where you control your infrastructur
 
 ```typescript
 // timber.config.ts
-import { nitro } from '@timber/app/adapters/nitro'
+import { nitro } from '@timber/app/adapters/nitro';
 
 export default {
   output: 'server',
   adapter: nitro({ preset: 'node-server' }),
-}
+};
 ```
 
 **Why dedicated servers are timber.js's sweet spot:**
@@ -335,7 +336,7 @@ services:
   app:
     build: .
     ports:
-      - "3000:3000"
+      - '3000:3000'
     environment:
       - NODE_ENV=production
       - PORT=3000
@@ -355,12 +356,12 @@ services:
 
 ```typescript
 // timber.config.ts
-import { cloudflare } from '@timber/app/adapters/cloudflare'
+import { cloudflare } from '@timber/app/adapters/cloudflare';
 
 export default {
   output: 'server',
   adapter: cloudflare(),
-}
+};
 ```
 
 Deploy with `wrangler deploy`. The adapter generates `wrangler.jsonc` with sensible defaults:
@@ -380,11 +381,11 @@ Deploy with `wrangler deploy`. The adapter generates `wrangler.jsonc` with sensi
 
 ```typescript
 // In a server component or middleware
-import { getCloudflareBindings } from '@timber/app/adapters/cloudflare'
+import { getCloudflareBindings } from '@timber/app/adapters/cloudflare';
 
 export default async function Page() {
-  const { MY_KV, MY_DB } = getCloudflareBindings()
-  const data = await MY_KV.get('key')
+  const { MY_KV, MY_DB } = getCloudflareBindings();
+  const data = await MY_KV.get('key');
   // ...
 }
 ```
@@ -393,7 +394,7 @@ export default async function Page() {
 
 ```typescript
 // timber.config.ts
-import { nitro } from '@timber/app/adapters/nitro'
+import { nitro } from '@timber/app/adapters/nitro';
 
 export default {
   output: 'server',
@@ -408,7 +409,7 @@ export default {
       },
     },
   }),
-}
+};
 ```
 
 Vercel deployment is automatic via `vercel deploy` or git push. The Nitro adapter generates Vercel Build Output API-compatible output.
@@ -425,7 +426,7 @@ Fully built at build time. No server at request time. Every route is pre-rendere
 // timber.config.ts
 export default {
   output: 'static',
-}
+};
 ```
 
 **What happens at build time:**
@@ -456,7 +457,7 @@ Zero-JavaScript output. Pure HTML. No React runtime, no hydration, no SPA naviga
 export default {
   output: 'static',
   static: { noJS: true },
-}
+};
 ```
 
 **Build errors in `noJS` mode:**
@@ -491,12 +492,12 @@ timber preview
 
 **Adapter-specific preview:**
 
-| Adapter | Preview Method | Behavior |
-|---------|---------------|----------|
-| Cloudflare | `wrangler dev --local` | Local Workers runtime. Accurate binding simulation. |
-| Nitro (node-server) | Nitro's built-in preview | Starts the Node server from build output. |
-| Nitro (vercel) | Vite preview fallback | No Vercel-specific preview. Falls back to Vite's static preview server. |
-| Static | Vite preview | Serves static files with correct MIME types. |
+| Adapter             | Preview Method           | Behavior                                                                |
+| ------------------- | ------------------------ | ----------------------------------------------------------------------- |
+| Cloudflare          | `wrangler dev --local`   | Local Workers runtime. Accurate binding simulation.                     |
+| Nitro (node-server) | Nitro's built-in preview | Starts the Node server from build output.                               |
+| Nitro (vercel)      | Vite preview fallback    | No Vercel-specific preview. Falls back to Vite's static preview server. |
+| Static              | Vite preview             | Serves static files with correct MIME types.                            |
 
 If an adapter implements `preview()`, timber uses it. Otherwise, Vite's built-in preview server is the fallback. The fallback is sufficient for static builds but may not accurately represent serverless platform behavior.
 
@@ -506,28 +507,30 @@ If an adapter implements `preview()`, timber uses it. Otherwise, Vite's built-in
 
 Set automatically by the adapter at build time. Available in `instrumentation.ts` for conditional SDK initialization.
 
-| Adapter | `TIMBER_RUNTIME` Value |
-|---------|----------------------|
-| Cloudflare | `'cloudflare'` |
-| Nitro (node-server) | `'node-server'` |
-| Nitro (bun) | `'bun'` |
-| Nitro (vercel) | `'vercel'` |
-| Nitro (vercel-edge) | `'vercel-edge'` |
-| Nitro (other presets) | Preset name |
+| Adapter               | `TIMBER_RUNTIME` Value |
+| --------------------- | ---------------------- |
+| Cloudflare            | `'cloudflare'`         |
+| Nitro (node-server)   | `'node-server'`        |
+| Nitro (bun)           | `'bun'`                |
+| Nitro (vercel)        | `'vercel'`             |
+| Nitro (vercel-edge)   | `'vercel-edge'`        |
+| Nitro (other presets) | Preset name            |
 
 ```typescript
 // instrumentation.ts
 export async function register() {
   if (process.env.TIMBER_RUNTIME === 'node-server') {
     // Node-specific OTEL SDK
-    const { NodeSDK } = await import('@opentelemetry/sdk-node')
-    new NodeSDK({ /* ... */ }).start()
+    const { NodeSDK } = await import('@opentelemetry/sdk-node');
+    new NodeSDK({
+      /* ... */
+    }).start();
   }
 
   if (process.env.TIMBER_RUNTIME === 'cloudflare') {
     // Workers-specific tracing
-    const { WorkersTracer } = await import('@timber/otel-cloudflare')
-    WorkersTracer.init()
+    const { WorkersTracer } = await import('@timber/otel-cloudflare');
+    WorkersTracer.init();
   }
 }
 ```

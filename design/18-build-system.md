@@ -5,37 +5,37 @@
 The `timber()` Vite plugin export returns an array of sub-plugins. Each sub-plugin registers its own Vite hooks and has a focused responsibility. Shared state is passed via a closure-scoped context object.
 
 ```ts
-import { timber } from '@timber/app'
+import { timber } from '@timber/app';
 
 export default defineConfig({
   plugins: [timber()],
-})
+});
 ```
 
 ### Sub-Plugin Responsibilities
 
-| Plugin | Hooks | Responsibility |
-|--------|-------|---------------|
-| `timber-root-sync` | `configResolved` | Syncs `ctx.root` and `ctx.appDir` with Vite's resolved root (must be first) |
-| `timber-shims` | `resolveId`, `load` | Resolves `next/*` and `@timber/app/*` imports to shim implementations |
-| `timber-routing` | `configureServer`, `buildStart`, `resolveId`, `load` | Scans `app/` directory, builds route tree, generates virtual route manifest |
-| `timber-entries` | `resolveId`, `load` | Generates RSC/SSR/browser entry virtual modules |
-| `timber-cache` | `transform` | Transforms `"use cache"` directives into `registerCachedFunction()` calls |
-| `timber-static-build` | build hooks | Handles static output mode builds |
-| `timber-dynamic-transform` | `transform` | Transforms dynamic route conventions |
-| `timber-fonts` | `resolveId`, `load`, `transform` | Google and local font handling (ported from `next/font`) |
-| `timber-mdx` | `config`, `buildStart` | Auto-detects `.mdx` files, registers `@mdx-js/rollup`, finds `mdx-components.tsx` |
-| `timber-content` | `resolveId`, `load`, `buildStart`, `configureServer` | Scans `content/` directory, validates schemas, generates content manifest virtual module, generates types |
-| `timber-chunks` | `config` | Client-only chunk splitting — separates react vendor from timber runtime for cache-tier optimization |
-| `timber-build-report` | `generateBundle`, `closeBundle` | Post-build route table — per-route bundle sizes, route type classification, first-load JS |
-| `timber-dev-server` | `configureServer` | Dev request handling — routes requests through the timber pipeline (must be last) |
+| Plugin                     | Hooks                                                | Responsibility                                                                                            |
+| -------------------------- | ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `timber-root-sync`         | `configResolved`                                     | Syncs `ctx.root` and `ctx.appDir` with Vite's resolved root (must be first)                               |
+| `timber-shims`             | `resolveId`, `load`                                  | Resolves `next/*` and `@timber/app/*` imports to shim implementations                                     |
+| `timber-routing`           | `configureServer`, `buildStart`, `resolveId`, `load` | Scans `app/` directory, builds route tree, generates virtual route manifest                               |
+| `timber-entries`           | `resolveId`, `load`                                  | Generates RSC/SSR/browser entry virtual modules                                                           |
+| `timber-cache`             | `transform`                                          | Transforms `"use cache"` directives into `registerCachedFunction()` calls                                 |
+| `timber-static-build`      | build hooks                                          | Handles static output mode builds                                                                         |
+| `timber-dynamic-transform` | `transform`                                          | Transforms dynamic route conventions                                                                      |
+| `timber-fonts`             | `resolveId`, `load`, `transform`                     | Google and local font handling (ported from `next/font`)                                                  |
+| `timber-mdx`               | `config`, `buildStart`                               | Auto-detects `.mdx` files, registers `@mdx-js/rollup`, finds `mdx-components.tsx`                         |
+| `timber-content`           | `resolveId`, `load`, `buildStart`, `configureServer` | Scans `content/` directory, validates schemas, generates content manifest virtual module, generates types |
+| `timber-chunks`            | `config`                                             | Client-only chunk splitting — separates react vendor from timber runtime for cache-tier optimization      |
+| `timber-build-report`      | `generateBundle`, `closeBundle`                      | Post-build route table — per-route bundle sizes, route type classification, first-load JS                 |
+| `timber-dev-server`        | `configureServer`                                    | Dev request handling — routes requests through the timber pipeline (must be last)                         |
 
 ```ts
 // packages/timber-app/src/index.ts
 export function timber(config?: TimberUserConfig): Plugin[] {
-  const ctx = createPluginContext(config)
+  const ctx = createPluginContext(config);
   return [
-    timberRootSync(ctx),         // must be first — syncs ctx with Vite's resolved root
+    timberRootSync(ctx), // must be first — syncs ctx with Vite's resolved root
     timberShims(ctx),
     timberRouting(ctx),
     timberEntries(ctx),
@@ -45,9 +45,9 @@ export function timber(config?: TimberUserConfig): Plugin[] {
     timberFonts(ctx),
     timberMdx(ctx),
     timberContent(ctx),
-    timberBuildReport(ctx),      // post-build: route table with bundle sizes
-    timberDevServer(ctx),        // must be last — see 21-dev-server.md
-  ]
+    timberBuildReport(ctx), // post-build: route table with bundle sizes
+    timberDevServer(ctx), // must be last — see 21-dev-server.md
+  ];
 }
 ```
 
@@ -108,13 +108,13 @@ next/navigation (client)  → shims/navigation-client.ts (client hooks only)
 
 Virtual modules are generated code with no corresponding file on disk. They use the `virtual:timber-*` prefix convention.
 
-| Virtual Module | Generated By | Contents |
-|----------------|-------------|----------|
-| `virtual:timber-route-manifest` | `timber-routing` | Route tree with segment metadata, file paths, param shapes |
-| `virtual:timber-rsc-entry` | `timber-entries` | RSC environment entry — imports route manifest, creates request handler |
-| `virtual:timber-ssr-entry` | `timber-entries` | SSR environment entry — receives RSC stream, hydrates client components |
-| `virtual:timber-browser-entry` | `timber-entries` | Browser entry — client navigation runtime, hydration bootstrap |
-| `virtual:timber-config` | `timber-entries` | Resolved config values needed at runtime (output mode, feature flags) |
+| Virtual Module                  | Generated By     | Contents                                                                |
+| ------------------------------- | ---------------- | ----------------------------------------------------------------------- |
+| `virtual:timber-route-manifest` | `timber-routing` | Route tree with segment metadata, file paths, param shapes              |
+| `virtual:timber-rsc-entry`      | `timber-entries` | RSC environment entry — imports route manifest, creates request handler |
+| `virtual:timber-ssr-entry`      | `timber-entries` | SSR environment entry — receives RSC stream, hydrates client components |
+| `virtual:timber-browser-entry`  | `timber-entries` | Browser entry — client navigation runtime, hydration bootstrap          |
+| `virtual:timber-config`         | `timber-entries` | Resolved config values needed at runtime (output mode, feature flags)   |
 
 ### Resolution Quirks
 
@@ -145,10 +145,10 @@ timber.js uses real TypeScript files that import virtual modules for the dynamic
 
 ```typescript
 // packages/timber-app/src/server/rsc-entry.ts (real file)
-import { createRequestHandler } from './request-handler'
-import routeManifest from 'virtual:timber-route-manifest'
+import { createRequestHandler } from './request-handler';
+import routeManifest from 'virtual:timber-route-manifest';
 
-export default createRequestHandler(routeManifest)
+export default createRequestHandler(routeManifest);
 ```
 
 The route manifest virtual module contains the route tree data. The entry file contains the logic. Both are separately typed and testable.
@@ -156,6 +156,7 @@ The route manifest virtual module contains the route tree data. The entry file c
 ### Entry Files
 
 **RSC Entry** (`rsc-entry.ts`):
+
 - Imports the route manifest and creates the request handler via `createPipeline`
 - Builds a `RouteMatcher` from the manifest tree (see `server/route-matcher.ts`)
 - Implements the renderer: loads page/layout components along the matched segment chain, resolves metadata (static `metadata` exports and `generateMetadata`), builds the React element tree, and renders via `renderToReadableStream`
@@ -164,11 +165,13 @@ The route manifest virtual module contains the route tree data. The entry file c
 - Exports a `default` function that handles `Request → Response`
 
 **SSR Entry** (`ssr-entry.ts`):
+
 - Receives the RSC stream from the RSC entry via `handleSsr(rscStream, navContext)`
 - Renders client components to HTML using `renderToReadableStream`
 - Passes per-request state (pathname, params, searchParams) across the environment boundary
 
 **Browser Entry** (`browser-entry.ts`):
+
 - Bootstraps React hydration
 - Initializes the client navigation runtime (segment router, prefetch cache, history stack)
 - Registers the RSC stream parser for navigation responses
@@ -184,9 +187,9 @@ vitePluginRsc({
     ssr: 'virtual:timber-ssr-entry',
     client: 'virtual:timber-browser-entry',
   },
-  customClientEntry: true,  // timber manages its own browser entry
-  serverHandler: false,     // timber has its own dev server
-})
+  customClientEntry: true, // timber manages its own browser entry
+  serverHandler: false, // timber has its own dev server
+});
 ```
 
 The RSC plugin's built-in `buildApp` handles the 5-step multi-environment build sequence (analyze client references → analyze server references → build RSC → build client → build SSR). We do NOT set `customBuildApp` — the RSC plugin's orchestration is correct and handles bundle ordering, asset manifest generation, and environment imports manifest.
@@ -244,14 +247,14 @@ The plugin context includes a `StartupTimer` that records per-phase durations us
 
 Instrumented phases:
 
-| Phase | Hook | What it measures |
-|-------|------|-----------------|
-| `rsc-plugin-import` | `timber()` call | Dynamic `import('@vitejs/plugin-rsc')` |
-| `config-load` | `buildStart` (root-sync) | Loading and merging `timber.config.ts` |
-| `route-scan` | `buildStart` / `configureServer` | File system traversal of `app/` directory |
-| `mdx-activate` | `buildStart` (mdx) | Dynamic import of `@mdx-js/rollup` |
-| `content-activate` | `config` (content) | Dynamic import of `@content-collections/vite` |
-| `dev-server-setup` | `configResolved` → `configureServer` | Total wall time from Vite config resolved to dev server ready |
+| Phase               | Hook                                 | What it measures                                              |
+| ------------------- | ------------------------------------ | ------------------------------------------------------------- |
+| `rsc-plugin-import` | `timber()` call                      | Dynamic `import('@vitejs/plugin-rsc')`                        |
+| `config-load`       | `buildStart` (root-sync)             | Loading and merging `timber.config.ts`                        |
+| `route-scan`        | `buildStart` / `configureServer`     | File system traversal of `app/` directory                     |
+| `mdx-activate`      | `buildStart` (mdx)                   | Dynamic import of `@mdx-js/rollup`                            |
+| `content-activate`  | `config` (content)                   | Dynamic import of `@content-collections/vite`                 |
+| `dev-server-setup`  | `configResolved` → `configureServer` | Total wall time from Vite config resolved to dev server ready |
 
 **Optimization: single route scan in dev.** The route scanner (`scanRoutes`) used to run twice during dev startup — once in `buildStart` and again in `configureServer`. Since `configureServer` always runs after `buildStart` in dev mode, the `buildStart` scan is now skipped when `ctx.dev` is true.
 
@@ -263,12 +266,12 @@ In production builds, the timer is swapped to a no-op implementation with zero o
 
 No single source file should exceed 500 lines. When a file approaches this limit, extract cohesive functionality into a new file:
 
-| File | Budget | Scope |
-|------|--------|-------|
-| `index.ts` (plugin entry) | ~100 lines | Plugin composition, config loading |
-| Each sub-plugin | ~200-400 lines | Single responsibility |
-| `request-handler.ts` | ~300 lines | Route matching, pipeline orchestration |
-| `element-tree.ts` | ~300 lines | React element tree construction (AccessGates, error boundaries, slots) |
-| `metadata-resolver.ts` | ~200 lines | Metadata merge algorithm, title templates |
+| File                      | Budget         | Scope                                                                  |
+| ------------------------- | -------------- | ---------------------------------------------------------------------- |
+| `index.ts` (plugin entry) | ~100 lines     | Plugin composition, config loading                                     |
+| Each sub-plugin           | ~200-400 lines | Single responsibility                                                  |
+| `request-handler.ts`      | ~300 lines     | Route matching, pipeline orchestration                                 |
+| `element-tree.ts`         | ~300 lines     | React element tree construction (AccessGates, error boundaries, slots) |
+| `metadata-resolver.ts`    | ~200 lines     | Metadata merge algorithm, title templates                              |
 
 The 500-line budget is a guideline, not a hard rule. The goal is to prevent god objects — multi-thousand-line files that combine unrelated responsibilities. If a file is approaching the budget, it should be decomposed before it becomes unmanageable.

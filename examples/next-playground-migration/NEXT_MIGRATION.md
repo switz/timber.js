@@ -12,14 +12,18 @@ the reason for the change. These rules are reusable for any Next.js App Router p
 ### Replace `next.config.ts` with `vite.config.ts`
 
 **Before**
+
 ```ts
 // next.config.ts
 import type { NextConfig } from 'next';
-const nextConfig: NextConfig = { /* ... */ };
+const nextConfig: NextConfig = {
+  /* ... */
+};
 export default nextConfig;
 ```
 
 **After**
+
 ```ts
 // vite.config.ts
 import { defineConfig } from 'vite';
@@ -66,11 +70,13 @@ export default {
 **Rule:** `Metadata` is exported from `@timber/app/server`, not `next`.
 
 **Before**
+
 ```ts
 import type { Metadata } from 'next';
 ```
 
 **After**
+
 ```ts
 import type { Metadata } from '@timber/app/server';
 ```
@@ -117,6 +123,7 @@ export default function Layout({ children }) {
 **Rule:** timber's `deny(404)` renders the nearest `404.tsx` ancestor, not `not-found.tsx`. Rename all `not-found.tsx` files to `404.tsx`.
 
 **File renames:**
+
 - `app/not-found.tsx` → `app/404.tsx`
 - `app/not-found/not-found.tsx` → `app/not-found/404.tsx`
 - `app/not-found/[section]/not-found.tsx` → `app/not-found/[section]/404.tsx`
@@ -130,6 +137,7 @@ The `notFound()` shim in timber's `next/navigation` already calls `deny(404)`, s
 **Rule:** timber has no `template.tsx` convention. `template.tsx` in Next.js remounts the subtree on every navigation by giving React a new key. In timber, achieve the same by passing `pathname` as a `key` to the layout or wrapper element.
 
 **Before** (Next.js — `template.tsx` remounts on every navigation)
+
 ```tsx
 // app/_hooks/template.tsx
 export default function Template({ children }: { children: React.ReactNode }) {
@@ -138,6 +146,7 @@ export default function Template({ children }: { children: React.ReactNode }) {
 ```
 
 **After** (timber — use `key={pathname}` in the parent layout instead)
+
 ```tsx
 // app/_hooks/layout.tsx
 'use client'; // or wrap a client component in layout if you need async server component
@@ -152,6 +161,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 ```
 
 If the template was purely structural (no remounting needed), replace it with a pass-through:
+
 ```tsx
 export default function Template({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
@@ -165,6 +175,7 @@ export default function Template({ children }: { children: React.ReactNode }) {
 **Rule:** `connection()` from `next/server` opts a page into dynamic rendering. timber is always dynamic — there is no static rendering to opt out of. Remove all calls.
 
 **Before**
+
 ```ts
 import { connection } from 'next/server';
 export default async function Page() {
@@ -174,6 +185,7 @@ export default async function Page() {
 ```
 
 **After**
+
 ```ts
 export default async function Page() {
   // connection() removed — timber is always dynamic
@@ -188,6 +200,7 @@ export default async function Page() {
 **Rule:** timber has no SSG. Remove `generateStaticParams` exports.
 
 **Before**
+
 ```ts
 export async function generateStaticParams() {
   return db.product.findMany().map((p) => ({ id: p.id }));
@@ -203,6 +216,7 @@ export async function generateStaticParams() {
 ### 8a. Simple `'use cache'` directive
 
 **Before**
+
 ```ts
 import { unstable_cacheTag as cacheTag } from 'next/cache';
 
@@ -214,13 +228,11 @@ async function getProducts() {
 ```
 
 **After**
+
 ```ts
 import { createCache } from '@timber/app/cache';
 
-const getProducts = createCache(
-  async () => db.product.findMany(),
-  { tags: ['products'] }
-);
+const getProducts = createCache(async () => db.product.findMany(), { tags: ['products'] });
 ```
 
 ### 8b. `'use cache: private'` (session-scoped)
@@ -228,6 +240,7 @@ const getProducts = createCache(
 **Rule:** In timber, `cookies()` cannot be called inside a cached function. Move the `cookies()` call outside, pass the session value as an argument, and use it to scope the cache key.
 
 **Before**
+
 ```ts
 async function getRecommendations(productId: string) {
   'use cache: private';
@@ -240,6 +253,7 @@ async function getRecommendations(productId: string) {
 ```
 
 **After**
+
 ```ts
 import { createCache } from '@timber/app/cache';
 import { cookies } from 'next/headers';
@@ -273,6 +287,7 @@ Same as regular `timber.cache()` — timber's cache is always "remote" (KV-backe
 **Rule:** timber has no per-link navigation status hook. Use `useNavigationPending()` from `@timber/app/client` as the closest equivalent. This is a **global** hook — it returns `true` when any navigation is pending, not just the specific link being clicked.
 
 **Before**
+
 ```ts
 import { useLinkStatus } from 'next/link';
 
@@ -283,6 +298,7 @@ function MyLink({ href, children }) {
 ```
 
 **After**
+
 ```ts
 import { useNavigationPending } from '@timber/app/client';
 
@@ -303,6 +319,7 @@ function MyLink({ href, children }) {
 **Rule:** timber's `Link` component does not support the `onNavigate` prop. Use `onClick` with `e.preventDefault()` to intercept navigation and trigger your own logic before calling `router.push()`.
 
 **Before**
+
 ```ts
 import Link from 'next/link';
 
@@ -319,6 +336,7 @@ import Link from 'next/link';
 ```
 
 **After**
+
 ```ts
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -344,6 +362,7 @@ const handleClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
 **Rule:** `next/og` uses the Vercel Edge Runtime (Satori + Resvg) which is not available on Cloudflare Workers. Replace with an SVG response stub, or use [Satori](https://github.com/vercel/satori) directly in a Worker-compatible build.
 
 **Before**
+
 ```ts
 import { ImageResponse } from 'next/og';
 export async function GET(request: NextRequest) {
@@ -352,6 +371,7 @@ export async function GET(request: NextRequest) {
 ```
 
 **After** (SVG stub — use Takumi RS for production OG images)
+
 ```ts
 import type { RouteContext } from '@timber/app/server';
 
@@ -386,17 +406,16 @@ No changes needed.
 **Rule:** timber API routes use a single `ctx: RouteContext` argument, not `(request: Request, { params })`.
 
 **Before**
+
 ```ts
 import { type NextRequest } from 'next/server';
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 }
 ```
 
 **After**
+
 ```ts
 import type { RouteContext } from '@timber/app/server';
 export async function GET(ctx: RouteContext): Promise<Response> {
@@ -411,6 +430,7 @@ export async function GET(ctx: RouteContext): Promise<Response> {
 **Rule:** Do NOT put `'use cache'` at the file level (or inside the component body) on page/layout components that receive `params` as a `Promise`. The `'use cache'` transform serializes inputs to build cache keys — a Promise cannot be serialized, causing a runtime error.
 
 **Before** (broken)
+
 ```ts
 'use cache'; // file-level — wraps all exported functions
 
@@ -421,6 +441,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
 ```
 
 **After** (working)
+
 ```ts
 // No 'use cache' directive — component always renders fresh
 
@@ -439,6 +460,7 @@ If you need caching, extract the data-fetching logic into a separate `timber.cac
 **Rule:** timber's error boundary (`TimberErrorBoundary`) is a React class component that passes `fallbackComponent` as a prop. React cannot pass server component functions as props across the RSC boundary. All status files (`404.tsx`, `error.tsx`, `403.tsx`, etc.) must be `'use client'` components.
 
 **Before** (missing directive — causes "Functions cannot be passed directly to Client Components" error)
+
 ```ts
 export default function NotFound() {
   return <div>Not found</div>;
@@ -446,6 +468,7 @@ export default function NotFound() {
 ```
 
 **After**
+
 ```ts
 'use client';
 
@@ -460,14 +483,14 @@ export default function NotFound() {
 
 ## Summary of Gaps Filed
 
-| Gap | lb Issue | Description |
-|-----|----------|-------------|
-| `useLinkStatus` | TIM-168 | Per-link navigation status — timber only has global `useNavigationPending` |
-| `Link.onNavigate` | TIM-167 | Prop not supported in timber's Link shim |
-| `next/og` | — | Use [Takumi RS](https://takumi.rs) for OG images on CF Workers |
-| `template.tsx` | — | A layout with `key={pathname}` achieves the same remounting effect |
-| `next/font/google` named exports | TIM-87 | Shim only has `default` export, no `Geist`, `Geist_Mono` etc. |
-| Status file `'use client'` lint | TIM-166 | Static analyzer should warn when status files missing `'use client'` |
-| MDX config in `timber.config.ts` | TIM-86 | Plugin reads config at build time before `timber.config.ts` loads |
-| `'use cache'` + Promise params | TIM-165 | Cannot serialize Promise inputs for cache key |
-| Dev error overlay wiring | TIM-24 | Pipeline errors not routed to browser overlay |
+| Gap                              | lb Issue | Description                                                                |
+| -------------------------------- | -------- | -------------------------------------------------------------------------- |
+| `useLinkStatus`                  | TIM-168  | Per-link navigation status — timber only has global `useNavigationPending` |
+| `Link.onNavigate`                | TIM-167  | Prop not supported in timber's Link shim                                   |
+| `next/og`                        | —        | Use [Takumi RS](https://takumi.rs) for OG images on CF Workers             |
+| `template.tsx`                   | —        | A layout with `key={pathname}` achieves the same remounting effect         |
+| `next/font/google` named exports | TIM-87   | Shim only has `default` export, no `Geist`, `Geist_Mono` etc.              |
+| Status file `'use client'` lint  | TIM-166  | Static analyzer should warn when status files missing `'use client'`       |
+| MDX config in `timber.config.ts` | TIM-86   | Plugin reads config at build time before `timber.config.ts` loads          |
+| `'use cache'` + Promise params   | TIM-165  | Cannot serialize Promise inputs for cache key                              |
+| Dev error overlay wiring         | TIM-24   | Pipeline errors not routed to browser overlay                              |

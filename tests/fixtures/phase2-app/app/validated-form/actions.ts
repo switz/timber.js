@@ -70,15 +70,13 @@ export async function submitContact(...args: Parameters<typeof _submitContact>) 
 
 const action = createActionClient();
 
-const _submitWithClient = action
-  .schema(contactSchema)
-  .action(async ({ input }) => {
-    const typed = input as ContactInput;
-    return {
-      message: `Saved ${typed.name}`,
-      subscribe: typed.subscribe,
-    };
-  });
+const _submitWithClient = action.schema(contactSchema).action(async ({ input }) => {
+  const typed = input as ContactInput;
+  return {
+    message: `Saved ${typed.name}`,
+    subscribe: typed.subscribe,
+  };
+});
 
 export async function submitWithClient(...args: Parameters<typeof _submitWithClient>) {
   return _submitWithClient(...args);

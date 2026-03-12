@@ -8,11 +8,7 @@ export function RedirectForm() {
 
   return (
     <form action={action} data-testid="redirect-form">
-      <button
-        type="submit"
-        data-testid="redirect-submit"
-        disabled={isPending}
-      >
+      <button type="submit" data-testid="redirect-submit" disabled={isPending}>
         {isPending ? 'Redirecting...' : 'Submit and redirect'}
       </button>
     </form>

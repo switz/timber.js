@@ -218,9 +218,7 @@ async function fetchRscPayload(
       // which crashes createFromFetch when it tries to read the body stream.
       const redirectLocation =
         response.headers.get('X-Timber-Redirect') ||
-        (response.status >= 300 && response.status < 400
-          ? response.headers.get('Location')
-          : null);
+        (response.status >= 300 && response.status < 400 ? response.headers.get('Location') : null);
       if (redirectLocation) {
         throw new RedirectError(redirectLocation);
       }

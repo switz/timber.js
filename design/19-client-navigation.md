@@ -27,6 +27,7 @@ Root Layout ─── Dashboard Layout ─── Projects Layout ─── Proje
 ```
 
 Each node in the tree stores:
+
 - The segment's RSC flight payload (serialized React subtree)
 - Whether the segment is sync or async (determines skip behavior on navigation)
 - Slot children (parallel routes)
@@ -78,7 +79,7 @@ The header is NOT a security boundary. The server always runs all `access.ts` fi
 Format: JSON-encoded tree of segment paths:
 
 ```json
-{"segments":["/","/(auth)/dashboard","/projects"]}
+{ "segments": ["/", "/(auth)/dashboard", "/projects"] }
 ```
 
 ### `router.refresh()`
@@ -94,6 +95,7 @@ Explicit full re-render. No state tree is sent — the server renders the comple
 Navigation requests use `fetch()` with a `?_rsc=<id>` cache-bust parameter (5-char random a-z0-9, matching Next.js) appended to the URL. This follows Next.js's pattern — it prevents CDNs and the browser cache from serving cached HTML for RSC requests, and signals to intermediaries that this is an RSC fetch.
 
 Headers:
+
 - `Accept: text/x-component` — signals RSC payload request (not HTML)
 - `X-Timber-State-Tree: ...` — mounted segment tree for layout skip optimization
 - Standard cookies and auth headers — the request goes through the full pipeline
@@ -111,11 +113,13 @@ Parsed payloads are stored in the segment tree. Each segment's payload is cached
 ### Partial vs Full Payloads
 
 **Full payload** — contains all segments from root to page. Sent on:
+
 - Initial page load (SSR HTML + RSC payload for hydration)
 - `router.refresh()`
 - Navigation when the server decides the state tree is stale
 
 **Partial payload** — skipped segments are simply absent. The client uses its cached segments for the missing entries. Sent on:
+
 - Standard navigation when sync layouts match the state tree
 
 The wire format is identical — partial payloads are just full payloads with some segments missing. The client detects which segments are present and fills in cached data for the rest.
@@ -145,6 +149,7 @@ Each entry stores the complete segment tree payload at the time of navigation. W
 ### Replay
 
 On `popstate` (back/forward button):
+
 1. Look up the URL in the history stack
 2. If found: replay the cached payload instantly — no server request
 3. Restore `scrollY` from the stored position
@@ -165,7 +170,9 @@ Prefetching loads RSC payloads before the user clicks, enabling near-instant nav
 Prefetching is opt-in via `<Link prefetch>`:
 
 ```tsx
-<Link href="/projects" prefetch>Projects</Link>
+<Link href="/projects" prefetch>
+  Projects
+</Link>
 ```
 
 When `prefetch` is set, the payload is fetched on hover (not on viewport intersection). This balances bandwidth cost against navigation speed.
@@ -242,21 +249,22 @@ After every scroll operation (forward nav scroll-to-top, back/forward restore, s
 A client-side hook that returns `true` while an RSC navigation is in flight. Integrates with React transitions.
 
 ```tsx
-'use client'
-import { useNavigationPending } from '@timber/app/client'
+'use client';
+import { useNavigationPending } from '@timber/app/client';
 
 export function NavBar() {
-  const isPending = useNavigationPending()
+  const isPending = useNavigationPending();
   return (
     <nav className={isPending ? 'opacity-50' : ''}>
       <Link href="/dashboard">Dashboard</Link>
       <Link href="/settings">Settings</Link>
     </nav>
-  )
+  );
 }
 ```
 
 The pending state is true from the moment the RSC fetch starts until React reconciliation completes. This includes:
+
 - The fetch itself (network time)
 - RSC stream parsing
 - React tree reconciliation

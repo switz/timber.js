@@ -23,11 +23,9 @@ Wrapping content in a `<Suspense>` boundary is a declaration that nothing inside
 export default function Layout({ children }) {
   return (
     <DashboardShell>
-      <Suspense fallback={<PageSkeleton />}>
-        {children}
-      </Suspense>
+      <Suspense fallback={<PageSkeleton />}>{children}</Suspense>
     </DashboardShell>
-  )
+  );
 }
 ```
 
@@ -46,15 +44,15 @@ By default, Suspense boundaries stream after the status commits — the fallback
 This is the "it's okay to wait a bit before flushing, but if it goes too long just flush and we'll stream" primitive.
 
 ```tsx
-import { Suspense } from 'react'
+import { Suspense } from 'react';
 
 // Hold the SSR stream for up to 200ms. Fast-resolving Suspense
 // boundaries render inline without ever showing a fallback.
-export const deferSuspenseFor = 200
+export const deferSuspenseFor = 200;
 
 export default async function ProductPage({ params }) {
-  const product = await getProduct(params.id)
-  if (!product) deny(404)
+  const product = await getProduct(params.id);
+  if (!product) deny(404);
 
   return (
     <div>
@@ -63,7 +61,7 @@ export default async function ProductPage({ params }) {
         <ProductReviews productId={product.id} />
       </Suspense>
     </div>
-  )
+  );
 }
 ```
 
@@ -113,7 +111,7 @@ t=500ms → Reviews resolve
 
 ```tsx
 // page.tsx
-export const deferSuspenseFor = 200  // ms
+export const deferSuspenseFor = 200; // ms
 ```
 
 Layouts can also export it — the framework uses the max value from all loaded modules.
@@ -130,7 +128,7 @@ Layouts can also export it — the framework uses the max value from all loaded 
 
 - A secondary data fetch is usually fast (< 200ms) and you'd rather wait than flash a skeleton.
 - You want to avoid layout shift from a spinner that appears for 50ms then disappears.
-- A slow DB query *might* be fast — give it a grace period, but don't block the page on it.
+- A slow DB query _might_ be fast — give it a grace period, but don't block the page on it.
 
 ### When Not to Use `deferSuspenseFor`
 

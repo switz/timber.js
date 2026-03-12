@@ -180,7 +180,9 @@ async function createRequestHandler(manifest: typeof routeManifest, runtimeConfi
     if (isActionRequest(req)) {
       const actionResponse = await handleActionRequest(req, {
         csrf: csrfConfig,
-        bodyLimits: { limits: (runtimeConfig as Record<string, unknown>).limits as BodyLimitsConfig['limits'] },
+        bodyLimits: {
+          limits: (runtimeConfig as Record<string, unknown>).limits as BodyLimitsConfig['limits'],
+        },
         revalidateRenderer: async (path: string) => {
           // Build the React element tree for the route at `path`.
           // Returns the element tree (not serialized) so the action handler can

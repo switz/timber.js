@@ -28,13 +28,13 @@ my-app/
 
 ```typescript
 // instrumentation.ts — @vercel/otel (simplest, works on Cloudflare too)
-import { registerOTel } from '@vercel/otel'
-import pino from 'pino'
+import { registerOTel } from '@vercel/otel';
+import pino from 'pino';
 
-export const logger = pino({ level: 'info' })
+export const logger = pino({ level: 'info' });
 
 export function register() {
-  registerOTel({ serviceName: 'my-app' })
+  registerOTel({ serviceName: 'my-app' });
 }
 ```
 
@@ -44,23 +44,23 @@ export function register() {
 // instrumentation.ts — Node.js SDK (full control, Node only)
 export async function register() {
   if (process.env.TIMBER_RUNTIME === 'node') {
-    await import('./instrumentation.node')
+    await import('./instrumentation.node');
   }
 }
 ```
 
 ```typescript
 // instrumentation.node.ts
-import { NodeSDK } from '@opentelemetry/sdk-node'
-import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http'
-import { resourceFromAttributes } from '@opentelemetry/resources'
-import { ATTR_SERVICE_NAME } from '@opentelemetry/semantic-conventions'
+import { NodeSDK } from '@opentelemetry/sdk-node';
+import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
+import { resourceFromAttributes } from '@opentelemetry/resources';
+import { ATTR_SERVICE_NAME } from '@opentelemetry/semantic-conventions';
 
 const sdk = new NodeSDK({
   resource: resourceFromAttributes({ [ATTR_SERVICE_NAME]: 'my-app' }),
   traceExporter: new OTLPTraceExporter(),
-})
-sdk.start()
+});
+sdk.start();
 ```
 
 `register()` can also be used for non-observability startup work: warming a connection pool, seeding a cache, validating environment variables before any request is served.
@@ -73,8 +73,8 @@ sdk.start()
 
 ```typescript
 // instrumentation.ts — Sentry
-import * as Sentry from '@sentry/node'
-import type { Instrumentation } from '@timber/app'
+import * as Sentry from '@sentry/node';
+import type { Instrumentation } from '@timber/app';
 
 export async function onRequestError(
   error: unknown,
@@ -83,7 +83,7 @@ export async function onRequestError(
 ) {
   Sentry.captureException(error, {
     extra: { path: request.path, phase: context.phase, route: context.routePath },
-  })
+  });
 }
 ```
 
@@ -95,19 +95,19 @@ namespace Instrumentation {
     error: unknown,
     request: RequestInfo,
     context: ErrorContext
-  ) => void | Promise<void>
+  ) => void | Promise<void>;
 
   export interface RequestInfo {
-    method: string               // 'GET', 'POST', etc.
-    path: string                 // '/dashboard/projects/123'
-    headers: Record<string, string>
+    method: string; // 'GET', 'POST', etc.
+    path: string; // '/dashboard/projects/123'
+    headers: Record<string, string>;
   }
 
   export interface ErrorContext {
-    phase: 'proxy' | 'handler' | 'render' | 'action' | 'route'
-    routePath: string            // '/dashboard/projects/[id]'
-    routeType: 'page' | 'route' | 'action'
-    traceId: string              // always set — OTEL trace ID or UUID fallback
+    phase: 'proxy' | 'handler' | 'render' | 'action' | 'route';
+    routePath: string; // '/dashboard/projects/[id]'
+    routeType: 'page' | 'route' | 'action';
+    traceId: string; // always set — OTEL trace ID or UUID fallback
   }
 }
 ```
@@ -122,19 +122,19 @@ timber.js does not ship a logger. Export any object with `.info()` / `.warn()` /
 
 ```typescript
 // instrumentation.ts
-import pino from 'pino'
+import pino from 'pino';
 
-export const logger = pino({ level: 'info' })
+export const logger = pino({ level: 'info' });
 ```
 
 ### The Logger Interface
 
 ```typescript
 interface TimberLogger {
-  info(msg: string, data?: Record<string, unknown>): void
-  warn(msg: string, data?: Record<string, unknown>): void
-  error(msg: string, data?: Record<string, unknown>): void
-  debug(msg: string, data?: Record<string, unknown>): void
+  info(msg: string, data?: Record<string, unknown>): void;
+  warn(msg: string, data?: Record<string, unknown>): void;
+  error(msg: string, data?: Record<string, unknown>): void;
+  debug(msg: string, data?: Record<string, unknown>): void;
 }
 ```
 
@@ -142,19 +142,19 @@ interface TimberLogger {
 
 The framework emits a small, fixed set of events. In production, only events that matter for operations:
 
-| Level | Event | Data |
-|---|---|---|
-| `info` | Request completed | `method`, `path`, `status`, `durationMs`, `trace_id` |
-| `warn` | Adapter does not support `waitUntil()` _(startup, once)_ | — |
-| `warn` | Slow request exceeded threshold | `method`, `path`, `durationMs`, `threshold`, `trace_id` |
-| `warn` | `staleWhileRevalidate` refetch failed | `cacheKey`, `error`, `trace_id` |
-| `warn` | `waitUntil()` promise rejected | `error`, `trace_id` |
-| `error` | Unhandled error in middleware phase | `method`, `path`, `error`, `trace_id` |
-| `error` | Unhandled render-phase error | `method`, `path`, `error`, `trace_id` |
-| `error` | `proxy.ts` threw uncaught error | `error`, `trace_id` |
-| `debug` | Request received | `method`, `path`, `trace_id` |
-| `debug` | Middleware short-circuited | `method`, `path`, `status`, `trace_id` |
-| `debug` | `timber.cache` MISS | `cacheKey`, `trace_id` |
+| Level   | Event                                                    | Data                                                    |
+| ------- | -------------------------------------------------------- | ------------------------------------------------------- |
+| `info`  | Request completed                                        | `method`, `path`, `status`, `durationMs`, `trace_id`    |
+| `warn`  | Adapter does not support `waitUntil()` _(startup, once)_ | —                                                       |
+| `warn`  | Slow request exceeded threshold                          | `method`, `path`, `durationMs`, `threshold`, `trace_id` |
+| `warn`  | `staleWhileRevalidate` refetch failed                    | `cacheKey`, `error`, `trace_id`                         |
+| `warn`  | `waitUntil()` promise rejected                           | `error`, `trace_id`                                     |
+| `error` | Unhandled error in middleware phase                      | `method`, `path`, `error`, `trace_id`                   |
+| `error` | Unhandled render-phase error                             | `method`, `path`, `error`, `trace_id`                   |
+| `error` | `proxy.ts` threw uncaught error                          | `error`, `trace_id`                                     |
+| `debug` | Request received                                         | `method`, `path`, `trace_id`                            |
+| `debug` | Middleware short-circuited                               | `method`, `path`, `status`, `trace_id`                  |
+| `debug` | `timber.cache` MISS                                      | `cacheKey`, `trace_id`                                  |
 
 The `waitUntil()` startup warning is emitted once during `register()` — before the first request — so it appears at the top of the log output and is not repeated per-call.
 
@@ -165,8 +165,8 @@ The `waitUntil()` startup warning is emitted once during `register()` — before
 ```typescript
 // timber.config.ts
 export default {
-  slowRequestMs: 3000,  // default: 3000ms. Set 0 to disable.
-}
+  slowRequestMs: 3000, // default: 3000ms. Set 0 to disable.
+};
 ```
 
 ---
@@ -191,10 +191,10 @@ The format is always `[0-9a-f]{32}`, with or without OTEL. Log parsers, dashboar
 `trace_id` is accessible anywhere in server code:
 
 ```typescript
-import { traceId } from '@timber/app/server'
+import { traceId } from '@timber/app/server';
 
 // In middleware.ts, access.ts, server components, server actions:
-logger.info('fetching product', { traceId: traceId(), productId: params.id })
+logger.info('fetching product', { traceId: traceId(), productId: params.id });
 ```
 
 `traceId()` reads from timber.js's ALS store. When OTEL is active, the stored value is the OTEL trace ID. When not, it is the generated hex ID from request start. Same call, same field name, same format, regardless of OTEL configuration.
@@ -203,10 +203,10 @@ logger.info('fetching product', { traceId: traceId(), productId: params.id })
 
 ```typescript
 // instrumentation.ts — @vercel/otel (simplest, works on Cloudflare)
-import { registerOTel } from '@vercel/otel'
+import { registerOTel } from '@vercel/otel';
 
 export function register() {
-  registerOTel({ serviceName: 'my-app' })
+  registerOTel({ serviceName: 'my-app' });
 }
 ```
 
@@ -214,7 +214,7 @@ export function register() {
 // instrumentation.ts — Node.js SDK (full control, Node only)
 export async function register() {
   if (process.env.TIMBER_RUNTIME === 'node') {
-    await import('./instrumentation.node')
+    await import('./instrumentation.node');
   }
 }
 ```
@@ -227,27 +227,27 @@ Once an SDK is initialized, timber.js emits spans for every phase of the request
 
 One per incoming request. Follows [OTel HTTP server semantic conventions](https://opentelemetry.io/docs/specs/semconv/http/http-spans/).
 
-| Attribute | Value |
-|---|---|
-| `http.request.method` | `'GET'`, `'POST'`, etc. |
-| `http.response.status_code` | Final HTTP status code |
-| `url.path` | `/dashboard/projects/123` |
-| `http.route` | `/dashboard/projects/[id]` (pattern, not value) |
+| Attribute                   | Value                                           |
+| --------------------------- | ----------------------------------------------- |
+| `http.request.method`       | `'GET'`, `'POST'`, etc.                         |
+| `http.response.status_code` | Final HTTP status code                          |
+| `url.path`                  | `/dashboard/projects/123`                       |
+| `http.route`                | `/dashboard/projects/[id]` (pattern, not value) |
 
 #### Child spans
 
-| Span name | When emitted | Key attributes |
-|---|---|---|
-| `timber.proxy` | `proxy.ts` execution | `timber.result`: `'next'` \| `'short-circuit'` |
-| `timber.middleware` | `middleware.ts` execution | `timber.route`, `timber.result`: `'continue'` \| `'short-circuit'` \| `'error'` |
-| `timber.access` | Each `access.ts` execution | `timber.segment`, `timber.result`: `'pass'` \| `'deny'` \| `'redirect'` |
-| `timber.render` | Full RSC render pass | `timber.route`, `timber.environment`: `'rsc'` |
-| `timber.render.suspense` | Each `<Suspense>` boundary that streams | `timber.boundary`, `timber.flush`: `'pre'` \| `'post'` |
-| `timber.ssr` | SSR hydration render | `timber.environment`: `'ssr'` |
-| `timber.action` | Server action execution | `timber.action_file`, `timber.action_name` |
-| `timber.metadata` | `generateMetadata()` execution | `timber.segment` |
-| `timber.layout` | Each layout component render | `timber.segment` |
-| `timber.page` | Page component render | `timber.route` |
+| Span name                | When emitted                            | Key attributes                                                                  |
+| ------------------------ | --------------------------------------- | ------------------------------------------------------------------------------- |
+| `timber.proxy`           | `proxy.ts` execution                    | `timber.result`: `'next'` \| `'short-circuit'`                                  |
+| `timber.middleware`      | `middleware.ts` execution               | `timber.route`, `timber.result`: `'continue'` \| `'short-circuit'` \| `'error'` |
+| `timber.access`          | Each `access.ts` execution              | `timber.segment`, `timber.result`: `'pass'` \| `'deny'` \| `'redirect'`         |
+| `timber.render`          | Full RSC render pass                    | `timber.route`, `timber.environment`: `'rsc'`                                   |
+| `timber.render.suspense` | Each `<Suspense>` boundary that streams | `timber.boundary`, `timber.flush`: `'pre'` \| `'post'`                          |
+| `timber.ssr`             | SSR hydration render                    | `timber.environment`: `'ssr'`                                                   |
+| `timber.action`          | Server action execution                 | `timber.action_file`, `timber.action_name`                                      |
+| `timber.metadata`        | `generateMetadata()` execution          | `timber.segment`                                                                |
+| `timber.layout`          | Each layout component render            | `timber.segment`                                                                |
+| `timber.page`            | Page component render                   | `timber.route`                                                                  |
 
 `timber.cache` calls are recorded as **span events** on the enclosing span — not child spans. Keeps cardinality low:
 
@@ -314,10 +314,10 @@ Use `@vercel/otel` — designed for the Workers runtime:
 
 ```typescript
 // instrumentation.ts
-import { registerOTel } from '@vercel/otel'
+import { registerOTel } from '@vercel/otel';
 
 export function register() {
-  registerOTel({ serviceName: 'my-app' })
+  registerOTel({ serviceName: 'my-app' });
 }
 ```
 
@@ -374,10 +374,10 @@ POST /dashboard/projects/123  trace_id: 4bf92f3577b34da6a3ce929d0e0e4736
 // timber.config.ts
 export default {
   dev: {
-    slowPhaseMs: 200,  // default: 200ms
+    slowPhaseMs: 200, // default: 200ms
   },
-  slowRequestMs: 3000,  // production threshold
-}
+  slowRequestMs: 3000, // production threshold
+};
 ```
 
 ### Access Check Outcomes
@@ -418,30 +418,30 @@ TIMBER_DEV_LOG=summary timber dev
 
 ```typescript
 // instrumentation.ts
-import pino from 'pino'
-import * as Sentry from '@sentry/node'
-import { registerOTel } from '@vercel/otel'
+import pino from 'pino';
+import * as Sentry from '@sentry/node';
+import { registerOTel } from '@vercel/otel';
 
-export const logger = pino({ level: 'info' })
+export const logger = pino({ level: 'info' });
 
 export function register() {
-  registerOTel({ serviceName: 'my-app' })
+  registerOTel({ serviceName: 'my-app' });
 }
 
 export async function onRequestError(error, request, context) {
-  Sentry.captureException(error, { extra: context })
+  Sentry.captureException(error, { extra: context });
 }
 ```
 
 ```typescript
 // app/proxy.ts — propagate trace ID to client as a response header
-import { traceId } from '@timber/app/server'
+import { traceId } from '@timber/app/server';
 
 export default function proxy(req: Request, next: () => Promise<Response>) {
-  return next().then(res => {
-    res.headers.set('X-Trace-Id', traceId())
-    return res
-  })
+  return next().then((res) => {
+    res.headers.set('X-Trace-Id', traceId());
+    return res;
+  });
 }
 ```
 
@@ -469,6 +469,7 @@ The dev logger is implemented as a Vite plugin and stripped entirely from produc
 ### Implementation Status
 
 **Implemented (Phase 2d):**
+
 - `traceId()` — per-request 32-char hex ID, ALS-backed, exported from `@timber/app/server`
 - `spanId()` — current OTEL span ID when available
 - `runWithTraceId()` / `replaceTraceId()` / `updateSpanId()` — framework-internal ALS scope management
@@ -481,6 +482,7 @@ The dev logger is implemented as a Vite plugin and stripped entirely from produc
 - `@opentelemetry/api` dependency (no-op by default, active when SDK initialized in `register()`)
 
 **Implemented (pipeline wiring):**
+
 - Per-request `traceId` established at pipeline entry via `runWithTraceId()` — available from first line of `proxy.ts`
 - OTEL SDK auto-detection: `getOtelTraceId()` + `replaceTraceId()` wired after root span creation
 - Framework-emitted spans: `http.server.request` (root), `timber.proxy`, `timber.middleware`, `timber.render` via `withSpan()`
@@ -489,6 +491,7 @@ The dev logger is implemented as a Vite plugin and stripped entirely from produc
 - `slowRequestMs` config support (default 3000ms, 0 to disable)
 
 **Implemented (dev logging — OTEL span-based):**
+
 - `DevSpanProcessor` — custom OTEL `SpanProcessor` that collects completed spans per-request by trace ID, formats when root span ends, writes to stderr
 - `initDevTracing()` — dev-mode OTEL SDK auto-init: creates `BasicTracerProvider` with `DevSpanProcessor`, sets global provider
 - Dev logger consumes OTEL spans directly — no parallel event system, spans are single source of truth
@@ -504,4 +507,5 @@ The dev logger is implemented as a Vite plugin and stripped entirely from produc
 - Removed: `DevLogEmitter`, `DevLogEvents`, `dev-log-context.ts` ALS, `PipelineConfig.onDevLog`, all manual `devEmitter.emit()` calls
 
 **Not yet implemented:**
+
 - `slowPhaseMs` config wiring from `timber.config.ts` (infrastructure works, config option not added)

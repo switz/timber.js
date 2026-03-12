@@ -1,14 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
 import { z } from 'zod/v4';
 import * as v from 'valibot';
-import {
-  createActionClient,
-} from '../packages/timber-app/src/server/action-client';
+import { createActionClient } from '../packages/timber-app/src/server/action-client';
 import type { ActionResult } from '../packages/timber-app/src/server/action-client';
-import {
-  createSearchParams,
-  fromSchema,
-} from '@timber/app/search-params';
+import { createSearchParams, fromSchema } from '@timber/app/search-params';
 import type { SearchParamCodec } from '@timber/app/search-params';
 
 // ---------------------------------------------------------------------------
@@ -350,9 +345,7 @@ describe('custom date codec pattern', () => {
 
   it('date codec works with Zod via fromSchema', () => {
     // Zod-based date coercion
-    const codec = fromSchema(
-      z.coerce.date().nullable().default(null)
-    );
+    const codec = fromSchema(z.coerce.date().nullable().default(null));
 
     const date = codec.parse('2026-03-12');
     expect(date).toBeInstanceOf(Date);

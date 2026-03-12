@@ -34,18 +34,19 @@ React render  →  DOM commit  →  useLayoutEffect(scrollTo)  →  paint
 ```
 
 The effect checks a mutable `focusAndScrollRef` object:
+
 - `apply: true` → execute scroll, then set `apply = false`
 - `apply: false` → no-op (used for `scroll={false}`)
 
 ### Trade-offs
 
-| | timber.js (`afterPaint`) | Next.js (`useLayoutEffect`) |
-|---|---|---|
-| **Timing** | After paint — user may see 1 frame at wrong scroll | Before paint — no visible flash |
-| **Complexity** | 3 lines in browser-entry, router owns all scroll logic | Requires a React component (`<ScrollManager>`), scroll intent passed via ref/context |
-| **Testability** | Router tests are pure (no React), `afterPaint` falls back to sync | Scroll tests require React rendering |
-| **Coupling** | Zero React coupling — router is framework-agnostic | Scroll behavior depends on React commit lifecycle |
-| **`scroll={false}`** | Must actively save and restore (document root render resets scroll) | No-op: `apply = false`, layout reconciliation doesn't disturb scroll |
+|                      | timber.js (`afterPaint`)                                            | Next.js (`useLayoutEffect`)                                                          |
+| -------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| **Timing**           | After paint — user may see 1 frame at wrong scroll                  | Before paint — no visible flash                                                      |
+| **Complexity**       | 3 lines in browser-entry, router owns all scroll logic              | Requires a React component (`<ScrollManager>`), scroll intent passed via ref/context |
+| **Testability**      | Router tests are pure (no React), `afterPaint` falls back to sync   | Scroll tests require React rendering                                                 |
+| **Coupling**         | Zero React coupling — router is framework-agnostic                  | Scroll behavior depends on React commit lifecycle                                    |
+| **`scroll={false}`** | Must actively save and restore (document root render resets scroll) | No-op: `apply = false`, layout reconciliation doesn't disturb scroll                 |
 
 ### Why `scroll={false}` differs
 
@@ -103,22 +104,26 @@ The browser entry reads this via `createFromReadableStream`.
 Next.js emits `<script>` tags **progressively** as the HTML streams. Each RSC chunk becomes a `self.__next_f.push()` call:
 
 ```html
-<script>self.__next_f.push([1, "0:\"$Sreact.fragment\"\n1:..."])</script>
+<script>
+  self.__next_f.push([1, '0:"$Sreact.fragment"\n1:...']);
+</script>
 <!-- more HTML streams... -->
-<script>self.__next_f.push([1, "3:{\"children\":...}"])</script>
+<script>
+  self.__next_f.push([1, '3:{"children":...}']);
+</script>
 ```
 
 A global array + ReadableStream controller feeds chunks to `createFromReadableStream` in real-time as the HTML arrives.
 
 ### Trade-offs
 
-| | timber.js (buffered) | Next.js (streaming) |
-|---|---|---|
-| **Hydration start** | After `</body>` — entire RSC payload must arrive first | Progressive — hydration can begin as RSC chunks arrive in HTML |
-| **TTFB impact** | RSC stream must complete before HTML can close | RSC chunks interleave with HTML streaming |
-| **Implementation** | ~30 lines, simple TransformStream | Requires HTML stream interleaving, global callback pattern, chunk encoding |
-| **Large pages** | Delays `</body>` if RSC payload is large | Streams naturally with HTML |
-| **Encoding** | Binary (comma-separated bytes) — compact but opaque | Text (JSON-escaped Flight protocol) — human-readable in view-source |
+|                     | timber.js (buffered)                                   | Next.js (streaming)                                                        |
+| ------------------- | ------------------------------------------------------ | -------------------------------------------------------------------------- |
+| **Hydration start** | After `</body>` — entire RSC payload must arrive first | Progressive — hydration can begin as RSC chunks arrive in HTML             |
+| **TTFB impact**     | RSC stream must complete before HTML can close         | RSC chunks interleave with HTML streaming                                  |
+| **Implementation**  | ~30 lines, simple TransformStream                      | Requires HTML stream interleaving, global callback pattern, chunk encoding |
+| **Large pages**     | Delays `</body>` if RSC payload is large               | Streams naturally with HTML                                                |
+| **Encoding**        | Binary (comma-separated bytes) — compact but opaque    | Text (JSON-escaped Flight protocol) — human-readable in view-source        |
 
 ### What it would take to adopt
 
@@ -148,6 +153,7 @@ Sets `history.scrollRestoration = 'manual'` and relies on the browser's native s
 Our `reactRoot.render()` on the document root resets scroll during DOM reconciliation. The browser's native restoration fires before React commits, so it gets overwritten. Next.js avoids this because their Layout Router only re-renders changed segments — the document scroll is never disturbed by React.
 
 This is a fundamental architectural difference. Adopting native scroll restoration would require either:
+
 - A per-segment rendering approach (Layout Router pattern) — major architectural change
 - Confirming that `useLayoutEffect` scroll restoration (item #1) runs after React's document root reconciliation but before the browser's native restoration gets clobbered — unclear and browser-dependent
 
@@ -159,10 +165,10 @@ Explicit scroll storage is more reliable, predictable, and testable. It works id
 
 ## Summary
 
-| Pattern | Priority | Trigger to revisit |
-|---|---|---|
-| `useLayoutEffect` scroll | Low | Users report visible scroll jank (1-frame flash) |
-| Streaming RSC inlining | Medium | Large pages where TTFB is bottlenecked by RSC payload size |
-| Native browser scroll restoration | None | Only possible after per-segment rendering (major arch change) |
+| Pattern                           | Priority | Trigger to revisit                                            |
+| --------------------------------- | -------- | ------------------------------------------------------------- |
+| `useLayoutEffect` scroll          | Low      | Users report visible scroll jank (1-frame flash)              |
+| Streaming RSC inlining            | Medium   | Large pages where TTFB is bottlenecked by RSC payload size    |
+| Native browser scroll restoration | None     | Only possible after per-segment rendering (major arch change) |
 
 All three patterns are well-understood. The current solutions work correctly and are simpler. Complexity should be added only when a concrete problem demands it.

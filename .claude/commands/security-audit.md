@@ -5,6 +5,7 @@ If $ARGUMENTS is set (a PR number), audit that specific PR. If empty, audit all 
 ## Security authority
 
 Read `design/13-security.md` in full before every audit. Secondary refs:
+
 - `07-routing.md` — URL canonicalization, encoded separator/null byte rejection, Link scheme validation
 - `08-forms-and-actions.md` — CSRF, FormData limits, redirect allow-list
 - `04-authorization.md` — AccessGate, `deny()`, slot degradation
@@ -29,6 +30,7 @@ Read `design/13-security.md` in full before every audit. Secondary refs:
    - ReDoS (isSafeRegex)
 
 4. Search for dangerous patterns:
+
    ```bash
    rg "Object\.fromEntries.*[Hh]eader" --type ts
    rg "eval\(|new Function\(" --type ts
@@ -37,6 +39,7 @@ Read `design/13-security.md` in full before every audit. Secondary refs:
    ```
 
 5. File lb issues for each finding:
+
    ```bash
    lb create "security: <description>" \
      -d "Finding: <description>. Location: <file:line>. Vulnerability class: <from 13-security.md>. Attack scenario: <concrete exploit>. Severity: <critical/high/medium/low>. Suggested fix: <specific approach>. Test case: <what to add>." \

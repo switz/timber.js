@@ -66,7 +66,7 @@ setServerCallback(async (id: string, args: unknown[]) => {
   const response = fetch(window.location.href, {
     method: 'POST',
     headers: {
-      Accept: 'text/x-component',
+      'Accept': 'text/x-component',
       'x-rsc-action': id,
     },
     body,
@@ -414,10 +414,7 @@ function deserializeArg(arg: unknown): unknown {
 
   if (obj.__type === 'Map') {
     return new Map(
-      Object.entries(obj.entries as Record<string, unknown>).map(([k, v]) => [
-        k,
-        deserializeArg(v),
-      ])
+      Object.entries(obj.entries as Record<string, unknown>).map(([k, v]) => [k, deserializeArg(v)])
     );
   }
 
@@ -443,14 +440,18 @@ function deserializeArg(arg: unknown): unknown {
  * Each message arrives with a log level and serialized args. We prepend
  * a styled "[SERVER]" badge and call the matching console method.
  */
-function setupServerLogReplay(hot: { on(event: string, cb: (...args: unknown[]) => void): void }): void {
+function setupServerLogReplay(hot: {
+  on(event: string, cb: (...args: unknown[]) => void): void;
+}): void {
   /** CSS styles for the [SERVER] badge in browser console. */
   const BADGE_STYLES: Record<string, string> = {
     log: 'background: #0070f3; color: white; padding: 1px 5px; border-radius: 3px; font-weight: bold;',
     info: 'background: #0070f3; color: white; padding: 1px 5px; border-radius: 3px; font-weight: bold;',
     warn: 'background: #f5a623; color: white; padding: 1px 5px; border-radius: 3px; font-weight: bold;',
-    error: 'background: #e00; color: white; padding: 1px 5px; border-radius: 3px; font-weight: bold;',
-    debug: 'background: #666; color: white; padding: 1px 5px; border-radius: 3px; font-weight: bold;',
+    error:
+      'background: #e00; color: white; padding: 1px 5px; border-radius: 3px; font-weight: bold;',
+    debug:
+      'background: #666; color: white; padding: 1px 5px; border-radius: 3px; font-weight: bold;',
   };
 
   hot.on('timber:server-log', (data: unknown) => {
@@ -476,9 +477,7 @@ function setupServerLogReplay(hot: { on(event: string, cb: (...args: unknown[]) 
  * The server receives 'timber:client-error' events, and echoes them
  * back as Vite '{ type: "error" }' payloads to trigger the overlay.
  */
-function setupClientErrorForwarding(hot: {
-  send(event: string, data: unknown): void;
-}): void {
+function setupClientErrorForwarding(hot: { send(event: string, data: unknown): void }): void {
   window.addEventListener('error', (event: ErrorEvent) => {
     // Skip errors without useful information
     if (!event.error && !event.message) return;

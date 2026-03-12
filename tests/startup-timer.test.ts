@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { createStartupTimer, createNoopTimer } from '../packages/timber-app/src/utils/startup-timer';
+import {
+  createStartupTimer,
+  createNoopTimer,
+} from '../packages/timber-app/src/utils/startup-timer';
 
 describe('StartupTimer', () => {
   it('records a single phase', () => {
@@ -46,9 +49,7 @@ describe('StartupTimer', () => {
 
     const total = timer.totalMs();
     const phases = timer.getPhases();
-    expect(total).toBeGreaterThanOrEqual(
-      phases[0].durationMs + phases[1].durationMs
-    );
+    expect(total).toBeGreaterThanOrEqual(phases[0].durationMs + phases[1].durationMs);
   });
 
   it('totalMs returns 0 with no phases', () => {

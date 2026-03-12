@@ -55,17 +55,17 @@ Developers control where the flush point sits by where they place `<Suspense>` b
 ```tsx
 // product/page.tsx
 export default async function ProductPage({ params }) {
-  const product = await getProduct(params.id)  // outside Suspense — can 404
-  if (!product) deny(404)                        // real HTTP 404
+  const product = await getProduct(params.id); // outside Suspense — can 404
+  if (!product) deny(404); // real HTTP 404
 
   return (
     <div>
       <ProductHeader product={product} />
       <Suspense fallback={<ReviewsSkeleton />}>
-        <ProductReviews productId={product.id} />   {/* streams after flush */}
+        <ProductReviews productId={product.id} /> {/* streams after flush */}
       </Suspense>
     </div>
-  )
+  );
 }
 ```
 
@@ -145,9 +145,9 @@ One tree. One `renderToReadableStream`. One `React.cache` scope shared by every 
 ```tsx
 // Framework-internal component, not user-facing
 async function AccessGate({ accessFn, params, searchParams, children }) {
-  await accessFn({ params, searchParams })
+  await accessFn({ params, searchParams });
   // cookies() and headers() are ALS-backed — access.ts imports them directly
-  return <>{children}</>
+  return <>{children}</>;
 }
 ```
 
@@ -159,11 +159,11 @@ If `accessFn` calls `deny()`, `redirect()`, or throws an unhandled error, it is 
 
 A single `renderToReadableStream` call means one `React.cache` scope for the entire route. This is the foundation of the data model:
 
-| Layer | Scope | Purpose |
-|---|---|---|
-| `React.cache` | Per-request, per-render-pass | Deduplication within the request. All AccessGates, layouts, pages, and slots share one scope. Use for functions without cross-request caching. |
-| `timber.cache` | Cross-request (TTL/tags) | Persistent data caching. CacheHandler lookup provides inherent dedup — no `React.cache` wrapper needed. |
-| `AsyncLocalStorage` | Per-request | `cookies()`, `headers()` — shared across the entire request. |
+| Layer               | Scope                        | Purpose                                                                                                                                        |
+| ------------------- | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `React.cache`       | Per-request, per-render-pass | Deduplication within the request. All AccessGates, layouts, pages, and slots share one scope. Use for functions without cross-request caching. |
+| `timber.cache`      | Cross-request (TTL/tags)     | Persistent data caching. CacheHandler lookup provides inherent dedup — no `React.cache` wrapper needed.                                        |
+| `AsyncLocalStorage` | Per-request                  | `cookies()`, `headers()` — shared across the entire request.                                                                                   |
 
 ```
 getUser("abc") called in AccessGate (segment 1):
@@ -221,11 +221,11 @@ The framework resolves these concerns as part of the element tree construction i
 
 ### What Uses This Pattern
 
-| Concern | Why render-pass | Behavior on failure |
-|---|---|---|
-| `access.ts` | Shares `React.cache` with layouts/page. Must gate child rendering — parent access failure prevents children from executing. | Calls `deny()` or `redirect()`. Correct HTTP status. |
-| `generateMetadata()` | Shares `React.cache` with page. Must complete before flush so `<head>` is in the shell. | If it throws, treated as a render-phase error. Error boundary (`error.tsx`) catches it. |
-| Slot access (`SlotAccessGate`) | Same scope as parent. Failure is graceful — renders `denied.tsx`, does not affect HTTP status. | Calls `deny()`. Slot degrades, page still renders. |
+| Concern                        | Why render-pass                                                                                                             | Behavior on failure                                                                     |
+| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `access.ts`                    | Shares `React.cache` with layouts/page. Must gate child rendering — parent access failure prevents children from executing. | Calls `deny()` or `redirect()`. Correct HTTP status.                                    |
+| `generateMetadata()`           | Shares `React.cache` with page. Must complete before flush so `<head>` is in the shell.                                     | If it throws, treated as a render-phase error. Error boundary (`error.tsx`) catches it. |
+| Slot access (`SlotAccessGate`) | Same scope as parent. Failure is graceful — renders `denied.tsx`, does not affect HTTP status.                              | Calls `deny()`. Slot degrades, page still renders.                                      |
 
 Future framework concerns that need the single `React.cache` scope should follow this same pattern: resolve inside the render pass, outside `<Suspense>`, with `middleware.ts` cache warming as the prefetch mechanism.
 
@@ -273,19 +273,23 @@ Parallel slots (`@slot` directories) are named content regions within a layout. 
 
 ```tsx
 // app/(authenticated)/layout.tsx
-export default async function AuthLayout({ children, admin, feed }: {
-  children: React.ReactNode
-  admin: React.ReactNode
-  feed: React.ReactNode
+export default async function AuthLayout({
+  children,
+  admin,
+  feed,
+}: {
+  children: React.ReactNode;
+  admin: React.ReactNode;
+  feed: React.ReactNode;
 }) {
-  const user = await requireUser()  // timber.cache HIT — access.ts already resolved this
+  const user = await requireUser(); // timber.cache HIT — access.ts already resolved this
   return (
     <Shell user={user}>
       <aside>{admin}</aside>
       <main>{children}</main>
       <aside>{feed}</aside>
     </Shell>
-  )
+  );
 }
 ```
 
@@ -355,14 +359,14 @@ When a slot's `access.ts` calls `deny()`:
 
 ```tsx
 // @admin/access.ts
-import type { AccessContext } from '@timber/app/server'
-import { deny } from '@timber/app/server'
+import type { AccessContext } from '@timber/app/server';
+import { deny } from '@timber/app/server';
 
 export default async function access(ctx: AccessContext) {
-  const user = await requireUser()       // cache hit from parent's access
-  if (user.role !== 'admin') deny()      // → renders denied.tsx
+  const user = await requireUser(); // cache hit from parent's access
+  if (user.role !== 'admin') deny(); // → renders denied.tsx
   // warming cache for slot page below
-  await getAdminPermissions(user.id)
+  await getAdminPermissions(user.id);
 }
 ```
 
@@ -378,7 +382,7 @@ export default async function access(ctx: AccessContext) {
 ```tsx
 // @admin/denied.tsx
 export default function AdminDenied() {
-  return <div className="text-muted">Admin access required</div>
+  return <div className="text-muted">Admin access required</div>;
 }
 ```
 

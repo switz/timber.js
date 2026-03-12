@@ -17,7 +17,7 @@ When active, the plugin registers `@mdx-js/rollup` as a nested Vite plugin via t
 // timber.config.ts — enabling MDX pages
 export default {
   pageExtensions: ['tsx', 'ts', 'jsx', 'js', 'mdx'],
-}
+};
 ```
 
 `@mdx-js/rollup` is a **peer dependency**. If MDX is activated but the package is not installed, the build fails with a clear error message and install instructions.
@@ -38,9 +38,9 @@ app/
 
 An MDX file can import and use client components. The MDX file itself stays server-side — only explicitly `'use client'` components ship to the browser.
 
-```mdx
+````mdx
 {/* app/docs/getting-started/page.mdx */}
-import { CopyButton } from '../../components/copy-button'  {/* 'use client' component */}
+import { CopyButton } from '../../components/copy-button' {/* 'use client' component */}
 
 # Getting Started
 
@@ -51,7 +51,7 @@ pnpm add @timber/app
 \```
 
 <CopyButton text="pnpm add @timber/app" />
-```
+````
 
 ### Custom Components via `mdx-components.ts`
 
@@ -59,7 +59,7 @@ A project-wide `mdx-components.ts` (or `.tsx`) at the project root provides cust
 
 ```tsx
 // mdx-components.tsx
-import type { MDXComponents } from '@timber/app/server'
+import type { MDXComponents } from '@timber/app/server';
 
 export function useMDXComponents(components: MDXComponents): MDXComponents {
   return {
@@ -71,7 +71,7 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
     ),
     code: (props) => <code className="bg-gray-100 px-1.5 py-0.5 rounded text-sm" {...props} />,
     a: (props) => <a className="text-blue-600 underline" {...props} />,
-  }
+  };
 }
 ```
 
@@ -83,29 +83,27 @@ MDX compilation options are passed through `timber.config.ts`:
 
 ```ts
 // timber.config.ts
-import remarkGfm from 'remark-gfm'
-import rehypeShiki from '@shikijs/rehype'
+import remarkGfm from 'remark-gfm';
+import rehypeShiki from '@shikijs/rehype';
 
 export default {
   pageExtensions: ['tsx', 'ts', 'jsx', 'js', 'mdx'],
   mdx: {
     remarkPlugins: [remarkGfm],
-    rehypePlugins: [
-      [rehypeShiki, { theme: 'github-dark' }],
-    ],
+    rehypePlugins: [[rehypeShiki, { theme: 'github-dark' }]],
   },
-}
+};
 ```
 
 The `mdx` config key maps directly to `@mdx-js/rollup` options (minus `providerImportSource`, which the framework controls). No abstraction over the underlying compiler.
 
-| Option | Type | Description |
-|--------|------|-------------|
-| `remarkPlugins` | `PluggableList` | remark plugins for markdown AST transforms |
-| `rehypePlugins` | `PluggableList` | rehype plugins for HTML AST transforms |
-| `recmaPlugins` | `PluggableList` | recma plugins for ESTree transforms |
-| `remarkRehypeOptions` | `object` | Options passed to `remark-rehype` |
-| `development` | `boolean` | Auto-set: `true` in dev, `false` in build |
+| Option                | Type            | Description                                |
+| --------------------- | --------------- | ------------------------------------------ |
+| `remarkPlugins`       | `PluggableList` | remark plugins for markdown AST transforms |
+| `rehypePlugins`       | `PluggableList` | rehype plugins for HTML AST transforms     |
+| `recmaPlugins`        | `PluggableList` | recma plugins for ESTree transforms        |
+| `remarkRehypeOptions` | `object`        | Options passed to `remark-rehype`          |
+| `development`         | `boolean`       | Auto-set: `true` in dev, `false` in build  |
 
 `remark-gfm`, `rehype-shiki`, and other remark/rehype plugins are the developer's choice — not bundled.
 
@@ -126,20 +124,20 @@ description: Learn how to set up timber.js
 
 ```tsx
 // In a layout that reads frontmatter from a page
-import { title, description } from './page.mdx'
+import { title, description } from './page.mdx';
 ```
 
 For MDX route pages, frontmatter exports can serve as an implicit `metadata` export. When an MDX page has frontmatter fields `title` and/or `description`, the framework treats them as `export const metadata`. An explicit `export const metadata` in the MDX file overrides frontmatter-derived metadata. See [Metadata](16-metadata.md).
 
 ### Next.js Comparison
 
-| Next.js | timber.js |
-|---------|-----------|
-| `@next/mdx` package | Built-in `timber-mdx` plugin |
-| `mdx-components.tsx` at project root | Same convention |
-| `next.config.mjs` `withMDX()` wrapper | `timber.config.ts` `mdx` key |
-| MDX pages are client components by default | MDX pages are server components by default |
-| Custom loader for `.md` files | `@mdx-js/rollup` handles both `.mdx` and `.md` |
+| Next.js                                    | timber.js                                      |
+| ------------------------------------------ | ---------------------------------------------- |
+| `@next/mdx` package                        | Built-in `timber-mdx` plugin                   |
+| `mdx-components.tsx` at project root       | Same convention                                |
+| `next.config.mjs` `withMDX()` wrapper      | `timber.config.ts` `mdx` key                   |
+| MDX pages are client components by default | MDX pages are server components by default     |
+| Custom loader for `.md` files              | `@mdx-js/rollup` handles both `.mdx` and `.md` |
 
 ---
 
@@ -180,8 +178,8 @@ Collections are defined in `content-collections.ts` using `defineCollection` and
 
 ```ts
 // content-collections.ts
-import { defineCollection, defineConfig } from '@content-collections/core'
-import { z } from 'zod/v4'
+import { defineCollection, defineConfig } from '@content-collections/core';
+import { z } from 'zod/v4';
 
 const blog = defineCollection({
   name: 'blog',
@@ -197,7 +195,7 @@ const blog = defineCollection({
     draft: z.boolean().default(false),
     coverImage: z.string().optional(),
   }),
-})
+});
 
 const changelog = defineCollection({
   name: 'changelog',
@@ -208,29 +206,31 @@ const changelog = defineCollection({
     content: z.string().optional(),
     version: z.string(),
     date: z.coerce.date(),
-    changes: z.array(z.object({
-      type: z.enum(['added', 'changed', 'fixed', 'removed']),
-      description: z.string(),
-    })),
+    changes: z.array(
+      z.object({
+        type: z.enum(['added', 'changed', 'fixed', 'removed']),
+        description: z.string(),
+      })
+    ),
   }),
-})
+});
 
 export default defineConfig({
   content: [blog, changelog],
-})
+});
 ```
 
 ### content-collections API
 
 content-collections provides the full collection lifecycle:
 
-| Concept | API | Description |
-|---------|-----|-------------|
+| Concept             | API                                                                  | Description                                      |
+| ------------------- | -------------------------------------------------------------------- | ------------------------------------------------ | ------- | ------------------------------------------------------------------- |
 | Define a collection | `defineCollection({ name, directory, include, schema, transform? })` | Declares a collection with Zod schema validation |
-| Define config | `defineConfig({ content: [...] })` | Bundles collections into a single config |
-| Transform entries | `transform` option | Optional transform function for computed fields |
-| MDX compilation | `@content-collections/mdx` `compileMDX()` | Compiles MDX content bodies in transform step |
-| Parsers | `parser: 'frontmatter' | 'json' | 'yaml'` | Built-in parsers for different file types. Default: `'frontmatter'` |
+| Define config       | `defineConfig({ content: [...] })`                                   | Bundles collections into a single config         |
+| Transform entries   | `transform` option                                                   | Optional transform function for computed fields  |
+| MDX compilation     | `@content-collections/mdx` `compileMDX()`                            | Compiles MDX content bodies in transform step    |
+| Parsers             | `parser: 'frontmatter'                                               | 'json'                                           | 'yaml'` | Built-in parsers for different file types. Default: `'frontmatter'` |
 
 ### MDX in Content Collections
 
@@ -238,9 +238,9 @@ For content collections with MDX files, use `@content-collections/mdx` to compil
 
 ```ts
 // content-collections.ts
-import { defineCollection, defineConfig } from '@content-collections/core'
-import { compileMDX } from '@content-collections/mdx'
-import { z } from 'zod/v4'
+import { defineCollection, defineConfig } from '@content-collections/core';
+import { compileMDX } from '@content-collections/mdx';
+import { z } from 'zod/v4';
 
 const blog = defineCollection({
   name: 'blog',
@@ -254,27 +254,27 @@ const blog = defineCollection({
     draft: z.boolean().default(false),
   }),
   transform: async (document, context) => {
-    const mdx = await compileMDX(context, document)
+    const mdx = await compileMDX(context, document);
     return {
       ...document,
       mdx,
-    }
+    };
   },
-})
+});
 
 export default defineConfig({
   content: [blog],
-})
+});
 ```
 
 The compiled MDX code is stored as a string in the generated output. To render it as a React component, use `@content-collections/mdx/react`:
 
 ```tsx
-import { useMDXComponent } from '@content-collections/mdx/react'
+import { useMDXComponent } from '@content-collections/mdx/react';
 
 function BlogContent({ code }: { code: string }) {
-  const MDXContent = useMDXComponent(code)
-  return <MDXContent />
+  const MDXContent = useMDXComponent(code);
+  return <MDXContent />;
 }
 ```
 
@@ -283,7 +283,7 @@ function BlogContent({ code }: { code: string }) {
 content-collections generates typed modules that are imported directly. The generated output is aliased to `content-collections` via Vite:
 
 ```ts
-import { allBlogs, allChangelogs } from 'content-collections'
+import { allBlogs, allChangelogs } from 'content-collections';
 
 // allBlogs is Array<{ title: string; description: string; ... }>
 // Fully typed based on the schema + transform
@@ -292,13 +292,13 @@ import { allBlogs, allChangelogs } from 'content-collections'
 For timber.js, we also provide a convenience wrapper via `@timber/app/content` that re-exports the generated collections and adds timber-specific utilities:
 
 ```ts
-import { allBlogs } from '@timber/app/content'
+import { allBlogs } from '@timber/app/content';
 
 // Filter at query time
-const published = allBlogs.filter((post) => !post.draft)
+const published = allBlogs.filter((post) => !post.draft);
 
 // Find a single entry by slug
-const post = allBlogs.find((p) => p._meta.path === slug)
+const post = allBlogs.find((p) => p._meta.path === slug);
 ```
 
 ### Entry Metadata
@@ -308,15 +308,15 @@ Every content entry includes a `_meta` object with file metadata:
 ```ts
 interface Meta {
   /** Relative file path from collection directory */
-  filePath: string
+  filePath: string;
   /** File name without extension */
-  fileName: string
+  fileName: string;
   /** Directory path relative to collection directory */
-  directory: string
+  directory: string;
   /** File path without extension — use as slug */
-  path: string
+  path: string;
   /** File extension */
-  extension: string
+  extension: string;
 }
 ```
 
@@ -326,13 +326,13 @@ Content that defines whether a page exists is **primary content** — it belongs
 
 ```tsx
 // app/blog/[slug]/page.tsx
-import { allBlogs } from 'content-collections'
-import { deny } from '@timber/app/server'
+import { allBlogs } from 'content-collections';
+import { deny } from '@timber/app/server';
 
 export default async function BlogPost({ params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = await params
-  const post = allBlogs.find((p) => p._meta.path === slug)
-  if (!post) deny(404)
+  const { slug } = await params;
+  const post = allBlogs.find((p) => p._meta.path === slug);
+  if (!post) deny(404);
   // ...
 }
 ```
@@ -345,22 +345,24 @@ Secondary content — like "related posts" or "recent articles" sidebar — can 
 
 ```tsx
 // app/blog/[slug]/page.tsx
-import type { Metadata } from '@timber/app/server'
-import { allBlogs } from 'content-collections'
+import type { Metadata } from '@timber/app/server';
+import { allBlogs } from 'content-collections';
 
-export async function generateMetadata(
-  { params }: { params: Promise<{ slug: string }> }
-): Promise<Metadata> {
-  const { slug } = await params
-  const post = allBlogs.find((p) => p._meta.path === slug)
-  if (!post) return {}
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const post = allBlogs.find((p) => p._meta.path === slug);
+  if (!post) return {};
   return {
     title: post.title,
     description: post.description,
     openGraph: {
       images: post.coverImage ? [post.coverImage] : [],
     },
-  }
+  };
 }
 ```
 
@@ -402,12 +404,10 @@ Static export of content-driven routes uses `generateStaticParams()`, same as an
 
 ```tsx
 // app/blog/[slug]/page.tsx
-import { allBlogs } from 'content-collections'
+import { allBlogs } from 'content-collections';
 
 export async function generateStaticParams() {
-  return allBlogs
-    .filter((p) => !p.draft)
-    .map((post) => ({ slug: post._meta.path }))
+  return allBlogs.filter((p) => !p.draft).map((post) => ({ slug: post._meta.path }));
 }
 ```
 
@@ -434,21 +434,21 @@ project/
 
 ```ts
 // timber.config.ts
-import remarkGfm from 'remark-gfm'
+import remarkGfm from 'remark-gfm';
 
 export default {
   pageExtensions: ['tsx', 'ts', 'jsx', 'js', 'mdx'],
   mdx: {
     remarkPlugins: [remarkGfm],
   },
-}
+};
 ```
 
 ```ts
 // content-collections.ts
-import { defineCollection, defineConfig } from '@content-collections/core'
-import { compileMDX } from '@content-collections/mdx'
-import { z } from 'zod/v4'
+import { defineCollection, defineConfig } from '@content-collections/core';
+import { compileMDX } from '@content-collections/mdx';
+import { z } from 'zod/v4';
 
 const blog = defineCollection({
   name: 'blog',
@@ -462,17 +462,17 @@ const blog = defineCollection({
     draft: z.boolean().default(false),
   }),
   transform: async (document, context) => {
-    const mdx = await compileMDX(context, document)
+    const mdx = await compileMDX(context, document);
     return {
       ...document,
       mdx,
-    }
+    };
   },
-})
+});
 
 export default defineConfig({
   content: [blog],
-})
+});
 ```
 
 ```mdx
@@ -487,23 +487,23 @@ tags: [intro, timber]
 
 This is my first post. It supports **GFM** thanks to `remark-gfm`.
 
-| Feature | Status |
-|---------|--------|
-| MDX pages | ✓ |
-| Content collections | ✓ |
+| Feature             | Status |
+| ------------------- | ------ |
+| MDX pages           | ✓      |
+| Content collections | ✓      |
 ```
 
 ```tsx
 // app/blog/page.tsx
-import { allBlogs } from 'content-collections'
-import Link from '@timber/app/link'
+import { allBlogs } from 'content-collections';
+import Link from '@timber/app/link';
 
-export const metadata = { title: 'Blog' }
+export const metadata = { title: 'Blog' };
 
 export default async function BlogIndex() {
   const posts = allBlogs
     .filter((p) => !p.draft)
-    .sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime())
+    .sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime());
 
   return (
     <ul>
@@ -519,43 +519,41 @@ export default async function BlogIndex() {
         </li>
       ))}
     </ul>
-  )
+  );
 }
 ```
 
 ```tsx
 // app/blog/[slug]/page.tsx
-import { allBlogs } from 'content-collections'
-import { useMDXComponent } from '@content-collections/mdx/react'
-import { deny } from '@timber/app/server'
-import type { Metadata } from '@timber/app/server'
+import { allBlogs } from 'content-collections';
+import { useMDXComponent } from '@content-collections/mdx/react';
+import { deny } from '@timber/app/server';
+import type { Metadata } from '@timber/app/server';
 
 export async function generateStaticParams() {
-  return allBlogs
-    .filter((p) => !p.draft)
-    .map((post) => ({ slug: post._meta.path }))
+  return allBlogs.filter((p) => !p.draft).map((post) => ({ slug: post._meta.path }));
 }
 
-export async function generateMetadata(
-  { params }: { params: Promise<{ slug: string }> }
-): Promise<Metadata> {
-  const { slug } = await params
-  const post = allBlogs.find((p) => p._meta.path === slug)
-  if (!post) return {}
-  return { title: post.title, description: post.description }
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const post = allBlogs.find((p) => p._meta.path === slug);
+  if (!post) return {};
+  return { title: post.title, description: post.description };
 }
 
 function BlogContent({ code }: { code: string }) {
-  const MDXContent = useMDXComponent(code)
-  return <MDXContent />
+  const MDXContent = useMDXComponent(code);
+  return <MDXContent />;
 }
 
-export default async function BlogPost(
-  { params }: { params: Promise<{ slug: string }> }
-) {
-  const { slug } = await params
-  const post = allBlogs.find((p) => p._meta.path === slug)
-  if (!post) deny(404)
+export default async function BlogPost({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const post = allBlogs.find((p) => p._meta.path === slug);
+  if (!post) deny(404);
 
   return (
     <article>
@@ -564,13 +562,17 @@ export default async function BlogPost(
         <time dateTime={post.publishedAt.toISOString()}>
           {post.publishedAt.toLocaleDateString()}
         </time>
-        <div>{post.tags.map((t) => <span key={t}>#{t}</span>)}</div>
+        <div>
+          {post.tags.map((t) => (
+            <span key={t}>#{t}</span>
+          ))}
+        </div>
       </header>
       <div className="prose">
         <BlogContent code={post.mdx} />
       </div>
     </article>
-  )
+  );
 }
 ```
 
@@ -582,9 +584,9 @@ export default async function BlogPost(
 
 Two plugins are added to the `timber()` array:
 
-| Plugin | Hooks | Responsibility |
-|--------|-------|---------------|
-| `timber-mdx` | `buildStart`, `resolveId`, `load`, `transform` | Detects MDX usage, registers `@mdx-js/rollup`, finds `mdx-components.tsx` |
+| Plugin           | Hooks                                                                                         | Responsibility                                                                      |
+| ---------------- | --------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `timber-mdx`     | `buildStart`, `resolveId`, `load`, `transform`                                                | Detects MDX usage, registers `@mdx-js/rollup`, finds `mdx-components.tsx`           |
 | `timber-content` | `config`, `configResolved`, `buildStart`, `resolveId`, `load`, `transform`, `configureServer` | Wraps `@content-collections/vite`, detects `content/` directory, configures aliases |
 
 `timber-mdx` is intentionally minimal — its job is to wire `@mdx-js/rollup` with the right options. The heavy lifting is done by the unified ecosystem.
@@ -593,13 +595,14 @@ Two plugins are added to the `timber()` array:
 
 ### File Decomposition
 
-| File | Responsibility | Budget |
-|------|---------------|--------|
-| `plugins/mdx.ts` | `timber-mdx` plugin | ~100 lines |
-| `plugins/content.ts` | `timber-content` plugin — wraps `@content-collections/vite` | ~80 lines |
-| `content/index.ts` | Re-exports from generated `content-collections`, timber-specific utilities | ~50 lines |
+| File                 | Responsibility                                                             | Budget     |
+| -------------------- | -------------------------------------------------------------------------- | ---------- |
+| `plugins/mdx.ts`     | `timber-mdx` plugin                                                        | ~100 lines |
+| `plugins/content.ts` | `timber-content` plugin — wraps `@content-collections/vite`                | ~80 lines  |
+| `content/index.ts`   | Re-exports from generated `content-collections`, timber-specific utilities | ~50 lines  |
 
 The implementation is significantly simpler than a custom scanner because content-collections handles:
+
 - File scanning and glob matching
 - Frontmatter parsing (gray-matter built in)
 - Schema validation (Zod / Standard Schema)
@@ -610,13 +613,13 @@ The implementation is significantly simpler than a custom scanner because conten
 
 ### Dependencies
 
-| Package | Type | Purpose |
-|---------|------|---------|
-| `@content-collections/core` | peer dependency | Collection definition, scanning, validation, code generation |
-| `@content-collections/vite` | peer dependency | Vite plugin integration, aliases, dev watching |
-| `@content-collections/mdx` | peer dependency (optional) | MDX compilation in content collection transforms |
-| `@mdx-js/rollup` | peer dependency | MDX route pages (`.mdx` in `app/`) |
-| `zod` | peer dependency | Schema validation (used by content-collections) |
+| Package                     | Type                       | Purpose                                                      |
+| --------------------------- | -------------------------- | ------------------------------------------------------------ |
+| `@content-collections/core` | peer dependency            | Collection definition, scanning, validation, code generation |
+| `@content-collections/vite` | peer dependency            | Vite plugin integration, aliases, dev watching               |
+| `@content-collections/mdx`  | peer dependency (optional) | MDX compilation in content collection transforms             |
+| `@mdx-js/rollup`            | peer dependency            | MDX route pages (`.mdx` in `app/`)                           |
+| `zod`                       | peer dependency            | Schema validation (used by content-collections)              |
 
 All peer dependencies produce clear build errors with install instructions if missing when the relevant feature is activated. `@content-collections/mdx` is only needed if content collections use MDX transforms.
 
@@ -627,11 +630,11 @@ All peer dependencies produce clear build errors with install instructions if mi
 interface TimberUserConfig {
   // ... existing fields ...
   mdx?: {
-    remarkPlugins?: PluggableList
-    rehypePlugins?: PluggableList
-    recmaPlugins?: PluggableList
-    remarkRehypeOptions?: Record<string, unknown>
-  }
+    remarkPlugins?: PluggableList;
+    rehypePlugins?: PluggableList;
+    recmaPlugins?: PluggableList;
+    remarkRehypeOptions?: Record<string, unknown>;
+  };
 }
 ```
 

@@ -1,9 +1,6 @@
 {
   "$schema": "https://raw.githubusercontent.com/oxc-project/oxc/main/npm/oxlint/configuration_schema.json",
-  "extends": [
-    "@switz/eslint-config/oxlint",
-    "@switz/eslint-config/oxlint/react"
-  ],
+  "extends": ["@switz/eslint-config/oxlint", "@switz/eslint-config/oxlint/react"],
   "rules": {
     "typescript/no-unused-vars": [
       "error",

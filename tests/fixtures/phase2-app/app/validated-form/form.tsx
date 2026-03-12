@@ -37,16 +37,10 @@ export function ContactForm({ flash }: ContactFormProps) {
       )}
 
       {/* Server errors */}
-      {errors.serverError && (
-        <div data-testid="server-error">
-          Error: {errors.serverError.code}
-        </div>
-      )}
+      {errors.serverError && <div data-testid="server-error">Error: {errors.serverError.code}</div>}
 
       {/* Success message */}
-      {result?.data && (
-        <div data-testid="success-message">{result.data.message}</div>
-      )}
+      {result?.data && <div data-testid="success-message">{result.data.message}</div>}
 
       <label>
         Name

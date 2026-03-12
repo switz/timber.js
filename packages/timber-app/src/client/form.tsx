@@ -145,7 +145,13 @@ export interface FormErrorsResult {
  * ```
  */
 export function useFormErrors<TData>(
-  result: ActionResult<TData> | { validationErrors?: ValidationErrors; serverError?: { code: string; data?: Record<string, unknown> } } | null
+  result:
+    | ActionResult<TData>
+    | {
+        validationErrors?: ValidationErrors;
+        serverError?: { code: string; data?: Record<string, unknown> };
+      }
+    | null
 ): FormErrorsResult {
   const empty: FormErrorsResult = {
     fieldErrors: {},
@@ -158,7 +164,9 @@ export function useFormErrors<TData>(
   if (!result) return empty;
 
   const validationErrors = result.validationErrors as ValidationErrors | undefined;
-  const serverError = result.serverError as { code: string; data?: Record<string, unknown> } | undefined;
+  const serverError = result.serverError as
+    | { code: string; data?: Record<string, unknown> }
+    | undefined;
 
   if (!validationErrors && !serverError) return empty;
 
@@ -176,7 +184,8 @@ export function useFormErrors<TData>(
     }
   }
 
-  const hasErrors = Object.keys(fieldErrors).length > 0 || formErrors.length > 0 || serverError != null;
+  const hasErrors =
+    Object.keys(fieldErrors).length > 0 || formErrors.length > 0 || serverError != null;
 
   return {
     fieldErrors,

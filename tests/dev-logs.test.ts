@@ -56,7 +56,14 @@ describe('dev-logs serialization', () => {
   it('forwards console.log to HMR WebSocket', async () => {
     const { timberDevLogs } = await import('../packages/timber-app/src/plugins/dev-logs');
     const mockServer = createMockServer();
-    const ctx = { config: {}, routeTree: null, appDir: '/tmp/app', root: '/tmp', dev: true, buildManifest: null };
+    const ctx = {
+      config: {},
+      routeTree: null,
+      appDir: '/tmp/app',
+      root: '/tmp',
+      dev: true,
+      buildManifest: null,
+    };
 
     const plugin = timberDevLogs(ctx as never);
     // Call configureServer to patch console
@@ -76,7 +83,14 @@ describe('dev-logs serialization', () => {
   it('preserves all log levels', async () => {
     const { timberDevLogs } = await import('../packages/timber-app/src/plugins/dev-logs');
     const mockServer = createMockServer();
-    const ctx = { config: {}, routeTree: null, appDir: '/tmp/app', root: '/tmp', dev: true, buildManifest: null };
+    const ctx = {
+      config: {},
+      routeTree: null,
+      appDir: '/tmp/app',
+      root: '/tmp',
+      dev: true,
+      buildManifest: null,
+    };
 
     const plugin = timberDevLogs(ctx as never);
     (plugin as { configureServer: (s: unknown) => void }).configureServer(mockServer);
@@ -96,7 +110,14 @@ describe('dev-logs serialization', () => {
   it('still calls original console method', async () => {
     const { timberDevLogs } = await import('../packages/timber-app/src/plugins/dev-logs');
     const mockServer = createMockServer();
-    const ctx = { config: {}, routeTree: null, appDir: '/tmp/app', root: '/tmp', dev: true, buildManifest: null };
+    const ctx = {
+      config: {},
+      routeTree: null,
+      appDir: '/tmp/app',
+      root: '/tmp',
+      dev: true,
+      buildManifest: null,
+    };
 
     const originalLog = vi.fn();
     console.log = originalLog;
@@ -112,7 +133,14 @@ describe('dev-logs serialization', () => {
   it('serializes objects and arrays', async () => {
     const { timberDevLogs } = await import('../packages/timber-app/src/plugins/dev-logs');
     const mockServer = createMockServer();
-    const ctx = { config: {}, routeTree: null, appDir: '/tmp/app', root: '/tmp', dev: true, buildManifest: null };
+    const ctx = {
+      config: {},
+      routeTree: null,
+      appDir: '/tmp/app',
+      root: '/tmp',
+      dev: true,
+      buildManifest: null,
+    };
 
     const plugin = timberDevLogs(ctx as never);
     (plugin as { configureServer: (s: unknown) => void }).configureServer(mockServer);
@@ -128,7 +156,14 @@ describe('dev-logs serialization', () => {
   it('serializes Error objects', async () => {
     const { timberDevLogs } = await import('../packages/timber-app/src/plugins/dev-logs');
     const mockServer = createMockServer();
-    const ctx = { config: {}, routeTree: null, appDir: '/tmp/app', root: '/tmp', dev: true, buildManifest: null };
+    const ctx = {
+      config: {},
+      routeTree: null,
+      appDir: '/tmp/app',
+      root: '/tmp',
+      dev: true,
+      buildManifest: null,
+    };
 
     const plugin = timberDevLogs(ctx as never);
     (plugin as { configureServer: (s: unknown) => void }).configureServer(mockServer);
@@ -150,7 +185,14 @@ describe('dev-logs serialization', () => {
   it('redacts sensitive keys', async () => {
     const { timberDevLogs } = await import('../packages/timber-app/src/plugins/dev-logs');
     const mockServer = createMockServer();
-    const ctx = { config: {}, routeTree: null, appDir: '/tmp/app', root: '/tmp', dev: true, buildManifest: null };
+    const ctx = {
+      config: {},
+      routeTree: null,
+      appDir: '/tmp/app',
+      root: '/tmp',
+      dev: true,
+      buildManifest: null,
+    };
 
     const plugin = timberDevLogs(ctx as never);
     (plugin as { configureServer: (s: unknown) => void }).configureServer(mockServer);
@@ -167,7 +209,14 @@ describe('dev-logs serialization', () => {
   it('redacts sensitive string values', async () => {
     const { timberDevLogs } = await import('../packages/timber-app/src/plugins/dev-logs');
     const mockServer = createMockServer();
-    const ctx = { config: {}, routeTree: null, appDir: '/tmp/app', root: '/tmp', dev: true, buildManifest: null };
+    const ctx = {
+      config: {},
+      routeTree: null,
+      appDir: '/tmp/app',
+      root: '/tmp',
+      dev: true,
+      buildManifest: null,
+    };
 
     const plugin = timberDevLogs(ctx as never);
     (plugin as { configureServer: (s: unknown) => void }).configureServer(mockServer);
@@ -181,7 +230,14 @@ describe('dev-logs serialization', () => {
   it('includes timestamp in payload', async () => {
     const { timberDevLogs } = await import('../packages/timber-app/src/plugins/dev-logs');
     const mockServer = createMockServer();
-    const ctx = { config: {}, routeTree: null, appDir: '/tmp/app', root: '/tmp', dev: true, buildManifest: null };
+    const ctx = {
+      config: {},
+      routeTree: null,
+      appDir: '/tmp/app',
+      root: '/tmp',
+      dev: true,
+      buildManifest: null,
+    };
 
     const plugin = timberDevLogs(ctx as never);
     (plugin as { configureServer: (s: unknown) => void }).configureServer(mockServer);
@@ -198,7 +254,14 @@ describe('dev-logs serialization', () => {
   it('handles non-serializable arguments gracefully', async () => {
     const { timberDevLogs } = await import('../packages/timber-app/src/plugins/dev-logs');
     const mockServer = createMockServer();
-    const ctx = { config: {}, routeTree: null, appDir: '/tmp/app', root: '/tmp', dev: true, buildManifest: null };
+    const ctx = {
+      config: {},
+      routeTree: null,
+      appDir: '/tmp/app',
+      root: '/tmp',
+      dev: true,
+      buildManifest: null,
+    };
 
     const plugin = timberDevLogs(ctx as never);
     (plugin as { configureServer: (s: unknown) => void }).configureServer(mockServer);
@@ -215,7 +278,14 @@ describe('dev-logs serialization', () => {
   it('handles deeply nested objects with depth limit', async () => {
     const { timberDevLogs } = await import('../packages/timber-app/src/plugins/dev-logs');
     const mockServer = createMockServer();
-    const ctx = { config: {}, routeTree: null, appDir: '/tmp/app', root: '/tmp', dev: true, buildManifest: null };
+    const ctx = {
+      config: {},
+      routeTree: null,
+      appDir: '/tmp/app',
+      root: '/tmp',
+      dev: true,
+      buildManifest: null,
+    };
 
     const plugin = timberDevLogs(ctx as never);
     (plugin as { configureServer: (s: unknown) => void }).configureServer(mockServer);
@@ -233,7 +303,14 @@ describe('dev-logs serialization', () => {
 
   it('only applies during dev (apply: serve)', async () => {
     const { timberDevLogs } = await import('../packages/timber-app/src/plugins/dev-logs');
-    const ctx = { config: {}, routeTree: null, appDir: '/tmp/app', root: '/tmp', dev: true, buildManifest: null };
+    const ctx = {
+      config: {},
+      routeTree: null,
+      appDir: '/tmp/app',
+      root: '/tmp',
+      dev: true,
+      buildManifest: null,
+    };
 
     const plugin = timberDevLogs(ctx as never);
     expect(plugin.apply).toBe('serve');
@@ -245,7 +322,14 @@ describe('dev-logs serialization', () => {
     mockServer.hot.send.mockImplementation(() => {
       throw new Error('WebSocket closed');
     });
-    const ctx = { config: {}, routeTree: null, appDir: '/tmp/app', root: '/tmp', dev: true, buildManifest: null };
+    const ctx = {
+      config: {},
+      routeTree: null,
+      appDir: '/tmp/app',
+      root: '/tmp',
+      dev: true,
+      buildManifest: null,
+    };
 
     const plugin = timberDevLogs(ctx as never);
     (plugin as { configureServer: (s: unknown) => void }).configureServer(mockServer);

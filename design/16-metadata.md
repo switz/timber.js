@@ -6,25 +6,28 @@ Two forms, both exports from `page.tsx` or `layout.tsx`:
 
 ```tsx
 // Static — known at module load time
-import type { Metadata } from '@timber/app/server'
+import type { Metadata } from '@timber/app/server';
 
 export const metadata: Metadata = {
   title: 'Dashboard',
   description: 'Your project dashboard',
-}
+};
 
 // Dynamic — async, receives route context
-export async function generateMetadata({ params, searchParams }: {
-  params: Promise<{ id: string }>
-  searchParams: Promise<{ tab?: string }>
+export async function generateMetadata({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ tab?: string }>;
 }): Promise<Metadata> {
-  const { id } = await params
-  const product = await getProduct(id)
+  const { id } = await params;
+  const product = await getProduct(id);
   return {
     title: product.name,
     description: product.summary,
     openGraph: { images: [product.imageUrl] },
-  }
+  };
 }
 ```
 
@@ -41,98 +44,103 @@ A module exports one or the other — not both. Build error if both are present.
 ## The `Metadata` Type
 
 ```typescript
-import type { Metadata } from '@timber/app/server'
+import type { Metadata } from '@timber/app/server';
 
 interface Metadata {
   // --- Core ---
-  title?: string | { default?: string; template?: string; absolute?: string }
-  description?: string
+  title?: string | { default?: string; template?: string; absolute?: string };
+  description?: string;
 
   // --- Authorship ---
-  generator?: string
-  applicationName?: string
-  authors?: Array<{ name?: string; url?: string }> | { name?: string; url?: string }
-  creator?: string
-  publisher?: string
+  generator?: string;
+  applicationName?: string;
+  authors?: Array<{ name?: string; url?: string }> | { name?: string; url?: string };
+  creator?: string;
+  publisher?: string;
 
   // --- Crawling ---
-  robots?: string | {
-    index?: boolean
-    follow?: boolean
-    googleBot?: string | { index?: boolean; follow?: boolean; [key: string]: unknown }
-    [key: string]: unknown
-  }
-  referrer?: string
-  keywords?: string | string[]
-  category?: string
+  robots?:
+    | string
+    | {
+        index?: boolean;
+        follow?: boolean;
+        googleBot?: string | { index?: boolean; follow?: boolean; [key: string]: unknown };
+        [key: string]: unknown;
+      };
+  referrer?: string;
+  keywords?: string | string[];
+  category?: string;
 
   // --- Open Graph ---
   openGraph?: {
-    title?: string
-    description?: string
-    url?: string
-    siteName?: string
-    images?: string | Array<{ url: string; width?: number; height?: number; alt?: string }>
-    videos?: Array<{ url: string; width?: number; height?: number }>
-    audio?: Array<{ url: string }>
-    locale?: string
-    type?: string
-    publishedTime?: string
-    modifiedTime?: string
-    authors?: string[]
-  }
+    title?: string;
+    description?: string;
+    url?: string;
+    siteName?: string;
+    images?: string | Array<{ url: string; width?: number; height?: number; alt?: string }>;
+    videos?: Array<{ url: string; width?: number; height?: number }>;
+    audio?: Array<{ url: string }>;
+    locale?: string;
+    type?: string;
+    publishedTime?: string;
+    modifiedTime?: string;
+    authors?: string[];
+  };
 
   // --- Twitter ---
   twitter?: {
-    card?: string
-    site?: string
-    siteId?: string
-    title?: string
-    description?: string
-    images?: string | string[] | Array<{ url: string; alt?: string; width?: number; height?: number }>
-    creator?: string
-    creatorId?: string
-  }
+    card?: string;
+    site?: string;
+    siteId?: string;
+    title?: string;
+    description?: string;
+    images?:
+      | string
+      | string[]
+      | Array<{ url: string; alt?: string; width?: number; height?: number }>;
+    creator?: string;
+    creatorId?: string;
+  };
 
   // --- Icons ---
   icons?: {
-    icon?: string | Array<{ url: string; sizes?: string; type?: string; media?: string }>
-    shortcut?: string | string[]
-    apple?: string | Array<{ url: string; sizes?: string; type?: string }>
-    other?: Array<{ rel: string; url: string; sizes?: string; type?: string }>
-  }
+    icon?: string | Array<{ url: string; sizes?: string; type?: string; media?: string }>;
+    shortcut?: string | string[];
+    apple?: string | Array<{ url: string; sizes?: string; type?: string }>;
+    other?: Array<{ rel: string; url: string; sizes?: string; type?: string }>;
+  };
 
   // --- Links ---
-  manifest?: string
+  manifest?: string;
   alternates?: {
-    canonical?: string
-    languages?: Record<string, string>
-    media?: Record<string, string>
-    types?: Record<string, string>
-  }
+    canonical?: string;
+    languages?: Record<string, string>;
+    media?: Record<string, string>;
+    types?: Record<string, string>;
+  };
 
   // --- Verification ---
   verification?: {
-    google?: string
-    yahoo?: string
-    yandex?: string
-    other?: Record<string, string | string[]>
-  }
+    google?: string;
+    yahoo?: string;
+    yandex?: string;
+    other?: Record<string, string | string[]>;
+  };
 
   // --- URL resolution ---
-  metadataBase?: URL | null
+  metadataBase?: URL | null;
 
   // --- Apple ---
   appleWebApp?: {
-    capable?: boolean
-    title?: string
-    statusBarStyle?: string
-    startupImage?: string | Array<{ url: string; media?: string }>
-  }
+    capable?: boolean;
+    title?: string;
+    statusBarStyle?: string;
+    startupImage?: string | Array<{ url: string; media?: string }>;
+  };
 
   // --- Misc ---
-  formatDetection?: { email?: boolean; address?: boolean; telephone?: boolean }
-  other?: Record<string, string | string[]>
+  formatDetection?: { email?: boolean; address?: boolean; telephone?: boolean };
+  other?: Record<string, string | string[]>;
 }
 ```
 
@@ -141,8 +149,7 @@ interface Metadata {
 Next.js separates `Viewport` from `Metadata` (with `export const viewport` and `generateViewport()`). timber.js does not. The framework always emits:
 
 ```html
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="utf-8" /> <meta name="viewport" content="width=device-width, initial-scale=1" />
 ```
 
 These are framework-injected defaults, not part of the `Metadata` type. They cannot be overridden or removed through metadata exports. If a page needs a custom viewport (rare — kiosk apps, embedded webviews), use a `<meta>` tag in the root layout's `<head>` directly.
@@ -185,7 +192,7 @@ timber.js metadata timeline:
 ```typescript
 // app/products/[id]/middleware.ts
 export default async function middleware(ctx: MiddlewareContext) {
-  void getProduct(ctx.params.id)  // warms cache for both generateMetadata and page
+  void getProduct(ctx.params.id); // warms cache for both generateMetadata and page
 }
 ```
 
@@ -221,11 +228,11 @@ app/
       page.tsx      → metadata: { title: { absolute: 'Settings' } }
 ```
 
-| Route | Resolved `<title>` |
-|---|---|
-| `/dashboard` | `Overview — Dashboard \| My App` |
-| `/dashboard/settings` | `Settings` |
-| `/` (root page with no title) | `My App` |
+| Route                         | Resolved `<title>`               |
+| ----------------------------- | -------------------------------- |
+| `/dashboard`                  | `Overview — Dashboard \| My App` |
+| `/dashboard/settings`         | `Settings`                       |
+| `/` (root page with no title) | `My App`                         |
 
 The nearest ancestor template wins. `/dashboard`'s page title `'Overview'` is formatted with the dashboard layout's template. `/dashboard/settings` uses `absolute` to skip all templates.
 
@@ -254,8 +261,7 @@ Input: [rootLayoutMeta, ...nestedLayoutMetas, pageMeta]
 The framework always emits, regardless of user metadata:
 
 ```html
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="utf-8" /> <meta name="viewport" content="width=device-width, initial-scale=1" />
 ```
 
 These are not part of the `Metadata` type and cannot be removed. The framework does NOT inject a default `robots` tag — only user-specified robots metadata is rendered.
@@ -307,7 +313,7 @@ The same applies to status-code files (`4xx.tsx`, `5xx.tsx`) and `error.tsx`. Pa
 export const metadata: Metadata = {
   metadataBase: new URL('https://myapp.com'),
   title: { default: 'My App', template: '%s | My App' },
-}
+};
 ```
 
 Relative URLs in any metadata field are resolved against `metadataBase`:
@@ -315,8 +321,8 @@ Relative URLs in any metadata field are resolved against `metadataBase`:
 ```tsx
 // app/products/[id]/page.tsx
 export async function generateMetadata({ params }) {
-  const { id } = await params
-  const product = await getProduct(id)
+  const { id } = await params;
+  const product = await getProduct(id);
   return {
     openGraph: {
       images: ['/images/products/' + product.image],
@@ -326,7 +332,7 @@ export async function generateMetadata({ params }) {
       canonical: '/products/' + id,
       // → https://myapp.com/products/123
     },
-  }
+  };
 }
 ```
 
@@ -340,16 +346,16 @@ File-based metadata routes generate well-known URLs for crawlers and browsers. T
 
 ### File Conventions
 
-| File | URL | Content-Type | Nestable | Dynamic |
-|---|---|---|---|---|
-| `sitemap.xml` / `sitemap.ts` | `/sitemap.xml` | `application/xml` | Yes | Yes |
-| `robots.txt` / `robots.ts` | `/robots.txt` | `text/plain` | No | Yes |
-| `manifest.json` / `manifest.ts` | `/manifest.webmanifest` | `application/manifest+json` | No | Yes |
-| `favicon.ico` | `/favicon.ico` | `image/x-icon` | No | No |
-| `icon.png` / `icon.tsx` | `/icon` | `image/*` | Yes | Yes |
-| `opengraph-image.png` / `opengraph-image.tsx` | `/opengraph-image` | `image/*` | Yes | Yes |
-| `twitter-image.png` / `twitter-image.tsx` | `/twitter-image` | `image/*` | Yes | Yes |
-| `apple-icon.png` / `apple-icon.tsx` | `/apple-icon` | `image/*` | Yes | Yes |
+| File                                          | URL                     | Content-Type                | Nestable | Dynamic |
+| --------------------------------------------- | ----------------------- | --------------------------- | -------- | ------- |
+| `sitemap.xml` / `sitemap.ts`                  | `/sitemap.xml`          | `application/xml`           | Yes      | Yes     |
+| `robots.txt` / `robots.ts`                    | `/robots.txt`           | `text/plain`                | No       | Yes     |
+| `manifest.json` / `manifest.ts`               | `/manifest.webmanifest` | `application/manifest+json` | No       | Yes     |
+| `favicon.ico`                                 | `/favicon.ico`          | `image/x-icon`              | No       | No      |
+| `icon.png` / `icon.tsx`                       | `/icon`                 | `image/*`                   | Yes      | Yes     |
+| `opengraph-image.png` / `opengraph-image.tsx` | `/opengraph-image`      | `image/*`                   | Yes      | Yes     |
+| `twitter-image.png` / `twitter-image.tsx`     | `/twitter-image`        | `image/*`                   | Yes      | Yes     |
+| `apple-icon.png` / `apple-icon.tsx`           | `/apple-icon`           | `image/*`                   | Yes      | Yes     |
 
 **Nestable** means the file can appear in any route segment, not just the app root. A `sitemap.ts` in `app/blog/` serves at `/blog/sitemap.xml`. Non-nestable files are root-only.
 
@@ -357,33 +363,42 @@ File-based metadata routes generate well-known URLs for crawlers and browsers. T
 
 ```typescript
 // app/sitemap.ts
-import type { MetadataRoute } from '@timber/app/server'
+import type { MetadataRoute } from '@timber/app/server';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const products = await db.products.findAll()
-  return products.map(p => ({
+  const products = await db.products.findAll();
+  return products.map((p) => ({
     url: `https://myapp.com/products/${p.id}`,
     lastModified: p.updatedAt,
     changeFrequency: 'weekly',
     priority: 0.8,
-  }))
+  }));
 }
 ```
 
 ```tsx
 // app/opengraph-image.tsx
-import { ImageResponse } from '@takumi-rs/image-response'
+import { ImageResponse } from '@takumi-rs/image-response';
 
 export default async function OGImage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params
-  const product = await getProduct(id)
+  const { id } = await params;
+  const product = await getProduct(id);
   return new ImageResponse(
-    <div style={{ fontSize: 48, background: 'white', width: '100%', height: '100%',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <div
+      style={{
+        fontSize: 48,
+        background: 'white',
+        width: '100%',
+        height: '100%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
       {product.name}
     </div>,
     { width: 1200, height: 630 }
-  )
+  );
 }
 ```
 

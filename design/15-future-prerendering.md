@@ -28,6 +28,7 @@ In cached segments, `timber.cache` calls within the layout return data from the 
 `prerender.ts` is optional for static segments — the framework pre-renders the single URL. For dynamic segments like `[id]`, `generateParams` is required to know which param values to pre-render. Without it, the framework cannot enumerate URLs.
 
 When a dynamic segment has no `generateParams` in `server-with-static-shell` mode:
+
 - The build succeeds — the route falls back to SSR
 - A structured build diagnostic is emitted (`DYNAMIC_SEGMENT_NO_PARAMS`) listing affected routes
 - The build manifest records the route as `renderMode: 'ssr'` explicitly
@@ -42,16 +43,16 @@ The presence of `prerender.ts` in a route segment signals to the framework: pre-
 
 ```typescript
 // app/docs/[slug]/prerender.ts
-import { db } from '@/lib/db'
+import { db } from '@/lib/db';
 
 // required for dynamic segments — which param values to pre-render
 export async function generateParams() {
-  const docs = await db.docs.findAll()
-  return docs.map(doc => ({ slug: doc.slug }))
+  const docs = await db.docs.findAll();
+  return docs.map((doc) => ({ slug: doc.slug }));
 }
 
-export const ttl = '1h'
-export const tags = ['docs']
+export const ttl = '1h';
+export const tags = ['docs'];
 ```
 
 `generateParams` is required for dynamic route segments — unless `fallback: 'shell'` is set (see below). For static segments (no `[param]`), it is optional — the framework pre-renders the single URL.
@@ -64,8 +65,8 @@ For dynamic routes where params are not known at build time — e.g. `/users/[id
 
 ```typescript
 // app/users/[id]/prerender.ts
-export const fallback = 'shell'
-export const ttl = '7d'
+export const fallback = 'shell';
+export const ttl = '7d';
 ```
 
 timber.js emits a single `users/shell.html` at build time and writes a `_redirects` entry (for Cloudflare Pages) or equivalent routing rule (for other static hosts):
@@ -77,6 +78,7 @@ timber.js emits a single `users/shell.html` at build time and writes a `_redirec
 The shell renders server-side at build time **without params** — so server components in the route cannot read `params.id`. The dynamic component must be `'use client'`, read its own param via `useParams()`, and fetch data itself using `<Suspense>` for the loading state.
 
 **Constraints:**
+
 - `fallback: 'shell'` is only valid in `static` mode. In `server` or `server-with-static-shell`, unknown params render per-request — no fallback needed.
 - Server components in the route cannot access `params` — they render at build time without a request context.
 - `middleware.ts` files do not run at request time in `static` mode. Auth must be handled client-side or by a separate API layer.
@@ -90,9 +92,9 @@ The shell renders server-side at build time **without params** — so server com
 
 ```tsx
 export default async function AddToCartButton({ productId }) {
-  'use dynamic'
-  const user = await getUser()  // reads request context — not available at build time
-  return <button>Add to cart</button>
+  'use dynamic';
+  const user = await getUser(); // reads request context — not available at build time
+  return <button>Add to cart</button>;
 }
 ```
 
@@ -120,10 +122,10 @@ Together they mean: render per-request (so the component can access cookies, hea
 - `'use dynamic'` is about **cache scope** — this subtree opts out of the pre-rendered shell
 - `<Suspense>` is about **flush timing** — this subtree streams after the status commits
 
-|                         | Cached        | Per-request          |
-|-------------------------|---------------|----------------------|
-| **Blocks flush**        | default shell | `'use dynamic'`      |
-| **Streams after flush** | ---           | `<Suspense>`         |
+|                         | Cached        | Per-request     |
+| ----------------------- | ------------- | --------------- |
+| **Blocks flush**        | default shell | `'use dynamic'` |
+| **Streams after flush** | ---           | `<Suspense>`    |
 
 ### `cookies()` and `headers()` in Pre-Rendered Routes
 

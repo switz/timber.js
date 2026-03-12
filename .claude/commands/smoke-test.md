@@ -5,27 +5,30 @@ If $ARGUMENTS contains "preview pr-N", test PR preview URLs. If "production", te
 ## Endpoint catalogue
 
 ### Core HTTP semantics (timber's primary guarantee)
-| Path | Expected |
-|------|----------|
-| `/` | 200 |
-| nonexistent path | 404 |
-| `/500-test` (if exists) | 500 |
+
+| Path                         | Expected              |
+| ---------------------------- | --------------------- |
+| `/`                          | 200                   |
+| nonexistent path             | 404                   |
+| `/500-test` (if exists)      | 500                   |
 | `/redirect-test` (if exists) | 3xx + Location header |
 
 **Critical:** 200 on a path that should be 404/500 is a P0 finding.
 
 ### Routing correctness
-| Path | Expected |
-|------|----------|
-| `/path%2fwith%2fslashes` | 400 (encoded separator rejection) |
-| `/path%00null` | 400 (null byte rejection) |
-| API route with unsupported method | 405 |
+
+| Path                              | Expected                          |
+| --------------------------------- | --------------------------------- |
+| `/path%2fwith%2fslashes`          | 400 (encoded separator rejection) |
+| `/path%00null`                    | 400 (null byte rejection)         |
+| API route with unsupported method | 405                               |
 
 ### Security
-| Test | Expected |
-|------|----------|
+
+| Test                       | Expected            |
+| -------------------------- | ------------------- |
 | POST without Origin header | 403 (CSRF rejected) |
-| POST with oversized body | 413 or 400 |
+| POST with oversized body   | 413 or 400          |
 
 ## Workflow
 

@@ -1,8 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  createActionClient,
-  validated,
-} from '../packages/timber-app/src/server/action-client';
+import { createActionClient, validated } from '../packages/timber-app/src/server/action-client';
 import type { ActionResult } from '../packages/timber-app/src/server/action-client';
 import { useFormErrors } from '../packages/timber-app/src/client/form';
 import { getFormFlash, runWithFormFlash } from '../packages/timber-app/src/server/form-flash';
@@ -11,13 +8,19 @@ import type { FormFlashData } from '../packages/timber-app/src/server/form-flash
 // ─── Helpers ──────────────────────────────────────────────────────────────
 
 /** Minimal Standard Schema implementation for testing. */
-function mockStandardSchema<T>(validator: (data: unknown) => T | { issues: Array<{ message: string; path?: Array<string | { key: string }> }> }) {
+function mockStandardSchema<T>(
+  validator: (
+    data: unknown
+  ) => T | { issues: Array<{ message: string; path?: Array<string | { key: string }> }> }
+) {
   return {
     '~standard': {
       validate(value: unknown) {
         const result = validator(value);
         if (result && typeof result === 'object' && 'issues' in result) {
-          return result as { issues: Array<{ message: string; path?: Array<string | { key: string }> }> };
+          return result as {
+            issues: Array<{ message: string; path?: Array<string | { key: string }> }>;
+          };
         }
         return { value: result as T };
       },
@@ -28,7 +31,11 @@ function mockStandardSchema<T>(validator: (data: unknown) => T | { issues: Array
 /** Minimal legacy schema (Zod-like) for testing. */
 function mockLegacySchema<T>(validator: (data: unknown) => T) {
   return {
-    safeParse(data: unknown): { success: true; data: T } | { success: false; error: { flatten(): { fieldErrors: Record<string, string[]> } } } {
+    safeParse(
+      data: unknown
+    ):
+      | { success: true; data: T }
+      | { success: false; error: { flatten(): { fieldErrors: Record<string, string[]> } } } {
       try {
         const result = validator(data);
         return { success: true, data: result };

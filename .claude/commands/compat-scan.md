@@ -5,6 +5,7 @@ Run the Next.js compat test suite and file lb issues for regressions.
 1. **Read baseline**: `tests/nextjs-compat/TRACKING.md` (if it exists) — map of test → {PASS, SKIP, N/A}
 
 2. **Run tests**:
+
    ```bash
    pnpm test tests/nextjs-compat/
    ```
@@ -18,6 +19,7 @@ Run the Next.js compat test suite and file lb issues for regressions.
 4. **Print report** with counts per category
 
 ## Rules
+
 - Deduplicate: `lb list` before every `lb create`
 - Don't update TRACKING.md — that's a human decision
 - Count at individual test level, not file level

@@ -89,11 +89,13 @@ test.describe('middleware error handling', () => {
 
 test.describe('middleware cookie handling', () => {
   test('middleware reads cookies from request', async ({ page, context }) => {
-    await context.addCookies([{
-      name: 'test-cookie',
-      value: 'hello-from-test',
-      url: 'http://localhost:3000',
-    }]);
+    await context.addCookies([
+      {
+        name: 'test-cookie',
+        value: 'hello-from-test',
+        url: 'http://localhost:3000',
+      },
+    ]);
     await page.goto('/middleware-test/cookies');
     const readCookie = page.locator('[data-testid="read-cookie"]');
     await expect(readCookie).toHaveText('hello-from-test');

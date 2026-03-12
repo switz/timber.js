@@ -155,9 +155,7 @@ function formatMs(ms) {
 function median(arr) {
   const sorted = [...arr].sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
-  return sorted.length % 2 === 0
-    ? (sorted[mid - 1] + sorted[mid]) / 2
-    : sorted[mid];
+  return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
 }
 
 async function main() {
@@ -214,7 +212,9 @@ async function main() {
     log(`  min: ${formatMs(minBuild)}, max: ${formatMs(maxBuild)}`);
     log(`  all: [${buildTimes.map(formatMs).join(', ')}]`);
     log('');
-    log(`Build output size: ${formatBytes(sizeResult.totalBytes)} (${formatBytes(sizeResult.totalGzipBytes)} gzip)`);
+    log(
+      `Build output size: ${formatBytes(sizeResult.totalBytes)} (${formatBytes(sizeResult.totalGzipBytes)} gzip)`
+    );
     for (const [cat, bytes] of Object.entries(sizeResult.categories)) {
       const gzBytes = sizeResult.categoriesGzip[cat] || 0;
       log(`  ${cat}: ${formatBytes(bytes)} (${formatBytes(gzBytes)} gzip)`);
@@ -224,7 +224,9 @@ async function main() {
       log('Client JS composition:');
       for (const cat of ['react', 'timber', 'app', 'other']) {
         if (clientComp.totals[cat] > 0) {
-          log(`  ${cat}: ${formatBytes(clientComp.totals[cat])} (${formatBytes(clientComp.gzipTotals[cat])} gzip)`);
+          log(
+            `  ${cat}: ${formatBytes(clientComp.totals[cat])} (${formatBytes(clientComp.gzipTotals[cat])} gzip)`
+          );
         }
       }
     }

@@ -5,6 +5,7 @@ $ARGUMENTS is an optional commit count (default: 50).
 ## Design authority
 
 Read these design docs before analyzing any fix — they define what timber does and does not share with upstream:
+
 - `01-philosophy.md` — HTTP correctness, no pages router, no ISR
 - `02-rendering-pipeline.md` — single `renderToReadableStream`, flush at `onShellReady`, debug channel sink
 - `05-streaming.md` — explicit streaming boundaries, Suspense semantics
@@ -56,6 +57,7 @@ gh pr list --repo vercel/next.js --state merged --label bug --limit ${COMMIT_COU
 For each candidate, check whether it touches code with a timber.js equivalent.
 
 **Skip commits only touching:**
+
 - `packages/next/src/client/components/pages-router/` (pages router)
 - `packages/next/src/server/lib/incremental-cache/` (ISR)
 - `packages/next/src/build/webpack/` (webpack-specific)
@@ -65,6 +67,7 @@ For each candidate, check whether it touches code with a timber.js equivalent.
 - `test/` only (test-only changes with no production fix)
 
 **Focus on commits touching:**
+
 - `packages/next/src/server/app-render/` → maps to `src/server/`
 - `packages/next/src/server/web/` → maps to Cloudflare adapter
 - `packages/next/src/shared/lib/router/` → maps to `src/client/`
@@ -83,6 +86,7 @@ For each fix that passed the filter:
 2. **Identify the root cause.** What was the bug? What precondition triggers it? What is the failure mode (crash, wrong output, security bypass, data leak)?
 
 3. **Search timber for the same pattern.** Run targeted searches and show the commands + results:
+
    ```bash
    # Example: race condition in RSC streaming
    rg "ReadableStream|pipeTo|pipeThrough" packages/timber-app/src/server/ --type ts -l

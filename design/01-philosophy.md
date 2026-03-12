@@ -4,7 +4,7 @@
 
 timber.js is a web framework built on Vite and React Server Components, written from scratch. It shares design goals with Vinext (Cloudflare's implementation of Next.js on Vite) but is an independent implementation with a different set of design values.
 
-The shortest version: streaming should only be used for secondary or tertiary *slow* content. Data layers for primary content should be fast–rails and php could do this, so can we. This gets you: correct HTTP semantics, real status codes, pages that work without JavaScript, genuine middleware, and streaming only where you explicitly ask for it in leafy components.
+The shortest version: streaming should only be used for secondary or tertiary _slow_ content. Data layers for primary content should be fast–rails and php could do this, so can we. This gets you: correct HTTP semantics, real status codes, pages that work without JavaScript, genuine middleware, and streaming only where you explicitly ask for it in leafy components.
 
 The goal is an RSC framework that makes more sense to the average developer — one that doesn't hide magic or strive to be smarter than the person wielding it, and that works well on dedicated servers where you actually control your CPU cycles and your data is close by. This document walks through the reasoning: why the framework exists, the design decisions we made and the ones we rejected, the problems we expect, and how we plan to build it.
 
@@ -16,7 +16,7 @@ When you dig in deeper, what you find is that the difference between putting loa
 
 Primary content: like the url `/entity/1` should load from the database quickly. That drives 404, 401, and content headers like caching. Secondary or tertiary content can be deferred. Think `/feed` – if a tweet is "missing" from the feed, you don't 404 the page, you just don't render it. So there's less of a problem streaming it. You choose the flushing boundary.
 
-By re-evaluating this simple premise, we redesign the app directory architecture ever so slightly. We get proper route middleware that can drive headers and status codes. We get pages that load with all of their content ready. We cut the javascript required to inject Suspense children. Pages actually feel and load leaner. That perceived (because it's not *real*) speed of streaming comes at the cost of content-layout-shift and anxiety.
+By re-evaluating this simple premise, we redesign the app directory architecture ever so slightly. We get proper route middleware that can drive headers and status codes. We get pages that load with all of their content ready. We cut the javascript required to inject Suspense children. Pages actually feel and load leaner. That perceived (because it's not _real_) speed of streaming comes at the cost of content-layout-shift and anxiety.
 
 No more loading.tsx. <Suspense> becomes opt-in only at the sub-page or sub-layout level.
 

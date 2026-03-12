@@ -41,20 +41,20 @@ Browser request
 
 ```ts
 export function timber(config?: TimberUserConfig): Plugin[] {
-  const ctx = createPluginContext(config)
+  const ctx = createPluginContext(config);
   return [
-    timberRootSync(ctx),     // configResolved: sync ctx.root/appDir with Vite
+    timberRootSync(ctx), // configResolved: sync ctx.root/appDir with Vite
     timberShims(ctx),
-    timberRouting(ctx),      // configureServer: file watching
+    timberRouting(ctx), // configureServer: file watching
     timberEntries(ctx),
     timberCache(ctx),
     timberStaticBuild(ctx),
     timberDynamicTransform(ctx),
     timberFonts(ctx),
     timberMdx(ctx),
-    timberContent(ctx),      // configureServer: content watching
-    timberDevServer(ctx),    // configureServer: request handling (must be last)
-  ]
+    timberContent(ctx), // configureServer: content watching
+    timberDevServer(ctx), // configureServer: request handling (must be last)
+  ];
 }
 ```
 
@@ -70,25 +70,25 @@ export function timber(config?: TimberUserConfig): Plugin[] {
 
 Vite's environment-aware dev server maintains three separate module graphs:
 
-| Environment | Module Graph | HMR Channel | Purpose |
-|---|---|---|---|
-| `rsc` | Server Components, middleware, access, layouts, pages, route handlers | Module invalidation (no browser push) | RSC rendering |
-| `ssr` | SSR entry, client component SSR fallbacks | Module invalidation (no browser push) | HTML hydration rendering |
-| `client` | Client components, browser runtime, CSS | WebSocket to browser | Browser interactivity |
+| Environment | Module Graph                                                          | HMR Channel                           | Purpose                  |
+| ----------- | --------------------------------------------------------------------- | ------------------------------------- | ------------------------ |
+| `rsc`       | Server Components, middleware, access, layouts, pages, route handlers | Module invalidation (no browser push) | RSC rendering            |
+| `ssr`       | SSR entry, client component SSR fallbacks                             | Module invalidation (no browser push) | HTML hydration rendering |
+| `client`    | Client components, browser runtime, CSS                               | WebSocket to browser                  | Browser interactivity    |
 
 ### Invalidation Rules
 
 When a file changes, the correct environment(s) must be invalidated:
 
-| File Changed | Invalidation | Effect |
-|---|---|---|
-| Server component (`page.tsx`, `layout.tsx` without `"use client"`) | RSC module graph | Next request re-renders from scratch |
-| Client component (`"use client"` file) | Client module graph → browser HMR | React Fast Refresh preserves state |
-| `middleware.ts` | RSC module graph | Next request re-runs middleware chain |
-| `access.ts` | RSC module graph | Next request re-runs access gates |
-| Route handler (`route.ts`) | RSC module graph | Next request re-runs handler |
-| CSS/Tailwind | Client module graph → browser HMR | Hot style update, no full reload |
-| `timber.config.ts` | **Full dev server restart** | Config is loaded once at startup |
+| File Changed                                                       | Invalidation                      | Effect                                |
+| ------------------------------------------------------------------ | --------------------------------- | ------------------------------------- |
+| Server component (`page.tsx`, `layout.tsx` without `"use client"`) | RSC module graph                  | Next request re-renders from scratch  |
+| Client component (`"use client"` file)                             | Client module graph → browser HMR | React Fast Refresh preserves state    |
+| `middleware.ts`                                                    | RSC module graph                  | Next request re-runs middleware chain |
+| `access.ts`                                                        | RSC module graph                  | Next request re-runs access gates     |
+| Route handler (`route.ts`)                                         | RSC module graph                  | Next request re-runs handler          |
+| CSS/Tailwind                                                       | Client module graph → browser HMR | Hot style update, no full reload      |
+| `timber.config.ts`                                                 | **Full dev server restart**       | Config is loaded once at startup      |
 
 ### Implementation: Vite's Built-in HMR
 
@@ -143,27 +143,28 @@ Dev logging is **instrumentation-based**, not middleware-based. The rendering pi
 ```ts
 // Conceptual — not the final API
 interface DevLogEvent {
-  type: 'phase-start' | 'phase-end' | 'cache-hit' | 'cache-miss' | 'warning'
-  environment: 'rsc' | 'ssr' | 'client' | 'proxy'
-  label: string
-  timestampMs: number
-  parentId?: string
+  type: 'phase-start' | 'phase-end' | 'cache-hit' | 'cache-miss' | 'warning';
+  environment: 'rsc' | 'ssr' | 'client' | 'proxy';
+  label: string;
+  timestampMs: number;
+  parentId?: string;
 }
 ```
 
 The dev logger:
+
 1. Collects events for the duration of a request (keyed by request ID)
 2. On response end, formats the tree and writes to stderr
 3. For streaming responses, emits the shell summary on flush, then appends Suspense resolution lines as they complete
 
 ### Configuration
 
-| Control | Default | Effect |
-|---|---|---|
-| `TIMBER_DEV_LOG=tree` | Default | Full indented tree per request |
-| `TIMBER_DEV_LOG=summary` | — | One line per request: `POST /path → 200 OK  18ms` |
-| `TIMBER_DEV_QUIET=1` | — | Suppress all dev console output |
-| `timber.config.ts → dev.slowPhaseMs` | `200` | Highlight phases slower than this threshold |
+| Control                              | Default | Effect                                            |
+| ------------------------------------ | ------- | ------------------------------------------------- |
+| `TIMBER_DEV_LOG=tree`                | Default | Full indented tree per request                    |
+| `TIMBER_DEV_LOG=summary`             | —       | One line per request: `POST /path → 200 OK  18ms` |
+| `TIMBER_DEV_QUIET=1`                 | —       | Suppress all dev console output                   |
+| `timber.config.ts → dev.slowPhaseMs` | `200`   | Highlight phases slower than this threshold       |
 
 ### Slow Phase Highlighting
 
@@ -177,15 +178,15 @@ The framework emits warnings for common footguns. These are console warnings (no
 
 ### Warning Catalog
 
-| ID | Trigger | Message |
-|---|---|---|
-| `SUSPENSE_WRAPS_CHILDREN` | `<Suspense>` directly wraps `{children}` in a layout | `Layout at app/dashboard/layout.tsx wraps {children} in <Suspense>. This prevents child pages from setting HTTP status codes. Use useNavigationPending() for loading states instead.` |
-| `DENY_IN_SUSPENSE` | `deny()` called inside a `<Suspense>` boundary | `deny() called inside <Suspense> at app/dashboard/page.tsx:42. The HTTP status is already committed — this will trigger an error boundary with a 200 status. Move deny() outside <Suspense> for correct HTTP semantics.` |
-| `REDIRECT_IN_SUSPENSE` | `redirect()` called inside a `<Suspense>` boundary | `redirect() called inside <Suspense> at app/dashboard/page.tsx:55. This will perform a client-side navigation instead of an HTTP redirect.` |
-| `REDIRECT_IN_ACCESS` | Slot access calling `redirect()` | `redirect() called in access.ts at app/admin/access.ts:12. Only deny() is valid in slot access checks. Use deny() to block access or move redirect() to middleware.ts.` |
-| `STATIC_REQUEST_API` | `cookies()`/`headers()` called during static build | `cookies() called during static generation of /about. Dynamic request APIs are not available during prerendering.` |
-| `CACHE_REQUEST_PROPS` | `"use cache"` component receives request-specific props | `Cached component UserGreeting receives prop "userId" which appears request-specific. Cached components should not depend on per-request data.` |
-| `SLOW_SLOT_NO_SUSPENSE` | Slot resolves slower than `slowPhaseMs` without `<Suspense>` wrapper | `Slot @admin resolved in 847ms and is not wrapped in <Suspense>. Consider wrapping to avoid blocking the flush.` |
+| ID                        | Trigger                                                              | Message                                                                                                                                                                                                                  |
+| ------------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `SUSPENSE_WRAPS_CHILDREN` | `<Suspense>` directly wraps `{children}` in a layout                 | `Layout at app/dashboard/layout.tsx wraps {children} in <Suspense>. This prevents child pages from setting HTTP status codes. Use useNavigationPending() for loading states instead.`                                    |
+| `DENY_IN_SUSPENSE`        | `deny()` called inside a `<Suspense>` boundary                       | `deny() called inside <Suspense> at app/dashboard/page.tsx:42. The HTTP status is already committed — this will trigger an error boundary with a 200 status. Move deny() outside <Suspense> for correct HTTP semantics.` |
+| `REDIRECT_IN_SUSPENSE`    | `redirect()` called inside a `<Suspense>` boundary                   | `redirect() called inside <Suspense> at app/dashboard/page.tsx:55. This will perform a client-side navigation instead of an HTTP redirect.`                                                                              |
+| `REDIRECT_IN_ACCESS`      | Slot access calling `redirect()`                                     | `redirect() called in access.ts at app/admin/access.ts:12. Only deny() is valid in slot access checks. Use deny() to block access or move redirect() to middleware.ts.`                                                  |
+| `STATIC_REQUEST_API`      | `cookies()`/`headers()` called during static build                   | `cookies() called during static generation of /about. Dynamic request APIs are not available during prerendering.`                                                                                                       |
+| `CACHE_REQUEST_PROPS`     | `"use cache"` component receives request-specific props              | `Cached component UserGreeting receives prop "userId" which appears request-specific. Cached components should not depend on per-request data.`                                                                          |
+| `SLOW_SLOT_NO_SUSPENSE`   | Slot resolves slower than `slowPhaseMs` without `<Suspense>` wrapper | `Slot @admin resolved in 847ms and is not wrapped in <Suspense>. Consider wrapping to avoid blocking the flush.`                                                                                                         |
 
 ### Implementation
 
@@ -215,16 +216,16 @@ Timber hooks into Vite's built-in error overlay (`server.ssrFixStacktrace` + `se
 
 ### Error Categories
 
-| Phase | Error Source | Overlay Content |
-|---|---|---|
-| Module transform | Syntax errors in RSC/SSR modules | Vite's default: file, line, code frame |
-| Route matching | No matching route (404) | Not an error — passed through to Vite's fallback |
-| Middleware | Exception in `middleware.ts` | Stack trace with middleware file highlighted |
-| Access check | Exception in `access.ts` (not `deny()`) | Stack trace with access file highlighted |
-| RSC render | React render error in server component | **Component stack** + file stack trace |
-| SSR render | React hydration/render error | Component stack + file stack trace |
-| Handler | Exception in `route.ts` handler | Stack trace with handler file highlighted |
-| Client | Uncaught runtime error in client component | Stack trace + component stack (forwarded via HMR) |
+| Phase            | Error Source                               | Overlay Content                                   |
+| ---------------- | ------------------------------------------ | ------------------------------------------------- |
+| Module transform | Syntax errors in RSC/SSR modules           | Vite's default: file, line, code frame            |
+| Route matching   | No matching route (404)                    | Not an error — passed through to Vite's fallback  |
+| Middleware       | Exception in `middleware.ts`               | Stack trace with middleware file highlighted      |
+| Access check     | Exception in `access.ts` (not `deny()`)    | Stack trace with access file highlighted          |
+| RSC render       | React render error in server component     | **Component stack** + file stack trace            |
+| SSR render       | React hydration/render error               | Component stack + file stack trace                |
+| Handler          | Exception in `route.ts` handler            | Stack trace with handler file highlighted         |
+| Client           | Uncaught runtime error in client component | Stack trace + component stack (forwarded via HMR) |
 
 ### Component Stacks
 
@@ -248,6 +249,7 @@ Component Stack:
 ### Terminal Error Output
 
 In addition to the browser overlay, errors are logged to stderr with the same structured format. The terminal output includes ANSI colors for readability:
+
 - Red for the error message
 - Dim for framework-internal frames
 - Normal for application frames
@@ -297,18 +299,19 @@ Dev server behavior is configured via `timber.config.ts`:
 export default {
   dev: {
     // Highlight phases slower than this in dev logging
-    slowPhaseMs: 200,  // default: 200
+    slowPhaseMs: 200, // default: 200
 
     // Port for the dev server (passed to Vite)
-    port: 3000,  // default: Vite's default (5173)
+    port: 3000, // default: Vite's default (5173)
 
     // Open browser on start
-    open: false,  // default: false
+    open: false, // default: false
   },
-}
+};
 ```
 
 Environment variables override config file values:
+
 - `TIMBER_DEV_QUIET=1` — suppress all dev console output
 - `TIMBER_DEV_LOG=tree|summary` — log verbosity
 
@@ -316,14 +319,14 @@ Environment variables override config file values:
 
 ## Decisions
 
-| # | Decision | Rationale |
-|---|---|---|
-| 1 | `timber-dev-server` is last in the plugin array | Its `configureServer` pre-hook must run after all other plugins have set up their watchers and virtual modules |
-| 2 | No custom HMR protocol | Vite's built-in module invalidation handles RSC/SSR. Client HMR is React Fast Refresh via `@vitejs/plugin-react`. No custom WebSocket messages needed. |
-| 3 | Config change triggers full restart | `timber.config.ts` is loaded once and shared via the plugin context. Partial reloading would require all plugins to support dynamic reconfiguration — not worth the complexity. |
-| 4 | Dev logging via event emitter, not middleware | Middleware can only see the start and end of a request. Event-based instrumentation captures the internal pipeline structure (middleware, access checks, render phases, cache hits). |
-| 5 | Warnings deduplicated per session | Prevents noise during HMR — a warning for a file triggers once, not on every save. |
-| 6 | Use Vite's error overlay | Avoids maintaining custom browser-side overlay code. Consistent with developer expectations from the Vite ecosystem. |
-| 7 | No-match 404 passes through to Vite | Only "no route matched" 404s (marked with `X-Timber-No-Match` header) pass through to Vite's fallback. Route-level 404s from `deny(404)` are served directly as real HTTP 404 responses. |
-| 8 | `timber-root-sync` is first in the plugin array | Uses `configResolved` to sync `ctx.root`/`ctx.appDir` with Vite's resolved root, which may differ from `process.cwd()` when using `--config` or Vite's `root` option. |
-| 9 | Pre-hook middleware, not post-hook | Registers middleware before Vite's built-in `historyApiFallback`, which would otherwise rewrite route URLs (e.g., `/blog`) to `/index.html` before our handler sees them. |
+| #   | Decision                                        | Rationale                                                                                                                                                                                |
+| --- | ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | `timber-dev-server` is last in the plugin array | Its `configureServer` pre-hook must run after all other plugins have set up their watchers and virtual modules                                                                           |
+| 2   | No custom HMR protocol                          | Vite's built-in module invalidation handles RSC/SSR. Client HMR is React Fast Refresh via `@vitejs/plugin-react`. No custom WebSocket messages needed.                                   |
+| 3   | Config change triggers full restart             | `timber.config.ts` is loaded once and shared via the plugin context. Partial reloading would require all plugins to support dynamic reconfiguration — not worth the complexity.          |
+| 4   | Dev logging via event emitter, not middleware   | Middleware can only see the start and end of a request. Event-based instrumentation captures the internal pipeline structure (middleware, access checks, render phases, cache hits).     |
+| 5   | Warnings deduplicated per session               | Prevents noise during HMR — a warning for a file triggers once, not on every save.                                                                                                       |
+| 6   | Use Vite's error overlay                        | Avoids maintaining custom browser-side overlay code. Consistent with developer expectations from the Vite ecosystem.                                                                     |
+| 7   | No-match 404 passes through to Vite             | Only "no route matched" 404s (marked with `X-Timber-No-Match` header) pass through to Vite's fallback. Route-level 404s from `deny(404)` are served directly as real HTTP 404 responses. |
+| 8   | `timber-root-sync` is first in the plugin array | Uses `configResolved` to sync `ctx.root`/`ctx.appDir` with Vite's resolved root, which may differ from `process.cwd()` when using `--config` or Vite's `root` option.                    |
+| 9   | Pre-hook middleware, not post-hook              | Registers middleware before Vite's built-in `historyApiFallback`, which would otherwise rewrite route URLs (e.g., `/blog`) to `/index.html` before our handler sees them.                |

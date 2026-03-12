@@ -262,9 +262,7 @@ describe('parses Google font families', () => {
   });
 
   it('parses next/font/google families (compat)', () => {
-    const families = parseGoogleFontFamilies(
-      "import { Geist_Mono } from 'next/font/google'"
-    );
+    const families = parseGoogleFontFamilies("import { Geist_Mono } from 'next/font/google'");
     expect(families.get('Geist_Mono')).toBe('Geist Mono');
   });
 });

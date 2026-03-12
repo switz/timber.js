@@ -3,7 +3,7 @@ export default async function CatchAllPage({ params }: { params: Promise<{ slug:
   return (
     <div data-testid="catch-all-page">
       <h1 data-testid="catch-all-heading">Catch-All Route</h1>
-      <p data-testid="catch-all-value">{slug.join('/')}</p>
+      <pre data-testid="catch-all-value">{JSON.stringify(slug)}</pre>
     </div>
   );
 }

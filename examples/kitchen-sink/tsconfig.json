@@ -1,7 +1,12 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "noEmit": true
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "paths": {
+      "@timber/app": ["../../packages/timber-app/src/index.ts"],
+      "@timber/app/*": ["../../packages/timber-app/src/*"]
+    }
   },
   "include": ["./**/*.ts", "./**/*.tsx", "./timber-env.d.ts"],
   "exclude": ["node_modules", "dist"]

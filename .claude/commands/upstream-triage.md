@@ -34,11 +34,11 @@ For each new upstream commit, `git show <sha>` and classify:
 - **ALREADY-DONE** — Equivalent fix or feature already in timber.js
 - **NOT-APPLICABLE** — Irrelevant (vinext-specific examples, CLI, infrastructure)
 
-### Step 3: File bd issues for APPLICABLE commits
+### Step 3: File lb issues for APPLICABLE commits
 ```bash
-bd create "upstream: <description>" \
-  --description="Upstream Vinext commit <sha>. <summary>. <why it applies to timber.js>. <implementation notes>" \
-  -t task -p 2 --json
+lb create "upstream: <description>" \
+  -d "Upstream Vinext commit <sha>. <summary>. <why it applies to timber.js>. <implementation notes>" \
+  -p 2 --json
 ```
 
 ### Step 4: Print report
@@ -46,7 +46,7 @@ bd create "upstream: <description>" \
 ```
 ## Upstream triage — <date>
 Range: <old-sha>..<new-sha>
-### Applicable (<count>) — <sha> <subject> → bd issue <id>
+### Applicable (<count>) — <sha> <subject> → lb issue <id>
 ### Diverges (<count>) — <sha> <subject> — <reason>
 ### Already done (<count>)
 ### Not applicable (<count>)

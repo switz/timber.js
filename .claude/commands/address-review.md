@@ -11,7 +11,7 @@ gh api repos/{owner}/{repo}/pulls/$ARGUMENTS/comments
 ## Step 2: Categorize each comment
 
 - **Fix needed**: Legitimate issue introduced by this PR. Fix it.
-- **Out of scope / pre-existing**: Real problem but not from this PR. File a bd issue with `--deps discovered-from:<task-id>`.
+- **Out of scope / pre-existing**: Real problem but not from this PR. File an lb issue with `--discovered-from <task-id>`.
 - **Disagree**: Reply explaining why.
 
 ## Step 3: Make fixes
@@ -34,4 +34,4 @@ gh pr merge $ARGUMENTS --auto --squash --delete-branch
 
 ## Summary
 
-Print: comments addressed (with commits), bd issues filed, auto-merge status.
+Print: comments addressed (with commits), lb issues filed, auto-merge status.

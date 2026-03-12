@@ -1,4 +1,4 @@
-Scan recent bug-fix and security-patch commits from Vinext and Next.js, then analyze whether timber.js (an independent implementation operating in the same design space) is exposed to the same vulnerability classes. Do NOT file bd issues or make code changes — present findings as integration questions for the user to decide on.
+Scan recent bug-fix and security-patch commits from Vinext and Next.js, then analyze whether timber.js (an independent implementation operating in the same design space) is exposed to the same vulnerability classes. Do NOT file lb issues or make code changes — present findings as integration questions for the user to decide on.
 
 $ARGUMENTS is an optional commit count (default: 50).
 
@@ -154,7 +154,7 @@ Relevant to timber: <count>
 
 ## Rules
 
-- **Read-only.** Do not create branches, file bd issues, or modify any code.
+- **Read-only.** Do not create branches, file lb issues, or modify any code.
 - **Show your work.** For each finding, show the specific search you ran against timber and what it returned.
 - **No false positives.** If you cannot find the corresponding code pattern in timber, classify as NOT-APPLICABLE, not UNCERTAIN.
 - **Link upstream.** Include the full commit SHA and a URL for every finding so the user can read the original fix.

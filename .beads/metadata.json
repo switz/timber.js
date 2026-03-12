@@ -1,7 +1,0 @@
-{
-  "database": "dolt",
-  "backend": "dolt",
-  "dolt_mode": "server",
-  "dolt_database": "timber",
-  "project_id": "7d70a1e6-819d-4d43-8ecc-3c0818a3189c"
-}

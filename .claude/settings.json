@@ -1,8 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(bd:*)",
-      "Bash(bd create:*)",
+      "Bash(lb:*)",
+      "Bash(lb create:*)",
       "Bash(pnpm test:*)",
       "Bash(pnpm run:*)",
       "Bash(git push -u origin *)",

@@ -294,7 +294,7 @@ function MyLink({ href, children }) {
 
 **Behavioral difference:** `useNavigationPending` reflects any active navigation, not just clicks on this specific link. All links will appear pending when any navigation is in progress.
 
-**Gap filed:** [bd issue for per-link navigation status]
+**Gap filed:** [lb issue for per-link navigation status]
 
 ---
 
@@ -335,7 +335,7 @@ const handleClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
 <Link href={href} onClick={handleClick}>
 ```
 
-**Gap filed:** [bd issue for Link.onNavigate support]
+**Gap filed:** [lb issue for Link.onNavigate support]
 
 ---
 
@@ -455,20 +455,20 @@ export default function NotFound() {
 }
 ```
 
-**Static analysis gap filed:** timber-9oo (static analyzer should warn when status files are missing `'use client'`)
+**Static analysis gap filed:** TIM-166 (static analyzer should warn when status files are missing `'use client'`)
 
 ---
 
 ## Summary of Gaps Filed
 
-| Gap | bd Issue | Description |
+| Gap | lb Issue | Description |
 |-----|----------|-------------|
-| `useLinkStatus` | timber-7sd | Per-link navigation status — timber only has global `useNavigationPending` |
-| `Link.onNavigate` | timber-375 | Prop not supported in timber's Link shim |
+| `useLinkStatus` | TIM-168 | Per-link navigation status — timber only has global `useNavigationPending` |
+| `Link.onNavigate` | TIM-167 | Prop not supported in timber's Link shim |
 | `next/og` | — | Use [Takumi RS](https://takumi.rs) for OG images on CF Workers |
 | `template.tsx` | — | A layout with `key={pathname}` achieves the same remounting effect |
-| `next/font/google` named exports | timber-rlm | Shim only has `default` export, no `Geist`, `Geist_Mono` etc. |
-| Status file `'use client'` lint | timber-9oo | Static analyzer should warn when status files missing `'use client'` |
-| MDX config in `timber.config.ts` | timber-abu | Plugin reads config at build time before `timber.config.ts` loads |
-| `'use cache'` + Promise params | timber-2pl | Cannot serialize Promise inputs for cache key |
-| Dev error overlay wiring | timber-6zw | Pipeline errors not routed to browser overlay |
+| `next/font/google` named exports | TIM-87 | Shim only has `default` export, no `Geist`, `Geist_Mono` etc. |
+| Status file `'use client'` lint | TIM-166 | Static analyzer should warn when status files missing `'use client'` |
+| MDX config in `timber.config.ts` | TIM-86 | Plugin reads config at build time before `timber.config.ts` loads |
+| `'use cache'` + Promise params | TIM-165 | Cannot serialize Promise inputs for cache key |
+| Dev error overlay wiring | TIM-24 | Pipeline errors not routed to browser overlay |

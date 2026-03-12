@@ -1,23 +1,22 @@
-Run the timber.js backlog grooming sweep — stale issues, duplicates, design contradictions, dep graph health, lint.
+Run the timber.js backlog grooming sweep — stale issues, duplicates, design contradictions, dep graph health.
 
 Read `design/` docs before running check 3.
 
 ## Check 1: Stale in-progress issues
 
 ```bash
-bd query "status=in_progress AND updated<7daysago" --json
+lb list --status in_progress --json
 ```
 
-For stale issues with no recent PR/commit activity, reset to open:
+For each in-progress issue, check `updated_at`. If stale (>7 days, no recent PR/commit activity), reset to open:
 ```bash
-bd update <id> --status open --json
-bd comments <id> create "Grooming: reset to open — no activity for 7+ days."
+lb update <id> --status open --json
 ```
 
 ## Check 2: Duplicate detection
 
 ```bash
-bd find-duplicates --method ai --status open --json
+lb dedupe --json
 ```
 
 Verify each pair manually. Only close confirmed duplicates (same root problem, fixing one fixes the other). Close the later-created issue.
@@ -41,14 +40,6 @@ Flag with a comment — do NOT close.
 - Priority inversions (child lower priority than parent) → comment
 - P3/P4 blocking P1/P2 → comment on the blocker
 
-## Check 5: Lint sweep
-
-```bash
-bd lint --json
-```
-
-Flag issues missing required sections (Acceptance Criteria, Steps to Reproduce, etc.) with a comment.
-
 ## Final report
 
-Print counts for every action taken across all five checks.
+Print counts for every action taken across all checks.

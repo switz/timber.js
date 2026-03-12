@@ -1,4 +1,4 @@
-Run the Next.js compat test suite and file bd issues for regressions.
+Run the Next.js compat test suite and file lb issues for regressions.
 
 ## Workflow
 
@@ -10,14 +10,14 @@ Run the Next.js compat test suite and file bd issues for regressions.
    ```
 
 3. **Classify each result**:
-   - **Regression** (was PASS, now FAIL) → file P1 bd issue
+   - **Regression** (was PASS, now FAIL) → file P1 lb issue
    - **Expected timber divergence** (intentional design difference) → note only
-   - **New pass** (was SKIP/FAIL, now PASS) → comment on associated bd issue
-   - **Untracked** (no TRACKING.md entry) → file P3 bd issue to categorize
+   - **New pass** (was SKIP/FAIL, now PASS) → comment on associated lb issue
+   - **Untracked** (no TRACKING.md entry) → file P3 lb issue to categorize
 
 4. **Print report** with counts per category
 
 ## Rules
-- Deduplicate: `bd search` before every `bd create`
+- Deduplicate: `lb list` before every `lb create`
 - Don't update TRACKING.md — that's a human decision
 - Count at individual test level, not file level

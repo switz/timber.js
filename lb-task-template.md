@@ -1,9 +1,9 @@
-# bd Task Template
+# lb Task Template
 
-When creating bd tasks, follow this structure. Example from timber-g18.4:
+When creating lb tasks, follow this structure:
 
 ```bash
-bd create "Short descriptive title" \
+lb create "Short descriptive title" \
   -d "$(cat <<'ENDDESC'
 ## Context
 
@@ -29,18 +29,12 @@ READ-ONLY: design/relevant-doc.md
 ENDDESC
 )" \
   -p 2 \
-  --acceptance "$(cat <<'ENDAC'
-- [ ] Requirement → test: tests/file.test.ts "test name"
-- [ ] Requirement → test: tests/file.test.ts "test name"
-ENDAC
-)" \
-  --deps "discovered-from:parent-id"
+  --discovered-from TIM-XXX
 ```
 
 ## Key rules:
 - **Context**: Explain the current state, the gap, and cite design docs
 - **Approach Constraints**: DO/DO NOT lists with specific technical guidance
 - **Files**: MODIFY/CREATE/READ-ONLY with parenthetical explanation
-- **Acceptance**: Each criterion links to a specific test name
-- **Deps**: Use `discovered-from:ID` for follow-up tasks, `blocks:ID` for blockers
+- **Deps**: Use `--discovered-from TIM-XXX` for follow-up tasks, `--blocks TIM-XXX` for blockers
 - Priority: P0 (critical), P1 (high), P2 (normal), P3 (low)

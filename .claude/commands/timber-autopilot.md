@@ -1,8 +1,8 @@
-Run the full timber.js task-to-merge autopilot for bd task $ARGUMENTS (or the next ready task if no argument given).
+Run the full timber.js task-to-merge autopilot for lb task $ARGUMENTS (or the next ready task if no argument given).
 
 ## Phase 0: Select and claim a task
 
-If $ARGUMENTS is empty, run `bd ready --json` and pick the highest-priority unowned task. If $ARGUMENTS is set, use that task ID directly. Claim it with `bd update <id> --claim --json`. If you decide to work on a task yourself, claim it so no other streams grab it.
+If $ARGUMENTS is empty, run `lb ready --json` and pick the highest-priority unowned task. If $ARGUMENTS is set, use that task ID directly. Claim it with `lb update <id> --status in_progress --json`. If you decide to work on a task yourself, claim it so no other streams grab it.
 
 If there are multiple tasks that fit well together, you can do several at one time if they are unified and not too wide in scope. Don't select too many though.
 
@@ -42,16 +42,16 @@ Before requesting external review:
 ## Phase 4: Address feedback and merge
 
 1. Read all review comments
-2. Fix blocking issues, file bd issues for out-of-scope findings with `--deps discovered-from:<task-id>`
+2. Fix blocking issues, file lb issues for out-of-scope findings with `--discovered-from <task-id>`
 3. Enable auto-merge: `gh pr merge <PR_NUMBER> --auto --squash --delete-branch`
-4. Close the bd task: `bd close <id> --reason "Implemented in PR #<PR_NUMBER>"`
+4. Close the lb task: `lb close <id> --reason "Implemented in PR #<PR_NUMBER>"`
 5. After merge, switch back to `main` and pull latest
 6. If everything looks good and passes, clear context and run a new autopilot
 
 ## Rules
 
 - **One task at a time.** Do not start a second task until the first is merged and closed.
-- **Design docs are authoritative.** If the bd task conflicts with a design doc, the design doc wins.
+- **Design docs are authoritative.** If the lb task conflicts with a design doc, the design doc wins.
 - **Ask questions for clarification.** Always ask questions if there is confusing or conflicting ideas. We want to get it correct.
 - **Never push to main directly.** Always use a feature branch and open a PR.
 - **Never use `gh pr merge --admin`.** If merge is blocked, investigate why.

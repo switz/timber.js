@@ -36,11 +36,11 @@ Read `design/13-security.md` in full before every audit. Secondary refs:
    rg "redirect\(.*https?://" --type ts
    ```
 
-5. File bd issues for each finding:
+5. File lb issues for each finding:
    ```bash
-   bd create "security: <description>" \
-     --description="Finding: <description>. Location: <file:line>. Vulnerability class: <from 13-security.md>. Attack scenario: <concrete exploit>. Severity: <critical/high/medium/low>. Suggested fix: <specific approach>. Test case: <what to add>." \
-     -t bug -p <0-3> --json
+   lb create "security: <description>" \
+     -d "Finding: <description>. Location: <file:line>. Vulnerability class: <from 13-security.md>. Attack scenario: <concrete exploit>. Severity: <critical/high/medium/low>. Suggested fix: <specific approach>. Test case: <what to add>." \
+     -p <0-3> --json
    ```
 
 6. Post PR comment summarizing findings and clean areas.

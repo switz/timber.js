@@ -16,8 +16,8 @@ If $ARGUMENTS is set (a commit SHA), check that specific commit. Otherwise compa
 1. Run the benchmark suite (if available) or check CI benchmark artifacts
 2. Compute rolling baseline: mean of last 5 commits
 3. Compare current against baseline
-4. `bd search` before filing to avoid duplicates
-5. File bd issues for regressions exceeding thresholds
+4. `lb list` before filing to avoid duplicates
+5. File lb issues for regressions exceeding thresholds
 6. Print performance report table
 
 ## Rules

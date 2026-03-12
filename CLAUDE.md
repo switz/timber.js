@@ -151,16 +151,16 @@ See [18-build-system.md](design/18-build-system.md) for details.
 
 Avoid using python to run scripts. Lean on raw bash commands. If you really need a script, use javascript.
 
-This project uses **bd** (beads) for issue tracking. Run `bd onboard` to get started.
+This project uses **lb** for issue tracking (Linear-backed). Run `lb onboard` to get started.
 
 ## Quick Reference
 
 ```bash
-bd ready              # Find available work
-bd show <id>          # View issue details
-bd update <id> --claim  # Claim work atomically
-bd close <id>         # Complete work
-bd sync               # Sync with git
+lb ready              # Find available work
+lb show <id>          # View issue details
+lb update <id> --status in_progress  # Claim work
+lb close <id>         # Complete work
+lb sync               # Sync with Linear
 ```
 
 ## Non-Interactive Shell Commands
@@ -187,15 +187,14 @@ cp -rf source dest          # NOT: cp -r source dest
 - `apt-get` - use `-y` flag
 - `brew` - use `HOMEBREW_NO_AUTO_UPDATE=1` env var
 
-<!-- BEGIN BEADS INTEGRATION -->
-## Issue Tracking with bd (beads)
+## Issue Tracking with lb
 
-**IMPORTANT**: This project uses **bd (beads)** for ALL issue tracking. Do NOT use markdown TODOs, task lists, or other tracking methods.
+**IMPORTANT**: This project uses **lb** (Linear-backed) for ALL issue tracking. Do NOT use markdown TODOs, task lists, or other tracking methods.
 
-### Why bd?
+### Why lb?
 
 - Dependency-aware: Track blockers and relationships between issues
-- Version-controlled: Built on Dolt with cell-level merge
+- Linear-backed: Issues sync with Linear for visibility across agents and humans
 - Agent-optimized: JSON output, ready work detection, discovered-from links
 - Prevents duplicate tracking systems and confusion
 
@@ -204,29 +203,29 @@ cp -rf source dest          # NOT: cp -r source dest
 **Check for ready work:**
 
 ```bash
-bd ready --json
+lb ready --json
 ```
 
 **Create new issues:**
 
-**You MUST USE THE BD TASK TEMPLATE TO CREATE ISSUES**: [`./bd-task-template.md`](./bd-task-template.md)
+**You MUST USE THE LB TASK TEMPLATE TO CREATE ISSUES**: [`./lb-task-template.md`](./lb-task-template.md)
 
 ```bash
-bd create "Issue title" --description="Detailed context" -t bug|feature|task -p 0-4 --json
-bd create "Issue title" --description="What this issue is about" -p 1 --deps discovered-from:bd-123 --json
+lb create "Issue title" -d "Detailed context" -p 0-4 --json
+lb create "Issue title" -d "What this issue is about" -p 1 --discovered-from TIM-123 --json
 ```
 
 **Claim and update:**
 
 ```bash
-bd update <id> --claim --json
-bd update bd-42 --priority 1 --json
+lb update <id> --status in_progress --json
+lb update TIM-42 --priority 1 --json
 ```
 
 **Complete work:**
 
 ```bash
-bd close bd-42 --reason "Completed" --json
+lb close TIM-42 --reason "Completed" --json
 ```
 
 ### Issue Types
@@ -247,32 +246,30 @@ bd close bd-42 --reason "Completed" --json
 
 ### Workflow for AI Agents
 
-1. **Check ready work**: `bd ready` shows unblocked issues
-2. **Claim your task atomically**: `bd update <id> --claim`
+1. **Check ready work**: `lb ready` shows unblocked issues
+2. **Claim your task**: `lb update <id> --status in_progress`
 3. **Work on it**: Implement, test, document
 4. **Discover new work?** Create linked issue:
-   - `bd create "Found bug" --description="Details about what was found" -p 1 --deps discovered-from:<parent-id>`
-5. **Complete**: `bd close <id> --reason "Done"`
+   - `lb create "Found bug" -d "Details about what was found" -p 1 --discovered-from <parent-id>`
+5. **Complete**: `lb close <id> --reason "Done"`
 
 ### Auto-Sync
 
-bd automatically syncs with git:
+lb automatically syncs with Linear:
 
-- Exports to `.beads/issues.jsonl` after changes (5s debounce)
-- Imports from JSONL when newer (e.g., after `git pull`)
-- No manual export/import needed!
+- Pushes local changes on create/update/close
+- Pulls latest from Linear on `lb sync`
+- Background sync keeps cache fresh
 
 ### Important Rules
 
-- ✅ Use bd for ALL task tracking
+- ✅ Use lb for ALL task tracking
 - ✅ Always use `--json` flag for programmatic use
-- ✅ Link discovered work with `discovered-from` dependencies
-- ✅ Check `bd ready` before asking "what should I work on?"
+- ✅ Link discovered work with `--discovered-from` dependencies
+- ✅ Check `lb ready` before asking "what should I work on?"
 - ❌ Do NOT create markdown TODO lists
-- ❌ Do NOT use external issue trackers
+- ❌ Do NOT use built-in task/todo tools
 - ❌ Do NOT duplicate tracking systems
-
-For more details, see README.md and docs/QUICKSTART.md.
 
 ## Landing the Plane (Session Completion)
 
@@ -286,7 +283,7 @@ For more details, see README.md and docs/QUICKSTART.md.
 4. **PUSH TO REMOTE** - This is MANDATORY:
    ```bash
    git pull --rebase
-   bd sync
+   lb sync
    git push
    git status  # MUST show "up to date with origin"
    ```
@@ -300,4 +297,3 @@ For more details, see README.md and docs/QUICKSTART.md.
 - NEVER say "ready to push when you are" - YOU must push
 - If push fails, resolve and retry until it succeeds
 
-<!-- END BEADS INTEGRATION -->

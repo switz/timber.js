@@ -34,7 +34,7 @@ If $ARGUMENTS contains "preview pr-N", test PR preview URLs. If "production", te
    ```bash
    curl -s -o /tmp/smoke-response -w "%{http_code} %{time_total}" -H "Accept: text/html" "<url><path>"
    ```
-3. File bd issues for failures:
+3. File lb issues for failures:
    - **P0**: HTTP semantic violation (200 on error page) or auth bypass
    - **P1**: Encoded separator/null byte not rejected, CSRF accepted
    - **P2**: Cache headers wrong

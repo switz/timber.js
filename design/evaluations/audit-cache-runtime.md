@@ -4,7 +4,7 @@
 > timber.js implemented its own cache system from scratch. Vinext code paths referenced here do not
 > exist in timber.js — they informed our independent implementation.
 
-**Task:** timber-b5n.3
+**Task:** timber-b5n.3 (historical bd ID, pre-Linear migration)
 **Date:** 2026-03-09
 **Vinext files analyzed (for reference only):**
 - `packages/vinext/src/shims/cache-runtime.ts`

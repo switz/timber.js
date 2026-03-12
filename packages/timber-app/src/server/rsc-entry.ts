@@ -32,10 +32,7 @@ import { logRenderError } from './logger.js';
 import { resolveLogMode } from './dev-logger.js';
 import { createRouteMatcher } from './route-matcher.js';
 import type { ManifestSegmentNode } from './route-matcher.js';
-import { resolveMetadata, renderMetadataToElements } from './metadata.js';
-import type { Metadata } from './types.js';
 import { DenySignal, RedirectSignal, RenderError } from './primitives.js';
-import { AccessGate } from './access-gate.js';
 import { buildClientScripts } from './html-injectors.js';
 import type { ClientBootstrapConfig } from './html-injectors.js';
 import { renderDenyPage, renderDenyPageAsRsc } from './deny-renderer.js';
@@ -51,14 +48,10 @@ import {
 import type { BuildManifest } from './build-manifest.js';
 import { collectEarlyHintHeaders } from './early-hints.js';
 import type { NavContext } from './ssr-entry.js';
-import { resolveSlotElement } from './slot-resolver.js';
-import { SegmentProvider } from '../client/segment-context.js';
-import { TimberErrorBoundary } from '../client/error-boundary.js';
+import { buildRouteElement, RouteSignalWithContext } from './route-element-builder.js';
 import { handleRouteRequest } from './route-handler.js';
 import type { RouteModule } from './route-handler.js';
 import type { RouteContext } from './types.js';
-import { setParsedSearchParams } from './request-context.js';
-import type { SearchParamsDefinition } from '../search-params/create.js';
 import { isActionRequest, handleActionRequest } from './action-handler.js';
 import type { BodyLimitsConfig } from './body-limits.js';
 
@@ -180,20 +173,24 @@ async function createRequestHandler(manifest: typeof routeManifest, runtimeConfi
         csrf: csrfConfig,
         bodyLimits: { limits: (runtimeConfig as Record<string, unknown>).limits as BodyLimitsConfig['limits'] },
         revalidateRenderer: async (path: string) => {
-          // Re-render the route at `path` to produce an RSC flight payload.
-          // This is called when an action calls revalidatePath().
-          // Forward original request headers (cookies, session IDs, etc.)
-          // but override Accept to request an RSC payload.
+          // Build the React element tree for the route at `path`.
+          // Returns the element tree (not serialized) so the action handler can
+          // combine it with the action result in a single renderToReadableStream call.
+          // Forward original request headers (cookies, session IDs, etc.).
           const revalidateHeaders = new Headers(req.headers);
           revalidateHeaders.set('Accept', 'text/x-component');
           const revalidateReq = new Request(new URL(path, req.url), {
             headers: revalidateHeaders,
           });
-          const response = await pipeline(revalidateReq);
-          if (!response.body) {
-            throw new Error(`revalidatePath('${path}') produced no body`);
+          const revalidateMatch = matchRoute(new URL(revalidateReq.url).pathname);
+          if (!revalidateMatch) {
+            throw new Error(`revalidatePath('${path}') — no matching route`);
           }
-          return response.body;
+          const routeResult = await buildRouteElement(revalidateReq, revalidateMatch);
+          return {
+            element: routeResult.element,
+            headElements: routeResult.headElements,
+          };
         },
       });
       if (actionResponse) return actionResponse;
@@ -284,161 +281,53 @@ async function renderRoute(
     return handleApiRoute(_req, match, segments, responseHeaders);
   }
 
-  // Params are passed as a Promise to match Next.js 15+ convention.
-  const paramsPromise = Promise.resolve(match.params);
-
-  // Load all modules along the segment chain
-  const metadataEntries: Array<{ metadata: Metadata; isPage: boolean }> = [];
-  const layoutComponents: Array<{
-    component: (...args: unknown[]) => unknown;
-    segment: ManifestSegmentNode;
-  }> = [];
-  let PageComponent: ((...args: unknown[]) => unknown) | null = null;
-  let deferSuspenseFor = 0;
-
-  for (let i = 0; i < segments.length; i++) {
-    const segment = segments[i];
-    const isLeaf = i === segments.length - 1;
-
-    // Load layout
-    if (segment.layout) {
-      const mod = (await segment.layout.load()) as Record<string, unknown>;
-      if (mod.default) {
-        layoutComponents.push({
-          component: mod.default as (...args: unknown[]) => unknown,
-          segment,
+  // Build the React element tree — loads modules, runs access checks,
+  // resolves metadata. DenySignal/RedirectSignal propagate for HTTP handling.
+  let routeResult;
+  try {
+    routeResult = await buildRouteElement(_req, match);
+  } catch (error) {
+    // RouteSignalWithContext wraps DenySignal/RedirectSignal with layout context
+    if (error instanceof RouteSignalWithContext) {
+      const { signal, layoutComponents: lc, segments: segs } = error;
+      if (signal instanceof DenySignal) {
+        if (isRscPayloadRequest(_req)) {
+          return renderDenyPageAsRsc(
+            signal,
+            segs,
+            lc as LayoutEntry[],
+            responseHeaders,
+            createDebugChannelSink
+          );
+        }
+        return renderDenyPage(
+          signal,
+          segs,
+          lc as LayoutEntry[],
+          _req,
+          match,
+          responseHeaders,
+          clientBootstrap,
+          createDebugChannelSink,
+          callSsr
+        );
+      }
+      if (signal instanceof RedirectSignal) {
+        responseHeaders.set('Location', signal.location);
+        return new Response(null, {
+          status: signal.status,
+          headers: responseHeaders,
         });
       }
-      if (mod.metadata) {
-        metadataEntries.push({ metadata: mod.metadata as Metadata, isPage: false });
-      }
-      // deferSuspenseFor hold window — max across all segments
-      if (typeof mod.deferSuspenseFor === 'number' && mod.deferSuspenseFor > deferSuspenseFor) {
-        deferSuspenseFor = mod.deferSuspenseFor;
-      }
     }
-
-    // Load page (leaf segment only)
-    if (isLeaf && segment.page) {
-      // Load and apply search-params.ts definition before rendering so
-      // searchParams() from @timber/app/server returns parsed typed values.
-      if (segment.searchParams) {
-        const spMod = (await segment.searchParams.load()) as {
-          default?: SearchParamsDefinition<Record<string, unknown>>;
-        };
-        if (spMod.default) {
-          const rawSearchParams = new URL(_req.url).searchParams;
-          const parsed = spMod.default.parse(rawSearchParams);
-          setParsedSearchParams(parsed);
-        }
-      }
-
-      const mod = (await segment.page.load()) as Record<string, unknown>;
-      if (mod.default) {
-        PageComponent = mod.default as (...args: unknown[]) => unknown;
-      }
-      // Static metadata export
-      if (mod.metadata) {
-        metadataEntries.push({ metadata: mod.metadata as Metadata, isPage: true });
-      }
-      // Dynamic generateMetadata function — wrapped in OTEL span
-      if (typeof mod.generateMetadata === 'function') {
-        type MetadataFn = (props: Record<string, unknown>) => Promise<Metadata>;
-        const generated = await withSpan(
-          'timber.metadata',
-          { 'timber.segment': segment.segmentName ?? segment.urlPath },
-          () => (mod.generateMetadata as MetadataFn)({ params: paramsPromise })
-        );
-        if (generated) {
-          metadataEntries.push({ metadata: generated, isPage: true });
-        }
-      }
-      // deferSuspenseFor hold window — max across all segments
-      if (typeof mod.deferSuspenseFor === 'number' && mod.deferSuspenseFor > deferSuspenseFor) {
-        deferSuspenseFor = mod.deferSuspenseFor;
-      }
+    // No PageComponent found
+    if (error instanceof Error && error.message.startsWith('No page component')) {
+      return new Response(null, { status: 404 });
     }
+    throw error;
   }
 
-  if (!PageComponent) {
-    return new Response(null, { status: 404 });
-  }
-
-  // Run access.ts checks before rendering — top-down through the segment chain.
-  // This catches deny()/redirect() signals before the RSC stream is created,
-  // producing correct HTTP status codes for both full page loads and RSC
-  // payload requests (client navigation). The AccessGate components in the
-  // tree will re-run these checks during rendering (React.cache dedup means
-  // no double-execution for cached auth functions).
-  // See design/04-authorization.md §"access.ts Runs on Every Navigation".
-  for (const segment of segments) {
-    if (segment.access) {
-      const accessMod = (await segment.access.load()) as Record<string, unknown>;
-      const accessFn = accessMod.default as
-        | ((ctx: { params: Record<string, string | string[]>; searchParams: unknown }) => unknown)
-        | undefined;
-      if (accessFn) {
-        try {
-          await withSpan(
-            'timber.access',
-            { 'timber.segment': segment.segmentName ?? 'unknown' },
-            async () => {
-              try {
-                await accessFn({ params: match.params, searchParams: {} });
-                await setSpanAttribute('timber.result', 'pass');
-              } catch (error) {
-                if (error instanceof DenySignal) {
-                  await setSpanAttribute('timber.result', 'deny');
-                  await setSpanAttribute('timber.deny_status', error.status);
-                  if (error.sourceFile) {
-                    await setSpanAttribute('timber.deny_file', error.sourceFile);
-                  }
-                } else if (error instanceof RedirectSignal) {
-                  await setSpanAttribute('timber.result', 'redirect');
-                }
-                throw error;
-              }
-            }
-          );
-        } catch (error) {
-          if (error instanceof DenySignal) {
-            if (isRscPayloadRequest(_req)) {
-              return renderDenyPageAsRsc(
-                error,
-                segments,
-                layoutComponents as LayoutEntry[],
-                responseHeaders,
-                createDebugChannelSink
-              );
-            }
-            return renderDenyPage(
-              error,
-              segments,
-              layoutComponents as LayoutEntry[],
-              _req,
-              match,
-              responseHeaders,
-              clientBootstrap,
-              createDebugChannelSink,
-              callSsr
-            );
-          }
-          if (error instanceof RedirectSignal) {
-            responseHeaders.set('Location', error.location);
-            return new Response(null, {
-              status: error.status,
-              headers: responseHeaders,
-            });
-          }
-          throw error;
-        }
-      }
-    }
-  }
-
-  // Resolve metadata
-  const resolvedMetadata = resolveMetadata(metadataEntries);
-  const headElements = renderMetadataToElements(resolvedMetadata);
+  const { element, headElements, layoutComponents, deferSuspenseFor } = routeResult;
 
   // Build head HTML for injection into the SSR output
   let headHtml = '';
@@ -474,110 +363,6 @@ async function renderRoute(
         .map(([k, v]) => `${k}="${escapeHtml(v as string)}"`)
         .join(' ');
       headHtml += `<${el.tag} ${attrs}>`;
-    }
-  }
-
-  // Build element tree: page wrapped in layouts (innermost to outermost)
-  // Route components have custom props (params, children) that don't fit
-  // React's built-in element type overloads — use the untyped form.
-  const h = createElement as (...args: unknown[]) => React.ReactElement;
-
-  // Wrap the page component in an OTEL span. The wrapper is an async server
-  // component that React calls during rendering — the span captures the full
-  // page render duration including any async data fetching.
-  const TracedPage = async (props: Record<string, unknown>) => {
-    return withSpan(
-      'timber.page',
-      { 'timber.route': match.segments[match.segments.length - 1]?.urlPath ?? '/' },
-      () => (PageComponent as (props: Record<string, unknown>) => unknown)(props)
-    );
-  };
-
-  let element = h(TracedPage, {
-    params: paramsPromise,
-    searchParams: {},
-  });
-
-  // Build a lookup of layout components by segment for O(1) access.
-  const layoutBySegment = new Map(
-    layoutComponents.map(({ component, segment }) => [segment, component])
-  );
-
-  // Wrap from innermost (leaf) to outermost (root), processing every
-  // segment in the chain. Each segment may contribute:
-  //   1. Error boundaries (status files + error.tsx) — wrap children
-  //      INSIDE the layout so error fallbacks preserve the layout shell
-  //   2. Layout component — wraps children + parallel slots
-  //   3. SegmentProvider — records position for useSelectedLayoutSegment
-  for (let i = segments.length - 1; i >= 0; i--) {
-    const segment = segments[i];
-
-    // Wrap with error boundaries from this segment (inside layout).
-    // No key prop — error boundaries reset via componentDidUpdate when
-    // children change on client navigation. A route-based key would force
-    // React to unmount/remount the boundary (and its subtree) on every
-    // navigation, which breaks layout state preservation.
-    element = await wrapSegmentWithErrorBoundaries(segment, element, h);
-
-    // Wrap in AccessGate if segment has access.ts.
-    // AccessGate calls the segment's access function before rendering children.
-    // If access.ts calls deny() or redirect(), the signal propagates as a
-    // render-phase throw — caught by the flush controller to produce the
-    // correct HTTP status code. See design/04-authorization.md.
-    if (segment.access) {
-      const accessMod = (await segment.access.load()) as Record<string, unknown>;
-      const accessFn = accessMod.default as
-        | ((ctx: { params: Record<string, string | string[]>; searchParams: unknown }) => unknown)
-        | undefined;
-      if (accessFn) {
-        element = h(AccessGate, {
-          accessFn,
-          params: match.params,
-          searchParams: {},
-          segmentName: segment.segmentName,
-          children: element,
-        });
-      }
-    }
-
-    // Wrap with layout if this segment has one — traced with OTEL span
-    const layoutComponent = layoutBySegment.get(segment);
-    if (layoutComponent) {
-      // Resolve parallel slots for this layout
-      const slotProps: Record<string, unknown> = {};
-      const slotEntries = Object.entries(segment.slots ?? {});
-      for (const [slotName, slotNode] of slotEntries) {
-        slotProps[slotName] = await resolveSlotElement(
-          slotNode as ManifestSegmentNode,
-          match,
-          paramsPromise,
-          h
-        );
-      }
-
-      const segmentPath = segment.urlPath.split('/');
-      const parallelRouteKeys = Object.keys(segment.slots ?? {});
-
-      // Wrap the layout component in an OTEL span. The wrapper is an async
-      // server component — the span captures the full layout render duration.
-      const segmentForSpan = segment;
-      const layoutComponentForSpan = layoutComponent;
-      const TracedLayout = async (props: Record<string, unknown>) => {
-        return withSpan('timber.layout', { 'timber.segment': segmentForSpan.urlPath }, () =>
-          (layoutComponentForSpan as (props: Record<string, unknown>) => unknown)(props)
-        );
-      };
-
-      element = h(SegmentProvider, {
-        segments: segmentPath,
-        parallelRouteKeys,
-        children: h(TracedLayout, {
-          ...slotProps,
-          params: paramsPromise,
-          searchParams: {},
-          children: element,
-        }),
-      });
     }
   }
 
@@ -829,58 +614,6 @@ async function renderRoute(
  * outside Suspense, the pipeline detects denySignal and re-renders with
  * renderDenyPage for the correct status code — the boundary is harmless.
  */
-async function wrapSegmentWithErrorBoundaries(
-  segment: ManifestSegmentNode,
-  element: React.ReactElement,
-  h: (...args: unknown[]) => React.ReactElement
-): Promise<React.ReactElement> {
-  // Specific status files (innermost — highest priority at runtime)
-  if (segment.statusFiles) {
-    for (const [key, file] of Object.entries(segment.statusFiles)) {
-      if (key !== '4xx' && key !== '5xx') {
-        const status = parseInt(key, 10);
-        if (!isNaN(status)) {
-          const mod = (await file.load()) as Record<string, unknown>;
-          if (mod.default) {
-            element = h(TimberErrorBoundary, {
-              fallbackComponent: mod.default,
-              status,
-              children: element,
-            });
-          }
-        }
-      }
-    }
-
-    // Category catch-alls (4xx.tsx, 5xx.tsx)
-    for (const [key, file] of Object.entries(segment.statusFiles)) {
-      if (key === '4xx' || key === '5xx') {
-        const mod = (await file.load()) as Record<string, unknown>;
-        if (mod.default) {
-          element = h(TimberErrorBoundary, {
-            fallbackComponent: mod.default,
-            status: key === '4xx' ? 400 : 500,
-            children: element,
-          });
-        }
-      }
-    }
-  }
-
-  // error.tsx (outermost — catches anything not matched by status files)
-  if (segment.error) {
-    const mod = (await segment.error.load()) as Record<string, unknown>;
-    if (mod.default) {
-      element = h(TimberErrorBoundary, {
-        fallbackComponent: mod.default,
-        children: element,
-      });
-    }
-  }
-
-  return element;
-}
-
 /**
  * Handle an API route (route.ts) request.
  *

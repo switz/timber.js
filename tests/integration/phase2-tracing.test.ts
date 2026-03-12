@@ -229,12 +229,10 @@ describe('trace id', () => {
 
     const renderer = vi.fn(async (path: string) => {
       capturedTraceIds.push(traceId());
-      return new ReadableStream<Uint8Array>({
-        start(controller) {
-          controller.enqueue(new TextEncoder().encode(`RSC for ${path}`));
-          controller.close();
-        },
-      });
+      return {
+        element: { type: 'div', props: { children: `RSC for ${path}` } },
+        headElements: [],
+      };
     });
 
     const client = createActionClient();

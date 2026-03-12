@@ -76,6 +76,12 @@ export interface RouterInstance {
   /** Prefetch an RSC payload for a URL (used by Link hover) */
   prefetch(url: string): void;
   /**
+   * Apply a piggybacked revalidation payload from a server action response.
+   * Renders the element tree and updates head elements without a server fetch.
+   * See design/08-forms-and-actions.md §"Single-Roundtrip Revalidation".
+   */
+  applyRevalidation(element: unknown, headElements: HeadElement[] | null): void;
+  /**
    * Populate the segment cache from server-provided segment metadata.
    * Called on initial hydration with segment info embedded in the HTML.
    */
@@ -480,6 +486,19 @@ export function createRouter(deps: RouterDeps): RouterInstance {
       return () => pendingListeners.delete(listener);
     },
     prefetch,
+    applyRevalidation(element: unknown, headElements: HeadElement[] | null): void {
+      // Render the piggybacked element tree from a server action response.
+      // Updates the current history entry with the fresh payload and applies
+      // head elements — same as refresh() but without a server fetch.
+      const currentUrl = deps.getCurrentUrl();
+      historyStack.push(currentUrl, {
+        payload: element,
+        scrollY: deps.getScrollY(),
+        headElements,
+      });
+      renderPayload(element);
+      applyHead(headElements);
+    },
     initSegmentCache: (segments: SegmentInfo[]) => updateSegmentCache(segments),
     segmentCache,
     prefetchCache,

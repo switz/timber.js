@@ -12,6 +12,7 @@ function makeMockRouter(): RouterInstance {
     isPending: vi.fn(() => false),
     onPendingChange: vi.fn(() => () => {}),
     prefetch: vi.fn(),
+    applyRevalidation: vi.fn(),
     initSegmentCache: vi.fn(),
     segmentCache: {} as RouterInstance['segmentCache'],
     prefetchCache: {} as RouterInstance['prefetchCache'],

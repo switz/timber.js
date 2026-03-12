@@ -21,8 +21,16 @@ import { withSpan } from './tracing';
 
 // ─── Types ───────────────────────────────────────────────────────────────
 
-/** Renderer function that produces an RSC flight payload for a given path. */
-export type RevalidateRenderer = (path: string) => Promise<ReadableStream<Uint8Array>>;
+/** Result of rendering a revalidation — element tree before RSC serialization. */
+export interface RevalidationResult {
+  /** React element tree (pre-serialization — passed to renderToReadableStream). */
+  element: unknown;
+  /** Resolved head elements for metadata. */
+  headElements: unknown[];
+}
+
+/** Renderer function that builds a React element tree for a given path. */
+export type RevalidateRenderer = (path: string) => Promise<RevalidationResult>;
 
 /** Per-request revalidation state — tracks revalidatePath/Tag calls within an action. */
 export interface RevalidationState {
@@ -44,8 +52,8 @@ export interface ActionHandlerConfig {
 export interface ActionHandlerResult {
   /** The action's return value (serialized). */
   actionResult: unknown;
-  /** RSC flight payload stream if revalidatePath was called. */
-  rscPayload?: ReadableStream<Uint8Array>;
+  /** Revalidation result if revalidatePath was called (element tree, not yet serialized). */
+  revalidation?: RevalidationResult;
   /** Redirect location if a RedirectSignal was thrown during revalidation. */
   redirectTo?: string;
   /** Redirect status code. */
@@ -175,14 +183,14 @@ export async function executeAction(
     await Promise.all(state.tags.map((tag) => config.cacheHandler!.invalidate({ tag })));
   }
 
-  // Process path revalidation — render RSC payload
-  let rscPayload: ReadableStream<Uint8Array> | undefined;
+  // Process path revalidation — build element tree (not yet serialized)
+  let revalidation: RevalidationResult | undefined;
   if (state.paths.length > 0 && config.renderer) {
     // For now, render the first revalidated path.
     // Multiple paths could be supported via multipart streaming in the future.
     const path = state.paths[0];
     try {
-      rscPayload = await config.renderer(path);
+      revalidation = await config.renderer(path);
     } catch (renderError) {
       if (renderError instanceof RedirectSignal) {
         // Revalidation triggered a redirect (e.g., session expired)
@@ -197,7 +205,7 @@ export async function executeAction(
 
   return {
     actionResult,
-    rscPayload,
+    revalidation,
     ...(redirectTo ? { redirectTo, redirectStatus } : {}),
   };
 }

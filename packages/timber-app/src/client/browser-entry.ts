@@ -55,6 +55,13 @@ import { TimberNuqsAdapter } from './nuqs-adapter.js';
  */
 setServerCallback(async (id: string, args: unknown[]) => {
   const body = await encodeReply(args);
+
+  // Track the X-Timber-Revalidation header from the response.
+  // We intercept the fetch promise to read headers before createFromFetch
+  // consumes the body stream.
+  let hasRevalidation = false;
+  let headElementsJson: string | null = null;
+
   const response = fetch(window.location.href, {
     method: 'POST',
     headers: {
@@ -62,13 +69,30 @@ setServerCallback(async (id: string, args: unknown[]) => {
       'x-rsc-action': id,
     },
     body,
+  }).then((res) => {
+    hasRevalidation = res.headers.get('X-Timber-Revalidation') === '1';
+    headElementsJson = res.headers.get('X-Timber-Head');
+    return res;
   });
-  const result = await createFromFetch(response);
 
-  // After the action completes, refresh the page to reflect mutations.
-  // This triggers a client-side RSC re-fetch (no full page reload).
-  // TODO: Piggyback the revalidation RSC payload on the action response
-  // instead of making a separate fetch (design/08-forms-and-actions.md).
+  const decoded = await createFromFetch(response);
+
+  if (hasRevalidation) {
+    // Piggybacked response: wrapper object { _action, _tree }
+    // Apply the revalidated tree directly — no separate router.refresh() needed.
+    const wrapper = decoded as { _action: unknown; _tree: unknown };
+    try {
+      const router = getRouter();
+      const headElements = headElementsJson ? JSON.parse(headElementsJson) : null;
+      router.applyRevalidation(wrapper._tree, headElements);
+    } catch {
+      // Router not yet initialized — fall through
+    }
+    return wrapper._action;
+  }
+
+  // No piggybacked revalidation — refresh to pick up any mutations.
+  // This covers actions that don't call revalidatePath().
   try {
     const router = getRouter();
     void router.refresh();
@@ -76,7 +100,7 @@ setServerCallback(async (id: string, args: unknown[]) => {
     // Router not yet initialized (rare edge case during bootstrap)
   }
 
-  return result;
+  return decoded;
 });
 
 // ─── Bootstrap ───────────────────────────────────────────────────

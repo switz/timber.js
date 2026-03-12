@@ -788,6 +788,76 @@ describe('Router', () => {
       expect(mockApplyHead).not.toHaveBeenCalled();
     });
   });
+
+  describe('applyRevalidation', () => {
+    it('renders element and applies head without server fetch', () => {
+      const mockRenderRoot = vi.fn();
+      const mockApplyHead = vi.fn();
+
+      const revalRouter = createRouter({
+        fetch: mockFetch,
+        pushState: mockPushState,
+        replaceState: mockReplaceState,
+        scrollTo: mockScrollTo,
+        getCurrentUrl: () => '/dashboard',
+        getScrollY: () => 100,
+        renderRoot: mockRenderRoot,
+        applyHead: mockApplyHead,
+      });
+
+      const element = { type: 'div', props: { children: 'Fresh' } };
+      const headElements = [{ tag: 'title' as const, content: 'Updated' }];
+
+      revalRouter.applyRevalidation(element, headElements);
+
+      // Should render without a server fetch
+      expect(mockFetch).not.toHaveBeenCalled();
+      expect(mockRenderRoot).toHaveBeenCalledWith(element);
+      expect(mockApplyHead).toHaveBeenCalledWith(headElements);
+    });
+
+    it('updates history stack with revalidated payload', () => {
+      const revalRouter = createRouter({
+        fetch: mockFetch,
+        pushState: mockPushState,
+        replaceState: mockReplaceState,
+        scrollTo: mockScrollTo,
+        getCurrentUrl: () => '/dashboard',
+        getScrollY: () => 75,
+        renderRoot: vi.fn(),
+      });
+
+      const element = { type: 'div', props: { children: 'Updated' } };
+      revalRouter.applyRevalidation(element, null);
+
+      const entry = revalRouter.historyStack.get('/dashboard');
+      expect(entry).toBeDefined();
+      expect(entry!.payload).toBe(element);
+      expect(entry!.scrollY).toBe(75);
+    });
+
+    it('works with null headElements', () => {
+      const mockRenderRoot = vi.fn();
+      const mockApplyHead = vi.fn();
+
+      const revalRouter = createRouter({
+        fetch: mockFetch,
+        pushState: mockPushState,
+        replaceState: mockReplaceState,
+        scrollTo: mockScrollTo,
+        getCurrentUrl: () => '/settings',
+        getScrollY: () => 0,
+        renderRoot: mockRenderRoot,
+        applyHead: mockApplyHead,
+      });
+
+      revalRouter.applyRevalidation({ type: 'div' }, null);
+
+      expect(mockRenderRoot).toHaveBeenCalled();
+      // applyHead should not be called with null
+      expect(mockApplyHead).not.toHaveBeenCalled();
+    });
+  });
 });
 
 // ─── Link Component ──────────────────────────────────────────────

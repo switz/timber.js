@@ -210,6 +210,112 @@ describe('handleActionRequest — body limits', () => {
   });
 });
 
+// ─── Piggybacked Revalidation Tests ──────────────────────────────────────
+
+describe('handleActionRequest — piggybacked revalidation', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('sets X-Timber-Revalidation header when revalidation is present', async () => {
+    const { executeAction } = await import('../packages/timber-app/src/server/actions');
+    (executeAction as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      actionResult: { ok: true },
+      revalidation: {
+        element: { type: 'div', props: { children: 'Revalidated' } },
+        headElements: [],
+      },
+    });
+
+    const req = makeActionRequest({ actionId: 'file#action' });
+    const res = await handleActionRequest(req, defaultConfig);
+
+    expect(res).not.toBeNull();
+    expect(res!.status).toBe(200);
+    expect(res!.headers.get('X-Timber-Revalidation')).toBe('1');
+  });
+
+  it('serializes wrapper object { _action, _tree } when revalidation is present', async () => {
+    const { renderToReadableStream } = await import('@vitejs/plugin-rsc/rsc');
+    const { executeAction } = await import('../packages/timber-app/src/server/actions');
+
+    const mockElement = { type: 'div', props: { children: 'Fresh' } };
+    (executeAction as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      actionResult: { saved: true },
+      revalidation: {
+        element: mockElement,
+        headElements: [],
+      },
+    });
+
+    const req = makeActionRequest({ actionId: 'file#action' });
+    await handleActionRequest(req, defaultConfig);
+
+    // renderToReadableStream should have been called with the wrapper object
+    expect(renderToReadableStream).toHaveBeenCalledWith({
+      _action: { saved: true },
+      _tree: mockElement,
+    });
+  });
+
+  it('does not set X-Timber-Revalidation header when no revalidation', async () => {
+    const req = makeActionRequest({ actionId: 'file#action' });
+    const res = await handleActionRequest(req, defaultConfig);
+
+    expect(res).not.toBeNull();
+    expect(res!.status).toBe(200);
+    expect(res!.headers.get('X-Timber-Revalidation')).toBeNull();
+  });
+
+  it('forwards head elements as X-Timber-Head header', async () => {
+    const { executeAction } = await import('../packages/timber-app/src/server/actions');
+    const headElements = [
+      { tag: 'title', content: 'Updated Page' },
+      { tag: 'meta', attrs: { name: 'description', content: 'Fresh content' } },
+    ];
+    (executeAction as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      actionResult: { ok: true },
+      revalidation: {
+        element: { type: 'div' },
+        headElements,
+      },
+    });
+
+    const req = makeActionRequest({ actionId: 'file#action' });
+    const res = await handleActionRequest(req, defaultConfig);
+
+    expect(res!.headers.get('X-Timber-Head')).toBe(JSON.stringify(headElements));
+  });
+
+  it('omits X-Timber-Head when headElements is empty', async () => {
+    const { executeAction } = await import('../packages/timber-app/src/server/actions');
+    (executeAction as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      actionResult: { ok: true },
+      revalidation: {
+        element: { type: 'div' },
+        headElements: [],
+      },
+    });
+
+    const req = makeActionRequest({ actionId: 'file#action' });
+    const res = await handleActionRequest(req, defaultConfig);
+
+    expect(res!.headers.get('X-Timber-Head')).toBeNull();
+  });
+
+  it('error actions never include revalidation', async () => {
+    const { executeAction } = await import('../packages/timber-app/src/server/actions');
+    (executeAction as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('boom'));
+
+    const req = makeActionRequest({ actionId: 'file#action' });
+    const res = await handleActionRequest(req, defaultConfig);
+
+    expect(res).not.toBeNull();
+    expect(res!.status).toBe(200); // Error responses are 200 with structured error
+    expect(res!.headers.get('X-Timber-Revalidation')).toBeNull();
+  });
+});
+
 describe('isActionRequest', () => {
   it('detects POST with x-rsc-action header', () => {
     const req = new Request('http://localhost/', {

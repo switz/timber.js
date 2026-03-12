@@ -266,15 +266,13 @@ describe('revalidatePath', () => {
     _clearRevalidationState();
   });
 
-  it('revalidate path payload — executeAction returns RSC payload', async () => {
-    const mockPayload = new ReadableStream<Uint8Array>({
-      start(controller) {
-        controller.enqueue(new TextEncoder().encode('RSC payload'));
-        controller.close();
-      },
-    });
+  it('revalidate path payload — executeAction returns revalidation result', async () => {
+    const mockRevalidation = {
+      element: { type: 'div', props: { children: 'Revalidated' } },
+      headElements: [],
+    };
 
-    const renderer = vi.fn(async () => mockPayload);
+    const renderer = vi.fn(async () => mockRevalidation);
 
     const action = async () => {
       revalidatePath('/dashboard');
@@ -284,7 +282,7 @@ describe('revalidatePath', () => {
     const result = await executeAction(action, [], { renderer });
 
     expect(result.actionResult).toEqual({ ok: true });
-    expect(result.rscPayload).toBeDefined();
+    expect(result.revalidation).toBeDefined();
     expect(renderer).toHaveBeenCalledWith('/dashboard');
   });
 });
@@ -354,7 +352,7 @@ describe('revalidation redirect', () => {
     expect(result.actionResult).toEqual({ ok: true });
     expect(result.redirectTo).toBe('/login');
     expect(result.redirectStatus).toBe(302);
-    expect(result.rscPayload).toBeUndefined();
+    expect(result.revalidation).toBeUndefined();
   });
 
   it('redirect in action body is captured', async () => {
@@ -452,14 +450,10 @@ describe('concurrent revalidation isolation', () => {
   });
 
   it('concurrent revalidatePath calls never cross-contaminate', async () => {
-    const renderer = vi.fn(async (path: string) => {
-      return new ReadableStream<Uint8Array>({
-        start(controller) {
-          controller.enqueue(new TextEncoder().encode(`payload:${path}`));
-          controller.close();
-        },
-      });
-    });
+    const renderer = vi.fn(async (path: string) => ({
+      element: { type: 'div', props: { children: `payload:${path}` } },
+      headElements: [],
+    }));
 
     const actionA = async () => {
       revalidatePath('/dashboard');

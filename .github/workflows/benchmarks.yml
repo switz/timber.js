@@ -42,10 +42,20 @@ jobs:
             '|--------|-------|',
             '| Cold build (median) | ' + fms(r.build.cold_build_ms.median) + ' |',
             '| Cold build (min/max) | ' + fms(r.build.cold_build_ms.min) + ' / ' + fms(r.build.cold_build_ms.max) + ' |',
-            '| Output size (total) | ' + fmt(r.output_size.total_bytes) + ' |',
+            '| Output size (total) | ' + fmt(r.output_size.total_bytes) + ' (' + fmt(r.output_size.total_gzip_bytes) + ' gzip) |',
           ];
           for (const [cat, bytes] of Object.entries(r.output_size.categories)) {
-            lines.push('| Output: ' + cat + ' | ' + fmt(bytes) + ' |');
+            const gz = (r.output_size.categories_gzip || {})[cat] || 0;
+            lines.push('| Output: ' + cat + ' | ' + fmt(bytes) + ' (' + fmt(gz) + ' gzip) |');
+          }
+          if (r.client_composition) {
+            const c = r.client_composition;
+            lines.push('', '### Client JS Composition', '', '| Category | Size | Gzip |', '|----------|------|------|');
+            for (const cat of ['react', 'timber', 'app', 'other']) {
+              if ((c.bytes[cat] || 0) > 0) {
+                lines.push('| ' + cat + ' | ' + fmt(c.bytes[cat]) + ' | ' + fmt(c.gzip_bytes[cat]) + ' |');
+              }
+            }
           }
           lines.push('', '<details><summary>Raw JSON</summary>', '', '\`\`\`json', JSON.stringify(r, null, 2), '\`\`\`', '</details>');
           fs.writeFileSync('bench-comment.md', lines.join('\n'));

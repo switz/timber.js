@@ -5,7 +5,8 @@
  *
  * Measures:
  * - Cold build time (full RSC → SSR → Client → Manifest pipeline)
- * - Build output size (client JS/CSS, server JS)
+ * - Build output size — raw and gzipped (total, by environment)
+ * - Client bundle composition: react+dom, timber framework, app code
  *
  * Usage:
  *   node benchmarks/run.js              # Run with defaults (3 runs)
@@ -14,14 +15,16 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { readdir, stat, rm } from 'node:fs/promises';
+import { readdir, readFile, rm } from 'node:fs/promises';
 import { resolve, join, relative } from 'node:path';
+import { gzipSync } from 'node:zlib';
 import { performance } from 'node:perf_hooks';
 import { parseArgs } from 'node:util';
 
 const FIXTURE_DIR = resolve(import.meta.dirname, 'fixture');
 const BUILD_SCRIPT = resolve(import.meta.dirname, 'build-once.js');
 const DIST_DIR = resolve(FIXTURE_DIR, 'dist');
+const CLIENT_ANALYSIS = resolve(DIST_DIR, 'client-analysis.json');
 
 const { values: args } = parseArgs({
   options: {
@@ -50,7 +53,12 @@ async function measureBuild() {
 }
 
 async function measureOutputSize(dir) {
-  const result = { totalBytes: 0, categories: {} };
+  const result = {
+    totalBytes: 0,
+    totalGzipBytes: 0,
+    categories: {},
+    categoriesGzip: {},
+  };
 
   async function walk(currentDir) {
     let entries;
@@ -64,7 +72,10 @@ async function measureOutputSize(dir) {
       if (entry.isDirectory()) {
         await walk(fullPath);
       } else if (entry.isFile()) {
-        const info = await stat(fullPath);
+        if (entry.name === 'client-analysis.json') continue;
+        const contents = await readFile(fullPath);
+        const rawSize = contents.length;
+        const gzipSize = gzipSync(contents, { level: 9 }).length;
         const relPath = relative(dir, fullPath);
         const ext = entry.name.split('.').pop() || '';
 
@@ -77,14 +88,58 @@ async function measureOutputSize(dir) {
           category = 'ssr_js';
         }
 
-        result.totalBytes += info.size;
-        result.categories[category] = (result.categories[category] || 0) + info.size;
+        result.totalBytes += rawSize;
+        result.totalGzipBytes += gzipSize;
+        result.categories[category] = (result.categories[category] || 0) + rawSize;
+        result.categoriesGzip[category] = (result.categoriesGzip[category] || 0) + gzipSize;
       }
     }
   }
 
   await walk(dir);
   return result;
+}
+
+/**
+ * Read the client-analysis.json produced by the benchmark-analyze plugin.
+ * Returns per-category (react, timber, app) byte totals based on
+ * rendered module lengths and their proportion of each chunk's final size.
+ */
+async function measureClientComposition(distDir) {
+  let analysis;
+  try {
+    analysis = JSON.parse(await readFile(CLIENT_ANALYSIS, 'utf8'));
+  } catch {
+    return null;
+  }
+
+  const totals = { react: 0, timber: 0, app: 0, other: 0 };
+  const gzipTotals = { react: 0, timber: 0, app: 0, other: 0 };
+
+  for (const [chunkPath, breakdown] of Object.entries(analysis)) {
+    const fullPath = resolve(distDir, 'client', chunkPath);
+    let contents;
+    try {
+      contents = await readFile(fullPath);
+    } catch {
+      continue;
+    }
+    const fileSize = contents.length;
+    const gzipSize = gzipSync(contents, { level: 9 }).length;
+
+    // Sum rendered module lengths to compute proportions
+    const rendered = breakdown;
+    const renderedTotal = rendered.react + rendered.timber + rendered.app + rendered.other;
+    if (renderedTotal === 0) continue;
+
+    for (const cat of ['react', 'timber', 'app', 'other']) {
+      const ratio = rendered[cat] / renderedTotal;
+      totals[cat] += Math.round(fileSize * ratio);
+      gzipTotals[cat] += Math.round(gzipSize * ratio);
+    }
+  }
+
+  return { totals, gzipTotals };
 }
 
 function formatBytes(bytes) {
@@ -119,6 +174,7 @@ async function main() {
   }
 
   const sizeResult = await measureOutputSize(DIST_DIR);
+  const clientComp = await measureClientComposition(DIST_DIR);
 
   const medianBuild = median(buildTimes);
   const minBuild = Math.min(...buildTimes);
@@ -138,8 +194,16 @@ async function main() {
     },
     output_size: {
       total_bytes: sizeResult.totalBytes,
+      total_gzip_bytes: sizeResult.totalGzipBytes,
       categories: sizeResult.categories,
+      categories_gzip: sizeResult.categoriesGzip,
     },
+    client_composition: clientComp
+      ? {
+          bytes: clientComp.totals,
+          gzip_bytes: clientComp.gzipTotals,
+        }
+      : null,
   };
 
   if (JSON_ONLY) {
@@ -150,9 +214,19 @@ async function main() {
     log(`  min: ${formatMs(minBuild)}, max: ${formatMs(maxBuild)}`);
     log(`  all: [${buildTimes.map(formatMs).join(', ')}]`);
     log('');
-    log(`Build output size: ${formatBytes(sizeResult.totalBytes)}`);
+    log(`Build output size: ${formatBytes(sizeResult.totalBytes)} (${formatBytes(sizeResult.totalGzipBytes)} gzip)`);
     for (const [cat, bytes] of Object.entries(sizeResult.categories)) {
-      log(`  ${cat}: ${formatBytes(bytes)}`);
+      const gzBytes = sizeResult.categoriesGzip[cat] || 0;
+      log(`  ${cat}: ${formatBytes(bytes)} (${formatBytes(gzBytes)} gzip)`);
+    }
+    if (clientComp) {
+      log('');
+      log('Client JS composition:');
+      for (const cat of ['react', 'timber', 'app', 'other']) {
+        if (clientComp.totals[cat] > 0) {
+          log(`  ${cat}: ${formatBytes(clientComp.totals[cat])} (${formatBytes(clientComp.gzipTotals[cat])} gzip)`);
+        }
+      }
     }
     log('\nJSON:');
     log(JSON.stringify(output, null, 2));

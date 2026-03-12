@@ -2,6 +2,7 @@ import { type ReactNode } from 'react';
 import type { Metadata } from '@timber/app/server';
 import { Link } from '@timber/app/client';
 import Counter from './Counter';
+import './globals.css';
 
 export const metadata: Metadata = {
   title: {
@@ -11,104 +12,102 @@ export const metadata: Metadata = {
   description: 'Comprehensive timber.js feature showcase',
 };
 
+const navSections = [
+  {
+    label: 'Streaming',
+    links: [
+      { href: '/streaming/suspense', testid: 'link-streaming-suspense', text: 'Suspense' },
+      { href: '/streaming/deferred', testid: 'link-streaming-deferred', text: 'Deferred' },
+      { href: '/streaming/deny-inside', testid: 'link-streaming-deny', text: 'Deny Inside' },
+    ],
+  },
+  {
+    label: 'Errors',
+    links: [
+      { href: '/errors/crash', testid: 'link-errors-crash', text: 'Crash' },
+      { href: '/errors/render-error', testid: 'link-errors-render', text: 'RenderError' },
+      { href: '/errors/deny-403', testid: 'link-errors-deny-403', text: 'Deny 403' },
+      { href: '/errors/deny-401', testid: 'link-errors-deny-401', text: 'Deny 401' },
+      { href: '/errors/deny-404', testid: 'link-errors-deny-404', text: 'Deny 404' },
+    ],
+  },
+  {
+    label: 'Middleware',
+    links: [
+      { href: '/middleware-test/headers', testid: 'link-mw-headers', text: 'Headers' },
+      { href: '/middleware-test/inject', testid: 'link-mw-inject', text: 'Inject' },
+      { href: '/middleware-test/short-circuit', testid: 'link-mw-short-circuit', text: 'Short-Circuit' },
+      { href: '/middleware-test/nav-target', testid: 'link-mw-nav-target', text: 'Nav Target' },
+    ],
+  },
+  {
+    label: 'Auth',
+    links: [
+      { href: '/auth-test/denied', testid: 'link-auth-denied', text: 'Denied' },
+      { href: '/auth-test/redirect', testid: 'link-auth-redirect', text: 'Redirect' },
+      { href: '/auth-test/parallel', testid: 'link-auth-parallel', text: 'Parallel Slot' },
+    ],
+  },
+  {
+    label: 'Routes',
+    links: [
+      { href: '/routes-test/42', testid: 'link-routes-dynamic', text: 'Dynamic' },
+      { href: '/routes-test/catch/a/b', testid: 'link-routes-catch', text: 'Catch-All' },
+      { href: '/routes-test/optional', testid: 'link-routes-optional', text: 'Optional' },
+      { href: '/routes-test/grouped-a', testid: 'link-routes-group-a', text: 'Group A' },
+      { href: '/routes-test/grouped-b', testid: 'link-routes-group-b', text: 'Group B' },
+    ],
+  },
+  {
+    label: 'Other',
+    links: [
+      { href: '/search-params-test', testid: 'link-search-params', text: 'Search Params' },
+      { href: '/meta-test', testid: 'link-meta-test', text: 'Meta: Title' },
+      { href: '/meta-test/absolute', testid: 'link-meta-absolute', text: 'Meta: Absolute' },
+      { href: '/meta-test/abc', testid: 'link-meta-dynamic', text: 'Meta: Dynamic' },
+      { href: '/scroll-test/page-a', testid: 'link-scroll-page-a', text: 'Scroll A' },
+      { href: '/scroll-test/page-b', testid: 'link-scroll-page-b', text: 'Scroll B' },
+      { href: '/scroll-test/parallel', testid: 'link-scroll-parallel', text: 'Scroll Parallel' },
+    ],
+  },
+];
+
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <head />
-      <body>
+      <body className="bg-gray-50 text-gray-900 antialiased">
         <header
           data-testid="site-header"
-          style={{ padding: '12px 16px', borderBottom: '1px solid #e5e7eb' }}
+          className="bg-white border-b border-gray-200 px-4 py-3"
         >
-          <nav style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 16px' }}>
-            <Link href="/" data-testid="link-home">
+          <nav className="flex flex-wrap items-center gap-x-6 gap-y-2">
+            <Link href="/" data-testid="link-home" className="font-semibold text-gray-900">
               Home
             </Link>
-            <Link href="/streaming/suspense" data-testid="link-streaming-suspense">
-              Streaming: Suspense
-            </Link>
-            <Link href="/streaming/deferred" data-testid="link-streaming-deferred">
-              Streaming: Deferred
-            </Link>
-            <Link href="/streaming/deny-inside" data-testid="link-streaming-deny">
-              Streaming: Deny Inside
-            </Link>
-            <Link href="/errors/crash" data-testid="link-errors-crash">
-              Error: Crash
-            </Link>
-            <Link href="/errors/render-error" data-testid="link-errors-render">
-              Error: RenderError
-            </Link>
-            <Link href="/errors/deny-403" data-testid="link-errors-deny-403">
-              Error: Deny 403
-            </Link>
-            <Link href="/errors/deny-401" data-testid="link-errors-deny-401">
-              Error: Deny 401
-            </Link>
-            <Link href="/errors/deny-404" data-testid="link-errors-deny-404">
-              Error: Deny 404
-            </Link>
-            <Link href="/middleware-test/headers" data-testid="link-mw-headers">
-              MW: Headers
-            </Link>
-            <Link href="/middleware-test/inject" data-testid="link-mw-inject">
-              MW: Inject
-            </Link>
-            <Link href="/middleware-test/short-circuit" data-testid="link-mw-short-circuit">
-              MW: Short-Circuit
-            </Link>
-            <Link href="/middleware-test/nav-target" data-testid="link-mw-nav-target">
-              MW: Nav Target
-            </Link>
-            <Link href="/auth-test/denied" data-testid="link-auth-denied">
-              Auth: Denied
-            </Link>
-            <Link href="/auth-test/redirect" data-testid="link-auth-redirect">
-              Auth: Redirect
-            </Link>
-            <Link href="/auth-test/parallel" data-testid="link-auth-parallel">
-              Auth: Parallel Slot
-            </Link>
-            <Link href="/routes-test/42" data-testid="link-routes-dynamic">
-              Routes: Dynamic
-            </Link>
-            <Link href="/routes-test/catch/a/b" data-testid="link-routes-catch">
-              Routes: Catch-All
-            </Link>
-            <Link href="/routes-test/optional" data-testid="link-routes-optional">
-              Routes: Optional
-            </Link>
-            <Link href="/routes-test/grouped-a" data-testid="link-routes-group-a">
-              Routes: Group A
-            </Link>
-            <Link href="/routes-test/grouped-b" data-testid="link-routes-group-b">
-              Routes: Group B
-            </Link>
-            <Link href="/search-params-test" data-testid="link-search-params">
-              Search Params
-            </Link>
-            <Link href="/meta-test" data-testid="link-meta-test">
-              Meta: Title
-            </Link>
-            <Link href="/meta-test/absolute" data-testid="link-meta-absolute">
-              Meta: Absolute
-            </Link>
-            <Link href="/meta-test/abc" data-testid="link-meta-dynamic">
-              Meta: Dynamic
-            </Link>
-            <Link href="/scroll-test/page-a" data-testid="link-scroll-page-a">
-              Scroll: Page A
-            </Link>
-            <Link href="/scroll-test/page-b" data-testid="link-scroll-page-b">
-              Scroll: Page B
-            </Link>
-            <Link href="/scroll-test/parallel" data-testid="link-scroll-parallel">
-              Scroll: Parallel
-            </Link>
+            {navSections.map((section) => (
+              <div key={section.label} className="flex items-center gap-x-2">
+                <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">
+                  {section.label}
+                </span>
+                {section.links.map((link) => (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    data-testid={link.testid}
+                    className="text-sm text-blue-600 hover:text-blue-800 hover:underline"
+                  >
+                    {link.text}
+                  </Link>
+                ))}
+              </div>
+            ))}
             <Counter />
           </nav>
         </header>
-        <main data-testid="main-content">{children}</main>
+        <main data-testid="main-content" className="max-w-4xl mx-auto px-4 py-8">
+          {children}
+        </main>
       </body>
     </html>
   );

@@ -263,6 +263,27 @@ function isRscPayloadRequest(req: Request): boolean {
 }
 
 /**
+ * Build a redirect Response. For RSC payload requests (client navigation),
+ * return 204 + X-Timber-Redirect header instead of a raw 302. The browser's
+ * fetch with redirect: "manual" turns a 302 into an opaque redirect (status 0,
+ * null body, inaccessible headers), which crashes createFromFetch when it
+ * tries to call .body.getReader(). The X-Timber-Redirect header lets the
+ * client detect the redirect and perform a soft SPA navigation.
+ */
+function buildRedirectResponse(
+  req: Request,
+  signal: RedirectSignal,
+  responseHeaders: Headers
+): Response {
+  if (isRscPayloadRequest(req)) {
+    responseHeaders.set('X-Timber-Redirect', signal.location);
+    return new Response(null, { status: 204, headers: responseHeaders });
+  }
+  responseHeaders.set('Location', signal.location);
+  return new Response(null, { status: signal.status, headers: responseHeaders });
+}
+
+/**
  * Render a matched route to an HTML Response via RSC → SSR pipeline,
  * or return a raw RSC Flight stream for client-side navigation requests.
  *
@@ -321,11 +342,7 @@ async function renderRoute(
         );
       }
       if (signal instanceof RedirectSignal) {
-        responseHeaders.set('Location', signal.location);
-        return new Response(null, {
-          status: signal.status,
-          headers: responseHeaders,
-        });
+        return buildRedirectResponse(_req, signal, responseHeaders);
       }
     }
     // No PageComponent found
@@ -454,11 +471,7 @@ async function renderRoute(
   // Synchronous redirect — redirect() in access.ts or a non-async component
   // throws during renderToReadableStream creation. Return HTTP redirect.
   if (redirectSignal) {
-    responseHeaders.set('Location', redirectSignal.location);
-    return new Response(null, {
-      status: redirectSignal.status,
-      headers: responseHeaders,
-    });
+    return buildRedirectResponse(_req, redirectSignal, responseHeaders);
   }
 
   // Synchronous deny — deny() in a non-async component throws during
@@ -563,11 +576,7 @@ async function renderRoute(
     // doesn't track mutations in callbacks, so we cast.
     const trackedRedirect = redirectSignal as RedirectSignal | null;
     if (trackedRedirect) {
-      responseHeaders.set('Location', trackedRedirect.location);
-      return new Response(null, {
-        status: trackedRedirect.status,
-        headers: responseHeaders,
-      });
+      return buildRedirectResponse(_req, trackedRedirect, responseHeaders);
     }
 
     // DenySignal outside Suspense → render deny page with correct 4xx status

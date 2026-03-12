@@ -329,6 +329,11 @@ describe('parses local font imports', () => {
     const name = parseLocalFontImportName("import React from 'react'");
     expect(name).toBeNull();
   });
+
+  it('parses next/font/local imports (compat)', () => {
+    const name = parseLocalFontImportName("import localFont from 'next/font/local'");
+    expect(name).toBe('localFont');
+  });
 });
 
 // ─── Font format inference ───────────────────────────────────────────────────

@@ -49,9 +49,14 @@ describe('timber-shims plugin', () => {
       expect(resolveId.call({}, 'next/headers')).toBe(resolve(SHIMS_DIR, 'headers.ts'));
     });
 
-    it('resolves next/font/google', () => {
+    it('resolves next/font/google to timber-fonts virtual module', () => {
       const resolveId = createResolveId();
-      expect(resolveId.call({}, 'next/font/google')).toBe(resolve(SHIMS_DIR, 'font-google.ts'));
+      expect(resolveId.call({}, 'next/font/google')).toBe('\0@timber/fonts/google');
+    });
+
+    it('resolves next/font/local to timber-fonts virtual module', () => {
+      const resolveId = createResolveId();
+      expect(resolveId.call({}, 'next/font/local')).toBe('\0@timber/fonts/local');
     });
   });
 
@@ -165,13 +170,7 @@ describe('timber-shims plugin', () => {
       expect(() => mod.cookies()).toThrow('outside of a request context');
     });
 
-    it('font-google shim exports a default font loader function', async () => {
-      const mod = await import('../packages/timber-app/src/shims/font-google.js');
-      expect(typeof mod.default).toBe('function');
-      const result = mod.default({ weight: '400', subsets: ['latin'] });
-      expect(result).toHaveProperty('className');
-      expect(result).toHaveProperty('style');
-      expect(result.style).toHaveProperty('fontFamily');
-    });
+    // font-google and font-local shims are now virtual modules served by timber-fonts plugin.
+    // Their behavior is tested in fonts-plugin.test.ts via the plugin's load hook.
   });
 });

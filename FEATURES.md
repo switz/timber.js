@@ -87,6 +87,7 @@ Features tagged as **[novel]** (not in Next.js or Vinext), **[enhanced]** (impro
 - **[parity]** Error overlay — browser overlay for render errors with component stack ([21-dev-server.md](design/21-dev-server.md))
 - **[parity]** Dev server with HMR — Vite-based with React Fast Refresh ([21-dev-server.md](design/21-dev-server.md))
 - **[novel]** Startup timing instrumentation — per-phase `performance.now()` profiling with dev-mode summary ([18-build-system.md](design/18-build-system.md))
+- **[parity]** Build report — post-build route table showing per-route bundle size, route type (○ static/λ dynamic/ƒ function), and first-load JS ([18-build-system.md](design/18-build-system.md))
 
 ## Build & Bundle Optimization
 

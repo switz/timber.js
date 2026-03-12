@@ -5,7 +5,7 @@ import { eventSchema } from './schema';
 
 const action = createActionClient();
 
-const _createEvent = action.schema(eventSchema).action(async ({ input }) => {
+export const createEvent = action.schema(eventSchema).action(async ({ input }) => {
   if (!input) deny(500);
   await new Promise((r) => setTimeout(r, 300));
 
@@ -17,7 +17,3 @@ const _createEvent = action.schema(eventSchema).action(async ({ input }) => {
     },
   };
 });
-
-export async function createEvent(...args: Parameters<typeof _createEvent>) {
-  return _createEvent(...args);
-}

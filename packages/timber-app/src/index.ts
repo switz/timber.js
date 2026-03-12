@@ -13,6 +13,7 @@ import { timberShims } from './plugins/shims';
 import { timberFonts } from './plugins/fonts';
 import { timberStaticBuild } from './plugins/static-build';
 import { timberDynamicTransform } from './plugins/dynamic-transform';
+import { timberServerActionExports } from './plugins/server-action-exports';
 import { timberBuildManifest } from './plugins/build-manifest';
 import { timberDevLogs } from './plugins/dev-logs';
 import { timberReactProd } from './plugins/react-prod';
@@ -238,6 +239,7 @@ export function timber(config?: TimberUserConfig): PluginOption[] {
     // following Vinext's convention — the RSC plugin's virtual browser entry
     // coordinates with plugin-react via __vite_plugin_react_preamble_installed__.
     react(),
+    timberServerActionExports(),
     rscPluginsPromise,
     timberShims(ctx),
     timberRouting(ctx),

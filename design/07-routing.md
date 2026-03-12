@@ -111,6 +111,81 @@ A match succeeds when all URL segments are consumed and the leaf segment has a `
 
 ---
 
+## Parallel Routes
+
+Parallel routes render multiple page components simultaneously within a single layout using named slots. A slot is a directory prefixed with `@` (e.g., `@sidebar`, `@modal`). Slots are passed as named props to their parent layout alongside `children`.
+
+```
+app/
+  dashboard/
+    layout.tsx           ← receives { children, sidebar }
+    page.tsx             ← renders as children
+    @sidebar/
+      page.tsx           ← renders as sidebar prop
+      default.tsx        ← fallback when no match
+      projects/
+        page.tsx         ← sidebar content for /dashboard/projects
+```
+
+**Slot resolution:** Each slot independently matches the current URL against its sub-tree. If a slot has a matching page for the current URL, it renders that page. Otherwise, it renders `default.tsx`. If neither exists, the slot renders nothing (`null`).
+
+**Slot-level features:** Each slot gets independent error boundaries (from `error.tsx` and status files along the slot's matched segment chain), layouts, and access gates. This enables each slot to handle errors and auth independently.
+
+**Slots don't add URL depth.** A slot at `/dashboard/@sidebar` has the same `urlPath` as `/dashboard`. Its children match the URL segments that follow `/dashboard`.
+
+---
+
+## Intercepting Routes
+
+Intercepting routes conditionally render a different page component on **soft navigation** (client-side `<Link>` clicks) while preserving the normal page on **hard navigation** (direct URL access, page reload). This enables the modal pattern: clicking a photo link shows a modal overlay, but navigating directly to the same URL shows the full photo page.
+
+### Directory Conventions
+
+Intercepting routes are defined by directory names that start with a marker indicating how many levels up to resolve the intercepted URL:
+
+| Marker | Meaning | Example |
+|--------|---------|---------|
+| `(.)` | Same level | `@modal/(.)photo/[id]/page.tsx` intercepts `/feed/photo/[id]` from `/feed` |
+| `(..)` | One level up | `@modal/(..)photo/[id]/page.tsx` intercepts `/photo/[id]` from one level up |
+| `(...)` | Root level | `@modal/(...)photo/[id]/page.tsx` intercepts `/photo/[id]` from anywhere |
+| `(..)(..)` | Two levels up | `@modal/(..)(..)photo/page.tsx` intercepts from two levels up |
+
+### Example: Photo Modal
+
+```
+app/
+  feed/
+    layout.tsx           ← receives { children, modal }
+    page.tsx             ← feed page
+    @modal/
+      default.tsx        ← renders nothing normally (export default () => null)
+      (.)photo/
+        [id]/
+          page.tsx       ← modal photo view (soft nav only)
+    photo/
+      [id]/
+        page.tsx         ← full photo page (hard nav)
+```
+
+- **Soft navigation** (`<Link href="/feed/photo/123">`): The `@modal` slot renders `(.)photo/[id]/page.tsx` as a modal overlay. The feed page stays visible behind it.
+- **Hard navigation** (direct URL `/feed/photo/123`): No interception. The normal route `/feed/photo/[id]/page.tsx` renders.
+
+### How It Works
+
+1. **Build time:** The route scanner identifies intercepting directories and the routing plugin computes `interceptionRewrites` — conditional rewrite rules mapping intercepted URL patterns to intercepting prefixes.
+
+2. **Soft navigation:** The client sends an `X-Timber-URL` header with the current pathname (where the user is navigating FROM). The server checks if any interception rewrite matches both the target URL and the source URL prefix.
+
+3. **Re-match:** When interception applies, the server re-matches the **source** URL (the intercepting route's parent) instead of the target URL. The slot resolver then finds the intercepting child in the slot and renders its page.
+
+4. **Hard navigation:** No `X-Timber-URL` header is sent. No rewrite matches. The normal route renders.
+
+### Cache Control
+
+Interception responses include `Vary: X-Timber-URL` to ensure CDNs cache soft-navigation and hard-navigation responses separately for the same URL.
+
+---
+
 ## `middleware.ts`
 
 Each route can have one `middleware.ts` — co-located with the route's `page.tsx`. Only the leaf route's middleware runs. There is no middleware chain and no inheritance. If you need shared infrastructure across routes (CORS, rate limiting), that belongs in `proxy.ts`.

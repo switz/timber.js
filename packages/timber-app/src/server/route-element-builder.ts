@@ -29,6 +29,7 @@ import { SegmentProvider } from '../client/segment-context.js';
 import { setParsedSearchParams } from './request-context.js';
 import type { SearchParamsDefinition } from '../search-params/create.js';
 import { wrapSegmentWithErrorBoundaries } from './error-boundary-wrapper.js';
+import type { InterceptionContext } from './pipeline.js';
 
 // ─── Types ────────────────────────────────────────────────────────────────
 
@@ -87,7 +88,8 @@ export class RouteSignalWithContext extends Error {
  */
 export async function buildRouteElement(
   req: Request,
-  match: RouteMatch
+  match: RouteMatch,
+  interception?: InterceptionContext
 ): Promise<RouteElementResult> {
   const segments = match.segments as unknown as ManifestSegmentNode[];
 
@@ -276,7 +278,8 @@ export async function buildRouteElement(
           slotNode as ManifestSegmentNode,
           match,
           paramsPromise,
-          h
+          h,
+          interception
         );
       }
 

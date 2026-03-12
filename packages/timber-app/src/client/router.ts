@@ -133,12 +133,22 @@ function appendRscParam(url: string): string {
   return `${url}${separator}_rsc=${generateCacheBustId()}`;
 }
 
-function buildRscHeaders(stateTree: { segments: string[] } | undefined): Record<string, string> {
+function buildRscHeaders(
+  stateTree: { segments: string[] } | undefined,
+  currentUrl?: string
+): Record<string, string> {
   const headers: Record<string, string> = {
     Accept: RSC_CONTENT_TYPE,
   };
   if (stateTree) {
     headers['X-Timber-State-Tree'] = JSON.stringify(stateTree);
+  }
+  // Send current URL for intercepting route resolution.
+  // The server uses this to determine if an intercepting route should
+  // render instead of the actual target route (modal pattern).
+  // See design/07-routing.md §"Intercepting Routes"
+  if (currentUrl) {
+    headers['X-Timber-URL'] = currentUrl;
   }
   return headers;
 }
@@ -186,10 +196,11 @@ function extractSegmentInfo(response: Response): SegmentInfo[] | null {
 async function fetchRscPayload(
   url: string,
   deps: RouterDeps,
-  stateTree?: { segments: string[] }
+  stateTree?: { segments: string[] },
+  currentUrl?: string
 ): Promise<FetchResult> {
   const rscUrl = appendRscParam(url);
-  const headers = buildRscHeaders(stateTree);
+  const headers = buildRscHeaders(stateTree, currentUrl);
   if (deps.decodeRsc) {
     // Production path: use createFromFetch for streaming RSC decoding.
     // createFromFetch takes a Promise<Response> and progressively parses
@@ -317,9 +328,14 @@ export function createRouter(deps: RouterDeps): RouterInstance {
       let result = prefetchCache.consume(url);
 
       if (result === undefined) {
-        // Fetch RSC payload with state tree for partial rendering
+        // Fetch RSC payload with state tree for partial rendering.
+        // Send current URL for intercepting route resolution (modal pattern).
         const stateTree = segmentCache.serializeStateTree();
-        result = await fetchRscPayload(url, deps, stateTree);
+        const rawCurrentUrl = deps.getCurrentUrl();
+        const currentUrl = rawCurrentUrl.startsWith('http')
+          ? new URL(rawCurrentUrl).pathname
+          : new URL(rawCurrentUrl, 'http://localhost').pathname;
+        result = await fetchRscPayload(url, deps, stateTree, currentUrl);
       }
 
       // Update the browser history — replace mode overwrites the current entry

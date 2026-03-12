@@ -24,9 +24,20 @@ interface ManifestFile {
 /** A segment node as it appears in the virtual:timber-route-manifest module. */
 export interface ManifestSegmentNode {
   segmentName: string;
-  segmentType: 'static' | 'dynamic' | 'catch-all' | 'optional-catch-all' | 'group' | 'slot';
+  segmentType:
+    | 'static'
+    | 'dynamic'
+    | 'catch-all'
+    | 'optional-catch-all'
+    | 'group'
+    | 'slot'
+    | 'intercepting';
   urlPath: string;
   paramName?: string;
+  /** For intercepting segments: the marker used, e.g. "(.)". */
+  interceptionMarker?: '(.)' | '(..)' | '(...)' | '(..)(..)';
+  /** For intercepting segments: the segment name after stripping the marker. */
+  interceptedSegmentName?: string;
 
   page?: ManifestFile;
   layout?: ManifestFile;

@@ -12,7 +12,24 @@ export type SegmentType =
   | 'catch-all' // e.g. "[...slug]"
   | 'optional-catch-all' // e.g. "[[...slug]]"
   | 'group' // e.g. "(marketing)"
-  | 'slot'; // e.g. "@sidebar"
+  | 'slot' // e.g. "@sidebar"
+  | 'intercepting'; // e.g. "(.)photo", "(..)photo", "(...)photo"
+
+/**
+ * Intercepting route marker — indicates how many levels up to resolve the
+ * intercepted route from the intercepting route's location.
+ *
+ * See design/07-routing.md §"Intercepting Routes"
+ */
+export type InterceptionMarker = '(.)' | '(..)' | '(...)' | '(..)(..)';
+
+/** All recognized interception markers, ordered longest-first for parsing. */
+export const INTERCEPTION_MARKERS: InterceptionMarker[] = [
+  '(..)(..)',
+  '(.)',
+  '(..)',
+  '(...)',
+];
 
 /** A single file discovered in a route segment */
 export interface RouteFile {
@@ -32,6 +49,13 @@ export interface SegmentNode {
   paramName?: string;
   /** The URL path prefix at this segment level (e.g. "/dashboard") */
   urlPath: string;
+  /** For intercepting segments: the marker used, e.g. "(.)". */
+  interceptionMarker?: InterceptionMarker;
+  /**
+   * For intercepting segments: the segment name after stripping the marker.
+   * E.g., for "(.)photo" this is "photo".
+   */
+  interceptedSegmentName?: string;
 
   // --- File conventions ---
   page?: RouteFile;

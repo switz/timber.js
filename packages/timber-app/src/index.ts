@@ -202,18 +202,22 @@ export function timber(config?: TimberUserConfig): PluginOption[] {
   // by esbuild and runs natively in ESM at runtime.
   //
   // serverHandler: false — timber has its own dev server (timber-dev-server)
-  // customBuildApp: true — timber controls its own build pipeline
   // entries — tells the RSC plugin about timber's virtual entry modules so
   //   it correctly wires up the browser entry (needed for React Fast Refresh
   //   preamble coordination with @vitejs/plugin-react)
   // customClientEntry: true — timber manages its own browser entry and
   //   preloading; skips RSC plugin's default "index" client entry convention
+  //
+  // The RSC plugin's built-in buildApp handles the 5-step multi-environment
+  // build sequence (analyze references → build RSC → build client → build SSR).
+  // We do NOT set customBuildApp — the RSC plugin's orchestration is correct
+  // and handles bundle ordering, asset manifest generation, and environment
+  // imports manifest. See @vitejs/plugin-rsc's buildApp implementation.
   ctx.timer.start('rsc-plugin-import');
   const rscPluginsPromise = import('@vitejs/plugin-rsc').then(({ default: vitePluginRsc }) => {
     ctx.timer.end('rsc-plugin-import');
     return vitePluginRsc({
       serverHandler: false,
-      customBuildApp: true,
       customClientEntry: true,
       entries: {
         rsc: 'virtual:timber-rsc-entry',

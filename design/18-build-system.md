@@ -182,10 +182,11 @@ vitePluginRsc({
     client: 'virtual:timber-browser-entry',
   },
   customClientEntry: true,  // timber manages its own browser entry
-  customBuildApp: true,     // timber controls its own build pipeline
   serverHandler: false,     // timber has its own dev server
 })
 ```
+
+The RSC plugin's built-in `buildApp` handles the 5-step multi-environment build sequence (analyze client references → analyze server references → build RSC → build client → build SSR). We do NOT set `customBuildApp` — the RSC plugin's orchestration is correct and handles bundle ordering, asset manifest generation, and environment imports manifest.
 
 The `entries.client` option is critical for React Fast Refresh: the RSC plugin's `virtual:vite-rsc/entry-browser` module sets up the Fast Refresh preamble globals (`$RefreshReg$`, `$RefreshSig$`) and then dynamically imports the client entry specified by `entries.client`. The `customClientEntry: true` flag opts out of the RSC plugin's default "index" client entry convention.
 

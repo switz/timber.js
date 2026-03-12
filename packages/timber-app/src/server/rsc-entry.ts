@@ -53,7 +53,9 @@ import { handleRouteRequest } from './route-handler.js';
 import type { RouteModule } from './route-handler.js';
 import type { RouteContext } from './types.js';
 import { isActionRequest, handleActionRequest } from './action-handler.js';
+import type { FormRerender } from './action-handler.js';
 import type { BodyLimitsConfig } from './body-limits.js';
+import { runWithFormFlash } from './form-flash.js';
 
 /**
  * Create a debug channel sink that discards all debug data.
@@ -200,7 +202,16 @@ async function createRequestHandler(manifest: typeof routeManifest, runtimeConfi
           };
         },
       });
-      if (actionResponse) return actionResponse;
+      if (actionResponse) {
+        // Check if this is a re-render signal (no-JS validation failure)
+        if ('rerender' in actionResponse) {
+          const formRerender = actionResponse as FormRerender;
+          // Re-render the page with form flash data in scope.
+          // Server components can read validation errors via getFormFlash().
+          return runWithFormFlash(formRerender.rerender, () => pipeline(req));
+        }
+        return actionResponse;
+      }
     }
     return pipeline(req);
   };

@@ -25,6 +25,8 @@ import { executeAction, type RevalidateRenderer } from './actions.js';
 import { runWithRequestContext } from './request-context.js';
 import { handleActionError } from './action-client.js';
 import { enforceBodyLimits, type BodyLimitsConfig } from './body-limits.js';
+import { parseFormData } from './form-data.js';
+import type { FormFlashData } from './form-flash.js';
 
 // ─── Types ────────────────────────────────────────────────────────────────
 
@@ -72,16 +74,21 @@ export function isActionRequest(req: Request): boolean {
 
 // ─── Handler ──────────────────────────────────────────────────────────────
 
+/** Signal from handleFormAction to re-render the page with flash data instead of redirecting. */
+export interface FormRerender {
+  rerender: FormFlashData;
+}
+
 /**
  * Handle a server action request.
  *
- * Returns a Response, or null if this isn't actually an action request
- * (e.g., a regular form POST to an API route).
+ * Returns a Response, a FormRerender signal (for no-JS validation failure re-render),
+ * or null if this isn't actually an action request (e.g., a regular form POST to an API route).
  */
 export async function handleActionRequest(
   req: Request,
   config: ActionDispatchConfig
-): Promise<Response | null> {
+): Promise<Response | FormRerender | null> {
   // CSRF validation — reject cross-origin mutation requests.
   const csrfResult = validateCsrf(req, config.csrf);
   if (!csrfResult.ok) {
@@ -230,7 +237,7 @@ async function handleRscAction(
 async function handleFormAction(
   req: Request,
   config: ActionDispatchConfig
-): Promise<Response | null> {
+): Promise<Response | FormRerender | null> {
   const formData = await req.formData();
 
   // Check if this is actually a React server action form.
@@ -240,6 +247,10 @@ async function handleFormAction(
     // Not a React server action form — return null to let the pipeline handle it
     return null;
   }
+
+  // Capture submitted values for re-render on validation failure.
+  // Parse before decodeAction consumes the FormData.
+  const submittedValues = parseFormData(formData);
 
   // decodeAction resolves the action function from the form data's hidden fields.
   // It returns a bound function with the form data already applied.
@@ -258,9 +269,19 @@ async function handleFormAction(
     // Log full error server-side
     console.error('[timber] server action error:', error);
 
-    // No-JS path: redirect back to the page. There's no RSC client to
-    // receive structured error data, so the best we can do is redirect
-    // back and not leak error details. The error is logged server-side.
+    // Check if this is an ActionError — return as flash data for re-render
+    const errorResult = handleActionError(error);
+    if (errorResult.serverError) {
+      return {
+        rerender: {
+          validationErrors: {},
+          submittedValues,
+          serverError: errorResult.serverError,
+        },
+      };
+    }
+
+    // Fallback: redirect back to the page
     const url = new URL(req.url);
     return new Response(null, {
       status: 302,
@@ -274,6 +295,21 @@ async function handleFormAction(
       status: result.redirectStatus ?? 302,
       headers: { Location: result.redirectTo },
     });
+  }
+
+  // Check if the action returned validation errors — re-render with flash
+  // instead of redirecting (validation failures are not mutations, so PRG
+  // isn't needed). This preserves errors and submitted values.
+  const actionResult = result.actionResult as Record<string, unknown> | undefined;
+  if (actionResult && actionResult.validationErrors) {
+    const flash: FormFlashData = {
+      validationErrors: actionResult.validationErrors as FormFlashData['validationErrors'],
+      submittedValues: (actionResult.submittedValues as Record<string, unknown>) ?? submittedValues,
+    };
+    if (actionResult.serverError) {
+      flash.serverError = actionResult.serverError as FormFlashData['serverError'];
+    }
+    return { rerender: flash };
   }
 
   // No-JS: redirect back to the same page to show updated state (PRG pattern)

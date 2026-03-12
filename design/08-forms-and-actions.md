@@ -372,3 +372,150 @@ Both paths run inside `runWithRequestContext` so `headers()` and `cookies()` wor
 ### Why `serverHandler: false`
 
 Timber uses `serverHandler: false` with `@vitejs/plugin-rsc` because timber has its own dev server (`timber-dev-server`) that handles request routing through the full pipeline (proxy → canonicalize → route match → middleware → render). The RSC plugin's default server handler would conflict with timber's pipeline. This means timber is responsible for wiring up both the client-side `callServer` callback and server-side action dispatch.
+
+---
+
+## FormData Preprocessing
+
+### `parseFormData()`
+
+Schema-agnostic FormData-to-object conversion that runs *before* schema validation. Imported from `@timber/app/server`.
+
+```typescript
+import { parseFormData } from '@timber/app/server'
+
+const obj = parseFormData(formData)
+```
+
+Handles:
+- **Duplicate keys → arrays**: `tags=js&tags=ts` → `{ tags: ["js", "ts"] }`
+- **Nested dot-paths**: `user.name=Alice` → `{ user: { name: "Alice" } }`
+- **Empty strings → undefined**: Enables `.optional()` semantics in schemas
+- **Empty Files → undefined**: File inputs with no selection become `undefined`
+- **Strips `$ACTION_*` fields**: React's internal hidden fields are excluded
+
+Replaces the framework's internal `formDataToObject()`. Automatically used by `createActionClient` and `validated()` when called with `(prevState, formData)`.
+
+### `coerce` Helpers
+
+Schema-agnostic coercion primitives for common FormData patterns:
+
+```typescript
+import { coerce } from '@timber/app/server'
+
+coerce.number("42")      // → 42
+coerce.number("")         // → undefined
+coerce.checkbox("on")     // → true
+coerce.checkbox(undefined) // → false
+coerce.json('{"a":1}')   // → { a: 1 }
+```
+
+These compose with any schema library's transform pipeline:
+```typescript
+// Zod
+z.preprocess(coerce.number, z.number())
+// Valibot
+v.pipe(v.unknown(), v.transform(coerce.number), v.number())
+```
+
+---
+
+## `validated()` Convenience API
+
+For the 90% case where you don't need middleware:
+
+```typescript
+'use server'
+import { validated } from '@timber/app/server'
+import { z } from 'zod'
+
+export const createTodo = validated(
+  z.object({ title: z.string().min(1) }),
+  async (input) => {
+    await db.todos.create(input)
+  }
+)
+```
+
+Thin wrapper over `createActionClient().schema(schema).action()`.
+
+---
+
+## `useFormErrors()` Hook
+
+Client-side error extraction hook for `ActionResult`:
+
+```tsx
+import { useFormErrors } from '@timber/app/client'
+
+const [result, action, isPending] = useActionState(createTodo, null)
+const errors = useFormErrors(result)
+
+// errors.fieldErrors    — Record<string, string[]>
+// errors.formErrors     — string[] (from _root key)
+// errors.serverError    — { code, data? } | null
+// errors.hasErrors      — boolean
+// errors.getFieldError('title') — string | null (first error)
+```
+
+Pure function (no internal hooks). The `_root` key in `validationErrors` maps to `formErrors` for form-level flash-style messages.
+
+---
+
+## `submittedValues` in ActionResult
+
+When schema validation fails, `ActionResult` includes the raw input for form repopulation:
+
+```typescript
+type ActionResult<TData> =
+  | { data: TData }
+  | { validationErrors: ValidationErrors; submittedValues?: Record<string, unknown> }
+  | { serverError: { code: string; data?: Record<string, unknown> } }
+```
+
+File objects are stripped from `submittedValues` (can't serialize, shouldn't echo back). Use `defaultValue` props to repopulate form fields on validation failure.
+
+---
+
+## No-JS Error Round-Trip
+
+### Problem
+
+The no-JS path (form POST → 302 redirect) discards validation errors and submitted values. Forms silently lose user input on validation failure.
+
+### Solution: `getFormFlash()`
+
+When a no-JS form action returns validation errors, the server **re-renders the page** instead of redirecting. Validation errors and submitted values are injected via AsyncLocalStorage, readable by server components via `getFormFlash()`.
+
+```typescript
+// app/contact/page.tsx (server component)
+import { getFormFlash } from '@timber/app/server'
+
+export default function ContactPage() {
+  const flash = getFormFlash()
+  return <ContactForm flash={flash} />
+}
+```
+
+**How it works:**
+
+1. No-JS form submits via POST
+2. Server action executes, returns `validationErrors` in the result
+3. `handleFormAction` detects validation errors, returns a `{ rerender: FormFlashData }` signal instead of a 302 redirect
+4. `rsc-entry.ts` wraps the pipeline re-render in `runWithFormFlash(data, () => pipeline(req))`
+5. Server components call `getFormFlash()` to read errors/submitted values
+6. Page renders with errors displayed and form fields repopulated
+
+**Key decisions:**
+- Flash data is server-side only (ALS) — never serialized to cookies or headers
+- Validation failures are not mutations → PRG is unnecessary, re-render is correct
+- Successful actions still 302 redirect (PRG preserved for the happy path)
+- `FormFlashData` includes `validationErrors`, `submittedValues`, and optional `serverError`
+
+```typescript
+interface FormFlashData {
+  validationErrors: ValidationErrors;
+  submittedValues: Record<string, unknown>;
+  serverError?: { code: string; data?: Record<string, unknown> };
+}
+```

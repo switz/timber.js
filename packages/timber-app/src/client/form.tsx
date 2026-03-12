@@ -12,7 +12,7 @@
  */
 
 import { useActionState as reactUseActionState, useTransition } from 'react';
-import type { ActionResult } from '../server/action-client';
+import type { ActionResult, ValidationErrors } from '../server/action-client';
 
 // ─── Types ───────────────────────────────────────────────────────────────
 
@@ -100,4 +100,87 @@ export function useFormAction<TData>(
   };
 
   return [execute, isPending];
+}
+
+// ─── useFormErrors ──────────────────────────────────────────────────────
+
+/** Return type of useFormErrors(). */
+export interface FormErrorsResult {
+  /** Per-field validation errors keyed by field name. */
+  fieldErrors: Record<string, string[]>;
+  /** Form-level errors (from `_root` key). */
+  formErrors: string[];
+  /** Server error if the action threw an ActionError. */
+  serverError: { code: string; data?: Record<string, unknown> } | null;
+  /** Whether any errors are present. */
+  hasErrors: boolean;
+  /** Get the first error message for a field, or null. */
+  getFieldError: (field: string) => string | null;
+}
+
+/**
+ * Extract per-field and form-level errors from an ActionResult.
+ *
+ * Pure function (no internal hooks) — follows React naming convention
+ * since it's used in render. Accepts the result from `useActionState`
+ * or flash data from `getFormFlash()`.
+ *
+ * @example
+ * ```tsx
+ * const [result, action, isPending] = useActionState(createTodo, null)
+ * const errors = useFormErrors(result)
+ *
+ * return (
+ *   <form action={action}>
+ *     <input name="title" />
+ *     {errors.getFieldError('title') && <p>{errors.getFieldError('title')}</p>}
+ *     {errors.formErrors.map(e => <p key={e}>{e}</p>)}
+ *   </form>
+ * )
+ * ```
+ */
+export function useFormErrors<TData>(
+  result: ActionResult<TData> | { validationErrors?: ValidationErrors; serverError?: { code: string; data?: Record<string, unknown> } } | null
+): FormErrorsResult {
+  const empty: FormErrorsResult = {
+    fieldErrors: {},
+    formErrors: [],
+    serverError: null,
+    hasErrors: false,
+    getFieldError: () => null,
+  };
+
+  if (!result) return empty;
+
+  const validationErrors = result.validationErrors as ValidationErrors | undefined;
+  const serverError = result.serverError as { code: string; data?: Record<string, unknown> } | undefined;
+
+  if (!validationErrors && !serverError) return empty;
+
+  // Separate _root (form-level) errors from field errors
+  const fieldErrors: Record<string, string[]> = {};
+  const formErrors: string[] = [];
+
+  if (validationErrors) {
+    for (const [key, messages] of Object.entries(validationErrors)) {
+      if (key === '_root') {
+        formErrors.push(...messages);
+      } else {
+        fieldErrors[key] = messages;
+      }
+    }
+  }
+
+  const hasErrors = Object.keys(fieldErrors).length > 0 || formErrors.length > 0 || serverError != null;
+
+  return {
+    fieldErrors,
+    formErrors,
+    serverError: serverError ?? null,
+    hasErrors,
+    getFieldError(field: string): string | null {
+      const errs = fieldErrors[field];
+      return errs && errs.length > 0 ? errs[0] : null;
+    },
+  };
 }

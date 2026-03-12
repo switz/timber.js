@@ -115,7 +115,7 @@ export {
 export type { MetadataRouteInfo, MetadataRouteType } from './metadata-routes';
 
 // Server Actions
-export { createActionClient, ActionError } from './action-client';
+export { createActionClient, ActionError, validated } from './action-client';
 export type {
   ActionResult,
   ActionFn,
@@ -126,6 +126,13 @@ export type {
   ActionSchema,
   ValidationErrors,
 } from './action-client';
+
+// FormData Preprocessing
+export { parseFormData, coerce } from './form-data';
+
+// Form Flash (no-JS error round-trip)
+export { getFormFlash } from './form-flash';
+export type { FormFlashData } from './form-flash';
 
 // Revalidation
 export {

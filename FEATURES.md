@@ -87,6 +87,11 @@ Features tagged as **[novel]** (not in Next.js or Vinext), **[enhanced]** (impro
 - **[parity]** Error overlay — browser overlay for render errors with component stack ([21-dev-server.md](design/21-dev-server.md))
 - **[parity]** Dev server with HMR — Vite-based with React Fast Refresh ([21-dev-server.md](design/21-dev-server.md))
 
+## Build & Bundle Optimization
+
+- **[novel]** Environment-aware shim resolution — `next/navigation` resolves to client-only shim in browser builds, preventing server code from leaking into client bundles ([18-build-system.md](design/18-build-system.md))
+- **[novel]** Client bundle boundary tests — static import tracing ensures server modules never enter the browser entry dependency tree ([18-build-system.md](design/18-build-system.md))
+
 ## Shim Compatibility
 
 - **[parity]** ALS-backed `headers()` and `cookies()` for server components ([07-routing.md](design/07-routing.md))

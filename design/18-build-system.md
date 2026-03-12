@@ -80,6 +80,21 @@ next/font/google → \0@timber/fonts/google (timber-fonts virtual module)
 
 The `resolveId` hook intercepts these imports and redirects to the shim files. The `.js` extension is stripped before matching — libraries like `nuqs` import `next/navigation.js` with an explicit extension.
 
+### Environment-Aware Shim Resolution
+
+Some shims (notably `next/navigation`) export both client hooks and server functions. In the RSC and SSR environments, both are needed. In the client (browser) environment, server functions like `redirect()` and `deny()` would pull `server/primitives.ts` into the browser bundle.
+
+To prevent this, `timber-shims` checks `this.environment.name` in `resolveId` and resolves `next/navigation` to a client-only shim (`navigation-client.ts`) in the browser environment. The client-only shim:
+
+- Re-exports all client hooks (`useRouter`, `usePathname`, `useSearchParams`, etc.)
+- Exports `RedirectType` (safe enum, no server dependency)
+- Exports stub functions for `redirect()`, `notFound()`, `permanentRedirect()` that throw helpful errors if accidentally called from client code
+
+```
+next/navigation (RSC/SSR) → shims/navigation.ts (full — client hooks + server functions)
+next/navigation (client)  → shims/navigation-client.ts (client hooks only)
+```
+
 ### `@timber/app/*` Subpath Resolution
 
 `@timber/app/server`, `@timber/app/client`, `@timber/app/cache`, and `@timber/app/search-params` resolve to their respective entry files. These are real files, not virtual modules.

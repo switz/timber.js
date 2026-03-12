@@ -36,6 +36,32 @@ const GREEN = '\x1b[32m';
 const YELLOW = '\x1b[33m';
 const RED = '\x1b[31m';
 const CYAN = '\x1b[36m';
+const MAGENTA = '\x1b[35m';
+
+/**
+ * Color an HTTP method for dev log output.
+ * GET is dimmed (it's the default/boring case), others get distinct colors.
+ */
+function colorMethod(method: string): string {
+  switch (method) {
+    case 'GET':
+      return `${DIM}${method}${RESET}`;
+    case 'POST':
+      return `${GREEN}${BOLD}${method}${RESET}`;
+    case 'PUT':
+      return `${YELLOW}${BOLD}${method}${RESET}`;
+    case 'DELETE':
+      return `${RED}${BOLD}${method}${RESET}`;
+    case 'PATCH':
+      return `${CYAN}${BOLD}${method}${RESET}`;
+    case 'HEAD':
+      return `${DIM}${method}${RESET}`;
+    case 'OPTIONS':
+      return `${MAGENTA}${BOLD}${method}${RESET}`;
+    default:
+      return `${BOLD}${method}${RESET}`;
+  }
+}
 
 // ─── HrTime Helpers ─────────────────────────────────────────────────────────
 
@@ -169,13 +195,14 @@ export function formatSpanTree(spans: ReadableSpan[], config?: DevLoggerConfig):
   const traceId = root.spanContext().traceId;
   const actionName = root.attributes['timber.action_name'] as string | undefined;
 
+  const dimTrace = `${DIM}trace_id: ${traceId}${RESET}`;
   if (actionName) {
     const actionFile = root.attributes['timber.action_file'] as string | undefined;
     lines.push(
-      `${BOLD}ACTION ${actionName}${actionFile ? ` (${actionFile})` : ''}  trace_id: ${traceId}${RESET}`
+      `${BOLD}ACTION ${actionName}${actionFile ? ` (${actionFile})` : ''}${RESET}  ${dimTrace}`
     );
   } else {
-    lines.push(`${BOLD}${method} ${path}  trace_id: ${traceId}${RESET}`);
+    lines.push(`${colorMethod(method)} ${BOLD}${path}${RESET}  ${dimTrace}`);
   }
 
   // Render child span nodes
@@ -279,7 +306,7 @@ export function formatSpanSummary(spans: ReadableSpan[], _config?: DevLoggerConf
   const traceIdShort = traceId.slice(0, 8);
 
   const statusColor = status < 400 ? GREEN : status < 500 ? YELLOW : RED;
-  return `${method} ${path} → ${statusColor}${status} ${httpStatusText(status)}${RESET}  ${totalMs}ms  trace_id: ${traceIdShort}...\n`;
+  return `${colorMethod(method)} ${path} → ${statusColor}${status} ${httpStatusText(status)}${RESET}  ${totalMs}ms  ${DIM}trace_id: ${traceIdShort}...${RESET}\n`;
 }
 
 /**

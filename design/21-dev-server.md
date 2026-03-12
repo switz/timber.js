@@ -224,6 +224,7 @@ Timber hooks into Vite's built-in error overlay (`server.ssrFixStacktrace` + `se
 | RSC render | React render error in server component | **Component stack** + file stack trace |
 | SSR render | React hydration/render error | Component stack + file stack trace |
 | Handler | Exception in `route.ts` handler | Stack trace with handler file highlighted |
+| Client | Uncaught runtime error in client component | Stack trace + component stack (forwarded via HMR) |
 
 ### Component Stacks
 
@@ -250,6 +251,12 @@ In addition to the browser overlay, errors are logged to stderr with the same st
 - Red for the error message
 - Dim for framework-internal frames
 - Normal for application frames
+
+### Client Error Forwarding
+
+Uncaught client-side errors (from `window.error` and `unhandledrejection` events) are forwarded to the dev server via Vite's HMR channel (`import.meta.hot.send('timber:client-error', ...)`). The dev server receives these events, parses the first app frame for source location, and echoes them back as `{ type: 'error' }` payloads to trigger Vite's overlay. This gives client component errors the same overlay treatment as server-side errors.
+
+The browser entry also listens for `timber:dev-warning` custom events sent by the server (from `dev-warnings.ts`) and logs them to the browser console with appropriate log levels (`console.warn` or `console.error`).
 
 ### Recovery
 

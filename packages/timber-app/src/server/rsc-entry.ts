@@ -27,7 +27,7 @@ import { renderToReadableStream } from '@vitejs/plugin-rsc/rsc';
 
 import { createPipeline } from './pipeline.js';
 import { withSpan, setSpanAttribute, initDevTracing } from './tracing.js';
-import type { PipelineConfig, RouteMatch } from './pipeline.js';
+import type { PipelineConfig, RouteMatch, InterceptionContext } from './pipeline.js';
 import { logRenderError } from './logger.js';
 import { resolveLogMode } from './dev-logger.js';
 import { createRouteMatcher } from './route-matcher.js';
@@ -142,12 +142,19 @@ async function createRequestHandler(manifest: typeof routeManifest, runtimeConfi
         responseHeaders.append('Link', h);
       }
     },
-    render: async (req: Request, match: RouteMatch, responseHeaders: Headers) => {
-      return renderRoute(req, match, responseHeaders, clientBootstrap);
+    render: async (
+      req: Request,
+      match: RouteMatch,
+      responseHeaders: Headers,
+      _requestHeaderOverlay: Headers,
+      interception?: InterceptionContext
+    ) => {
+      return renderRoute(req, match, responseHeaders, clientBootstrap, interception);
     },
     renderNoMatch: async (req: Request, responseHeaders: Headers) => {
       return renderNoMatchPage(req, manifest.root, responseHeaders, clientBootstrap);
     },
+    interceptionRewrites: manifest.interceptionRewrites,
     onPipelineError: isDev
       ? (error: Error, phase: string) => {
           if (_devPipelineErrorHandler) _devPipelineErrorHandler(error, phase);
@@ -269,7 +276,8 @@ async function renderRoute(
   _req: Request,
   match: RouteMatch,
   responseHeaders: Headers,
-  clientBootstrap: ClientBootstrapConfig
+  clientBootstrap: ClientBootstrapConfig,
+  interception?: InterceptionContext
 ): Promise<Response> {
   const segments = match.segments as unknown as ManifestSegmentNode[];
   const leaf = segments[segments.length - 1];
@@ -285,7 +293,7 @@ async function renderRoute(
   // resolves metadata. DenySignal/RedirectSignal propagate for HTTP handling.
   let routeResult;
   try {
-    routeResult = await buildRouteElement(_req, match);
+    routeResult = await buildRouteElement(_req, match, interception);
   } catch (error) {
     // RouteSignalWithContext wraps DenySignal/RedirectSignal with layout context
     if (error instanceof RouteSignalWithContext) {

@@ -10,8 +10,15 @@
 
 import { readdirSync, statSync } from 'node:fs';
 import { join, extname, basename } from 'node:path';
-import type { RouteTree, SegmentNode, SegmentType, RouteFile, ScannerConfig } from './types.js';
-import { DEFAULT_PAGE_EXTENSIONS } from './types.js';
+import type {
+  RouteTree,
+  SegmentNode,
+  SegmentType,
+  RouteFile,
+  ScannerConfig,
+  InterceptionMarker,
+} from './types.js';
+import { DEFAULT_PAGE_EXTENSIONS, INTERCEPTION_MARKERS } from './types.js';
 
 /**
  * File convention names that use pageExtensions (can be .tsx, .ts, .jsx, .js, .mdx, etc.)
@@ -78,13 +85,17 @@ function createSegmentNode(
   segmentName: string,
   segmentType: SegmentType,
   urlPath: string,
-  paramName?: string
+  paramName?: string,
+  interceptionMarker?: InterceptionMarker,
+  interceptedSegmentName?: string
 ): SegmentNode {
   return {
     segmentName,
     segmentType,
     urlPath,
     paramName,
+    interceptionMarker,
+    interceptedSegmentName,
     children: [],
     slots: new Map(),
   };
@@ -96,10 +107,23 @@ function createSegmentNode(
 export function classifySegment(dirName: string): {
   type: SegmentType;
   paramName?: string;
+  interceptionMarker?: InterceptionMarker;
+  interceptedSegmentName?: string;
 } {
   // Parallel route slot: @name
   if (dirName.startsWith('@')) {
     return { type: 'slot' };
+  }
+
+  // Intercepting routes: (.)name, (..)name, (...)name, (..)(..)name
+  // Check before route groups since intercepting markers also start with (
+  const interception = parseInterceptionMarker(dirName);
+  if (interception) {
+    return {
+      type: 'intercepting',
+      interceptionMarker: interception.marker,
+      interceptedSegmentName: interception.segmentName,
+    };
   }
 
   // Route group: (name)
@@ -129,12 +153,42 @@ export function classifySegment(dirName: string): {
 }
 
 /**
+ * Parse an interception marker from a directory name.
+ *
+ * Returns the marker and the remaining segment name, or null if not an
+ * intercepting route. Markers are checked longest-first to avoid (..)
+ * matching before (..)(..).
+ *
+ * Examples:
+ *   "(.)photo"      → { marker: "(.)", segmentName: "photo" }
+ *   "(..)feed"      → { marker: "(..)", segmentName: "feed" }
+ *   "(...)photos"   → { marker: "(...)", segmentName: "photos" }
+ *   "(..)(..)admin" → { marker: "(..)(..)", segmentName: "admin" }
+ *   "(marketing)"   → null (route group, not interception)
+ */
+function parseInterceptionMarker(
+  dirName: string
+): { marker: InterceptionMarker; segmentName: string } | null {
+  for (const marker of INTERCEPTION_MARKERS) {
+    if (dirName.startsWith(marker)) {
+      const rest = dirName.slice(marker.length);
+      // Must have a segment name after the marker, and the rest must not
+      // be empty or end with ) (which would be a route group like "(auth)")
+      if (rest.length > 0 && !rest.endsWith(')')) {
+        return { marker, segmentName: rest };
+      }
+    }
+  }
+  return null;
+}
+
+/**
  * Compute the URL path for a child segment given its parent's URL path.
- * Route groups and slots do NOT add URL depth.
+ * Route groups, slots, and intercepting routes do NOT add URL depth.
  */
 function computeUrlPath(parentUrlPath: string, dirName: string, segmentType: SegmentType): string {
-  // Groups and slots don't add to URL path
-  if (segmentType === 'group' || segmentType === 'slot') {
+  // Groups, slots, and intercepting routes don't add to URL path
+  if (segmentType === 'group' || segmentType === 'slot' || segmentType === 'intercepting') {
     return parentUrlPath;
   }
 
@@ -271,9 +325,17 @@ function scanChildren(dirPath: string, parentNode: SegmentNode, extSet: Set<stri
       continue;
     }
 
-    const { type, paramName } = classifySegment(entry);
+    const { type, paramName, interceptionMarker, interceptedSegmentName } =
+      classifySegment(entry);
     const urlPath = computeUrlPath(parentNode.urlPath, entry, type);
-    const childNode = createSegmentNode(entry, type, urlPath, paramName);
+    const childNode = createSegmentNode(
+      entry,
+      type,
+      urlPath,
+      paramName,
+      interceptionMarker,
+      interceptedSegmentName
+    );
 
     // Scan this segment's files
     scanSegmentFiles(fullPath, childNode, extSet);

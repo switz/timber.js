@@ -64,6 +64,34 @@ describe('classifySegment', () => {
     expect(classifySegment('@sidebar')).toEqual({ type: 'slot' });
     expect(classifySegment('@modal')).toEqual({ type: 'slot' });
   });
+
+  it('classifies intercepting routes', () => {
+    expect(classifySegment('(.)photo')).toEqual({
+      type: 'intercepting',
+      interceptionMarker: '(.)',
+      interceptedSegmentName: 'photo',
+    });
+    expect(classifySegment('(..)feed')).toEqual({
+      type: 'intercepting',
+      interceptionMarker: '(..)',
+      interceptedSegmentName: 'feed',
+    });
+    expect(classifySegment('(...)photos')).toEqual({
+      type: 'intercepting',
+      interceptionMarker: '(...)',
+      interceptedSegmentName: 'photos',
+    });
+    expect(classifySegment('(..)(..)admin')).toEqual({
+      type: 'intercepting',
+      interceptionMarker: '(..)(..)',
+      interceptedSegmentName: 'admin',
+    });
+  });
+
+  it('does not confuse route groups with intercepting routes', () => {
+    expect(classifySegment('(marketing)')).toEqual({ type: 'group' });
+    expect(classifySegment('(auth)')).toEqual({ type: 'group' });
+  });
 });
 
 // --- scanRoutes: discovers all file conventions ---
@@ -396,5 +424,37 @@ describe('scanRoutes', () => {
     expect(sidebar.children.length).toBe(1);
     expect(sidebar.children[0].segmentName).toBe('settings');
     expect(sidebar.children[0].page).toBeDefined();
+  });
+
+  it('intercepting route directories', () => {
+    const root = createApp({
+      'feed/page.tsx': '',
+      'feed/@modal/(.)photo/[id]/page.tsx': '',
+      'feed/@modal/default.tsx': '',
+      'photo/[id]/page.tsx': '',
+    });
+
+    const tree = scanRoutes(root);
+    const feed = tree.root.children.find((c) => c.segmentName === 'feed')!;
+
+    // The @modal slot should contain the intercepting route
+    const modal = feed.slots.get('modal')!;
+    expect(modal.segmentType).toBe('slot');
+    expect(modal.default).toBeDefined();
+
+    // The intercepting route is a child of the @modal slot
+    const intercepting = modal.children.find((c) => c.segmentName === '(.)photo')!;
+    expect(intercepting).toBeDefined();
+    expect(intercepting.segmentType).toBe('intercepting');
+    expect(intercepting.interceptionMarker).toBe('(.)');
+    expect(intercepting.interceptedSegmentName).toBe('photo');
+    // Intercepting routes don't add URL depth
+    expect(intercepting.urlPath).toBe('/feed');
+
+    // The intercepting route has a dynamic child
+    const idSegment = intercepting.children.find((c) => c.segmentName === '[id]')!;
+    expect(idSegment).toBeDefined();
+    expect(idSegment.segmentType).toBe('dynamic');
+    expect(idSegment.page).toBeDefined();
   });
 });

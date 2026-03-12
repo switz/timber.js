@@ -8,12 +8,18 @@
  * Slots are rendered within the single renderToReadableStream call as
  * named props to their parent layout — no separate render passes.
  *
+ * Each slot gets its own error boundaries (from error.tsx / status files
+ * along the matched slot segment chain) and layouts (from layout.tsx files
+ * in the slot's sub-tree). This enables independent error handling and
+ * chrome per slot.
+ *
  * See design/02-rendering-pipeline.md §"Parallel Slots"
  */
 
 import type { ManifestSegmentNode } from './route-matcher.js';
-import type { RouteMatch } from './pipeline.js';
+import type { RouteMatch, InterceptionContext } from './pipeline.js';
 import { SlotAccessGate } from './access-gate.js';
+import { wrapSegmentWithErrorBoundaries } from './error-boundary-wrapper.js';
 
 type CreateElementFn = (...args: unknown[]) => React.ReactElement;
 
@@ -22,17 +28,29 @@ type CreateElementFn = (...args: unknown[]) => React.ReactElement;
  *
  * Finds a matching page in the slot's sub-tree for the current route.
  * Falls back to default.tsx if no match, or null if no default.
+ *
+ * When a match is found, the element is wrapped with:
+ * 1. Error boundaries from each segment in the slot's matched chain
+ * 2. Layouts from each segment in the slot's matched chain
+ * 3. SlotAccessGate if the slot root has access.ts
  */
 export async function resolveSlotElement(
   slotNode: ManifestSegmentNode,
   match: RouteMatch,
   paramsPromise: Promise<Record<string, string | string[]>>,
-  h: CreateElementFn
+  h: CreateElementFn,
+  interception?: InterceptionContext
 ): Promise<React.ReactElement | null> {
-  const matchedPage = findSlotPage(slotNode, match);
+  // When interception is active, try to match intercepting children in this
+  // slot against the target pathname. If an intercepting child matches, render
+  // it instead of the normal slot match. This enables the modal pattern:
+  // the slot shows the intercepted content on soft navigation.
+  const slotMatch = interception
+    ? findInterceptingMatch(slotNode, interception.targetPathname) ?? findSlotMatch(slotNode, match)
+    : findSlotMatch(slotNode, match);
 
-  if (matchedPage) {
-    const mod = (await matchedPage.load()) as Record<string, unknown>;
+  if (slotMatch) {
+    const mod = (await slotMatch.page.load()) as Record<string, unknown>;
     if (mod.default) {
       const SlotPage = mod.default as (...args: unknown[]) => unknown;
       let element: React.ReactElement = h(SlotPage, {
@@ -40,7 +58,31 @@ export async function resolveSlotElement(
         searchParams: {},
       });
 
-      // Wrap in SlotAccessGate if slot has access.ts.
+      // Wrap with error boundaries and layouts from intermediate slot segments
+      // (everything between slot root and leaf). Process innermost-first, same
+      // order as route-element-builder.ts handles main segments. The slot root
+      // (index 0) is handled separately after the access gate below.
+      for (let i = slotMatch.chain.length - 1; i > 0; i--) {
+        const seg = slotMatch.chain[i];
+
+        // Error boundaries from this segment
+        element = await wrapSegmentWithErrorBoundaries(seg, element, h);
+
+        // Layout from this segment
+        if (seg.layout) {
+          const layoutMod = (await seg.layout.load()) as Record<string, unknown>;
+          if (layoutMod.default) {
+            const Layout = layoutMod.default as (...args: unknown[]) => unknown;
+            element = h(Layout, {
+              params: paramsPromise,
+              searchParams: {},
+              children: element,
+            });
+          }
+        }
+      }
+
+      // Wrap in SlotAccessGate if slot root has access.ts.
       // On denial: denied.tsx → default.tsx → null (graceful degradation).
       // See design/04-authorization.md §"Slot-Level Auth".
       if (slotNode.access) {
@@ -83,6 +125,22 @@ export async function resolveSlotElement(
         }
       }
 
+      // Wrap with slot root's layout (outermost, outside access gate)
+      if (slotNode.layout) {
+        const layoutMod = (await slotNode.layout.load()) as Record<string, unknown>;
+        if (layoutMod.default) {
+          const Layout = layoutMod.default as (...args: unknown[]) => unknown;
+          element = h(Layout, {
+            params: paramsPromise,
+            searchParams: {},
+            children: element,
+          });
+        }
+      }
+
+      // Wrap with slot root's error boundaries (outermost)
+      element = await wrapSegmentWithErrorBoundaries(slotNode, element, h);
+
       return element;
     }
   }
@@ -100,8 +158,19 @@ export async function resolveSlotElement(
   return null;
 }
 
+/** Result of matching a slot's sub-tree against the current route. */
+interface SlotMatchResult {
+  /** The page file at the matched leaf. */
+  page: NonNullable<ManifestSegmentNode['page']>;
+  /** The full chain of slot nodes traversed (slot root → … → leaf with page). */
+  chain: ManifestSegmentNode[];
+}
+
 /**
  * Find a matching page in a slot's sub-tree for the current route.
+ *
+ * Returns the matched page AND the full chain of nodes traversed, so the
+ * caller can apply error boundaries and layouts from each intermediate segment.
  *
  * Slots don't add URL depth (they're at the same level as their parent).
  * A slot at segment /parallel with children /parallel/projects means:
@@ -112,10 +181,10 @@ export async function resolveSlotElement(
  * We compare the matched route's segment chain against the slot's children
  * to find the deepest matching page.
  */
-function findSlotPage(
+function findSlotMatch(
   slotNode: ManifestSegmentNode,
   match: RouteMatch
-): ManifestSegmentNode['page'] | null {
+): SlotMatchResult | null {
   const segments = match.segments as unknown as ManifestSegmentNode[];
 
   // Find the parent segment that owns this slot by comparing urlPaths.
@@ -135,10 +204,15 @@ function findSlotPage(
 
   // If no remaining segments, the slot's own page matches
   if (remainingSegments.length === 0) {
-    return slotNode.page ?? null;
+    if (slotNode.page) {
+      return { page: slotNode.page, chain: [slotNode] };
+    }
+    return null;
   }
 
-  // Walk the slot's children to match remaining URL segments
+  // Walk the slot's children to match remaining URL segments.
+  // Track the chain so we can apply error boundaries and layouts.
+  const chain: ManifestSegmentNode[] = [slotNode];
   let currentNode = slotNode;
   for (const seg of remainingSegments) {
     const childName = seg.segmentName;
@@ -182,8 +256,106 @@ function findSlotPage(
       // No matching child in slot tree — slot doesn't match this URL
       return null;
     }
+    chain.push(found);
     currentNode = found;
   }
 
-  return currentNode.page ?? null;
+  if (currentNode.page) {
+    return { page: currentNode.page, chain };
+  }
+  return null;
+}
+
+/**
+ * Find a matching intercepting route in a slot's children for the target pathname.
+ *
+ * When interception is active, the pipeline has already re-matched the source URL.
+ * Here we check the slot's intercepting children (e.g. `(.)photo/[id]`) against
+ * the target pathname to find which intercepting page to render.
+ *
+ * The interceptedSegmentName tells us the first URL segment to look for in the
+ * target pathname. We then walk the intercepting child's sub-tree to match
+ * remaining segments.
+ */
+function findInterceptingMatch(
+  slotNode: ManifestSegmentNode,
+  targetPathname: string
+): SlotMatchResult | null {
+  const targetParts = targetPathname === '/' ? [] : targetPathname.slice(1).split('/');
+
+  for (const child of slotNode.children) {
+    if (child.segmentType !== 'intercepting' || !child.interceptedSegmentName) continue;
+
+    const segName = child.interceptedSegmentName;
+
+    // Find where the intercepted segment name appears in the target parts.
+    // Search from the end since intercepted routes match the URL tail.
+    let matchIdx = -1;
+    for (let i = targetParts.length - 1; i >= 0; i--) {
+      if (targetParts[i] === segName) {
+        matchIdx = i;
+        break;
+      }
+    }
+    if (matchIdx < 0) continue;
+
+    // Walk the intercepting child's sub-tree to match remaining target parts
+    const remaining = targetParts.slice(matchIdx + 1);
+    const chain: ManifestSegmentNode[] = [slotNode, child];
+
+    if (remaining.length === 0) {
+      if (child.page) {
+        return { page: child.page, chain };
+      }
+      continue;
+    }
+
+    let currentNode = child;
+    let matched = true;
+    for (const part of remaining) {
+      const children = currentNode.children ?? [];
+      let found: ManifestSegmentNode | null = null;
+
+      // Static match
+      for (const c of children) {
+        if (c.segmentType === 'static' && c.segmentName === part) {
+          found = c;
+          break;
+        }
+      }
+
+      // Dynamic match
+      if (!found) {
+        for (const c of children) {
+          if (c.segmentType === 'dynamic') {
+            found = c;
+            break;
+          }
+        }
+      }
+
+      // Catch-all match
+      if (!found) {
+        for (const c of children) {
+          if (c.segmentType === 'catch-all' || c.segmentType === 'optional-catch-all') {
+            found = c;
+            break;
+          }
+        }
+      }
+
+      if (!found) {
+        matched = false;
+        break;
+      }
+      chain.push(found);
+      currentNode = found;
+    }
+
+    if (matched && currentNode.page) {
+      return { page: currentNode.page, chain };
+    }
+  }
+
+  return null;
 }

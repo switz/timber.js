@@ -53,12 +53,19 @@ export interface RouteMatch {
 /** Function that matches a canonical pathname to a route. */
 export type RouteMatcher = (pathname: string) => RouteMatch | null;
 
+/** Context for intercepting route resolution (modal pattern). */
+export interface InterceptionContext {
+  /** The URL the user is navigating TO (the intercepted route). */
+  targetPathname: string;
+}
+
 /** Function that renders a matched route into a Response. */
 export type RouteRenderer = (
   req: Request,
   match: RouteMatch,
   responseHeaders: Headers,
-  requestHeaderOverlay: Headers
+  requestHeaderOverlay: Headers,
+  interception?: InterceptionContext
 ) => Response | Promise<Response>;
 
 /** Function that sends 103 Early Hints for a matched route. */
@@ -89,6 +96,12 @@ export interface PipelineConfig {
   redirects?: import('../index.js').RedirectRule[];
   /** Config-level rewrite rules. Evaluated after canonicalization, before route matching. */
   rewrites?: import('../index.js').RewriteRule[];
+  /**
+   * Interception rewrites — conditional routes for the modal pattern.
+   * Generated at build time from intercepting route directories.
+   * See design/07-routing.md §"Intercepting Routes"
+   */
+  interceptionRewrites?: import('../routing/interception.js').InterceptionRewrite[];
   /**
    * Dev pipeline error callback — called when a pipeline phase (proxy,
    * middleware, render) catches an unhandled error. Used to wire the error
@@ -214,7 +227,30 @@ export function createPipeline(config: PipelineConfig): (req: Request) => Promis
     }
 
     // Stage 3: Route matching
-    const match = matchRoute(canonicalPathname);
+    let match = matchRoute(canonicalPathname);
+    let interception: InterceptionContext | undefined;
+
+    // Stage 3a: Intercepting route resolution (modal pattern).
+    // On soft navigation, check if an intercepting route should render instead.
+    // The client sends X-Timber-URL with the current pathname (where they're
+    // navigating FROM). If a rewrite matches, re-route to the source URL so
+    // the source layout renders with the intercepted content in the slot.
+    const sourceUrl = req.headers.get('X-Timber-URL');
+    if (sourceUrl && config.interceptionRewrites?.length) {
+      const intercepted = findInterceptionMatch(
+        canonicalPathname,
+        sourceUrl,
+        config.interceptionRewrites
+      );
+      if (intercepted) {
+        const sourceMatch = matchRoute(intercepted.sourcePathname);
+        if (sourceMatch) {
+          match = sourceMatch;
+          interception = { targetPathname: canonicalPathname };
+        }
+      }
+    }
+
     if (!match) {
       // No route matched — render 404.tsx in root layout if available,
       // otherwise fall back to a bare 404 Response.
@@ -285,7 +321,7 @@ export function createPipeline(config: PipelineConfig): (req: Request) => Promis
     // Stage 5: Render (access gates + element tree + renderToReadableStream)
     try {
       return await withSpan('timber.render', { 'http.route': canonicalPathname }, () =>
-        render(req, match, responseHeaders, requestHeaderOverlay)
+        render(req, match, responseHeaders, requestHeaderOverlay, interception)
       );
     } catch (error) {
       logRenderError({ method, path, error });
@@ -316,4 +352,71 @@ async function fireOnRequestError(
     { method: req.method, path: url.pathname, headers: headersObj },
     { phase, routePath: url.pathname, routeType: 'page', traceId: traceId() }
   );
+}
+
+// ─── Interception Matching ────────────────────────────────────────────────
+
+interface InterceptionMatchResult {
+  /** The pathname to re-match (the source/intercepting route's parent). */
+  sourcePathname: string;
+}
+
+/**
+ * Check if an intercepting route applies for this soft navigation.
+ *
+ * Matches the target pathname against interception rewrites, constrained
+ * by the source URL (X-Timber-URL header — where the user navigates FROM).
+ *
+ * Returns the source pathname to re-match if interception applies, or null.
+ */
+function findInterceptionMatch(
+  targetPathname: string,
+  sourceUrl: string,
+  rewrites: import('../routing/interception.js').InterceptionRewrite[]
+): InterceptionMatchResult | null {
+  for (const rewrite of rewrites) {
+    // Check if the source URL starts with the intercepting prefix
+    if (!sourceUrl.startsWith(rewrite.interceptingPrefix)) continue;
+
+    // Check if the target URL matches the intercepted pattern.
+    // Dynamic segments in the pattern match any single URL segment.
+    if (pathnameMatchesPattern(targetPathname, rewrite.interceptedPattern)) {
+      return { sourcePathname: rewrite.interceptingPrefix };
+    }
+  }
+  return null;
+}
+
+/**
+ * Check if a pathname matches a URL pattern with dynamic segments.
+ *
+ * Supports [param] (single segment) and [...param] (one or more segments).
+ * Static segments must match exactly.
+ */
+function pathnameMatchesPattern(pathname: string, pattern: string): boolean {
+  const pathParts = pathname === '/' ? [] : pathname.slice(1).split('/');
+  const patternParts = pattern === '/' ? [] : pattern.slice(1).split('/');
+
+  let pi = 0;
+  for (let i = 0; i < patternParts.length; i++) {
+    const segment = patternParts[i];
+
+    // Catch-all: [...param] or [[...param]] — matches rest of URL
+    if (segment.startsWith('[...') || segment.startsWith('[[...')) {
+      return pi < pathParts.length || segment.startsWith('[[...');
+    }
+
+    // Dynamic: [param] — matches any single segment
+    if (segment.startsWith('[') && segment.endsWith(']')) {
+      if (pi >= pathParts.length) return false;
+      pi++;
+      continue;
+    }
+
+    // Static — must match exactly
+    if (pi >= pathParts.length || pathParts[pi] !== segment) return false;
+    pi++;
+  }
+
+  return pi === pathParts.length;
 }

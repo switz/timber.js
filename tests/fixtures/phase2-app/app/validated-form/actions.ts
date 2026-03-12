@@ -53,7 +53,7 @@ const contactSchema = {
 
 type ContactInput = { name: string; email: string; age?: number; subscribe: boolean };
 
-const _submitContact = validated(contactSchema, async (input: ContactInput) => {
+export const submitContact = validated(contactSchema, async (input: ContactInput) => {
   // In a real app, this would save to a database
   return {
     message: `Thanks ${input.name}! We'll email ${input.email}.`,
@@ -62,22 +62,14 @@ const _submitContact = validated(contactSchema, async (input: ContactInput) => {
   };
 });
 
-export async function submitContact(...args: Parameters<typeof _submitContact>) {
-  return _submitContact(...args);
-}
-
 // ─── Action with createActionClient for richer testing ───────────────────
 
 const action = createActionClient();
 
-const _submitWithClient = action.schema(contactSchema).action(async ({ input }) => {
+export const submitWithClient = action.schema(contactSchema).action(async ({ input }) => {
   const typed = input as ContactInput;
   return {
     message: `Saved ${typed.name}`,
     subscribe: typed.subscribe,
   };
 });
-
-export async function submitWithClient(...args: Parameters<typeof _submitWithClient>) {
-  return _submitWithClient(...args);
-}

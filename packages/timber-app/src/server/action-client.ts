@@ -183,14 +183,6 @@ async function runActionMiddleware<TCtx>(
 import { parseFormData } from './form-data.js';
 
 /**
- * @deprecated Use parseFormData() from './form-data.js' instead.
- * Kept as internal alias for backward compatibility within action handler.
- */
-function formDataToObject(formData: FormData): Record<string, unknown> {
-  return parseFormData(formData);
-}
-
-/**
  * Extract validation errors from a schema error.
  * Supports Zod's flatten() and generic issues array.
  */
@@ -297,7 +289,7 @@ export function createActionClient<TCtx = Record<string, never>>(
         let rawInput: unknown;
         if (args.length === 2 && args[1] instanceof FormData) {
           // Called as (prevState, formData) by React useActionState
-          rawInput = schema ? formDataToObject(args[1]) : args[1];
+          rawInput = schema ? parseFormData(args[1]) : args[1];
         } else {
           // Direct call: action(input)
           rawInput = args[0];

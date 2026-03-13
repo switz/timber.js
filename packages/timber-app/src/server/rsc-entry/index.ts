@@ -22,21 +22,20 @@ import config from 'virtual:timber-config';
 // @ts-expect-error — virtual module provided by timber-build-manifest plugin
 import buildManifest from 'virtual:timber-build-manifest';
 
-import { createElement } from 'react';
 import { renderToReadableStream } from '@vitejs/plugin-rsc/rsc';
 
-import { createPipeline } from './pipeline.js';
-import { withSpan, setSpanAttribute, initDevTracing } from './tracing.js';
-import type { PipelineConfig, RouteMatch, InterceptionContext } from './pipeline.js';
-import { logRenderError } from './logger.js';
-import { resolveLogMode } from './dev-logger.js';
-import { createRouteMatcher } from './route-matcher.js';
-import type { ManifestSegmentNode } from './route-matcher.js';
-import { DenySignal, RedirectSignal, RenderError } from './primitives.js';
-import { buildClientScripts } from './html-injectors.js';
-import type { ClientBootstrapConfig } from './html-injectors.js';
-import { renderDenyPage, renderDenyPageAsRsc } from './deny-renderer.js';
-import type { LayoutEntry } from './deny-renderer.js';
+import { createPipeline } from '../pipeline.js';
+import { initDevTracing } from '../tracing.js';
+import type { PipelineConfig, RouteMatch, InterceptionContext } from '../pipeline.js';
+import { logRenderError } from '../logger.js';
+import { resolveLogMode } from '../dev-logger.js';
+import { createRouteMatcher } from '../route-matcher.js';
+import type { ManifestSegmentNode } from '../route-matcher.js';
+import { DenySignal, RedirectSignal, RenderError } from '../primitives.js';
+import { buildClientScripts } from '../html-injectors.js';
+import type { ClientBootstrapConfig } from '../html-injectors.js';
+import { renderDenyPage, renderDenyPageAsRsc } from '../deny-renderer.js';
+import type { LayoutEntry } from '../deny-renderer.js';
 import {
   collectRouteCss,
   collectRouteFonts,
@@ -44,42 +43,27 @@ import {
   buildCssLinkTags,
   buildFontPreloadTags,
   buildModulepreloadTags,
-} from './build-manifest.js';
-import type { BuildManifest } from './build-manifest.js';
-import { collectEarlyHintHeaders } from './early-hints.js';
-import type { NavContext } from './ssr-entry.js';
-import { buildRouteElement, RouteSignalWithContext } from './route-element-builder.js';
-import { handleRouteRequest } from './route-handler.js';
-import type { RouteModule } from './route-handler.js';
-import type { RouteContext } from './types.js';
-import { isActionRequest, handleActionRequest } from './action-handler.js';
-import type { FormRerender } from './action-handler.js';
-import type { BodyLimitsConfig } from './body-limits.js';
-import { runWithFormFlash } from './form-flash.js';
+} from '../build-manifest.js';
+import type { BuildManifest } from '../build-manifest.js';
+import { collectEarlyHintHeaders } from '../early-hints.js';
+import type { NavContext } from '../ssr-entry.js';
+import { buildRouteElement, RouteSignalWithContext } from '../route-element-builder.js';
+import { isActionRequest, handleActionRequest } from '../action-handler.js';
+import type { FormRerender } from '../action-handler.js';
+import type { BodyLimitsConfig } from '../body-limits.js';
+import { runWithFormFlash } from '../form-flash.js';
 
-/**
- * Create a debug channel sink that discards all debug data.
- *
- * React Flight's dev mode serializes server component source code as `$E`
- * entries for DevTools. Without a separate debugChannel, this data is
- * embedded inline in the main RSC stream — leaking source code to the
- * browser. By providing a debug channel, debug data goes to a separate
- * stream that we drain and discard.
- *
- * See design/13-security.md §"Server component source leak"
- *
- * TODO: In the future, expose this debug data to the browser in dev mode
- * for inline error overlays (e.g. component stack traces).
- */
-function createDebugChannelSink(): { readable: ReadableStream; writable: WritableStream } {
-  const sink = new TransformStream();
-  // Drain the readable side so the writable never back-pressures.
-  sink.readable.pipeTo(new WritableStream()).catch(() => {});
-  return {
-    readable: new ReadableStream(), // no commands to send to Flight
-    writable: sink.writable,
-  };
-}
+import {
+  createDebugChannelSink,
+  buildSegmentInfo,
+  isRscPayloadRequest,
+  buildRedirectResponse,
+  escapeHtml,
+  RSC_CONTENT_TYPE,
+} from './helpers.js';
+import { handleApiRoute } from './api-handler.js';
+import { renderErrorPage, renderNoMatchPage } from './error-renderer.js';
+import { callSsr } from './ssr-bridge.js';
 
 // Dev-only pipeline error handler, set by the dev server after import.
 // In production this is always undefined — no overhead.
@@ -220,83 +204,6 @@ async function createRequestHandler(manifest: typeof routeManifest, runtimeConfi
     }
     return pipeline(req);
   };
-}
-
-/** RSC content type for client navigation payload requests. */
-const RSC_CONTENT_TYPE = 'text/x-component';
-
-/**
- * Build segment metadata for the X-Timber-Segments response header.
- * Describes the rendered segment chain with async status, enabling
- * the client to populate its segment cache for state tree diffing.
- *
- * Async detection: server components defined as `async function` have
- * constructor.name === 'AsyncFunction'. These layouts always re-render
- * on navigation (they may depend on request context like cookies/params).
- * See design/07-routing.md §"Server Diffing Rules".
- */
-function buildSegmentInfo(
-  segments: ManifestSegmentNode[],
-  layoutComponents: Array<{
-    component: (...args: unknown[]) => unknown;
-    segment: ManifestSegmentNode;
-  }>
-): Array<{ path: string; isAsync: boolean }> {
-  const layoutBySegment = new Map(
-    layoutComponents.map(({ component, segment }) => [segment, component])
-  );
-
-  // Deduplicate by path — route groups are transparent and share their
-  // parent's urlPath. When a group has its own layout, update the entry
-  // to reflect the group's async status (the layout is what matters for
-  // segment diffing). Without dedup, the state tree would contain
-  // duplicate paths that break the server's skip logic.
-  const byPath = new Map<string, { path: string; isAsync: boolean }>();
-
-  for (const segment of segments) {
-    const component = layoutBySegment.get(segment);
-    const isAsync = component?.constructor?.name === 'AsyncFunction';
-
-    const existing = byPath.get(segment.urlPath);
-    if (!existing) {
-      byPath.set(segment.urlPath, { path: segment.urlPath, isAsync });
-    } else if (component) {
-      // Group with a layout overrides the parent entry's async status
-      existing.isAsync = isAsync;
-    }
-  }
-
-  return Array.from(byPath.values());
-}
-
-/**
- * Check if a request is asking for an RSC payload (client navigation)
- * rather than full HTML. Client-side navigation sends Accept: text/x-component.
- */
-function isRscPayloadRequest(req: Request): boolean {
-  const accept = req.headers.get('Accept') ?? '';
-  return accept.includes(RSC_CONTENT_TYPE);
-}
-
-/**
- * Build a redirect Response. For RSC payload requests (client navigation),
- * return 204 + X-Timber-Redirect header instead of a raw 302. The browser's
- * fetch with redirect: "manual" turns a 302 into an opaque redirect (status 0,
- * null body, inaccessible headers), which crashes createFromFetch when it
- * tries to call .body.getReader(). The X-Timber-Redirect header lets the
- * client detect the redirect and perform a soft SPA navigation.
- */
-function buildRedirectResponse(
-  req: Request,
-  signal: RedirectSignal,
-  responseHeaders: Headers
-): Response {
-  if (isRscPayloadRequest(req)) {
-    responseHeaders.set('X-Timber-Redirect', signal.location);
-    return new Response(null, { status: 204, headers: responseHeaders });
-  }
-  responseHeaders.set('Location', signal.location);
-  return new Response(null, { status: signal.status, headers: responseHeaders });
 }
 
 /**
@@ -635,303 +542,6 @@ async function renderRoute(
     // No tracked error — rethrow (infrastructure failure)
     throw ssrError;
   }
-}
-
-/**
- * Wrap an element with error boundaries from a segment's status files and error.tsx.
- *
- * Follows the same fallback chain as tree-builder.ts:
- *   1. Specific status files (403.tsx, 503.tsx) — innermost, highest priority
- *   2. Category catch-alls (4xx.tsx, 5xx.tsx)
- *   3. error.tsx — outermost, catches anything unmatched
- *
- * These boundaries are essential for client-side navigation: when the client
- * decodes the RSC stream, errors (deny/throw) must be caught by a boundary
- * to render the error page UI. For initial HTML render, if a deny() fires
- * outside Suspense, the pipeline detects denySignal and re-renders with
- * renderDenyPage for the correct status code — the boundary is harmless.
- */
-/**
- * Handle an API route (route.ts) request.
- *
- * Runs access.ts standalone for all segments in the chain (no React render
- * pass, no AccessGate component). Then dispatches to the route handler.
- * See design/04-authorization.md §"Auth in API Routes".
- */
-async function handleApiRoute(
-  req: Request,
-  match: RouteMatch,
-  segments: ManifestSegmentNode[],
-  responseHeaders: Headers
-): Promise<Response> {
-  const leaf = segments[segments.length - 1];
-
-  // Run access.ts for every segment in the chain, top-down.
-  // Each access.ts is independent — deny()/redirect() throws a signal.
-  for (const segment of segments) {
-    if (segment.access) {
-      const accessMod = (await segment.access.load()) as Record<string, unknown>;
-      const accessFn = accessMod.default as
-        | ((ctx: { params: Record<string, string | string[]>; searchParams: unknown }) => unknown)
-        | undefined;
-      if (accessFn) {
-        try {
-          await withSpan(
-            'timber.access',
-            { 'timber.segment': segment.segmentName ?? 'unknown' },
-            async () => {
-              try {
-                await accessFn({ params: match.params, searchParams: {} });
-                await setSpanAttribute('timber.result', 'pass');
-              } catch (error) {
-                if (error instanceof DenySignal) {
-                  await setSpanAttribute('timber.result', 'deny');
-                  await setSpanAttribute('timber.deny_status', error.status);
-                  if (error.sourceFile) {
-                    await setSpanAttribute('timber.deny_file', error.sourceFile);
-                  }
-                } else if (error instanceof RedirectSignal) {
-                  await setSpanAttribute('timber.result', 'redirect');
-                }
-                throw error;
-              }
-            }
-          );
-        } catch (error) {
-          if (error instanceof DenySignal) {
-            return renderApiDeny(error, segments, responseHeaders);
-          }
-          if (error instanceof RedirectSignal) {
-            responseHeaders.set('Location', error.location);
-            return new Response(null, { status: error.status, headers: responseHeaders });
-          }
-          throw error;
-        }
-      }
-    }
-  }
-
-  // Load route.ts module and dispatch
-  const routeMod = (await leaf.route!.load()) as RouteModule;
-  const ctx: RouteContext = {
-    req,
-    params: match.params,
-    searchParams: new URL(req.url).searchParams,
-    headers: responseHeaders,
-  };
-  return handleRouteRequest(routeMod, ctx);
-}
-
-/**
- * Render a deny response for an API route (route.ts).
- *
- * Tries JSON status file chain first. Falls back to bare JSON response.
- * Never renders a component — API consumers get structured JSON, not HTML.
- * See design/10-error-handling.md §"Format Selection for deny()"
- */
-async function renderApiDeny(
-  deny: DenySignal,
-  segments: ManifestSegmentNode[],
-  responseHeaders: Headers
-): Promise<Response> {
-  const { resolveManifestStatusFile } = await import('./manifest-status-resolver.js');
-
-  const resolution = resolveManifestStatusFile(deny.status, segments, 'json');
-  if (resolution) {
-    const mod = (await resolution.file.load()) as Record<string, unknown>;
-    const jsonContent = mod.default ?? mod;
-    responseHeaders.set('content-type', 'application/json; charset=utf-8');
-    return new Response(JSON.stringify(jsonContent), {
-      status: deny.status,
-      headers: responseHeaders,
-    });
-  }
-
-  // No JSON status file — bare JSON fallback
-  responseHeaders.set('content-type', 'application/json; charset=utf-8');
-  return new Response(JSON.stringify({ error: true, status: deny.status }), {
-    status: deny.status,
-    headers: responseHeaders,
-  });
-}
-
-/**
- * Load the SSR entry and pass the RSC stream for HTML rendering.
- */
-async function callSsr(
-  rscStream: ReadableStream<Uint8Array>,
-  navContext: NavContext
-): Promise<Response> {
-  const ssrEntry = await import.meta.viteRsc.import<typeof import('./ssr-entry.js')>(
-    './ssr-entry.js',
-    { environment: 'ssr' }
-  );
-  return ssrEntry.handleSsr(rscStream, navContext);
-}
-
-/**
- * Render a 404 page for URLs that don't match any route.
- *
- * Uses the root segment's 404.tsx (or 4xx.tsx / error.tsx fallback)
- * wrapped in the root layout, via the same renderDenyPage path
- * used for in-route deny() calls.
- */
-async function renderNoMatchPage(
-  req: Request,
-  rootSegment: ManifestSegmentNode,
-  responseHeaders: Headers,
-  clientBootstrap: ClientBootstrapConfig
-): Promise<Response> {
-  const segments = [rootSegment];
-
-  // Load root layout if present
-  const layoutComponents: LayoutEntry[] = [];
-  if (rootSegment.layout) {
-    const mod = (await rootSegment.layout.load()) as Record<string, unknown>;
-    if (mod.default) {
-      layoutComponents.push({
-        component: mod.default as (...args: unknown[]) => unknown,
-        segment: rootSegment,
-      });
-    }
-  }
-
-  const deny = new DenySignal(404);
-  const match: RouteMatch = { segments: segments as never, params: {} };
-
-  return renderDenyPage(
-    deny,
-    segments,
-    layoutComponents,
-    req,
-    match,
-    responseHeaders,
-    clientBootstrap,
-    createDebugChannelSink,
-    callSsr
-  );
-}
-
-/**
- * Render an error page for unhandled throws or RenderError outside Suspense.
- *
- * Walks the segment chain from leaf to root looking for:
- *   1. Specific status file (e.g. 503.tsx) matching the error's status
- *   2. 5xx.tsx category catch-all
- *   3. error.tsx
- *
- * Renders the found component with { error, digest, reset } props
- * wrapped in layouts, with the correct HTTP status code.
- */
-async function renderErrorPage(
-  error: unknown,
-  status: number,
-  segments: ManifestSegmentNode[],
-  layoutComponents: LayoutEntry[],
-  req: Request,
-  match: RouteMatch,
-  responseHeaders: Headers,
-  clientBootstrap: ClientBootstrapConfig
-): Promise<Response> {
-  const h = createElement as (...args: unknown[]) => React.ReactElement;
-
-  // Walk segments from leaf to root to find the error component
-  let errorComponent: ((...args: unknown[]) => unknown) | null = null;
-  let foundSegmentIndex = -1;
-
-  for (let i = segments.length - 1; i >= 0; i--) {
-    const segment = segments[i];
-
-    // Check specific status file (e.g. 503.tsx)
-    if (segment.statusFiles) {
-      const statusKey = String(status);
-      const specificFile = segment.statusFiles[statusKey];
-      if (specificFile) {
-        const mod = (await specificFile.load()) as Record<string, unknown>;
-        if (mod.default) {
-          errorComponent = mod.default as (...args: unknown[]) => unknown;
-          foundSegmentIndex = i;
-          break;
-        }
-      }
-
-      // Check 5xx.tsx category catch-all
-      const categoryFile = segment.statusFiles['5xx'];
-      if (categoryFile && status >= 500 && status <= 599) {
-        const mod = (await categoryFile.load()) as Record<string, unknown>;
-        if (mod.default) {
-          errorComponent = mod.default as (...args: unknown[]) => unknown;
-          foundSegmentIndex = i;
-          break;
-        }
-      }
-    }
-
-    // Check error.tsx
-    if (segment.error) {
-      const mod = (await segment.error.load()) as Record<string, unknown>;
-      if (mod.default) {
-        errorComponent = mod.default as (...args: unknown[]) => unknown;
-        foundSegmentIndex = i;
-        break;
-      }
-    }
-  }
-
-  // No error component found — fall back to bare response
-  if (!errorComponent) {
-    return new Response(null, { status, headers: responseHeaders });
-  }
-
-  // Build digest prop for RenderError, null for unhandled errors
-  const digest =
-    error instanceof RenderError ? { code: error.code, data: error.digest.data } : null;
-
-  // Error pages receive { error, digest, reset } per design/10-error-handling.md
-  let element = h(errorComponent, {
-    error: error instanceof Error ? error : new Error(String(error)),
-    digest,
-    reset: undefined, // reset is only meaningful on the client
-  });
-
-  // Wrap in layouts from root up to the segment where the error file was found
-  const resolvedSegments = new Set(segments.slice(0, foundSegmentIndex + 1));
-  const layoutsToWrap = layoutComponents.filter((lc) => resolvedSegments.has(lc.segment));
-  for (let i = layoutsToWrap.length - 1; i >= 0; i--) {
-    const { component } = layoutsToWrap[i];
-    element = h(component, null, element);
-  }
-
-  // Render to fresh RSC Flight stream
-  const rscStream = renderToReadableStream(element, {
-    onError(err: unknown) {
-      logRenderError({ method: req.method, path: new URL(req.url).pathname, error: err });
-    },
-    debugChannel: createDebugChannelSink(),
-  });
-
-  const [ssrStream, inlineStream] = rscStream.tee();
-
-  const navContext: NavContext = {
-    pathname: new URL(req.url).pathname,
-    params: match.params,
-    searchParams: Object.fromEntries(new URL(req.url).searchParams),
-    statusCode: status,
-    responseHeaders,
-    headHtml: '',
-    bootstrapScriptContent: clientBootstrap.bootstrapScriptContent,
-    rscStream: inlineStream,
-  };
-
-  return callSsr(ssrStream, navContext);
-}
-
-function escapeHtml(str: string): string {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
 }
 
 export default await createRequestHandler(routeManifest, config);

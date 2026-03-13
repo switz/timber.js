@@ -17,7 +17,7 @@
  * Design doc: 24-fonts.md, "Next.js Font Compatibility"
  */
 
-import type { GoogleFontConfig, FontResult } from '../fonts/types.js';
+import type { GoogleFontConfig, FontResult } from '@/fonts/types.js';
 
 export type { GoogleFontConfig, FontResult };
 

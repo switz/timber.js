@@ -13,7 +13,7 @@
 // - searchParams and inline query string are mutually exclusive
 
 import type { AnchorHTMLAttributes, ReactNode } from 'react';
-import type { SearchParamsDefinition } from '../search-params/create.js';
+import type { SearchParamsDefinition } from '@/search-params/create.js';
 import type { OnNavigateHandler } from './link-navigate-interceptor.js';
 import { LinkNavigateInterceptor } from './link-navigate-interceptor.js';
 import { LinkStatusProvider } from './link-status-provider.js';

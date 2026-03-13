@@ -33,7 +33,7 @@ function extractRuntimeImports(filePath: string): string[] {
   let match;
   while ((match = importRegex.exec(content)) !== null) {
     const specifier = match[1];
-    if (specifier.startsWith('.')) {
+    if (specifier.startsWith('.') || specifier.startsWith('@/')) {
       imports.push(specifier);
     }
   }
@@ -43,7 +43,7 @@ function extractRuntimeImports(filePath: string): string[] {
   const reExportRegex = /export\s+(?!type\s)\{[^}]*\}\s+from\s+['"]([^'"]+)['"]/g;
   while ((match = reExportRegex.exec(content)) !== null) {
     const specifier = match[1];
-    if (specifier.startsWith('.')) {
+    if (specifier.startsWith('.') || specifier.startsWith('@/')) {
       imports.push(specifier);
     }
   }
@@ -55,8 +55,13 @@ function extractRuntimeImports(filePath: string): string[] {
  * Resolve a relative import from a source file to an absolute path.
  */
 function resolveImport(fromFile: string, specifier: string): string {
-  const dir = dirname(fromFile);
-  let resolved = resolve(dir, specifier);
+  let resolved: string;
+  if (specifier.startsWith('@/')) {
+    resolved = resolve(SRC_DIR, specifier.slice(2));
+  } else {
+    const dir = dirname(fromFile);
+    resolved = resolve(dir, specifier);
+  }
 
   // Strip .js extension (TypeScript source uses .ts)
   if (resolved.endsWith('.js')) {

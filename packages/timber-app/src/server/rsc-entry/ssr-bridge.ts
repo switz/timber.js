@@ -4,13 +4,13 @@
 
 /// <reference types="@vitejs/plugin-rsc/types" />
 
-import type { NavContext } from '../ssr-entry.js';
+import type { NavContext } from '@/server/ssr-entry.js';
 
 export async function callSsr(
   rscStream: ReadableStream<Uint8Array>,
   navContext: NavContext
 ): Promise<Response> {
-  const ssrEntry = await import.meta.viteRsc.import<typeof import('../ssr-entry.js')>(
+  const ssrEntry = await import.meta.viteRsc.import<typeof import('@/server/ssr-entry.js')>(
     '../ssr-entry.js',
     { environment: 'ssr' }
   );

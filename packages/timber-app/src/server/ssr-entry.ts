@@ -20,7 +20,7 @@ import { renderSsrStream, buildSsrResponse } from './ssr-render.js';
 import { injectHead, injectRscPayload } from './html-injectors.js';
 import { withNuqsSsrAdapter } from './nuqs-ssr-provider.js';
 import { withSpan } from './tracing.js';
-import { setCurrentParams } from '../client/use-params.js';
+import { setCurrentParams } from '@/client/use-params.js';
 
 /**
  * Navigation context passed from the RSC environment to SSR.

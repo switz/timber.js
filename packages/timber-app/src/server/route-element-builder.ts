@@ -25,9 +25,9 @@ import type { Metadata } from './types.js';
 import { DenySignal, RedirectSignal } from './primitives.js';
 import { AccessGate } from './access-gate.js';
 import { resolveSlotElement } from './slot-resolver.js';
-import { SegmentProvider } from '../client/segment-context.js';
+import { SegmentProvider } from '@/client/segment-context.js';
 import { setParsedSearchParams } from './request-context.js';
-import type { SearchParamsDefinition } from '../search-params/create.js';
+import type { SearchParamsDefinition } from '@/search-params/create.js';
 import { wrapSegmentWithErrorBoundaries } from './error-boundary-wrapper.js';
 import type { InterceptionContext } from './pipeline.js';
 

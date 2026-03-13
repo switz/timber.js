@@ -35,7 +35,7 @@ import {
 } from './logger.js';
 import { callOnRequestError } from './instrumentation.js';
 import type { MiddlewareContext } from './types.js';
-import type { SegmentNode } from '../routing/types.js';
+import type { SegmentNode } from '@/routing/types.js';
 
 // ─── Route Match Result ────────────────────────────────────────────────────
 
@@ -96,7 +96,7 @@ export interface PipelineConfig {
    * Generated at build time from intercepting route directories.
    * See design/07-routing.md §"Intercepting Routes"
    */
-  interceptionRewrites?: import('../routing/interception.js').InterceptionRewrite[];
+  interceptionRewrites?: import('@/routing/interception.js').InterceptionRewrite[];
   /**
    * Dev pipeline error callback — called when a pipeline phase (proxy,
    * middleware, render) catches an unhandled error. Used to wire the error
@@ -351,7 +351,7 @@ interface InterceptionMatchResult {
 function findInterceptionMatch(
   targetPathname: string,
   sourceUrl: string,
-  rewrites: import('../routing/interception.js').InterceptionRewrite[]
+  rewrites: import('@/routing/interception.js').InterceptionRewrite[]
 ): InterceptionMatchResult | null {
   for (const rewrite of rewrites) {
     // Check if the source URL starts with the intercepting prefix

@@ -17,8 +17,8 @@
  */
 
 import type { Plugin, ResolvedConfig } from 'vite';
-import type { PluginContext } from '../index.js';
-import type { BuildManifest } from '../server/build-manifest.js';
+import type { PluginContext } from '@/index.js';
+import type { BuildManifest } from '@/server/build-manifest.js';
 
 // Rollup types used by generateBundle hook — imported from vite which re-exports them.
 // We define minimal interfaces here to avoid a direct 'rollup' dependency.

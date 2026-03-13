@@ -15,7 +15,7 @@
  */
 
 import { AsyncLocalStorage } from 'node:async_hooks';
-import type { CacheHandler } from '../cache/index';
+import type { CacheHandler } from '@/cache/index';
 import { RedirectSignal } from './primitives';
 import { withSpan } from './tracing';
 

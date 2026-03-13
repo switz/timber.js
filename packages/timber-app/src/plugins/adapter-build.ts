@@ -16,8 +16,8 @@
 import type { Plugin } from 'vite';
 import { join } from 'node:path';
 import { readFile, writeFile } from 'node:fs/promises';
-import type { PluginContext } from '../index.js';
-import type { TimberPlatformAdapter, TimberConfig } from '../adapters/types.js';
+import type { PluginContext } from '@/index.js';
+import type { TimberPlatformAdapter, TimberConfig } from '@/adapters/types.js';
 
 export function timberAdapterBuild(ctx: PluginContext): Plugin {
   return {

@@ -16,8 +16,8 @@ import type { Plugin, ViteDevServer } from 'vite';
 import { isRunnableDevEnvironment } from 'vite';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { join } from 'node:path';
-import type { PluginContext } from '../index.js';
-import { setViteServer } from '../server/dev-warnings.js';
+import type { PluginContext } from '@/index.js';
+import { setViteServer } from '@/server/dev-warnings.js';
 import { sendErrorToOverlay, classifyErrorPhase, parseFirstAppFrame } from './dev-error-overlay.js';
 
 // ─── Constants ────────────────────────────────────────────────────────────

@@ -11,7 +11,7 @@
  */
 
 import { AsyncLocalStorage } from 'node:async_hooks';
-import type { Routes } from '../index.js';
+import type { Routes } from '@/index.js';
 
 // ─── ALS Store ────────────────────────────────────────────────────────────
 

@@ -15,8 +15,11 @@ export {
   searchParams,
   setParsedSearchParams,
   runWithRequestContext,
+  setMutableCookieContext,
+  markResponseFlushed,
+  getSetCookieHeaders,
 } from './request-context';
-export type { ReadonlyHeaders, RequestCookies } from './request-context';
+export type { ReadonlyHeaders, RequestCookies, CookieOptions } from './request-context';
 
 // Runtime primitives
 export {

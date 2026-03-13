@@ -7,6 +7,7 @@
  *
  * See design/04-authorization.md §"AccessContext does not include cookies or headers"
  * and design/11-platform.md §"AsyncLocalStorage".
+ * See design/29-cookies.md for cookie mutation semantics.
  */
 
 import { AsyncLocalStorage } from 'node:async_hooks';
@@ -19,8 +20,8 @@ interface RequestContextStore {
   headers: Headers;
   /** Raw cookie header string, parsed lazily into a Map on first access. */
   cookieHeader: string;
-  /** Lazily-parsed cookie map. */
-  parsedCookies?: ReadonlyMap<string, string>;
+  /** Lazily-parsed cookie map (mutable — reflects write-overlay from set()). */
+  parsedCookies?: Map<string, string>;
   /** Original (pre-overlay) frozen headers, kept for overlay merging. */
   originalHeaders: Headers;
   /**
@@ -29,6 +30,19 @@ interface RequestContextStore {
    * can later support partial pre-rendering where param resolution is deferred.
    */
   searchParamsPromise: Promise<URLSearchParams | Record<string, unknown>>;
+  /** Outgoing Set-Cookie entries (name → serialized value + options). Last write wins. */
+  cookieJar: Map<string, CookieEntry>;
+  /** Whether the response has flushed (headers committed). */
+  flushed: boolean;
+  /** Whether the current context allows cookie mutation. */
+  mutableContext: boolean;
+}
+
+/** A single outgoing cookie entry in the cookie jar. */
+interface CookieEntry {
+  name: string;
+  value: string;
+  options: CookieOptions;
 }
 
 const requestContextAls = new AsyncLocalStorage<RequestContextStore>();
@@ -53,12 +67,19 @@ export function headers(): ReadonlyHeaders {
 }
 
 /**
- * Returns a read-only cookie map for the current request.
+ * Returns a cookie accessor for the current request.
  *
  * Available in middleware, access checks, server components, and server actions.
  * Throws if called outside a request context (security principle #2: no global fallback).
  *
- * The returned object has `.get(name)`, `.has(name)`, and `.getAll()` methods.
+ * Read methods (.get, .has, .getAll) are always available and reflect
+ * read-your-own-writes from .set() calls in the same request.
+ *
+ * Mutation methods (.set, .delete, .clear) are only available in mutable
+ * contexts (middleware.ts, server actions, route.ts handlers). Calling them
+ * in read-only contexts (access.ts, server components) throws.
+ *
+ * See design/29-cookies.md
  */
 export function cookies(): RequestCookies {
   const store = requestContextAls.getStore();
@@ -84,6 +105,70 @@ export function cookies(): RequestCookies {
     },
     getAll(): Array<{ name: string; value: string }> {
       return Array.from(map.entries()).map(([name, value]) => ({ name, value }));
+    },
+    get size(): number {
+      return map.size;
+    },
+
+    set(name: string, value: string, options?: CookieOptions): void {
+      assertMutable(store, 'set');
+      if (store.flushed) {
+        if (process.env.NODE_ENV !== 'production') {
+          console.warn(
+            `[timber] warn: cookies().set('${name}') called after response headers were committed.\n` +
+              `  The cookie will NOT be sent. Move cookie mutations to middleware.ts, a server action,\n` +
+              `  or a route.ts handler.`
+          );
+        }
+        return;
+      }
+      const opts = { ...DEFAULT_COOKIE_OPTIONS, ...options };
+      store.cookieJar.set(name, { name, value, options: opts });
+      // Read-your-own-writes: update the parsed cookies map
+      map.set(name, value);
+    },
+
+    delete(name: string, options?: Pick<CookieOptions, 'path' | 'domain'>): void {
+      assertMutable(store, 'delete');
+      if (store.flushed) {
+        if (process.env.NODE_ENV !== 'production') {
+          console.warn(
+            `[timber] warn: cookies().delete('${name}') called after response headers were committed.\n` +
+              `  The cookie will NOT be deleted. Move cookie mutations to middleware.ts, a server action,\n` +
+              `  or a route.ts handler.`
+          );
+        }
+        return;
+      }
+      const opts: CookieOptions = {
+        ...DEFAULT_COOKIE_OPTIONS,
+        ...options,
+        maxAge: 0,
+        expires: new Date(0),
+      };
+      store.cookieJar.set(name, { name, value: '', options: opts });
+      // Remove from read view
+      map.delete(name);
+    },
+
+    clear(): void {
+      assertMutable(store, 'clear');
+      if (store.flushed) return;
+      // Delete every incoming cookie
+      for (const name of Array.from(map.keys())) {
+        store.cookieJar.set(name, {
+          name,
+          value: '',
+          options: { ...DEFAULT_COOKIE_OPTIONS, maxAge: 0, expires: new Date(0) },
+        });
+      }
+      map.clear();
+    },
+
+    toString(): string {
+      return Array.from(map.entries())
+        .map(([name, value]) => `${name}=${value}`)
+        .join('; ');
     },
   };
 }
@@ -138,8 +223,38 @@ export type ReadonlyHeaders = Pick<
   'get' | 'has' | 'entries' | 'keys' | 'values' | 'forEach' | typeof Symbol.iterator
 >;
 
+/** Options for setting a cookie. See design/29-cookies.md. */
+export interface CookieOptions {
+  /** Domain scope. Default: omitted (current domain only). */
+  domain?: string;
+  /** URL path scope. Default: '/'. */
+  path?: string;
+  /** Expiration date. Mutually exclusive with maxAge. */
+  expires?: Date;
+  /** Max age in seconds. Mutually exclusive with expires. */
+  maxAge?: number;
+  /** Prevent client-side JS access. Default: true. */
+  httpOnly?: boolean;
+  /** Only send over HTTPS. Default: true. */
+  secure?: boolean;
+  /** Cross-site request policy. Default: 'lax'. */
+  sameSite?: 'strict' | 'lax' | 'none';
+  /** Partitioned (CHIPS) — isolate cookie per top-level site. Default: false. */
+  partitioned?: boolean;
+}
+
+const DEFAULT_COOKIE_OPTIONS: CookieOptions = {
+  path: '/',
+  httpOnly: true,
+  secure: true,
+  sameSite: 'lax',
+};
+
 /**
- * Read-only cookie accessor returned by `cookies()`.
+ * Cookie accessor returned by `cookies()`.
+ *
+ * Read methods are always available. Mutation methods throw in read-only
+ * contexts (access.ts, server components).
  */
 export interface RequestCookies {
   /** Get a cookie value by name. Returns undefined if not present. */
@@ -148,6 +263,16 @@ export interface RequestCookies {
   has(name: string): boolean;
   /** Get all cookies as an array of { name, value } pairs. */
   getAll(): Array<{ name: string; value: string }>;
+  /** Number of cookies. */
+  readonly size: number;
+  /** Set a cookie. Only available in mutable contexts (middleware, actions, route handlers). */
+  set(name: string, value: string, options?: CookieOptions): void;
+  /** Delete a cookie. Only available in mutable contexts. */
+  delete(name: string, options?: Pick<CookieOptions, 'path' | 'domain'>): void;
+  /** Delete all cookies. Only available in mutable contexts. */
+  clear(): void;
+  /** Serialize cookies as a Cookie header string. */
+  toString(): string;
 }
 
 // ─── Framework-Internal Helpers ───────────────────────────────────────────
@@ -166,8 +291,49 @@ export function runWithRequestContext<T>(req: Request, fn: () => T): T {
     originalHeaders: originalCopy,
     cookieHeader: req.headers.get('cookie') ?? '',
     searchParamsPromise: Promise.resolve(new URL(req.url).searchParams),
+    cookieJar: new Map(),
+    flushed: false,
+    mutableContext: false,
   };
   return requestContextAls.run(store, fn);
+}
+
+/**
+ * Enable cookie mutation for the current context. Called by the framework
+ * when entering middleware.ts, server actions, or route.ts handlers.
+ *
+ * See design/29-cookies.md §"Context Tracking"
+ */
+export function setMutableCookieContext(mutable: boolean): void {
+  const store = requestContextAls.getStore();
+  if (store) {
+    store.mutableContext = mutable;
+  }
+}
+
+/**
+ * Mark the response as flushed (headers committed). After this point,
+ * cookie mutations log a warning instead of throwing.
+ *
+ * See design/29-cookies.md §"Streaming Constraint: Post-Flush Cookie Warning"
+ */
+export function markResponseFlushed(): void {
+  const store = requestContextAls.getStore();
+  if (store) {
+    store.flushed = true;
+  }
+}
+
+/**
+ * Collect all Set-Cookie headers from the cookie jar.
+ * Called by the framework at flush time to apply cookies to the response.
+ *
+ * Returns an array of serialized Set-Cookie header values.
+ */
+export function getSetCookieHeaders(): string[] {
+  const store = requestContextAls.getStore();
+  if (!store) return [];
+  return Array.from(store.cookieJar.values()).map(serializeCookieEntry);
 }
 
 /**
@@ -238,13 +404,23 @@ function freezeHeaders(source: Headers): Headers {
   });
 }
 
-// ─── Cookie Parser ────────────────────────────────────────────────────────
+// ─── Cookie Helpers ───────────────────────────────────────────────────────
+
+/** Throw if cookie mutation is attempted in a read-only context. */
+function assertMutable(store: RequestContextStore, method: string): void {
+  if (!store.mutableContext) {
+    throw new Error(
+      `[timber] cookies().${method}() cannot be called in this context.\n` +
+        `  Set cookies in middleware.ts, server actions, or route.ts handlers.`
+    );
+  }
+}
 
 /**
  * Parse a Cookie header string into a Map of name → value pairs.
  * Follows RFC 6265 §4.2.1: cookies are semicolon-separated key=value pairs.
  */
-function parseCookieHeader(header: string): ReadonlyMap<string, string> {
+function parseCookieHeader(header: string): Map<string, string> {
   const map = new Map<string, string>();
   if (!header) return map;
 
@@ -259,4 +435,23 @@ function parseCookieHeader(header: string): ReadonlyMap<string, string> {
   }
 
   return map;
+}
+
+/** Serialize a CookieEntry into a Set-Cookie header value. */
+function serializeCookieEntry(entry: CookieEntry): string {
+  const parts = [`${entry.name}=${entry.value}`];
+  const opts = entry.options;
+
+  if (opts.domain) parts.push(`Domain=${opts.domain}`);
+  if (opts.path) parts.push(`Path=${opts.path}`);
+  if (opts.expires) parts.push(`Expires=${opts.expires.toUTCString()}`);
+  if (opts.maxAge !== undefined) parts.push(`Max-Age=${opts.maxAge}`);
+  if (opts.httpOnly) parts.push('HttpOnly');
+  if (opts.secure) parts.push('Secure');
+  if (opts.sameSite) {
+    parts.push(`SameSite=${opts.sameSite.charAt(0).toUpperCase()}${opts.sameSite.slice(1)}`);
+  }
+  if (opts.partitioned) parts.push('Partitioned');
+
+  return parts.join('; ');
 }

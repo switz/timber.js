@@ -71,6 +71,8 @@ export interface RouterInstance {
   handlePopState(url: string): Promise<void>;
   /** Whether a navigation is currently in flight */
   isPending(): boolean;
+  /** The URL currently being navigated to, or null if idle */
+  getPendingUrl(): string | null;
   /** Subscribe to pending state changes */
   onPendingChange(listener: (pending: boolean) => void): () => void;
   /** Prefetch an RSC payload for a URL (used by Link hover) */
@@ -271,6 +273,7 @@ export function createRouter(deps: RouterDeps): RouterInstance {
   const historyStack = new HistoryStack();
 
   let pending = false;
+  let pendingUrl: string | null = null;
   const pendingListeners = new Set<(pending: boolean) => void>();
 
   // Track the URL the user is currently viewing. Updated after navigate()
@@ -279,12 +282,13 @@ export function createRouter(deps: RouterDeps): RouterInstance {
   // the page we're departing so we can save its scroll position.
   let lastKnownUrl = deps.getCurrentUrl();
 
-  function setPending(value: boolean): void {
-    if (pending !== value) {
-      pending = value;
-      for (const listener of pendingListeners) {
-        listener(value);
-      }
+  function setPending(value: boolean, url?: string): void {
+    const newPendingUrl = value && url ? url : null;
+    if (pending === value && pendingUrl === newPendingUrl) return;
+    pending = value;
+    pendingUrl = newPendingUrl;
+    for (const listener of pendingListeners) {
+      listener(value);
     }
   }
 
@@ -330,7 +334,7 @@ export function createRouter(deps: RouterDeps): RouterInstance {
       historyStack.updateScroll(lastKnownUrl, currentScrollY);
     }
 
-    setPending(true);
+    setPending(true, url);
 
     try {
       // Check prefetch cache first
@@ -413,7 +417,7 @@ export function createRouter(deps: RouterDeps): RouterInstance {
   async function refresh(): Promise<void> {
     const currentUrl = deps.getCurrentUrl();
 
-    setPending(true);
+    setPending(true, currentUrl);
 
     try {
       // No state tree sent — server renders the complete RSC payload
@@ -462,7 +466,7 @@ export function createRouter(deps: RouterDeps): RouterInstance {
       // (its payload is null since it was rendered via SSR, not RSC fetch)
       // or when the entry doesn't exist at all.
       const savedScrollY = entry?.scrollY ?? 0;
-      setPending(true);
+      setPending(true, url);
       try {
         const stateTree = segmentCache.serializeStateTree();
         const result = await fetchRscPayload(url, deps, stateTree);
@@ -510,6 +514,7 @@ export function createRouter(deps: RouterDeps): RouterInstance {
     refresh,
     handlePopState,
     isPending: () => pending,
+    getPendingUrl: () => pendingUrl,
     onPendingChange(listener) {
       pendingListeners.add(listener);
       return () => pendingListeners.delete(listener);

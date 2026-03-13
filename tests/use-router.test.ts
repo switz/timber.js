@@ -10,6 +10,7 @@ function makeMockRouter(): RouterInstance {
     refresh: vi.fn(),
     handlePopState: vi.fn(),
     isPending: vi.fn(() => false),
+    getPendingUrl: vi.fn(() => null),
     onPendingChange: vi.fn(() => () => {}),
     prefetch: vi.fn(),
     applyRevalidation: vi.fn(),

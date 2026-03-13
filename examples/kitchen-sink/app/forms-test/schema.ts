@@ -11,7 +11,7 @@ export const eventSchema = v.object({
     v.transform(coerce.number),
     v.optional(v.pipe(v.number(), v.minValue(1, 'Must allow at least 1 attendee')))
   ),
-  isPublic: v.pipe(v.unknown(), v.transform(coerce.checkbox)),
+  isPublic: v.optional(v.pipe(v.unknown(), v.transform(coerce.checkbox)), false),
   tags: v.optional(v.array(v.string()), []),
   metadata: v.pipe(v.unknown(), v.transform(coerce.json)),
 });

@@ -192,12 +192,13 @@ function renderOpenGraph(og: NonNullable<Metadata['openGraph']>, elements: HeadE
     }
   }
 
-  // Images
+  // Images — normalize single object to array for uniform handling
   if (og.images) {
     if (typeof og.images === 'string') {
       elements.push({ tag: 'meta', attrs: { property: 'og:image', content: og.images } });
-    } else if (Array.isArray(og.images)) {
-      for (const img of og.images) {
+    } else {
+      const imgList = Array.isArray(og.images) ? og.images : [og.images];
+      for (const img of imgList) {
         elements.push({ tag: 'meta', attrs: { property: 'og:image', content: img.url } });
         if (img.width) {
           elements.push({
@@ -260,12 +261,13 @@ function renderTwitter(tw: NonNullable<Metadata['twitter']>, elements: HeadEleme
     }
   }
 
-  // Images
+  // Images — normalize single object to array for uniform handling
   if (tw.images) {
     if (typeof tw.images === 'string') {
       elements.push({ tag: 'meta', attrs: { name: 'twitter:image', content: tw.images } });
-    } else if (Array.isArray(tw.images)) {
-      for (const img of tw.images) {
+    } else {
+      const imgList = Array.isArray(tw.images) ? tw.images : [tw.images];
+      for (const img of imgList) {
         const url = typeof img === 'string' ? img : img.url;
         elements.push({ tag: 'meta', attrs: { name: 'twitter:image', content: url } });
       }

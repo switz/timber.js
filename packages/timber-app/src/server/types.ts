@@ -48,7 +48,10 @@ export interface Metadata {
     description?: string;
     url?: string;
     siteName?: string;
-    images?: string | Array<{ url: string; width?: number; height?: number; alt?: string }>;
+    images?:
+      | string
+      | { url: string; width?: number; height?: number; alt?: string }
+      | Array<{ url: string; width?: number; height?: number; alt?: string }>;
     videos?: Array<{ url: string; width?: number; height?: number }>;
     audio?: Array<{ url: string }>;
     locale?: string;
@@ -66,6 +69,7 @@ export interface Metadata {
     images?:
       | string
       | string[]
+      | { url: string; alt?: string; width?: number; height?: number }
       | Array<{ url: string; alt?: string; width?: number; height?: number }>;
     creator?: string;
     creatorId?: string;

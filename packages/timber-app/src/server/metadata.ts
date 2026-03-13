@@ -189,12 +189,16 @@ export function resolveMetadataUrls(metadata: Metadata): Metadata {
     if (typeof result.openGraph.images === 'string') {
       result.openGraph.images = resolveUrl(result.openGraph.images, base);
     } else if (Array.isArray(result.openGraph.images)) {
-      result.openGraph.images = result.openGraph.images.map((img) => {
-        if (typeof img === 'string') {
-          return { url: resolveUrl(img, base) };
-        }
-        return { ...img, url: resolveUrl(img.url, base) };
-      });
+      result.openGraph.images = result.openGraph.images.map((img) => ({
+        ...img,
+        url: resolveUrl(img.url, base),
+      }));
+    } else if (result.openGraph.images) {
+      // Single object: { url, width?, height?, alt? }
+      result.openGraph.images = {
+        ...result.openGraph.images,
+        url: resolveUrl(result.openGraph.images.url, base),
+      };
     }
     if (result.openGraph.url && !isAbsoluteUrl(result.openGraph.url)) {
       result.openGraph.url = resolveUrl(result.openGraph.url, base);
@@ -216,6 +220,12 @@ export function resolveMetadataUrls(metadata: Metadata): Metadata {
       result.twitter.images = allStrings
         ? (resolved as string[])
         : (resolved as Array<{ url: string; alt?: string; width?: number; height?: number }>);
+    } else if (result.twitter.images) {
+      // Single object: { url, alt?, width?, height? }
+      result.twitter.images = {
+        ...result.twitter.images,
+        url: resolveUrl(result.twitter.images.url, base),
+      };
     }
   }
 

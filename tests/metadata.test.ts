@@ -225,6 +225,41 @@ describe('metadata base', () => {
     expect(resolved.alternates?.canonical).toBe('https://myapp.com/products/123');
   });
 
+  it('resolves relative URLs in openGraph single-object images', () => {
+    const result = resolveMetadata([
+      entry({ metadataBase: new URL('https://myapp.com') }),
+      entry(
+        {
+          openGraph: { images: { url: '/images/og.jpg', width: 1200, height: 630 } },
+        },
+        true
+      ),
+    ]);
+    const resolved = resolveMetadataUrls(result);
+    expect(resolved.openGraph?.images).toEqual({
+      url: 'https://myapp.com/images/og.jpg',
+      width: 1200,
+      height: 630,
+    });
+  });
+
+  it('resolves relative URLs in twitter single-object images', () => {
+    const result = resolveMetadata([
+      entry({ metadataBase: new URL('https://myapp.com') }),
+      entry(
+        {
+          twitter: { images: { url: '/images/tw.jpg', alt: 'Preview' } },
+        },
+        true
+      ),
+    ]);
+    const resolved = resolveMetadataUrls(result);
+    expect(resolved.twitter?.images).toEqual({
+      url: 'https://myapp.com/images/tw.jpg',
+      alt: 'Preview',
+    });
+  });
+
   it('does not modify absolute URLs', () => {
     const result = resolveMetadata([
       entry({ metadataBase: new URL('https://myapp.com') }),
@@ -405,6 +440,30 @@ describe('renderMetadataToElements', () => {
     });
   });
 
+  it('renders openGraph images as single object', () => {
+    const elements = renderMetadataToElements({
+      openGraph: {
+        images: { url: '/og.png', width: 1200, height: 630, alt: 'Preview' },
+      },
+    });
+    expect(elements).toContainEqual({
+      tag: 'meta',
+      attrs: { property: 'og:image', content: '/og.png' },
+    });
+    expect(elements).toContainEqual({
+      tag: 'meta',
+      attrs: { property: 'og:image:width', content: '1200' },
+    });
+    expect(elements).toContainEqual({
+      tag: 'meta',
+      attrs: { property: 'og:image:height', content: '630' },
+    });
+    expect(elements).toContainEqual({
+      tag: 'meta',
+      attrs: { property: 'og:image:alt', content: 'Preview' },
+    });
+  });
+
   it('renders twitter tags', () => {
     const elements = renderMetadataToElements({
       twitter: { card: 'summary_large_image', title: 'Tweet', creator: '@user' },
@@ -416,6 +475,16 @@ describe('renderMetadataToElements', () => {
     expect(elements).toContainEqual({
       tag: 'meta',
       attrs: { name: 'twitter:title', content: 'Tweet' },
+    });
+  });
+
+  it('renders twitter images as single object', () => {
+    const elements = renderMetadataToElements({
+      twitter: { images: { url: '/tw.png', alt: 'Twitter preview' } },
+    });
+    expect(elements).toContainEqual({
+      tag: 'meta',
+      attrs: { name: 'twitter:image', content: '/tw.png' },
     });
   });
 

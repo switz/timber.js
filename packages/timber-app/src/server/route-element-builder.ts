@@ -118,6 +118,18 @@ export async function buildRouteElement(
       if (mod.metadata) {
         metadataEntries.push({ metadata: mod.metadata as Metadata, isPage: false });
       }
+      // Dynamic generateMetadata for layouts — wrapped in OTEL span
+      if (typeof mod.generateMetadata === 'function') {
+        type MetadataFn = (props: Record<string, unknown>) => Promise<Metadata>;
+        const generated = await withSpan(
+          'timber.metadata',
+          { 'timber.segment': segment.segmentName ?? segment.urlPath },
+          () => (mod.generateMetadata as MetadataFn)({ params: paramsPromise })
+        );
+        if (generated) {
+          metadataEntries.push({ metadata: generated, isPage: false });
+        }
+      }
       // deferSuspenseFor hold window — max across all segments
       if (typeof mod.deferSuspenseFor === 'number' && mod.deferSuspenseFor > deferSuspenseFor) {
         deferSuspenseFor = mod.deferSuspenseFor;

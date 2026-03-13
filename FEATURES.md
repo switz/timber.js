@@ -41,6 +41,16 @@ Features tagged as **[novel]** (not in Next.js or Vinext), **[enhanced]** (impro
 - **[enhanced]** Forms work very well with un-controlled inputs and with or without javascript. They are automatically wrapped and returned to the client if the form submission fails.
 - **[enhanced]** `useQueryStates` hook — client hook syncs typed params to URL ([23-search-params.md](design/23-search-params.md))
 
+## Metadata & SEO
+
+- **[parity]** `metadata` export and `generateMetadata()` — static or async per page/layout ([16-metadata.md](design/16-metadata.md))
+- **[parity]** Open Graph, Twitter card, robots, canonical, verification, icons ([16-metadata.md](design/16-metadata.md))
+- **[parity]** Title templates — `%s | App` with nested override and `{ absolute }` escape hatch ([16-metadata.md](design/16-metadata.md))
+- **[parity]** `metadataBase` — relative URL resolution for OG images and alternates ([16-metadata.md](design/16-metadata.md))
+- **[parity]** Metadata routes — sitemap.xml, robots.txt, manifest.json, OG images, favicons ([16-metadata.md](design/16-metadata.md))
+- **[enhanced]** Metadata always complete before flush — no partial `<head>` or client-side injection ([16-metadata.md](design/16-metadata.md))
+- **[enhanced]** Error state auto-noindex — error pages automatically get `<meta name="robots" content="noindex">` ([16-metadata.md](design/16-metadata.md))
+
 ## Error Handling
 
 - **[novel]** `deny()` — produce correct HTTP status and render status file ([10-error-handling.md](design/10-error-handling.md))

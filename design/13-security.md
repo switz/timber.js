@@ -35,6 +35,8 @@ These are the specific attack classes that timber.js's design mitigates (identif
 | 24    | Cache key collision via weak hash                  | SHA-256 for default cache keys                                                                        | [Caching](06-caching.md)                       |
 | 25    | Server component source leak via RSC debug channel | `debugChannel` sink separates debug data from client payload; source code never inlined               | [Rendering Pipeline](02-rendering-pipeline.md) |
 | 26    | Middleware header deletion bypass                  | `headers()` returns frozen proxy; middleware overlay is additive-only; original request never mutated | [Routing](07-routing.md)                       |
+| 27    | Cookie mutation in unsafe context                  | `cookies().set()` throws in RSC/access.ts; post-flush writes silently dropped; secure defaults        | [Cookies](29-cookies.md)                       |
+| 28    | Cookie without secure flags                        | Default: `HttpOnly`, `Secure`, `SameSite=Lax`, `Path=/`; developer opts out explicitly               | [Cookies](29-cookies.md)                       |
 
 ## Middleware Header Immutability
 
@@ -82,3 +84,8 @@ This architecture is structurally immune to the Vinext-style middleware header d
 | 25  | Header deletion in render       | `headers().delete('Authorization')` in server component                    | Throws "read-only" error                                   |
 | 26  | Middleware overlay immutability | Middleware sets `ctx.requestHeaders`, original `req.headers` inspected     | Original request headers unchanged                         |
 | 27  | Proxy request substitution      | `proxy.ts` creates modified Request, `headers()` checked in render         | Render sees original request headers, not proxy's          |
+| 28  | Cookie set in RSC               | `cookies().set('x', 'y')` in a server component                            | Throws descriptive error                                   |
+| 29  | Cookie set in access.ts         | `cookies().set('x', 'y')` in an access.ts file                             | Throws descriptive error                                   |
+| 30  | Cookie set after flush           | `cookies().set()` called after `onShellReady`                               | Dev warning, cookie silently dropped                       |
+| 31  | Cookie secure defaults           | `cookies().set('name', 'value')` with no options                            | `HttpOnly; Secure; SameSite=Lax; Path=/`                   |
+| 32  | Signed cookie tampering          | Modified signed cookie value read via `cookies().getSigned()`               | Returns `undefined`                                        |

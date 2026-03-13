@@ -11,7 +11,7 @@ export interface BodyLimitsConfig {
   };
 }
 
-export type BodyLimitResult = { ok: true } | { ok: false; status: 413 };
+export type BodyLimitResult = { ok: true } | { ok: false; status: 411 | 413 };
 
 export type BodyKind = 'action' | 'upload';
 
@@ -61,12 +61,14 @@ export function enforceBodyLimits(
 ): BodyLimitResult {
   const contentLength = req.headers.get('Content-Length');
   if (!contentLength) {
-    return { ok: true };
+    // Reject requests without Content-Length — prevents body limit bypass via
+    // chunked transfer-encoding. Browsers always send Content-Length for form POSTs.
+    return { ok: false, status: 411 };
   }
 
   const bodySize = Number.parseInt(contentLength, 10);
   if (Number.isNaN(bodySize)) {
-    return { ok: true };
+    return { ok: false, status: 411 };
   }
 
   const limit = resolveLimit(kind, config);

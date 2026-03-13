@@ -72,12 +72,14 @@ function makeActionRequest(
   };
   if (opts.actionId) headers['x-rsc-action'] = opts.actionId;
   if (opts.contentType) headers['Content-Type'] = opts.contentType;
-  if (opts.contentLength) headers['Content-Length'] = opts.contentLength;
+  const body = opts.body ?? 'test';
+  // Default Content-Length to body length — enforceBodyLimits requires it.
+  headers['Content-Length'] = opts.contentLength ?? String(new TextEncoder().encode(body).byteLength);
 
   return new Request('http://localhost/action', {
     method: 'POST',
     headers,
-    body: opts.body ?? 'test',
+    body,
   });
 }
 
@@ -205,7 +207,7 @@ describe('handleActionRequest — body limits', () => {
     expect(executeAction).not.toHaveBeenCalled();
   });
 
-  it('no Content-Length header — allows request (no limit to enforce)', async () => {
+  it('no Content-Length header — returns 411 Length Required', async () => {
     const headers: Record<string, string> = {
       'Host': 'localhost',
       'Origin': 'http://localhost',
@@ -219,7 +221,7 @@ describe('handleActionRequest — body limits', () => {
 
     const res = asResponse(await handleActionRequest(req, defaultConfig));
     expect(res).not.toBeNull();
-    expect(res!.status).not.toBe(413);
+    expect(res!.status).toBe(411);
   });
 });
 
@@ -416,8 +418,9 @@ describe('handleFormAction — redirect remains HTTP 302', () => {
     const req = new Request('http://localhost/page', {
       method: 'POST',
       headers: {
-        Host: 'localhost',
-        Origin: 'http://localhost',
+        'Host': 'localhost',
+        'Origin': 'http://localhost',
+        'Content-Length': '100',
       },
       body: formData,
     });

@@ -70,6 +70,7 @@ This architecture is structurally immune to the Vinext-style middleware header d
 | 14  | Cache key determinism           | `timber.cache(fn)` called with `{ a: 1, b: 2 }` and `{ b: 2, a: 1 }`       | Same cache key                                             |
 | 15  | `"use cache"` user data leak    | Component with user-derived props + `"use cache"`                          | Dev-mode warning emitted                                   |
 | 16  | FormData limits                 | Request body exceeding configured limit                                    | 413                                                        |
+| 16b | FormData limits (no length)     | Action/upload POST without `Content-Length` header                          | 411 Length Required                                        |
 | 17  | Codec ReDoS                     | Pathological search-param input to codec `.parse()`                        | Completes in <100ms                                        |
 | 18  | `deny()` status                 | `access.ts` calls `deny()` outside Suspense                                | HTTP 403, `403.tsx` rendered                               |
 | 19  | `deny(401)` status              | `access.ts` calls `deny(401)` outside Suspense                             | HTTP 401, `401.tsx` rendered                               |

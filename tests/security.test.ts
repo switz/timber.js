@@ -324,6 +324,57 @@ describe('Body Limits', () => {
     });
   });
 
+  describe('411 on missing Content-Length', () => {
+    it('rejects action POST without Content-Length header', () => {
+      const req = makeRequest('/action', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+      });
+      const result = enforceBodyLimits(req, 'action', {});
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.status).toBe(411);
+    });
+
+    it('rejects upload POST without Content-Length header', () => {
+      const req = makeRequest('/upload', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'multipart/form-data; boundary=---',
+        },
+      });
+      const result = enforceBodyLimits(req, 'upload', {});
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.status).toBe(411);
+    });
+
+    it('rejects request with non-numeric Content-Length', () => {
+      const req = makeRequest('/action', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Content-Length': 'not-a-number',
+        },
+      });
+      const result = enforceBodyLimits(req, 'action', {});
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.status).toBe(411);
+    });
+
+    it('allows action POST with valid Content-Length within limit', () => {
+      const req = makeRequest('/action', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Content-Length': '500',
+        },
+      });
+      const result = enforceBodyLimits(req, 'action', {});
+      expect(result.ok).toBe(true);
+    });
+  });
+
   describe('als no fallback', () => {
     // This test validates the principle: if ALS is unavailable, fail — don't fall back.
     // The actual ALS enforcement happens at the platform adapter level,

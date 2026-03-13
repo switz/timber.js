@@ -107,7 +107,7 @@ export function cloudflare(options: CloudflareAdapterOptions = {}): TimberPlatfo
       const staticDir = join(outDir, 'static');
       await mkdir(staticDir, { recursive: true });
       await cp(clientDir, staticDir, { recursive: true }).catch(() => {
-        // Client dir may not exist in noClientJavascript mode
+        // Client dir may not exist when client JavaScript is disabled
       });
 
       // Copy server bundles (rsc + ssr) into the output directory.

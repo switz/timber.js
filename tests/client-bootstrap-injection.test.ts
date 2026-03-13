@@ -128,10 +128,10 @@ describe('client bootstrap script injection', () => {
     });
   });
 
-  describe('noClientJavascript skips scripts', () => {
+  describe('client JS disabled skips scripts', () => {
     it('produces no script tags when scripts string is empty', async () => {
       const html = '<html><head></head><body><div>Static</div></body></html>';
-      // When output: static + noClientJavascript: true, no scripts string is passed
+      // When output: static + clientJavascript disabled, no scripts string is passed
       const result = await runInjectScripts(html, '');
 
       expect(result).not.toContain('<script');
@@ -474,30 +474,46 @@ describe('progressive RSC payload chunking', () => {
 });
 
 describe('buildClientScripts', () => {
-  it('returns empty bootstrapScriptContent for noClientJavascript in static mode', async () => {
+  it('returns empty bootstrapScriptContent when clientJavascript disabled in static mode', async () => {
     const { buildClientScripts } = await import(resolve(SRC_DIR, 'server/html-injectors.ts'));
-    const result = buildClientScripts({ output: 'static', noClientJavascript: true, dev: false });
+    const result = buildClientScripts({
+      output: 'static',
+      clientJavascript: { disabled: true, enableHMRInDev: false },
+      dev: false,
+    });
     expect(result.bootstrapScriptContent).toBe('');
     expect(result.preloadLinks).toBe('');
   });
 
-  it('returns empty bootstrapScriptContent for noClientJavascript in server mode', async () => {
+  it('returns empty bootstrapScriptContent when clientJavascript disabled in server mode', async () => {
     const { buildClientScripts } = await import(resolve(SRC_DIR, 'server/html-injectors.ts'));
-    const result = buildClientScripts({ output: 'server', noClientJavascript: true, dev: false });
+    const result = buildClientScripts({
+      output: 'server',
+      clientJavascript: { disabled: true, enableHMRInDev: false },
+      dev: false,
+    });
     expect(result.bootstrapScriptContent).toBe('');
     expect(result.preloadLinks).toBe('');
   });
 
-  it('returns empty bootstrapScriptContent for noClientJavascript in dev mode', async () => {
+  it('returns empty bootstrapScriptContent when clientJavascript disabled in dev mode', async () => {
     const { buildClientScripts } = await import(resolve(SRC_DIR, 'server/html-injectors.ts'));
-    const result = buildClientScripts({ output: 'server', noClientJavascript: true, dev: true });
+    const result = buildClientScripts({
+      output: 'server',
+      clientJavascript: { disabled: true, enableHMRInDev: false },
+      dev: true,
+    });
     expect(result.bootstrapScriptContent).toBe('');
     expect(result.preloadLinks).toBe('');
   });
 
   it('uses dynamic import() in dev mode, not <script type="module">', async () => {
     const { buildClientScripts } = await import(resolve(SRC_DIR, 'server/html-injectors.ts'));
-    const result = buildClientScripts({ output: 'server', noClientJavascript: false, dev: true });
+    const result = buildClientScripts({
+      output: 'server',
+      clientJavascript: { disabled: false, enableHMRInDev: false },
+      dev: true,
+    });
     // Must use dynamic import() — not <script type="module"> which is deferred
     // and blocks hydration behind Suspense boundaries during streaming
     expect(result.bootstrapScriptContent).toContain('import("/@vite/client")');
@@ -511,16 +527,24 @@ describe('buildClientScripts', () => {
 
   it('uses dynamic import() in production, not <script type="module">', async () => {
     const { buildClientScripts } = await import(resolve(SRC_DIR, 'server/html-injectors.ts'));
-    const result = buildClientScripts({ output: 'server', noClientJavascript: false, dev: false });
+    const result = buildClientScripts({
+      output: 'server',
+      clientJavascript: { disabled: false, enableHMRInDev: false },
+      dev: false,
+    });
     expect(result.bootstrapScriptContent).toContain('import(');
     expect(result.bootstrapScriptContent).toContain('virtual:timber-browser-entry');
     expect(result.bootstrapScriptContent).not.toContain('<script');
     expect(result.bootstrapScriptContent).not.toContain('/@vite/client');
   });
 
-  it('includes scripts for static mode without noClientJavascript', async () => {
+  it('includes scripts for static mode with clientJavascript enabled', async () => {
     const { buildClientScripts } = await import(resolve(SRC_DIR, 'server/html-injectors.ts'));
-    const result = buildClientScripts({ output: 'static', noClientJavascript: false, dev: false });
+    const result = buildClientScripts({
+      output: 'static',
+      clientJavascript: { disabled: false, enableHMRInDev: false },
+      dev: false,
+    });
     expect(result.bootstrapScriptContent).toContain('virtual:timber-browser-entry');
   });
 
@@ -528,7 +552,7 @@ describe('buildClientScripts', () => {
     const { buildClientScripts } = await import(resolve(SRC_DIR, 'server/html-injectors.ts'));
     const result = buildClientScripts({
       output: 'server',
-      noClientJavascript: false,
+      clientJavascript: { disabled: false, enableHMRInDev: false },
       dev: false,
       buildManifest: {
         js: { 'virtual:timber-browser-entry': '/assets/entry-abc123.js' },
@@ -545,11 +569,12 @@ describe('buildClientScripts', () => {
   });
 });
 
-describe('config module includes noClientJavascript', () => {
-  it('generates config with noClientJavascript from root-level option', async () => {
+describe('config module includes clientJavascript', () => {
+  it('generates config with clientJavascript disabled from root-level option', async () => {
     const { timberEntries } = await import(resolve(SRC_DIR, 'plugins/entries.ts'));
     const ctx = {
-      config: { output: 'server' as const, noClientJavascript: true },
+      config: { output: 'server' as const, clientJavascript: false as const },
+      clientJavascript: { disabled: true, enableHMRInDev: true },
       routeTree: null,
       appDir: '/tmp/app',
       root: '/tmp',
@@ -559,14 +584,15 @@ describe('config module includes noClientJavascript', () => {
     const load = plugin.load as (id: string) => string | null;
     const result = load.call({}, '\0virtual:timber-config');
 
-    expect(result).toContain('"noClientJavascript": true');
+    expect(result).toContain('"disabled": true');
     expect(result).toContain('"output": "server"');
   });
 
-  it('generates config with noClientJavascript in static mode', async () => {
+  it('generates config with clientJavascript disabled in static mode', async () => {
     const { timberEntries } = await import(resolve(SRC_DIR, 'plugins/entries.ts'));
     const ctx = {
-      config: { output: 'static' as const, noClientJavascript: true },
+      config: { output: 'static' as const, clientJavascript: false as const },
+      clientJavascript: { disabled: true, enableHMRInDev: true },
       routeTree: null,
       appDir: '/tmp/app',
       root: '/tmp',
@@ -576,14 +602,15 @@ describe('config module includes noClientJavascript', () => {
     const load = plugin.load as (id: string) => string | null;
     const result = load.call({}, '\0virtual:timber-config');
 
-    expect(result).toContain('"noClientJavascript": true');
+    expect(result).toContain('"disabled": true');
     expect(result).toContain('"output": "static"');
   });
 
-  it('defaults noClientJavascript to false', async () => {
+  it('defaults clientJavascript to enabled', async () => {
     const { timberEntries } = await import(resolve(SRC_DIR, 'plugins/entries.ts'));
     const ctx = {
       config: { output: 'server' as const },
+      clientJavascript: { disabled: false, enableHMRInDev: false },
       routeTree: null,
       appDir: '/tmp/app',
       root: '/tmp',
@@ -593,6 +620,6 @@ describe('config module includes noClientJavascript', () => {
     const load = plugin.load as (id: string) => string | null;
     const result = load.call({}, '\0virtual:timber-config');
 
-    expect(result).toContain('"noClientJavascript": false');
+    expect(result).toContain('"disabled": false');
   });
 });

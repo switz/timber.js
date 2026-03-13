@@ -9,6 +9,7 @@ function createCtx(overrides?: Partial<PluginContext>): PluginContext {
       output: 'server',
       ...overrides?.config,
     },
+    clientJavascript: overrides?.clientJavascript ?? { disabled: false, enableHMRInDev: false },
     routeTree: null,
     appDir: '/project/app',
     root: '/project',

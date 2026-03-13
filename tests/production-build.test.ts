@@ -239,7 +239,7 @@ describe('buildClientScripts() — production', () => {
 
     const result = buildClientScripts({
       output: 'server',
-      noClientJavascript: false,
+      clientJavascript: { disabled: false, enableHMRInDev: false },
       dev: false,
       buildManifest: manifest,
     });
@@ -264,7 +264,7 @@ describe('buildClientScripts() — production', () => {
 
     const result = buildClientScripts({
       output: 'server',
-      noClientJavascript: false,
+      clientJavascript: { disabled: false, enableHMRInDev: false },
       dev: false,
       buildManifest: manifest,
     });
@@ -278,7 +278,7 @@ describe('buildClientScripts() — production', () => {
   it('dev mode uses dynamic import() with virtual module paths', () => {
     const result = buildClientScripts({
       output: 'server',
-      noClientJavascript: false,
+      clientJavascript: { disabled: false, enableHMRInDev: false },
       dev: true,
     });
 
@@ -290,10 +290,10 @@ describe('buildClientScripts() — production', () => {
     expect(result.bootstrapScriptContent).toContain('import("/@vite/client")');
   });
 
-  it('noClientJavascript mode returns empty config', () => {
+  it('clientJavascript disabled mode returns empty config', () => {
     const result = buildClientScripts({
       output: 'static',
-      noClientJavascript: true,
+      clientJavascript: { disabled: true, enableHMRInDev: false },
       dev: false,
     });
 
@@ -311,7 +311,7 @@ describe('buildClientScripts() — production', () => {
 
     const result = buildClientScripts({
       output: 'server',
-      noClientJavascript: false,
+      clientJavascript: { disabled: false, enableHMRInDev: false },
       dev: false,
       buildManifest: manifest,
     });

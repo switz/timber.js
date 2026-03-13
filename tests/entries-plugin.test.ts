@@ -12,6 +12,7 @@ const SRC_DIR = resolve(PROJECT_ROOT, 'packages/timber-app/src');
 function createPluginContext(overrides: Partial<PluginContext> = {}): PluginContext {
   return {
     config: { output: 'server', ...overrides.config },
+    clientJavascript: overrides.clientJavascript ?? { disabled: false, enableHMRInDev: false },
     routeTree: null,
     appDir: resolve(PROJECT_ROOT, 'app'),
     root: PROJECT_ROOT,

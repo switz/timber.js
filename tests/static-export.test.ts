@@ -1,13 +1,13 @@
 /**
  * Static export validation tests.
  *
- * Tests that static mode (output: 'static') and noClientJavascript mode correctly
+ * Tests that static mode (output: 'static') and clientJavascript disabled mode correctly
  * validate source files and produce the right client bootstrap configuration.
  *
  * These tests validate:
  * - The Vite plugin transform hook filters and validates correctly
- * - buildClientScripts produces empty config in noClientJavascript mode
- * - Static + noClientJavascript adapter builds handle missing client dirs
+ * - buildClientScripts produces empty config in clientJavascript disabled mode
+ * - Static + clientJavascript disabled adapter builds handle missing client dirs
  * - Combined validation catches all error classes
  *
  * Design docs: design/11-platform.md, design/25-production-deployments.md
@@ -53,7 +53,7 @@ export default async function HomePage() {
   )
 }
 `;
-    const errors = validateStaticMode(code, 'app/page.tsx', { noClientJavascript: false });
+    const errors = validateStaticMode(code, 'app/page.tsx', { clientJavascriptDisabled: false });
     expect(errors).toHaveLength(0);
   });
 
@@ -66,12 +66,14 @@ export default async function DocsPage({ params }) {
   return <article>{doc.content}</article>
 }
 `;
-    const errors = validateStaticMode(code, 'app/docs/[slug]/page.tsx', { noClientJavascript: false });
+    const errors = validateStaticMode(code, 'app/docs/[slug]/page.tsx', {
+      clientJavascriptDisabled: false,
+    });
     expect(errors).toHaveLength(0);
   });
 
-  it('static mode allows use client in non-noClientJavascript mode', () => {
-    // In static mode without noClientJavascript, client components are valid —
+  it('static mode allows use client in non-clientJavascript-disabled mode', () => {
+    // In static mode without clientJavascript disabled, client components are valid —
     // they hydrate in the browser after static HTML is served
     const code = `'use client'
 import { useState } from 'react'
@@ -80,7 +82,7 @@ export default function Counter() {
   return <button onClick={() => setCount(c => c + 1)}>{count}</button>
 }
 `;
-    const errors = validateStaticMode(code, 'app/counter.tsx', { noClientJavascript: false });
+    const errors = validateStaticMode(code, 'app/counter.tsx', { clientJavascriptDisabled: false });
     expect(errors).toHaveLength(0);
   });
 
@@ -111,13 +113,13 @@ export default function Counter() {
   });
 });
 
-// ─── noClientJavascript strips scripts ──────────────────────────────────────────────────
+// ─── clientJavascript disabled strips scripts ──────────────────────────────────────────────────
 
-describe('noClientJavascript strips scripts', () => {
-  it('buildClientScripts returns empty in noClientJavascript mode', () => {
+describe('clientJavascript disabled strips scripts', () => {
+  it('buildClientScripts returns empty in clientJavascript disabled mode', () => {
     const result = buildClientScripts({
       output: 'static',
-      noClientJavascript: true,
+      clientJavascript: { disabled: true, enableHMRInDev: false },
       dev: false,
     });
 
@@ -125,10 +127,10 @@ describe('noClientJavascript strips scripts', () => {
     expect(result.preloadLinks).toBe('');
   });
 
-  it('buildClientScripts returns empty in noClientJavascript dev mode', () => {
+  it('buildClientScripts returns empty in clientJavascript disabled dev mode', () => {
     const result = buildClientScripts({
       output: 'static',
-      noClientJavascript: true,
+      clientJavascript: { disabled: true, enableHMRInDev: false },
       dev: true,
     });
 
@@ -136,10 +138,10 @@ describe('noClientJavascript strips scripts', () => {
     expect(result.preloadLinks).toBe('');
   });
 
-  it('non-noClientJavascript static mode includes bootstrap scripts', () => {
+  it('non-clientJavascript-disabled static mode includes bootstrap scripts', () => {
     const result = buildClientScripts({
       output: 'static',
-      noClientJavascript: false,
+      clientJavascript: { disabled: false, enableHMRInDev: false },
       dev: false,
     });
 
@@ -148,8 +150,8 @@ describe('noClientJavascript strips scripts', () => {
     expect(result.bootstrapScriptContent).toContain('import(');
   });
 
-  it('noClientJavascript mode with adapter gracefully handles missing client dir', async () => {
-    // Build dir without client/ directory — noClientJavascript mode produces no JS
+  it('clientJavascript disabled mode with adapter gracefully handles missing client dir', async () => {
+    // Build dir without client/ directory — clientJavascript disabled mode produces no JS
     const buildDir = join(tempDir, '.timber', 'build');
     const serverDir = join(buildDir, 'server');
     await mkdir(serverDir, { recursive: true });
@@ -168,7 +170,7 @@ describe('noClientJavascript strips scripts', () => {
     await writeFile(join(ssrDir, 'index.js'), '// ssr entry');
 
     const adapter = cloudflare();
-    const config: TimberConfig = { output: 'static', noClientJavascript: true };
+    const config: TimberConfig = { output: 'static', clientJavascriptDisabled: true };
 
     // Should not throw even without client/ directory
     await adapter.buildOutput(config, buildDir);
@@ -179,25 +181,25 @@ describe('noClientJavascript strips scripts', () => {
   });
 });
 
-// ─── noClientJavascript use client error ────────────────────────────────────────────────
+// ─── clientJavascript disabled use client error ────────────────────────────────────────────────
 
-describe('noClientJavascript use client error', () => {
+describe('clientJavascript disabled use client error', () => {
   it("rejects 'use client' with single quotes", () => {
     const code = `'use client'
 export default function Widget() { return <div /> }
 `;
-    const errors = detectDirectives(code, 'app/widget.tsx', { noClientJavascript: true });
+    const errors = detectDirectives(code, 'app/widget.tsx', { clientJavascriptDisabled: true });
     expect(errors).toHaveLength(1);
     expect(errors[0].type).toBe('nojs-directive');
     expect(errors[0].message).toContain("'use client'");
-    expect(errors[0].message).toContain('noClientJavascript mode');
+    expect(errors[0].message).toContain('client JavaScript is disabled');
   });
 
   it("rejects 'use client' with double quotes", () => {
     const code = `"use client"
 export default function Widget() { return <div /> }
 `;
-    const errors = detectDirectives(code, 'app/widget.tsx', { noClientJavascript: true });
+    const errors = detectDirectives(code, 'app/widget.tsx', { clientJavascriptDisabled: true });
     expect(errors).toHaveLength(1);
     expect(errors[0].type).toBe('nojs-directive');
   });
@@ -210,7 +212,9 @@ export function DeepComponent() {
   return <button onClick={() => setState(!state)}>Toggle</button>
 }
 `;
-    const errors = detectDirectives(code, 'app/dashboard/settings/toggle.tsx', { noClientJavascript: true });
+    const errors = detectDirectives(code, 'app/dashboard/settings/toggle.tsx', {
+      clientJavascriptDisabled: true,
+    });
     expect(errors).toHaveLength(1);
     expect(errors[0].file).toBe('app/dashboard/settings/toggle.tsx');
   });
@@ -219,32 +223,32 @@ export function DeepComponent() {
     const code = `'use client'
 export default function X() { return null }
 `;
-    const errors = detectDirectives(code, 'app/x.tsx', { noClientJavascript: true });
+    const errors = detectDirectives(code, 'app/x.tsx', { clientJavascriptDisabled: true });
     expect(errors[0].line).toBe(1);
   });
 });
 
-// ─── noClientJavascript use server error ────────────────────────────────────────────────
+// ─── clientJavascript disabled use server error ────────────────────────────────────────────────
 
-describe('noClientJavascript use server error', () => {
+describe('clientJavascript disabled use server error', () => {
   it("rejects module-level 'use server'", () => {
     const code = `'use server'
 export async function createPost(formData) {
   await db.posts.create(formData)
 }
 `;
-    const errors = detectDirectives(code, 'app/actions.ts', { noClientJavascript: true });
+    const errors = detectDirectives(code, 'app/actions.ts', { clientJavascriptDisabled: true });
     expect(errors).toHaveLength(1);
     expect(errors[0].type).toBe('nojs-directive');
     expect(errors[0].message).toContain("'use server'");
-    expect(errors[0].message).toContain('noClientJavascript mode');
+    expect(errors[0].message).toContain('client JavaScript is disabled');
   });
 
   it("rejects 'use server' with double quotes", () => {
     const code = `"use server"
 export async function deletePost(id) { await db.posts.delete(id) }
 `;
-    const errors = detectDirectives(code, 'app/actions.ts', { noClientJavascript: true });
+    const errors = detectDirectives(code, 'app/actions.ts', { clientJavascriptDisabled: true });
     expect(errors).toHaveLength(1);
     expect(errors[0].type).toBe('nojs-directive');
   });
@@ -253,7 +257,9 @@ export async function deletePost(id) { await db.posts.delete(id) }
     const code = `'use server'
 export async function action() {}
 `;
-    const errors = detectDirectives(code, 'app/dashboard/actions.ts', { noClientJavascript: true });
+    const errors = detectDirectives(code, 'app/dashboard/actions.ts', {
+      clientJavascriptDisabled: true,
+    });
     expect(errors[0].file).toBe('app/dashboard/actions.ts');
   });
 });
@@ -264,7 +270,7 @@ describe('hashed assets', () => {
   it('production buildClientScripts uses hashed URL from manifest', () => {
     const result = buildClientScripts({
       output: 'static',
-      noClientJavascript: false,
+      clientJavascript: { disabled: false, enableHMRInDev: false },
       dev: false,
       buildManifest: {
         css: {},
@@ -283,7 +289,7 @@ describe('hashed assets', () => {
   it('modulepreload hints use hashed URLs', () => {
     const result = buildClientScripts({
       output: 'server',
-      noClientJavascript: false,
+      clientJavascript: { disabled: false, enableHMRInDev: false },
       dev: false,
       buildManifest: {
         css: {},
@@ -328,7 +334,7 @@ export default async function Page() {
   return <div>{session?.value}</div>
 }
 `;
-    const errors = validateStaticMode(code, 'app/page.tsx', { noClientJavascript: false });
+    const errors = validateStaticMode(code, 'app/page.tsx', { clientJavascriptDisabled: false });
     expect(errors.length).toBeGreaterThan(0);
     expect(errors[0].type).toBe('dynamic-api');
     expect(errors[0].message).toContain('cookies()');
@@ -343,13 +349,13 @@ export default async function Page() {
   return <div>{host}</div>
 }
 `;
-    const errors = validateStaticMode(code, 'app/page.tsx', { noClientJavascript: false });
+    const errors = validateStaticMode(code, 'app/page.tsx', { clientJavascriptDisabled: false });
     expect(errors.length).toBeGreaterThan(0);
     expect(errors[0].type).toBe('dynamic-api');
     expect(errors[0].message).toContain('headers()');
   });
 
-  it('noClientJavascript mode catches both directive and dynamic API errors', () => {
+  it('clientJavascript disabled mode catches both directive and dynamic API errors', () => {
     const code = `'use client'
 import { cookies } from '@timber/app/server'
 export default function Page() {
@@ -357,7 +363,7 @@ export default function Page() {
   return <div>{session}</div>
 }
 `;
-    const errors = validateStaticMode(code, 'app/page.tsx', { noClientJavascript: true });
+    const errors = validateStaticMode(code, 'app/page.tsx', { clientJavascriptDisabled: true });
     expect(errors.length).toBeGreaterThanOrEqual(2);
     const types = errors.map((e) => e.type);
     expect(types).toContain('nojs-directive');

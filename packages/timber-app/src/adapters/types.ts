@@ -10,7 +10,7 @@
  */
 export interface TimberConfig {
   output: 'server' | 'static';
-  noClientJavascript?: boolean;
+  clientJavascriptDisabled?: boolean;
 }
 
 /**

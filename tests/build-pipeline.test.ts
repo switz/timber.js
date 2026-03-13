@@ -64,7 +64,7 @@ async function createMockBuildDir(baseDir: string): Promise<string> {
 
 const SERVER_CONFIG: TimberConfig = { output: 'server' };
 const STATIC_CONFIG: TimberConfig = { output: 'static' };
-const STATIC_NOJS_CONFIG: TimberConfig = { output: 'static', noClientJavascript: true };
+const STATIC_NOJS_CONFIG: TimberConfig = { output: 'static', clientJavascriptDisabled: true };
 
 let tempDir: string;
 

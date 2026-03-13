@@ -55,6 +55,7 @@ function createRenderError(message: string, stack: string, componentStack: strin
 function createPluginContext(overrides: Partial<PluginContext> = {}): PluginContext {
   return {
     config: { output: 'server', ...overrides.config },
+    clientJavascript: overrides.clientJavascript ?? { disabled: false, enableHMRInDev: false },
     routeTree: null,
     appDir: '/project/app',
     root: PROJECT_ROOT,

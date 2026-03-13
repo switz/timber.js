@@ -246,6 +246,7 @@ describe('next/font/google redirect', () => {
     const { timberShims } = await import('../packages/timber-app/src/plugins/shims.js');
     const plugin = timberShims({
       config: { output: 'server' },
+      clientJavascript: { disabled: false, enableHMRInDev: false },
       routeTree: null,
       appDir: resolve(__dirname, '..', 'app'),
       root: resolve(__dirname, '..'),
@@ -261,6 +262,7 @@ describe('next/font/google redirect', () => {
     const { timberShims } = await import('../packages/timber-app/src/plugins/shims.js');
     const plugin = timberShims({
       config: { output: 'server' },
+      clientJavascript: { disabled: false, enableHMRInDev: false },
       routeTree: null,
       appDir: resolve(__dirname, '..', 'app'),
       root: resolve(__dirname, '..'),
@@ -291,6 +293,7 @@ describe('nuqs compatibility', () => {
     const { timberShims } = await import('../packages/timber-app/src/plugins/shims.js');
     const plugin = timberShims({
       config: { output: 'server' },
+      clientJavascript: { disabled: false, enableHMRInDev: false },
       routeTree: null,
       appDir: resolve(__dirname, '..', 'app'),
       root: resolve(__dirname, '..'),
@@ -380,6 +383,7 @@ describe('next-intl compatibility', () => {
       const { timberShims } = await import('../packages/timber-app/src/plugins/shims.js');
       const plugin = timberShims({
         config: { output: 'server' },
+        clientJavascript: { disabled: false, enableHMRInDev: false },
         routeTree: null,
         appDir: resolve(__dirname, '..', 'app'),
         root: resolve(__dirname, '..'),

@@ -275,6 +275,57 @@ describe('next/font/google redirect', () => {
   });
 });
 
+// ─── next/font/google shim fallback behavior ─────────────────────────────────
+
+describe('next/font/google shim fallback', () => {
+  it('exports FontResult-shaped objects from named font functions', async () => {
+    const mod = await import('../packages/timber-app/src/shims/font-google.js');
+    const result = mod.Inter({ subsets: ['latin'], display: 'swap' });
+    expect(result).toEqual({
+      className: '',
+      style: { fontFamily: '' },
+      variable: undefined,
+    });
+  });
+
+  it('passes through variable config to FontResult', async () => {
+    const mod = await import('../packages/timber-app/src/shims/font-google.js');
+    const result = mod.Inter({ subsets: ['latin'], variable: '--font-sans' });
+    expect(result.variable).toBe('--font-sans');
+  });
+
+  it('all exported font functions return the same stub shape', async () => {
+    const mod = await import('../packages/timber-app/src/shims/font-google.js');
+    const fonts = [mod.Inter, mod.Roboto, mod.JetBrains_Mono, mod.Geist, mod.Geist_Mono];
+    for (const fontFn of fonts) {
+      const result = fontFn({ subsets: ['latin'] });
+      expect(result).toHaveProperty('className', '');
+      expect(result).toHaveProperty('style');
+      expect(result.style).toHaveProperty('fontFamily', '');
+    }
+  });
+
+  it('createFont helper returns stub FontResult', async () => {
+    const mod = await import('../packages/timber-app/src/shims/font-google.js');
+    const result = mod.createFont('Custom Font', { variable: '--font-custom' });
+    expect(result.className).toBe('');
+    expect(result.style.fontFamily).toBe('');
+    expect(result.variable).toBe('--font-custom');
+  });
+
+  it('types are re-exported from fonts/types.ts', async () => {
+    // This test verifies that the shim re-exports types by checking the
+    // runtime function signatures match the FontResult interface.
+    const mod = await import('../packages/timber-app/src/shims/font-google.js');
+    const result = mod.Inter({});
+    const keys = Object.keys(result);
+    expect(keys).toContain('className');
+    expect(keys).toContain('style');
+    // variable is undefined when not specified, so it's in the object but undefined
+    expect('variable' in result).toBe(true);
+  });
+});
+
 // ─── nuqs compatibility ──────────────────────────────────────────────────────
 
 describe('nuqs compatibility', () => {

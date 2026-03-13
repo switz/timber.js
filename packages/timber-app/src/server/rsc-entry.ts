@@ -107,6 +107,7 @@ async function createRequestHandler(manifest: typeof routeManifest, runtimeConfi
   // Build the client bootstrap configuration.
   // When noClientJavascript is true, no scripts are injected.
   // In production, uses hashed chunk URLs from the build manifest.
+  const noClientJavascript = !!(runtimeConfig as Record<string, unknown>).noClientJavascript;
   const clientBootstrap = buildClientScripts({
     ...runtimeConfig,
     buildManifest: buildManifest as BuildManifest,
@@ -151,7 +152,7 @@ async function createRequestHandler(manifest: typeof routeManifest, runtimeConfi
       _requestHeaderOverlay: Headers,
       interception?: InterceptionContext
     ) => {
-      return renderRoute(req, match, responseHeaders, clientBootstrap, interception);
+      return renderRoute(req, match, responseHeaders, clientBootstrap, noClientJavascript, interception);
     },
     renderNoMatch: async (req: Request, responseHeaders: Headers) => {
       return renderNoMatchPage(req, manifest.root, responseHeaders, clientBootstrap);
@@ -313,6 +314,7 @@ async function renderRoute(
   match: RouteMatch,
   responseHeaders: Headers,
   clientBootstrap: ClientBootstrapConfig,
+  noClientJavascript: boolean,
   interception?: InterceptionContext
 ): Promise<Response> {
   const segments = match.segments as unknown as ManifestSegmentNode[];
@@ -565,8 +567,10 @@ async function renderRoute(
   // Embed segment metadata in HTML for initial hydration.
   // The client reads this to populate its segment cache before the
   // first navigation, enabling state tree diffing from the start.
-  const segmentInfo = buildSegmentInfo(segments, layoutComponents);
-  const segmentScript = `<script>self.__timber_segments=${JSON.stringify(segmentInfo)}</script>`;
+  // Skipped when noClientJavascript is true — no client JS to consume it.
+  const segmentScript = noClientJavascript
+    ? ''
+    : `<script>self.__timber_segments=${JSON.stringify(buildSegmentInfo(segments, layoutComponents))}</script>`;
 
   const navContext: NavContext = {
     pathname: new URL(_req.url).pathname,
@@ -576,7 +580,8 @@ async function renderRoute(
     responseHeaders,
     headHtml: headHtml + clientBootstrap.preloadLinks + segmentScript,
     bootstrapScriptContent: clientBootstrap.bootstrapScriptContent,
-    rscStream: inlineStream,
+    // Skip RSC inline stream when noClientJavascript — no client to hydrate.
+    rscStream: noClientJavascript ? undefined : inlineStream,
     deferSuspenseFor: deferSuspenseFor > 0 ? deferSuspenseFor : undefined,
   };
 

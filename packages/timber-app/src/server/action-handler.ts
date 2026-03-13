@@ -24,7 +24,7 @@ import { validateCsrf, type CsrfConfig } from './csrf.js';
 import { executeAction, type RevalidateRenderer } from './actions.js';
 import { runWithRequestContext } from './request-context.js';
 import { handleActionError } from './action-client.js';
-import { enforceBodyLimits, type BodyLimitsConfig } from './body-limits.js';
+import { enforceBodyLimits, enforceFieldLimit, type BodyLimitsConfig } from './body-limits.js';
 import { parseFormData } from './form-data.js';
 import type { FormFlashData } from './form-flash.js';
 
@@ -139,6 +139,11 @@ async function handleRscAction(
   if (contentType.includes('multipart/form-data')) {
     // FormData-based args (file uploads, etc.)
     const formData = await req.formData();
+    // Enforce field count limit after parsing FormData.
+    const fieldResult = enforceFieldLimit(formData, config.bodyLimits ?? {});
+    if (!fieldResult.ok) {
+      return new Response(null, { status: fieldResult.status });
+    }
     args = (await decodeReply(formData)) as unknown[];
   } else {
     // Text-based args
@@ -234,6 +239,12 @@ async function handleFormAction(
   config: ActionDispatchConfig
 ): Promise<Response | FormRerender | null> {
   const formData = await req.formData();
+
+  // Enforce field count limit after parsing FormData.
+  const fieldResult = enforceFieldLimit(formData, config.bodyLimits ?? {});
+  if (!fieldResult.ok) {
+    return new Response(null, { status: fieldResult.status });
+  }
 
   // Check if this is actually a React server action form.
   // If there's no $ACTION_REF_* or $ACTION_KEY, it's a regular form POST

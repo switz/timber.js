@@ -100,6 +100,12 @@ interface Metadata {
       | Array<{ url: string; alt?: string; width?: number; height?: number }>;
     creator?: string;
     creatorId?: string;
+    players?: Array<{ playerUrl: string; streamUrl?: string; width?: number; height?: number }>;
+    app?: {
+      name?: string;
+      id?: { iPhone?: string; iPad?: string; googlePlay?: string };
+      url?: { iPhone?: string; iPad?: string; googlePlay?: string };
+    };
   };
 
   // --- Icons ---
@@ -137,6 +143,19 @@ interface Metadata {
     statusBarStyle?: string;
     startupImage?: string | Array<{ url: string; media?: string }>;
   };
+
+  // --- App Links (deep linking) ---
+  appLinks?: {
+    ios?: Array<{ url: string; app_store_id?: string; app_name?: string }>;
+    android?: Array<{ url: string; package?: string; class?: string; app_name?: string }>;
+    windows?: Array<{ url: string; app_id?: string; app_name?: string }>;
+    windowsPhone?: Array<{ url: string; app_id?: string; app_name?: string }>;
+    windowsUniversal?: Array<{ url: string; app_id?: string; app_name?: string }>;
+    web?: { url?: string; shouldFallback?: boolean };
+  };
+
+  // --- iTunes ---
+  itunes?: { appId: string; appArgument?: string; affiliateData?: string };
 
   // --- Misc ---
   formatDetection?: { email?: boolean; address?: boolean; telephone?: boolean };

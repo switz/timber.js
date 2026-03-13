@@ -152,6 +152,16 @@ export function renderMetadataToElements(metadata: Metadata): HeadElement[] {
     renderAppleWebApp(metadata.appleWebApp, elements);
   }
 
+  // App Links (al:*)
+  if (metadata.appLinks) {
+    renderAppLinks(metadata.appLinks, elements);
+  }
+
+  // iTunes
+  if (metadata.itunes) {
+    renderItunes(metadata.itunes, elements);
+  }
+
   // Other (custom meta tags)
   if (metadata.other) {
     for (const [name, value] of Object.entries(metadata.other)) {
@@ -271,6 +281,93 @@ function renderTwitter(tw: NonNullable<Metadata['twitter']>, elements: HeadEleme
         const url = typeof img === 'string' ? img : img.url;
         elements.push({ tag: 'meta', attrs: { name: 'twitter:image', content: url } });
       }
+    }
+  }
+
+  // Player card fields
+  if (tw.players) {
+    for (const player of tw.players) {
+      elements.push({ tag: 'meta', attrs: { name: 'twitter:player', content: player.playerUrl } });
+      if (player.width) {
+        elements.push({
+          tag: 'meta',
+          attrs: { name: 'twitter:player:width', content: String(player.width) },
+        });
+      }
+      if (player.height) {
+        elements.push({
+          tag: 'meta',
+          attrs: { name: 'twitter:player:height', content: String(player.height) },
+        });
+      }
+      if (player.streamUrl) {
+        elements.push({
+          tag: 'meta',
+          attrs: { name: 'twitter:player:stream', content: player.streamUrl },
+        });
+      }
+    }
+  }
+
+  // App card fields
+  if (tw.app) {
+    if (tw.app.name) {
+      // App name is shared across platforms — twitter:app:name:iphone = twitter:app:name:ipad = ...
+      // But the spec uses per-platform names. Emit for each platform that has an ID.
+      if (tw.app.id?.iPhone) {
+        elements.push({
+          tag: 'meta',
+          attrs: { name: 'twitter:app:name:iphone', content: tw.app.name },
+        });
+      }
+      if (tw.app.id?.iPad) {
+        elements.push({
+          tag: 'meta',
+          attrs: { name: 'twitter:app:name:ipad', content: tw.app.name },
+        });
+      }
+      if (tw.app.id?.googlePlay) {
+        elements.push({
+          tag: 'meta',
+          attrs: { name: 'twitter:app:name:googleplay', content: tw.app.name },
+        });
+      }
+    }
+    if (tw.app.id?.iPhone) {
+      elements.push({
+        tag: 'meta',
+        attrs: { name: 'twitter:app:id:iphone', content: tw.app.id.iPhone },
+      });
+    }
+    if (tw.app.id?.iPad) {
+      elements.push({
+        tag: 'meta',
+        attrs: { name: 'twitter:app:id:ipad', content: tw.app.id.iPad },
+      });
+    }
+    if (tw.app.id?.googlePlay) {
+      elements.push({
+        tag: 'meta',
+        attrs: { name: 'twitter:app:id:googleplay', content: tw.app.id.googlePlay },
+      });
+    }
+    if (tw.app.url?.iPhone) {
+      elements.push({
+        tag: 'meta',
+        attrs: { name: 'twitter:app:url:iphone', content: tw.app.url.iPhone },
+      });
+    }
+    if (tw.app.url?.iPad) {
+      elements.push({
+        tag: 'meta',
+        attrs: { name: 'twitter:app:url:ipad', content: tw.app.url.iPad },
+      });
+    }
+    if (tw.app.url?.googlePlay) {
+      elements.push({
+        tag: 'meta',
+        attrs: { name: 'twitter:app:url:googleplay', content: tw.app.url.googlePlay },
+      });
     }
   }
 }
@@ -426,4 +523,58 @@ function renderAppleWebApp(
       elements.push({ tag: 'link', attrs });
     }
   }
+}
+
+function renderAppLinks(
+  appLinks: NonNullable<Metadata['appLinks']>,
+  elements: HeadElement[]
+): void {
+  // Helper: emit al:platform:property tags for an array of platform entries
+  function emitPlatform(platform: string, entries: Array<Record<string, unknown>> | undefined) {
+    if (!entries) return;
+    for (const entry of entries) {
+      for (const [key, value] of Object.entries(entry)) {
+        if (value !== undefined && value !== null) {
+          elements.push({
+            tag: 'meta',
+            attrs: { property: `al:${platform}:${key}`, content: String(value) },
+          });
+        }
+      }
+    }
+  }
+
+  emitPlatform('ios', appLinks.ios);
+  emitPlatform('android', appLinks.android);
+  emitPlatform('windows', appLinks.windows);
+  emitPlatform('windows_phone', appLinks.windowsPhone);
+  emitPlatform('windows_universal', appLinks.windowsUniversal);
+
+  if (appLinks.web) {
+    if (appLinks.web.url) {
+      elements.push({
+        tag: 'meta',
+        attrs: { property: 'al:web:url', content: appLinks.web.url },
+      });
+    }
+    if (appLinks.web.shouldFallback !== undefined) {
+      elements.push({
+        tag: 'meta',
+        attrs: {
+          property: 'al:web:should_fallback',
+          content: appLinks.web.shouldFallback ? 'true' : 'false',
+        },
+      });
+    }
+  }
+}
+
+function renderItunes(itunes: NonNullable<Metadata['itunes']>, elements: HeadElement[]): void {
+  const parts = [`app-id=${itunes.appId}`];
+  if (itunes.affiliateData) parts.push(`affiliate-data=${itunes.affiliateData}`);
+  if (itunes.appArgument) parts.push(`app-argument=${itunes.appArgument}`);
+  elements.push({
+    tag: 'meta',
+    attrs: { name: 'apple-itunes-app', content: parts.join(', ') },
+  });
 }

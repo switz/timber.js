@@ -644,6 +644,165 @@ describe('renderMetadataToElements', () => {
       attrs: { name: 'format-detection', content: 'telephone=no, email=no' },
     });
   });
+
+  // --- App Links ---
+
+  it('renders appLinks iOS tags', () => {
+    const elements = renderMetadataToElements({
+      appLinks: {
+        ios: [{ url: 'myapp://product/123', app_store_id: '123456', app_name: 'My App' }],
+      },
+    });
+    expect(elements).toContainEqual({
+      tag: 'meta',
+      attrs: { property: 'al:ios:url', content: 'myapp://product/123' },
+    });
+    expect(elements).toContainEqual({
+      tag: 'meta',
+      attrs: { property: 'al:ios:app_store_id', content: '123456' },
+    });
+    expect(elements).toContainEqual({
+      tag: 'meta',
+      attrs: { property: 'al:ios:app_name', content: 'My App' },
+    });
+  });
+
+  it('renders appLinks Android tags', () => {
+    const elements = renderMetadataToElements({
+      appLinks: {
+        android: [{ url: 'myapp://product/123', package: 'com.example.app', app_name: 'My App' }],
+      },
+    });
+    expect(elements).toContainEqual({
+      tag: 'meta',
+      attrs: { property: 'al:android:url', content: 'myapp://product/123' },
+    });
+    expect(elements).toContainEqual({
+      tag: 'meta',
+      attrs: { property: 'al:android:package', content: 'com.example.app' },
+    });
+  });
+
+  it('renders appLinks web fallback', () => {
+    const elements = renderMetadataToElements({
+      appLinks: {
+        web: { url: 'https://example.com/product/123', shouldFallback: true },
+      },
+    });
+    expect(elements).toContainEqual({
+      tag: 'meta',
+      attrs: { property: 'al:web:url', content: 'https://example.com/product/123' },
+    });
+    expect(elements).toContainEqual({
+      tag: 'meta',
+      attrs: { property: 'al:web:should_fallback', content: 'true' },
+    });
+  });
+
+  // --- iTunes ---
+
+  it('renders apple-itunes-app meta tag', () => {
+    const elements = renderMetadataToElements({
+      itunes: { appId: '123456789', appArgument: 'myapp://product/123' },
+    });
+    expect(elements).toContainEqual({
+      tag: 'meta',
+      attrs: {
+        name: 'apple-itunes-app',
+        content: 'app-id=123456789, app-argument=myapp://product/123',
+      },
+    });
+  });
+
+  it('renders itunes with affiliate data', () => {
+    const elements = renderMetadataToElements({
+      itunes: { appId: '123456789', affiliateData: 'ct=banner' },
+    });
+    expect(elements).toContainEqual({
+      tag: 'meta',
+      attrs: {
+        name: 'apple-itunes-app',
+        content: 'app-id=123456789, affiliate-data=ct=banner',
+      },
+    });
+  });
+
+  // --- Twitter Player Card ---
+
+  it('renders twitter player card tags', () => {
+    const elements = renderMetadataToElements({
+      twitter: {
+        card: 'player',
+        players: [
+          {
+            playerUrl: 'https://example.com/player',
+            streamUrl: 'https://example.com/stream.mp4',
+            width: 640,
+            height: 480,
+          },
+        ],
+      },
+    });
+    expect(elements).toContainEqual({
+      tag: 'meta',
+      attrs: { name: 'twitter:card', content: 'player' },
+    });
+    expect(elements).toContainEqual({
+      tag: 'meta',
+      attrs: { name: 'twitter:player', content: 'https://example.com/player' },
+    });
+    expect(elements).toContainEqual({
+      tag: 'meta',
+      attrs: { name: 'twitter:player:width', content: '640' },
+    });
+    expect(elements).toContainEqual({
+      tag: 'meta',
+      attrs: { name: 'twitter:player:height', content: '480' },
+    });
+    expect(elements).toContainEqual({
+      tag: 'meta',
+      attrs: { name: 'twitter:player:stream', content: 'https://example.com/stream.mp4' },
+    });
+  });
+
+  // --- Twitter App Card ---
+
+  it('renders twitter app card tags', () => {
+    const elements = renderMetadataToElements({
+      twitter: {
+        card: 'app',
+        app: {
+          name: 'My App',
+          id: { iPhone: '123', iPad: '456', googlePlay: 'com.example.app' },
+          url: {
+            iPhone: 'myapp://home',
+            iPad: 'myapp://home',
+            googlePlay: 'https://play.google.com/store/apps/details?id=com.example.app',
+          },
+        },
+      },
+    });
+    expect(elements).toContainEqual({
+      tag: 'meta',
+      attrs: { name: 'twitter:card', content: 'app' },
+    });
+    expect(elements).toContainEqual({
+      tag: 'meta',
+      attrs: { name: 'twitter:app:name:iphone', content: 'My App' },
+    });
+    expect(elements).toContainEqual({
+      tag: 'meta',
+      attrs: { name: 'twitter:app:id:iphone', content: '123' },
+    });
+    expect(elements).toContainEqual({
+      tag: 'meta',
+      attrs: { name: 'twitter:app:url:iphone', content: 'myapp://home' },
+    });
+    expect(elements).toContainEqual({
+      tag: 'meta',
+      attrs: { name: 'twitter:app:id:googleplay', content: 'com.example.app' },
+    });
+  });
 });
 
 // ─── Unified metadata export validation ──────────────────────────────────────

@@ -73,6 +73,19 @@ export interface Metadata {
       | Array<{ url: string; alt?: string; width?: number; height?: number }>;
     creator?: string;
     creatorId?: string;
+    /** Player card fields — embedded media player. Requires card: 'player'. */
+    players?: Array<{
+      playerUrl: string;
+      streamUrl?: string;
+      width?: number;
+      height?: number;
+    }>;
+    /** App card fields — link to a native app. Requires card: 'app'. */
+    app?: {
+      name?: string;
+      id?: { iPhone?: string; iPad?: string; googlePlay?: string };
+      url?: { iPhone?: string; iPad?: string; googlePlay?: string };
+    };
   };
   icons?: {
     icon?: string | Array<{ url: string; sizes?: string; type?: string; media?: string }>;
@@ -101,6 +114,17 @@ export interface Metadata {
     startupImage?: string | Array<{ url: string; media?: string }>;
   };
   formatDetection?: { email?: boolean; address?: boolean; telephone?: boolean };
+  /** App Links — deep linking to native apps (al:* meta property tags). */
+  appLinks?: {
+    ios?: Array<{ url: string; app_store_id?: string; app_name?: string }>;
+    android?: Array<{ url: string; package?: string; class?: string; app_name?: string }>;
+    windows?: Array<{ url: string; app_id?: string; app_name?: string }>;
+    windowsPhone?: Array<{ url: string; app_id?: string; app_name?: string }>;
+    windowsUniversal?: Array<{ url: string; app_id?: string; app_name?: string }>;
+    web?: { url?: string; shouldFallback?: boolean };
+  };
+  /** apple-itunes-app meta tag — link to an iOS app in the App Store. */
+  itunes?: { appId: string; appArgument?: string; affiliateData?: string };
   other?: Record<string, string | string[]>;
 }
 

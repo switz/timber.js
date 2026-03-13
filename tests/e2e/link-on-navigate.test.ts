@@ -13,6 +13,8 @@ import { test, expect, type Page } from '@playwright/test';
 
 async function waitForHydration(page: Page): Promise<void> {
   await page.waitForSelector('meta[name="timber-ready"]', { state: 'attached', timeout: 15_000 });
+  // Wait for React effects to run — layout-marker gets data-id in a useEffect
+  await page.waitForSelector('[data-testid="layout-marker"][data-id]', { state: 'attached', timeout: 5_000 });
 }
 
 test.describe('Link onNavigate', () => {

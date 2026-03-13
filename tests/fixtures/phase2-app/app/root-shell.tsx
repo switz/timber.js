@@ -90,7 +90,7 @@ export function RootShell({ children }: { children: React.ReactNode }) {
       <div data-testid="layout-marker" ref={markerRef} />
 
       {/* onNavigate fired indicator */}
-      {navigateFired && <div data-testid="on-navigate-fired" />}
+      {navigateFired && <div data-testid="on-navigate-fired">navigated</div>}
 
       {/* Navigation pending indicator */}
       <div

@@ -346,7 +346,7 @@ async function renderRoute(
   let denySignal: DenySignal | null = null;
   let redirectSignal: RedirectSignal | null = null;
   let renderError: { error: unknown; status: number } | null = null;
-  let rscStream: ReadableStream<Uint8Array>;
+  let rscStream: ReadableStream<Uint8Array> | undefined;
   try {
     rscStream = renderToReadableStream(
       element,
@@ -405,7 +405,14 @@ async function renderRoute(
     } else if (error instanceof RedirectSignal) {
       redirectSignal = error;
     } else {
-      throw error;
+      // Synchronous render error — component threw during
+      // renderToReadableStream creation. Capture instead of crashing
+      // the server; the error page will be rendered below.
+      renderError = {
+        error,
+        status: error instanceof RenderError ? error.status : 500,
+      };
+      logRenderError({ method: _req.method, path: new URL(_req.url).pathname, error });
     }
   }
 
@@ -437,6 +444,22 @@ async function renderRoute(
       clientBootstrap,
       createDebugChannelSink,
       callSsr
+    );
+  }
+
+  // Synchronous render error — renderToReadableStream threw before
+  // creating the stream. Render the error page with correct 5xx status.
+  // (Async render errors are tracked in onError and handled after SSR.)
+  if (renderError && !rscStream) {
+    return renderErrorPage(
+      renderError.error,
+      renderError.status,
+      segments,
+      layoutComponents as LayoutEntry[],
+      _req,
+      match,
+      responseHeaders,
+      clientBootstrap
     );
   }
 

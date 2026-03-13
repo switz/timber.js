@@ -245,6 +245,89 @@ describe('DenySignal data forwarding', () => {
   });
 });
 
+// ─── renderErrorPage for unhandled errors (TIM-301) ────────────────────────────
+
+describe('renderErrorPage for unhandled errors', () => {
+  it('renders error.tsx with correct status for unhandled Error', async () => {
+    const { renderSsrStream, buildSsrResponse } = await import(
+      resolve(SRC_DIR, 'server/ssr-render.ts')
+    );
+    const { resolveManifestStatusFile } = await import(
+      resolve(SRC_DIR, 'server/manifest-status-resolver.ts')
+    );
+
+    const segments = [
+      makeManifestSegment({
+        error: {
+          load: async () => ({
+            default: (props: { error: Error }) =>
+              createElement('div', { 'data-testid': 'error-boundary' }, `Error: ${props.error.message}`),
+          }),
+          filePath: 'app/error.tsx',
+        },
+      }),
+    ];
+
+    // Simulate an unhandled throw (the bug: this was crashing the server)
+    const resolution = resolveManifestStatusFile(500, segments);
+    expect(resolution).not.toBeNull();
+    expect(resolution!.file.filePath).toBe('app/error.tsx');
+
+    const mod = (await resolution!.file.load()) as { default: (props: unknown) => unknown };
+    const thrownError = new Error('createContext is not a function');
+    const element = h(mod.default, {
+      error: thrownError,
+      digest: null,
+      reset: undefined,
+    });
+    const stream = await renderSsrStream(element);
+    const html = await streamToString(stream);
+
+    expect(html).toContain('Error: createContext is not a function');
+
+    const responseStream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode(html));
+        controller.close();
+      },
+    });
+    const response = buildSsrResponse(responseStream, 500, new Headers());
+    expect(response.status).toBe(500);
+  });
+
+  it('renders 5xx.tsx when available for unhandled errors', async () => {
+    const { resolveManifestStatusFile } = await import(
+      resolve(SRC_DIR, 'server/manifest-status-resolver.ts')
+    );
+
+    const segments = [
+      makeManifestSegment({
+        statusFiles: {
+          '5xx': {
+            load: async () => ({
+              default: (props: { error: Error }) =>
+                createElement('div', null, `Server error: ${props.error.message}`),
+            }),
+            filePath: 'app/5xx.tsx',
+          },
+        },
+        error: {
+          load: async () => ({
+            default: () => createElement('div', null, 'Generic error'),
+          }),
+          filePath: 'app/error.tsx',
+        },
+      }),
+    ];
+
+    // 5xx.tsx should take priority over error.tsx for 500 status
+    const resolution = resolveManifestStatusFile(500, segments);
+    expect(resolution).not.toBeNull();
+    expect(resolution!.file.filePath).toBe('app/5xx.tsx');
+    expect(resolution!.kind).toBe('category');
+  });
+});
+
 // ─── Integration: handleSsr DenySignal with error page ────────────────────────
 
 describe('handleSsr DenySignal error page rendering', () => {

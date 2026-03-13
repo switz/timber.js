@@ -513,4 +513,51 @@ describe('scanRoutes', () => {
     const about = tree.root.children.find((c) => c.segmentName === 'about');
     expect(about).toBeDefined();
   });
+
+  it('rejects directories with encoded path separators (%2F, %2f)', () => {
+    const root = createApp({
+      'page.tsx': '',
+      'my%2Fpage/page.tsx': '',
+    });
+
+    expect(() => scanRoutes(root)).toThrowError(/encoded path delimiter/i);
+  });
+
+  it('rejects directories with encoded backslash separators (%5C, %5c)', () => {
+    const root = createApp({
+      'page.tsx': '',
+      'my%5Cpage/page.tsx': '',
+    });
+
+    expect(() => scanRoutes(root)).toThrowError(/encoded path delimiter/i);
+  });
+
+  it('rejects directories with encoded null bytes (%00)', () => {
+    const root = createApp({
+      'page.tsx': '',
+      'my%00page/page.tsx': '',
+    });
+
+    expect(() => scanRoutes(root)).toThrowError(/encoded null byte/i);
+  });
+
+  it('rejects encoded path delimiters in nested directories', () => {
+    const root = createApp({
+      'dashboard/settings%2Fadmin/page.tsx': '',
+    });
+
+    expect(() => scanRoutes(root)).toThrowError(/encoded path delimiter/i);
+  });
+
+  it('allows normal percent signs that are not dangerous encodings', () => {
+    const root = createApp({
+      'page.tsx': '',
+      '100%/page.tsx': '',
+    });
+
+    // Should not throw — "100%" doesn't contain encoded separators or null
+    const tree = scanRoutes(root);
+    const segment = tree.root.children.find((c) => c.segmentName === '100%');
+    expect(segment).toBeDefined();
+  });
 });

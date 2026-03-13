@@ -20,6 +20,7 @@ import { renderSsrStream, buildSsrResponse } from './ssr-render.js';
 import { injectHead, injectRscPayload } from './html-injectors.js';
 import { withNuqsSsrAdapter } from './nuqs-ssr-provider.js';
 import { withSpan } from './tracing.js';
+import { setCurrentParams } from '../client/use-params.js';
 
 /**
  * Navigation context passed from the RSC environment to SSR.
@@ -82,6 +83,15 @@ export async function handleSsr(
 ): Promise<Response> {
   return withSpan('timber.ssr', { 'timber.environment': 'ssr' }, async () => {
     const _runtimeConfig = config;
+
+    // Populate useParams() for client components rendered during SSR.
+    // The SSR environment has its own module instance of use-params.ts,
+    // so the module-level currentParams must be set before React's
+    // synchronous shell render reads it. React's renderToReadableStream
+    // renders the shell synchronously before returning, so this is safe
+    // against concurrent requests — each request sets params, renders
+    // the shell, and the next request sets its own params before its render.
+    setCurrentParams(navContext.params);
 
     // Decode the RSC stream into a React element tree.
     // createFromReadableStream resolves client component references

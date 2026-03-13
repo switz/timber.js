@@ -1,1 +1,5 @@
 @import 'tailwindcss';
+
+pre {
+  @apply bg-slate-200 p-5 text-sm;
+}

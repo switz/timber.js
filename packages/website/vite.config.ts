@@ -25,6 +25,10 @@ export default defineConfig({
       '@timber/app/routing': resolve(root, 'packages/timber-app/src/routing/index.ts'),
       '@timber/app/search-params': resolve(root, 'packages/timber-app/src/search-params/index.ts'),
       '@timber/app': resolve(root, 'packages/timber-app/src/index.ts'),
+      '@timber/app/adapters/cloudflare': resolve(
+        root,
+        'packages/timber-app/src/adapters/cloudflare.ts'
+      ),
     },
   },
 });

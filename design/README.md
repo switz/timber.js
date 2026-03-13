@@ -88,6 +88,9 @@ The shortest version: **if Rails or PHP could do it, so can we.** Correct HTTP s
 | [Search Params](23-search-params.md)                   | nuqs integration, `useQueryStates`, route-scoped typing, composable patterns, URL key aliasing, codec bridge, `shallow: false` default                                   |
 | [Fonts & Web Font Loading](24-fonts.md)                | `@timber/fonts/google`, `@timber/fonts/local`, build-time font download/subsetting, size-adjusted fallbacks, Early Hints integration, CSS variable bridging              |
 | [Production Deployments](25-production-deployments.md) | Two-adapter architecture (Cloudflare + Nitro), production caching layers, Docker hardening, static deployments, preview, `TIMBER_RUNTIME`, deployment checklist          |
+| [Next.js CVE Analysis](26-nextjs-cve-analysis.md)      | Security analysis of Next.js CVEs and how timber's architecture mitigates or is immune to each                                                                           |
+| [Chunking Strategy](27-chunking-strategy.md)            | Client bundle splitting, vendor chunks, route-level code splitting, cache-tier optimization                                                                              |
+| [npm Packaging](28-npm-packaging.md)                    | Library build strategy, tsup config, conditional exports, CLI packaging, peer deps, versioning, publishing CI plan                                                       |
 
 ## Future Concerns
 

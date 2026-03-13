@@ -28,6 +28,7 @@ function createApp(files: Record<string, string>): string {
 function createPluginContext(overrides: Partial<PluginContext> = {}): PluginContext {
   return {
     config: { output: 'server', ...overrides.config },
+    clientJavascript: overrides.clientJavascript ?? { disabled: false, enableHMRInDev: false },
     routeTree: null,
     appDir: appDir(),
     root: TMP_DIR,

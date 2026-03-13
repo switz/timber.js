@@ -7,7 +7,7 @@ import tailwindcss from '@tailwindcss/vite';
 const root = resolve(import.meta.dirname, '../..');
 
 export default defineConfig({
-  plugins: [timber({ noClientJavascript: true }), tailwindcss()],
+  plugins: [timber({ clientJavascript: { disabled: true, enableHMRInDev: true } }), tailwindcss()],
   root: import.meta.dirname,
   server: {
     port: 3010,

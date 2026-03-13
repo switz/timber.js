@@ -37,7 +37,7 @@ export function timberAdapterBuild(ctx: PluginContext): Plugin {
         const buildDir = join(ctx.root, 'dist');
         const adapterConfig: TimberConfig = {
           output: ctx.config.output ?? 'server',
-          noClientJavascript: ctx.config.noClientJavascript,
+          clientJavascriptDisabled: ctx.clientJavascript.disabled,
         };
 
         await adapter.buildOutput(adapterConfig, buildDir);

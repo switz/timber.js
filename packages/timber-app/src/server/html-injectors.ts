@@ -85,7 +85,7 @@ export function injectHead(
 /**
  * Inject client bootstrap scripts before </body> in the HTML stream.
  *
- * Returns the stream unchanged if scriptsHtml is empty (noClientJavascript mode).
+ * Returns the stream unchanged if scriptsHtml is empty (client JS disabled mode).
  * If no </body> is found, the buffer is emitted as-is.
  */
 export function injectScripts(
@@ -334,10 +334,12 @@ export interface ClientBootstrapConfig {
 /**
  * Build client bootstrap configuration based on runtime config.
  *
- * Returns empty strings when `noClientJavascript: true`,
- * which produces zero-JS output. In dev mode, imports the Vite
- * HMR client and virtual browser entry. In production, uses hashed
- * chunk URLs from the build manifest.
+ * Returns empty strings when client JavaScript is disabled,
+ * which produces zero-JS output. When `enableHMRInDev` is true and
+ * running in dev mode, injects only the Vite HMR client (no app
+ * bootstrap) so hot reloading works during development.
+ *
+ * In production, uses hashed chunk URLs from the build manifest.
  *
  * The bootstrap uses dynamic `import()` inside a regular (non-module)
  * inline script so it executes immediately during HTML parsing. This
@@ -348,11 +350,19 @@ export interface ClientBootstrapConfig {
  */
 export function buildClientScripts(runtimeConfig: {
   output: string;
-  noClientJavascript: boolean;
+  clientJavascript: { disabled: boolean; enableHMRInDev: boolean };
   dev: boolean;
   buildManifest?: import('./build-manifest.js').BuildManifest;
 }): ClientBootstrapConfig {
-  if (runtimeConfig.noClientJavascript) {
+  if (runtimeConfig.clientJavascript.disabled) {
+    // When client JS is disabled but enableHMRInDev is true in dev mode,
+    // inject only the Vite HMR client for hot reloading CSS, etc.
+    if (runtimeConfig.dev && runtimeConfig.clientJavascript.enableHMRInDev) {
+      return {
+        bootstrapScriptContent: 'import("/@vite/client")',
+        preloadLinks: '',
+      };
+    }
     return { bootstrapScriptContent: '', preloadLinks: '' };
   }
 

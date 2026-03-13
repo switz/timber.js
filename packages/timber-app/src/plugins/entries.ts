@@ -85,7 +85,7 @@ function generateConfigModule(ctx: PluginContext): string {
     output: ctx.config.output ?? 'server',
     csrf: ctx.config.csrf ?? true,
     allowedOrigins: ctx.config.allowedOrigins,
-    noClientJavascript: ctx.config.noClientJavascript ?? false,
+    clientJavascript: ctx.clientJavascript,
     dev: ctx.dev ?? false,
     slowPhaseMs: ctx.config.dev?.slowPhaseMs ?? 200,
   };

@@ -44,9 +44,43 @@ export interface RewriteRule {
   destination: string;
 }
 
+/** Configuration for client-side JavaScript output. */
+export interface ClientJavascriptConfig {
+  /** When true, no client JS bundles are emitted or referenced in HTML. */
+  disabled: boolean;
+  /**
+   * When `disabled` is true, still inject the Vite HMR client in dev mode
+   * so hot reloading works during development. Default: true.
+   */
+  enableHMRInDev?: boolean;
+}
+
+/** Fully resolved client JavaScript configuration (no optionals). */
+export interface ResolvedClientJavascript {
+  disabled: boolean;
+  enableHMRInDev: boolean;
+}
+
 export interface TimberUserConfig {
   output?: 'server' | 'static';
   /**
+   * Control client-side JavaScript output.
+   *
+   * Boolean shorthand:
+   *   `clientJavascript: false` disables all client JS (equivalent to `{ disabled: true }`).
+   *   `clientJavascript: true` enables client JS (the default).
+   *
+   * Object form:
+   *   `clientJavascript: { disabled: true, enableHMRInDev: true }` disables client JS
+   *   in production but preserves Vite HMR in dev mode.
+   *
+   * When `disabled` is true, `enableHMRInDev` defaults to `true`.
+   * Server-side JS still runs — this only affects what is sent to the browser.
+   */
+  clientJavascript?: boolean | ClientJavascriptConfig;
+  /**
+   * @deprecated Use `clientJavascript: false` or `clientJavascript: { disabled: true }` instead.
+   *
    * Disable all client-side JavaScript output. When true, no client JS
    * bundles are emitted or referenced in HTML. Pages work entirely via
    * server-rendered HTML. Works in both 'server' and 'static' modes.
@@ -89,6 +123,44 @@ export interface TimberUserConfig {
 }
 
 /**
+ * Resolve `clientJavascript` (new) and `noClientJavascript` (deprecated) into
+ * a fully resolved config. Emits a deprecation warning for the old option.
+ */
+export function resolveClientJavascript(config: TimberUserConfig): ResolvedClientJavascript {
+  // New option takes precedence over deprecated option
+  if (config.clientJavascript !== undefined) {
+    if (typeof config.clientJavascript === 'boolean') {
+      // `clientJavascript: false` → disabled
+      // `clientJavascript: true` → enabled (default)
+      return {
+        disabled: !config.clientJavascript,
+        enableHMRInDev: !config.clientJavascript, // default true when disabled
+      };
+    }
+    // Object form
+    return {
+      disabled: config.clientJavascript.disabled,
+      enableHMRInDev: config.clientJavascript.enableHMRInDev ?? config.clientJavascript.disabled,
+    };
+  }
+
+  // Fall back to deprecated noClientJavascript
+  if (config.noClientJavascript !== undefined) {
+    console.warn(
+      '[timber] `noClientJavascript` is deprecated. ' +
+        'Use `clientJavascript: false` or `clientJavascript: { disabled: true, enableHMRInDev: true }` instead.'
+    );
+    return {
+      disabled: config.noClientJavascript,
+      enableHMRInDev: config.noClientJavascript, // default true when disabled
+    };
+  }
+
+  // Default: client JS enabled
+  return { disabled: false, enableHMRInDev: false };
+}
+
+/**
  * Shared context object passed to all sub-plugins via closure.
  *
  * Sub-plugins communicate through this context — not through Vite's
@@ -97,6 +169,8 @@ export interface TimberUserConfig {
  */
 export interface PluginContext {
   config: TimberUserConfig;
+  /** Resolved client JavaScript configuration */
+  clientJavascript: ResolvedClientJavascript;
   /** The scanned route tree (populated by timber-routing, consumed by timber-entries) */
   routeTree: RouteTree | null;
   /** Absolute path to the app/ directory */
@@ -113,12 +187,11 @@ export interface PluginContext {
 
 function createPluginContext(config?: TimberUserConfig, root?: string): PluginContext {
   const projectRoot = root ?? process.cwd();
+  const resolvedConfig: TimberUserConfig = { output: 'server', ...config };
   // Timer starts as active — swapped to noop in configResolved for production builds
   return {
-    config: {
-      output: 'server',
-      ...config,
-    },
+    config: resolvedConfig,
+    clientJavascript: resolveClientJavascript(resolvedConfig),
     routeTree: null,
     appDir: join(projectRoot, 'app'),
     root: projectRoot,
@@ -196,6 +269,8 @@ export function timber(config?: TimberUserConfig): PluginOption[] {
       const fileConfig = await loadTimberConfigFile(ctx.root);
       if (fileConfig) {
         mergeFileConfig(ctx, fileConfig);
+        // Re-resolve clientJavascript after merge — file config may set it
+        ctx.clientJavascript = resolveClientJavascript(ctx.config);
       }
       ctx.timer.end('config-load');
     },

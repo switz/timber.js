@@ -45,6 +45,7 @@ const PROJECT_ROOT = resolve(__dirname, '..');
 function createPluginContext(): PluginContext {
   return {
     config: { output: 'server' },
+    clientJavascript: { disabled: false, enableHMRInDev: false },
     routeTree: null,
     appDir: resolve(PROJECT_ROOT, 'app'),
     root: PROJECT_ROOT,

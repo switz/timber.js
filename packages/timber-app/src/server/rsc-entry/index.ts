@@ -89,11 +89,16 @@ async function createRequestHandler(manifest: typeof routeManifest, runtimeConfi
   const matchRoute = createRouteMatcher(manifest);
 
   // Build the client bootstrap configuration.
-  // When noClientJavascript is true, no scripts are injected.
+  // When client JavaScript is disabled, no scripts are injected
+  // (unless enableHMRInDev is true in dev mode — then only HMR client).
   // In production, uses hashed chunk URLs from the build manifest.
-  const noClientJavascript = !!(runtimeConfig as Record<string, unknown>).noClientJavascript;
+  const clientJsConfig = (runtimeConfig as Record<string, unknown>).clientJavascript as
+    | { disabled: boolean; enableHMRInDev: boolean }
+    | undefined;
+  const clientJsDisabled = clientJsConfig?.disabled ?? false;
   const clientBootstrap = buildClientScripts({
     ...runtimeConfig,
+    clientJavascript: clientJsConfig ?? { disabled: false, enableHMRInDev: false },
     buildManifest: buildManifest as BuildManifest,
   });
 
@@ -136,7 +141,14 @@ async function createRequestHandler(manifest: typeof routeManifest, runtimeConfi
       _requestHeaderOverlay: Headers,
       interception?: InterceptionContext
     ) => {
-      return renderRoute(req, match, responseHeaders, clientBootstrap, noClientJavascript, interception);
+      return renderRoute(
+        req,
+        match,
+        responseHeaders,
+        clientBootstrap,
+        clientJsDisabled,
+        interception
+      );
     },
     renderNoMatch: async (req: Request, responseHeaders: Headers) => {
       return renderNoMatchPage(req, manifest.root, responseHeaders, clientBootstrap);
@@ -221,7 +233,7 @@ async function renderRoute(
   match: RouteMatch,
   responseHeaders: Headers,
   clientBootstrap: ClientBootstrapConfig,
-  noClientJavascript: boolean,
+  clientJsDisabled: boolean,
   interception?: InterceptionContext
 ): Promise<Response> {
   const segments = match.segments as unknown as ManifestSegmentNode[];
@@ -474,8 +486,8 @@ async function renderRoute(
   // Embed segment metadata in HTML for initial hydration.
   // The client reads this to populate its segment cache before the
   // first navigation, enabling state tree diffing from the start.
-  // Skipped when noClientJavascript is true — no client JS to consume it.
-  const segmentScript = noClientJavascript
+  // Skipped when client JS is disabled — no client JS to consume it.
+  const segmentScript = clientJsDisabled
     ? ''
     : `<script>self.__timber_segments=${JSON.stringify(buildSegmentInfo(segments, layoutComponents))}</script>`;
 
@@ -487,8 +499,8 @@ async function renderRoute(
     responseHeaders,
     headHtml: headHtml + clientBootstrap.preloadLinks + segmentScript,
     bootstrapScriptContent: clientBootstrap.bootstrapScriptContent,
-    // Skip RSC inline stream when noClientJavascript — no client to hydrate.
-    rscStream: noClientJavascript ? undefined : inlineStream,
+    // Skip RSC inline stream when client JS is disabled — no client to hydrate.
+    rscStream: clientJsDisabled ? undefined : inlineStream,
     deferSuspenseFor: deferSuspenseFor > 0 ? deferSuspenseFor : undefined,
   };
 

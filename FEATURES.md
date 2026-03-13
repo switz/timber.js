@@ -38,6 +38,7 @@ Features tagged as **[novel]** (not in Next.js or Vinext), **[enhanced]** (impro
 - **[novel]** URL key aliasing — property names map to different URL keys ([23-search-params.md](design/23-search-params.md))
 - **[novel]** Pluggable codec protocol — Zod schemas, Valibot schemas, nuqs parsers, or custom via Standard Schema ([23-search-params.md](design/23-search-params.md))
 - **[enhanced]** Standard Schema support — action client and search params accept Zod, Valibot, or ArkType via `~standard` protocol ([08-forms-and-actions.md](design/08-forms-and-actions.md))
+- **[enhanced]** Forms work very well with un-controlled inputs and with or without javascript. They are automatically wrapped and returned to the client if the form submission fails.
 - **[enhanced]** `useQueryStates` hook — client hook syncs typed params to URL ([23-search-params.md](design/23-search-params.md))
 
 ## Error Handling
@@ -89,6 +90,10 @@ Features tagged as **[novel]** (not in Next.js or Vinext), **[enhanced]** (impro
 - **[parity]** Dev server with HMR — Vite-based with React Fast Refresh ([21-dev-server.md](design/21-dev-server.md))
 - **[novel]** Startup timing instrumentation — per-phase `performance.now()` profiling with dev-mode summary ([18-build-system.md](design/18-build-system.md))
 - **[parity]** Build report — post-build route table showing per-route bundle size, route type (○ static/λ dynamic/ƒ function), and first-load JS ([18-build-system.md](design/18-build-system.md))
+
+## Configuration
+
+- **[enhanced]** `clientJavascript` config — disable client JS with `clientJavascript: false` or fine-tune with `{ disabled: true, enableHMRInDev: true }` to preserve HMR during development ([18-build-system.md](design/18-build-system.md))
 
 ## Build & Bundle Optimization
 

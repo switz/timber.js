@@ -329,8 +329,8 @@ export function timberBuildReport(ctx: PluginContext): Plugin {
 
       reported = true;
       const outputMode = ctx.config.output ?? 'server';
-      const noClientJavascript = ctx.config.noClientJavascript ?? false;
-      const { entries, sharedGzip } = noClientJavascript
+      const clientJsDisabled = ctx.clientJavascript.disabled;
+      const { entries, sharedGzip } = clientJsDisabled
         ? {
             entries: collectRoutes(ctx.routeTree).map((info) => ({
               path: info.path,

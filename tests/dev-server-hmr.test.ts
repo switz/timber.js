@@ -34,6 +34,7 @@ vi.mock('vite', async (importOriginal) => {
 function createPluginContext(overrides: Partial<PluginContext> = {}): PluginContext {
   return {
     config: { output: 'server', ...overrides.config },
+    clientJavascript: overrides.clientJavascript ?? { disabled: false, enableHMRInDev: false },
     routeTree: null,
     appDir: '/test/app',
     root: '/test',

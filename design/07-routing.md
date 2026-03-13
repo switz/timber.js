@@ -82,6 +82,30 @@ A match succeeds when all URL segments are consumed and the leaf segment has a `
 
 ---
 
+## Private Folders
+
+Directories prefixed with an underscore (`_`) are **private folders** — excluded from route discovery entirely. They are not URL-addressable and do not generate routes, metadata routes, or any other routing artifacts.
+
+```
+app/
+  _components/         ← private — not a route
+    Button.tsx
+    Card.tsx
+  _lib/                ← private — not a route
+    utils.ts
+  dashboard/
+    _helpers/          ← private — not a route
+      format.ts
+    page.tsx           ← /dashboard
+  page.tsx             ← /
+```
+
+Private folders are for co-locating shared code (components, utilities, types) alongside routes without polluting the URL space. A `page.tsx` inside `_components/` does NOT create a route.
+
+This matches the Next.js App Router convention for underscore-prefixed directories.
+
+---
+
 ## Parallel Routes
 
 Parallel routes render multiple page components simultaneously within a single layout using named slots. A slot is a directory prefixed with `@` (e.g., `@sidebar`, `@modal`). Slots are passed as named props to their parent layout alongside `children`.

@@ -457,4 +457,60 @@ describe('scanRoutes', () => {
     expect(idSegment.segmentType).toBe('dynamic');
     expect(idSegment.page).toBeDefined();
   });
+
+  it('excludes underscore-prefixed private folders from route discovery', () => {
+    const root = createApp({
+      'page.tsx': '',
+      '_components/button.tsx': '',
+      '_lib/utils.ts': '',
+      '_components/page.tsx': '', // should NOT create a route
+      'dashboard/page.tsx': '',
+      'dashboard/_helpers/format.ts': '',
+    });
+
+    const tree = scanRoutes(root);
+
+    // Private folders should not appear as children
+    const privateComponents = tree.root.children.find((c) => c.segmentName === '_components');
+    expect(privateComponents).toBeUndefined();
+
+    const privateLib = tree.root.children.find((c) => c.segmentName === '_lib');
+    expect(privateLib).toBeUndefined();
+
+    // Normal routes should still work
+    const dashboard = tree.root.children.find((c) => c.segmentName === 'dashboard');
+    expect(dashboard).toBeDefined();
+    expect(dashboard!.page).toBeDefined();
+
+    // Nested private folders should also be excluded
+    const dashboardHelpers = dashboard!.children.find((c) => c.segmentName === '_helpers');
+    expect(dashboardHelpers).toBeUndefined();
+  });
+
+  it('classifies underscore-prefixed directories as private (not routable)', () => {
+    // classifySegment should return 'private' for underscore-prefixed dirs
+    expect(classifySegment('_components')).toEqual({ type: 'private' });
+    expect(classifySegment('_lib')).toEqual({ type: 'private' });
+    expect(classifySegment('_utils')).toEqual({ type: 'private' });
+  });
+
+  it('private folders do not generate metadata routes', () => {
+    const root = createApp({
+      'page.tsx': '',
+      '_private/opengraph-image.tsx': '',
+      '_private/icon.png': '',
+      'about/opengraph-image.tsx': '',
+      'about/page.tsx': '',
+    });
+
+    const tree = scanRoutes(root);
+
+    // _private should not appear in the tree at all
+    const privateDir = tree.root.children.find((c) => c.segmentName === '_private');
+    expect(privateDir).toBeUndefined();
+
+    // Normal segments should still appear
+    const about = tree.root.children.find((c) => c.segmentName === 'about');
+    expect(about).toBeDefined();
+  });
 });

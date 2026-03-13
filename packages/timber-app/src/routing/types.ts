@@ -13,7 +13,8 @@ export type SegmentType =
   | 'optional-catch-all' // e.g. "[[...slug]]"
   | 'group' // e.g. "(marketing)"
   | 'slot' // e.g. "@sidebar"
-  | 'intercepting'; // e.g. "(.)photo", "(..)photo", "(...)photo"
+  | 'intercepting' // e.g. "(.)photo", "(..)photo", "(...)photo"
+  | 'private'; // e.g. "_components", "_lib" — excluded from routing
 
 /**
  * Intercepting route marker — indicates how many levels up to resolve the

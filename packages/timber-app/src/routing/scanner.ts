@@ -110,6 +110,11 @@ export function classifySegment(dirName: string): {
   interceptionMarker?: InterceptionMarker;
   interceptedSegmentName?: string;
 } {
+  // Private folder: _name (excluded from routing)
+  if (dirName.startsWith('_')) {
+    return { type: 'private' };
+  }
+
   // Parallel route slot: @name
   if (dirName.startsWith('@')) {
     return { type: 'slot' };
@@ -326,6 +331,10 @@ function scanChildren(dirPath: string, parentNode: SegmentNode, extSet: Set<stri
     }
 
     const { type, paramName, interceptionMarker, interceptedSegmentName } = classifySegment(entry);
+
+    // Skip private folders — underscore-prefixed dirs are excluded from routing
+    if (type === 'private') continue;
+
     const urlPath = computeUrlPath(parentNode.urlPath, entry, type);
     const childNode = createSegmentNode(
       entry,

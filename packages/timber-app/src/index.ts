@@ -26,24 +26,6 @@ import type { BuildManifest } from './server/build-manifest';
 import type { StartupTimer } from './utils/startup-timer';
 import { createStartupTimer, createNoopTimer } from './utils/startup-timer';
 
-/** A redirect rule: source pattern → destination, with HTTP status. */
-export interface RedirectRule {
-  /** Source path pattern. Supports :param placeholders (e.g. /old/:slug). */
-  source: string;
-  /** Destination path. Can reference captured :params (e.g. /new/:slug). */
-  destination: string;
-  /** Whether the redirect is permanent (308) or temporary (307). Default: false (temporary). */
-  permanent?: boolean;
-}
-
-/** A rewrite rule: source pattern → destination, transparent to the client. */
-export interface RewriteRule {
-  /** Source path pattern. Supports :param placeholders (e.g. /old/:slug). */
-  source: string;
-  /** Destination path. Can reference captured :params (e.g. /new/:slug). */
-  destination: string;
-}
-
 /** Configuration for client-side JavaScript output. */
 export interface ClientJavascriptConfig {
   /** When true, no client JS bundles are emitted or referenced in HTML. */
@@ -98,16 +80,6 @@ export interface TimberUserConfig {
     maxFields?: number;
   };
   pageExtensions?: string[];
-  /**
-   * Declarative redirects. Evaluated after URL canonicalization, before route matching.
-   * For complex redirect logic, use middleware.ts or proxy.ts instead.
-   */
-  redirects?: RedirectRule[];
-  /**
-   * Declarative rewrites. Evaluated after URL canonicalization, before route matching.
-   * Rewrites are transparent to the client — the URL in the browser does not change.
-   */
-  rewrites?: RewriteRule[];
   /** Dev-mode options. These have no effect in production builds. */
   dev?: {
     /** Threshold in ms to highlight slow phases in dev logging output. Default: 200. */

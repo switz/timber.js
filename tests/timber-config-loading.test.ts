@@ -126,20 +126,4 @@ describe('timber config merging', () => {
     expect(hasMdx).toBe(true);
   });
 
-  it('redirects and rewrites merge correctly', () => {
-    const inline: TimberUserConfig = {
-      redirects: [{ source: '/inline', destination: '/target' }],
-    };
-    const fileConfig: TimberUserConfig = {
-      redirects: [{ source: '/file', destination: '/other' }],
-      rewrites: [{ source: '/old', destination: '/new' }],
-    };
-
-    const merged = mergeFileConfig(inline, fileConfig);
-
-    // Inline redirects win (arrays are not deep-merged, inline takes precedence)
-    expect(merged.redirects).toEqual([{ source: '/inline', destination: '/target' }]);
-    // File rewrites fill in
-    expect(merged.rewrites).toEqual([{ source: '/old', destination: '/new' }]);
-  });
 });

@@ -432,6 +432,57 @@ describe('handleFormAction — redirect remains HTTP 302', () => {
   });
 });
 
+// ─── Plain form POST pass-through ─────────────────────────────────────
+
+describe('handleActionRequest — plain form POST (not an action)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('returns null for plain form POST without action fields', async () => {
+    const formData = new FormData();
+    formData.append('name', 'Alice');
+    formData.append('email', 'alice@example.com');
+
+    const req = new Request('http://localhost/api/contact', {
+      method: 'POST',
+      headers: {
+        'Host': 'localhost',
+        'Origin': 'http://localhost',
+        'Content-Length': '100',
+      },
+      body: formData,
+    });
+
+    const result = await handleActionRequest(req, defaultConfig);
+    expect(result).toBeNull();
+  });
+
+  it('original request body remains readable after returning null', async () => {
+    const formData = new FormData();
+    formData.append('name', 'Bob');
+    formData.append('message', 'Hello');
+
+    const req = new Request('http://localhost/api/feedback', {
+      method: 'POST',
+      headers: {
+        'Host': 'localhost',
+        'Origin': 'http://localhost',
+        'Content-Length': '100',
+      },
+      body: formData,
+    });
+
+    const result = await handleActionRequest(req, defaultConfig);
+    expect(result).toBeNull();
+
+    // The original request body should still be readable by downstream route handlers
+    const body = await req.formData();
+    expect(body.get('name')).toBe('Bob');
+    expect(body.get('message')).toBe('Hello');
+  });
+});
+
 describe('isActionRequest', () => {
   it('detects POST with x-rsc-action header', () => {
     const req = new Request('http://localhost/', {

@@ -238,7 +238,10 @@ async function handleFormAction(
   req: Request,
   config: ActionDispatchConfig
 ): Promise<Response | FormRerender | null> {
-  const formData = await req.formData();
+  // Clone before consuming — if this turns out not to be a server action form,
+  // we return null and the original request body must remain readable for
+  // downstream route handlers. Clone is cheap (shares the body buffer until read).
+  const formData = await req.clone().formData();
 
   // Enforce field count limit after parsing FormData.
   const fieldResult = enforceFieldLimit(formData, config.bodyLimits ?? {});

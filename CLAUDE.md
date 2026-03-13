@@ -119,7 +119,6 @@ If a file approaches 500 lines, decompose it. This prevents over-grown objects o
 
 ## Git Workflow
 
-- **NEVER push directly to main.** Always create a feature branch and open a PR.
 - **NEVER use `gh pr merge --admin`.** If merge is blocked, investigate why.
 - Branch protection: Lint, Typecheck, Vitest, Playwright E2E must pass.
 - **DO NOT mention claude in commit messages or pull requests** It's not necessary and adds little value.

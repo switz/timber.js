@@ -37,6 +37,7 @@ import { setGlobalRouter, getRouter } from './router-ref.js';
 import { TimberNuqsAdapter } from './nuqs-adapter.js';
 import { isPageUnloading } from './unload-guard.js';
 import { setCurrentParams } from './use-params.js';
+import { ON_NAVIGATE_KEY } from './link-navigate-interceptor.js';
 
 // ─── Server Action Dispatch ──────────────────────────────────────
 
@@ -565,6 +566,16 @@ function handleLinkClick(event: MouseEvent, router: RouterInstance): void {
 
   // Prevent default navigation
   event.preventDefault();
+
+  // Call onNavigate if registered on this anchor (via LinkNavigateInterceptor).
+  // If the handler calls preventDefault(), skip the default SPA navigation —
+  // the caller is responsible for navigating (e.g. via router.push()).
+  const onNavigate = anchor[ON_NAVIGATE_KEY];
+  if (onNavigate) {
+    let prevented = false;
+    onNavigate({ preventDefault: () => { prevented = true; } });
+    if (prevented) return;
+  }
 
   // Check scroll preference from data attribute
   const scroll = anchor.getAttribute('data-timber-scroll') !== 'false';

@@ -310,6 +310,41 @@ The pending state follows the same lifecycle as `useNavigationPending()`: true f
 
 ---
 
+## `onNavigate` Prop
+
+`<Link>` accepts an optional `onNavigate` prop that fires before the client-side SPA navigation commits. The handler receives an event object with a `preventDefault()` method. If `preventDefault()` is called, the default navigation is skipped — the caller is responsible for navigating (e.g., via `router.push()`).
+
+```tsx
+'use client';
+import { Link, useRouter } from '@timber/app/client';
+
+export function TransitionLink({ href, children }) {
+  const router = useRouter();
+  return (
+    <Link
+      href={href}
+      onNavigate={(e) => {
+        e.preventDefault();
+        // Custom logic before navigation (e.g., view transitions)
+        document.startViewTransition(() => {
+          router.push(href);
+        });
+      }}
+    >
+      {children}
+    </Link>
+  );
+}
+```
+
+Key behavior:
+
+- **Client-only.** `onNavigate` only fires for SPA navigations. Without JavaScript (or on the initial page load), the link works as a plain `<a>` tag — `onNavigate` has no effect.
+- **Distinct from `onClick`.** `onClick` fires on every click (including modifier-key clicks for new tabs). `onNavigate` fires only when the router is about to perform a client-side navigation.
+- **Requires a client component.** Since `onNavigate` is a function prop, it can only be passed from `'use client'` components.
+
+---
+
 ## Progressive Enhancement
 
 Without JavaScript, `<Link>` renders as a plain `<a>` tag. Clicking it triggers a full page navigation — standard browser behavior. The server renders the full HTML response.
@@ -326,4 +361,4 @@ This means every navigation path works without JavaScript. The client runtime is
 - **Optimistic navigation.** The router does not speculatively render before the RSC payload arrives. `useNavigationPending()` provides UI feedback during the fetch.
 - **Route preloading on viewport intersection.** Only hover-triggered prefetch via `<Link prefetch>`.
 - **Offline support.** No service worker integration. RSC payloads are not cached in `CacheStorage`.
-- **View Transitions API.** Not integrated in v1. May be added in a future phase.
+- **View Transitions API.** No built-in integration. Use `<Link onNavigate>` to wrap navigation with `document.startViewTransition()`.

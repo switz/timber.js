@@ -6,6 +6,7 @@ export type { RenderErrorDigest } from './types';
 // Navigation
 export { Link, interpolateParams, resolveHref, validateLinkHref, buildLinkProps } from './link';
 export type { LinkProps, LinkPropsWithHref, LinkPropsWithParams } from './link';
+export type { OnNavigateHandler, OnNavigateEvent } from './link-navigate-interceptor';
 export { createRouter } from './router';
 export type {
   RouterInstance,

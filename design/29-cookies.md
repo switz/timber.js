@@ -357,6 +357,212 @@ Encrypted cookies are a future consideration. The signing primitive is sufficien
 
 ---
 
+## Typed Cookies with Schema Validation
+
+Cookie values are strings. But developers routinely store structured data — JSON preferences, numeric IDs, booleans. The `SearchParamCodec` protocol already solves this for URL params with `fromSchema()`. Cookies use the same protocol.
+
+### `CookieCodec<T>` — Same Protocol as Search Params
+
+```typescript
+// CookieCodec is just SearchParamCodec by another name
+interface CookieCodec<T> {
+  parse(value: string | undefined): T;
+  serialize(value: T): string | null;
+}
+```
+
+This is intentionally identical to `SearchParamCodec<T>`. The same `fromSchema()` bridge works for cookies:
+
+```typescript
+import { fromSchema } from '@timber/app/search-params';
+import { z } from 'zod/v4';
+
+const themeCodec = fromSchema(z.enum(['light', 'dark', 'system']).default('system'));
+const prefsCodec = fromSchema(
+  z.object({
+    lang: z.string().default('en'),
+    fontSize: z.number().int().min(12).max(24).default(16),
+    compact: z.boolean().default(false),
+  })
+);
+```
+
+### `defineCookie(name, codec, options?)` — Named Cookie Definitions
+
+```typescript
+import { defineCookie } from '@timber/app/cookies';
+import { fromSchema } from '@timber/app/search-params';
+import { z } from 'zod/v4';
+
+// Define a typed cookie once, use everywhere
+export const themeCookie = defineCookie('theme', {
+  codec: fromSchema(z.enum(['light', 'dark', 'system']).default('system')),
+  httpOnly: false, // client-readable
+  maxAge: 60 * 60 * 24 * 365, // 1 year
+  sameSite: 'lax',
+});
+
+export const prefsCookie = defineCookie('prefs', {
+  codec: fromSchema(
+    z.object({
+      lang: z.string().default('en'),
+      fontSize: z.number().int().min(12).max(24).default(16),
+      compact: z.boolean().default(false),
+    })
+  ),
+  httpOnly: false,
+  maxAge: 60 * 60 * 24 * 365,
+});
+
+export const sessionCookie = defineCookie('session_id', {
+  codec: fromSchema(z.string()),
+  httpOnly: true,
+  secure: true,
+  sameSite: 'lax',
+  signed: true, // uses HMAC signing from cookies.secret config
+});
+```
+
+**Return type:**
+
+```typescript
+interface CookieDefinition<T> {
+  name: string;
+  options: CookieOptions;
+  codec: CookieCodec<T>;
+
+  /** Server: read the typed value from the current request. */
+  get(): T;
+  /** Server: set the typed value on the response. */
+  set(value: T): void;
+  /** Server: delete the cookie. */
+  delete(): void;
+  /** Client: React hook for reading/writing. */
+  useCookie(): [T, (value: T) => void, () => void];
+}
+```
+
+### Server Usage
+
+```typescript
+// middleware.ts
+import { sessionCookie, prefsCookie } from '@/lib/cookies';
+
+export default async function middleware(ctx: MiddlewareContext) {
+  const sessionId = sessionCookie.get();
+  // sessionId: string — fully typed, parsed, validated
+
+  const prefs = prefsCookie.get();
+  // prefs: { lang: string; fontSize: number; compact: boolean }
+
+  // Set a typed value — serialized automatically
+  prefsCookie.set({ lang: 'fr', fontSize: 18, compact: true });
+}
+```
+
+```typescript
+// access.ts
+import { sessionCookie } from '@/lib/cookies';
+
+export default async function access(ctx: AccessContext) {
+  const sessionId = sessionCookie.get(); // typed read
+  if (!sessionId) redirect('/login');
+  // sessionCookie.set(...) → THROWS (access.ts is read-only)
+}
+```
+
+### Client Usage
+
+```tsx
+// theme-toggle.tsx
+'use client';
+import { themeCookie } from '@/lib/cookies';
+
+export function ThemeToggle() {
+  const [theme, setTheme] = themeCookie.useCookie();
+  // theme: 'light' | 'dark' | 'system' — typed!
+
+  return (
+    <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
+      {theme === 'dark' ? '☀️' : '🌙'}
+    </button>
+  );
+}
+```
+
+```tsx
+// prefs-panel.tsx
+'use client';
+import { prefsCookie } from '@/lib/cookies';
+
+export function PrefsPanel() {
+  const [prefs, setPrefs] = prefsCookie.useCookie();
+  // prefs: { lang: string; fontSize: number; compact: boolean }
+
+  return (
+    <div>
+      <label>
+        Font size: {prefs.fontSize}px
+        <input
+          type="range"
+          min={12}
+          max={24}
+          value={prefs.fontSize}
+          onChange={(e) => setPrefs({ ...prefs, fontSize: Number(e.target.value) })}
+        />
+      </label>
+    </div>
+  );
+}
+```
+
+### Validation on Read
+
+When the codec's `parse` fails (malformed cookie, tampered value, schema mismatch), the cookie definition returns the schema's **default value** — never throws. This is safe because:
+
+- Cookies are user-controlled input (the browser sends whatever it has)
+- A malformed cookie should degrade to defaults, not crash the page
+- The schema's `.default()` provides the fallback
+
+```
+Cookie: prefs={"lang":"en","fontSize":"not_a_number","compact":false}
+→ prefsCookie.get()
+→ codec.parse() fails on fontSize
+→ returns { lang: 'en', fontSize: 16, compact: false }  (default for fontSize)
+```
+
+If no `.default()` is provided in the schema and parsing fails, `get()` returns `undefined`. This matches how `SearchParamCodec.parse(undefined)` works — the codec decides the fallback behavior.
+
+### JSON Serialization
+
+For object/array codecs, `fromSchema` uses `JSON.stringify` for serialization and `JSON.parse` for parsing (wrapped in try/catch). The value is stored as a JSON string in the cookie:
+
+```
+Set-Cookie: prefs=%7B%22lang%22%3A%22en%22%7D; Path=/; ...
+```
+
+The `%`-encoding is handled by the browser for `Set-Cookie` values that contain special characters. On the server, the incoming `Cookie` header is already decoded by the HTTP parser.
+
+### Relationship to Untyped API
+
+`defineCookie` is layered on top of the untyped `cookies().get()`/`cookies().set()` API. The untyped API is always available as an escape hatch:
+
+```typescript
+// These are equivalent:
+themeCookie.get()
+// vs
+themeCodec.parse(cookies().get('theme'))
+
+// And:
+themeCookie.set('dark')
+// vs
+cookies().set('theme', themeCodec.serialize('dark')!, themeCookie.options)
+```
+
+`defineCookie` is sugar that bundles the name, codec, and options together so they don't drift out of sync between server and client code.
+
+---
+
 ## Cloudflare Workers Considerations
 
 Cloudflare Workers use the standard `Request`/`Response` Web API. `Set-Cookie` on the Response works as expected. No platform-specific handling needed.
@@ -375,8 +581,6 @@ One consideration: Workers have a 4KB limit per cookie (standard browser limit) 
 
 4. **Automatic CSRF cookies.** CSRF protection uses `Origin` header validation, not double-submit cookies. No CSRF cookie needed.
 
-5. **Automatic CSRF cookies.** CSRF protection uses `Origin` header validation, not double-submit cookies. No CSRF cookie needed.
-
 ---
 
 ## Client-Side Cookies
@@ -393,6 +597,8 @@ Several common patterns require client-side cookie access:
 All of these share a pattern: the **client writes** a cookie, and the **server reads** it on the next navigation. The cookie bridges the two worlds.
 
 ### `useCookie(name)` Hook
+
+The untyped hook for simple string cookies. For typed cookies with schema validation, use `defineCookie(...).useCookie()` instead (see §"Typed Cookies with Schema Validation").
 
 ```typescript
 import { useCookie } from '@timber/app/client';
@@ -527,6 +733,7 @@ Unlike `useQueryStates` (which manages multiple URL params as a group), there is
 | RSC writes           | No (throws)                                     | N/A                                               | N/A                   | No (throws)                                                 |
 | Middleware writes    | No (read-only in middleware)                    | N/A                                               | N/A                   | **Yes** — middleware is a natural place for session refresh |
 | Client-side hook     | No (use `document.cookie`)                      | No                                                | No                    | `useCookie(name)` — reactive, SSR-hydrated                 |
+| Typed/validated      | No                                              | `createCookie` with custom serialize/parse        | No                    | `defineCookie` with `fromSchema()` (Zod/Valibot)           |
 | Signed cookies       | No                                              | Yes (`createCookie` with signing)                 | No                    | Yes (HMAC-SHA256)                                           |
 | Defaults             | No defaults                                     | No defaults                                       | No defaults           | `HttpOnly`, `Secure`, `SameSite=Lax`, `Path=/`              |
 | Read-your-own-writes | No                                              | N/A                                               | Yes                   | Yes                                                         |

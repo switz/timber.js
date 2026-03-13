@@ -129,6 +129,8 @@ export interface ActionContext<TCtx, TInput> {
 
 interface ActionClientConfig<TCtx> {
   middleware?: ActionMiddleware<TCtx> | ActionMiddleware<Record<string, unknown>>[];
+  /** Max file size in bytes. Files exceeding this are rejected with validation errors. */
+  fileSizeLimit?: number;
 }
 
 /** Intermediate builder returned by createActionClient(). */
@@ -295,6 +297,18 @@ export function createActionClient<TCtx = Record<string, never>>(
           rawInput = args[0];
         }
 
+        // Validate file sizes before schema validation.
+        if (config.fileSizeLimit !== undefined && rawInput && typeof rawInput === 'object') {
+          const fileSizeErrors = validateFileSizes(
+            rawInput as Record<string, unknown>,
+            config.fileSizeLimit
+          );
+          if (fileSizeErrors) {
+            const submittedValues = stripFiles(rawInput);
+            return { validationErrors: fileSizeErrors, submittedValues };
+          }
+        }
+
         // Capture submitted values for repopulation on validation failure.
         // Exclude File objects (can't serialize, shouldn't echo back).
         const submittedValues = schema ? stripFiles(rawInput) : undefined;
@@ -392,6 +406,40 @@ export function validated<TInput, TData>(
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────
+
+/**
+ * Validate that all File objects in the input are within the size limit.
+ * Returns validation errors keyed by field name, or null if all files are ok.
+ */
+function validateFileSizes(
+  input: Record<string, unknown>,
+  limit: number
+): ValidationErrors | null {
+  const errors: ValidationErrors = {};
+  const limitKb = Math.round(limit / 1024);
+  const limitLabel = limit >= 1024 * 1024 ? `${Math.round(limit / (1024 * 1024))}MB` : `${limitKb}KB`;
+
+  for (const [key, value] of Object.entries(input)) {
+    if (value instanceof File && value.size > limit) {
+      errors[key] = [`File "${value.name}" (${formatSize(value.size)}) exceeds the ${limitLabel} limit`];
+    } else if (Array.isArray(value)) {
+      const oversized = value.filter((item) => item instanceof File && item.size > limit);
+      if (oversized.length > 0) {
+        errors[key] = oversized.map(
+          (f: File) => `File "${f.name}" (${formatSize(f.size)}) exceeds the ${limitLabel} limit`
+        );
+      }
+    }
+  }
+
+  return Object.keys(errors).length > 0 ? errors : null;
+}
+
+function formatSize(bytes: number): string {
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+  if (bytes >= 1024) return `${(bytes / 1024).toFixed(1)}KB`;
+  return `${bytes}B`;
+}
 
 /**
  * Strip File objects from a value, returning a plain object safe for

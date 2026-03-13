@@ -1,0 +1,29 @@
+export const metadata = { title: 'MDX Page' }
+
+# MDX Page
+
+This page is written entirely in **MDX** — a standalone `page.mdx` file that renders as a server component with zero client JavaScript.
+
+## Features
+
+- Markdown syntax compiled to React components
+- Supports `export const metadata` for page metadata
+- Works with frontmatter via `remark-mdx-frontmatter`
+- Renders through the same pipeline as `.tsx` pages
+
+## Code Example
+
+```tsx
+// page.mdx files work just like page.tsx
+export const metadata = { title: 'My MDX Page' }
+
+# Hello from MDX
+
+This is **rendered on the server** with RSC.
+```
+
+---
+
+<div data-testid="mdx-page-marker">
+  This page is rendered from <code>mdx-test/page.mdx</code>.
+</div>

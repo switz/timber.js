@@ -41,14 +41,14 @@ export default function DeferredPage() {
       <Suspense fallback={<div data-testid="deferred-fast-fallback" className="rounded-lg border border-dashed border-stone-300 bg-stone-50 p-4 text-sm text-stone-500">Fast loading...</div>}>
         <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
           <div className="text-xs font-medium text-emerald-600 mb-1">Fast child (50ms &lt; 500ms deadline)</div>
-          <p className="text-sm text-emerald-800"><FastContent /></p>
+          <div className="text-sm text-emerald-800"><FastContent /></div>
         </div>
       </Suspense>
 
       <Suspense fallback={<div data-testid="deferred-slow-fallback" className="rounded-lg border border-dashed border-stone-300 bg-stone-50 p-4 text-sm text-stone-500">Slow loading...</div>}>
         <div className="rounded-lg border border-stone-200 bg-white p-4">
           <div className="text-xs font-medium text-stone-400 mb-1">Slow child (2s &gt; 500ms deadline)</div>
-          <p className="text-sm text-stone-800"><SlowContent /></p>
+          <div className="text-sm text-stone-800"><SlowContent /></div>
         </div>
       </Suspense>
 

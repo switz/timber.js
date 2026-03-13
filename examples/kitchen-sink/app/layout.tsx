@@ -65,6 +65,9 @@ const navSections = [
       },
       { href: '/routes-test/grouped-a', testid: 'link-routes-group-a', text: '(group-a)' },
       { href: '/routes-test/grouped-b', testid: 'link-routes-group-b', text: '(group-b)' },
+      { href: '/gallery', testid: 'link-gallery', text: 'Intercepting (Modal)' },
+      { href: '/parallel-test', testid: 'link-parallel-test', text: 'Parallel Slots' },
+      { href: '/nested-layouts', testid: 'link-nested-layouts', text: 'Nested Layouts' },
     ],
   },
   {
@@ -81,6 +84,7 @@ const navSections = [
       { href: '/scroll-test/page-a', testid: 'link-scroll-page-a', text: 'Scroll A' },
       { href: '/scroll-test/page-b', testid: 'link-scroll-page-b', text: 'Scroll B' },
       { href: '/scroll-test/parallel', testid: 'link-scroll-parallel', text: 'Scroll Parallel' },
+      { href: '/mdx-test', testid: 'link-mdx-page', text: 'MDX Page' },
     ],
   },
 ];

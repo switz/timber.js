@@ -66,9 +66,12 @@
       "Bash(rm -f '/Users/dsaewitz/y/timber-js-fresh/examples/next-playground-migration/app/not-found/[section]/not-found.tsx')",
       "Bash(git pull --rebase)",
       "Bash(git stash)",
+      "Bash(git show *)",
+      "Bash(pnpm list *)",
       "Bash(grep -l \"ISR\\\\|Incremental.*Static\" /Users/dsaewitz/y/timber-js-fresh/design/*.md)"
     ],
     "additionalDirectories": [
+      "/Users/dsaewitz/y/next.js",
       "/Users/dsaewitz/y/timber-js-fresh/tests/e2e",
       "/Users/dsaewitz/y/timber-js-fresh/tests",
       "/Users/dsaewitz/y/timber-js-fresh/tests/fixtures",

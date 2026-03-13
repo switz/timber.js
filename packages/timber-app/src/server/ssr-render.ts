@@ -12,6 +12,8 @@
 import type { ReactNode } from 'react';
 import { renderToReadableStream } from 'react-dom/server';
 
+import { formatSsrError } from './error-formatter.js';
+
 /**
  * Render a React element tree to a ReadableStream of HTML.
  *
@@ -47,7 +49,7 @@ export async function renderSsrStream(
       // Suppress logging for connection aborts — the user refreshed or
       // navigated away, not an application error.
       if (isAbortError(error) || signal?.aborted) return;
-      console.error('[timber] SSR render error:', error);
+      console.error('[timber] SSR render error:', formatSsrError(error));
     },
   });
 
@@ -128,7 +130,7 @@ function wrapStreamWithErrorHandling(
         }
         // Streaming-phase error (e.g. React boundary flush failure).
         // The shell has already been sent. Log and close cleanly.
-        console.error('[timber] SSR streaming error (post-shell):', error);
+        console.error('[timber] SSR streaming error (post-shell):', formatSsrError(error));
         controller.close();
       }
     },

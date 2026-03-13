@@ -26,6 +26,7 @@ const navSections = [
     links: [
       { href: '/errors/crash', testid: 'link-errors-crash', text: 'Crash' },
       { href: '/errors/render-error', testid: 'link-errors-render', text: 'RenderError' },
+      { href: '/errors/client-error', testid: 'link-errors-client', text: 'ClientError' },
       { href: '/errors/deny-403', testid: 'link-errors-deny-403', text: 'Deny 403' },
       { href: '/errors/deny-401', testid: 'link-errors-deny-401', text: 'Deny 401' },
       { href: '/errors/deny-404', testid: 'link-errors-deny-404', text: 'Deny 404' },

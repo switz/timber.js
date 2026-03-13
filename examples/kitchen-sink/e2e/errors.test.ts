@@ -130,6 +130,16 @@ test.describe('error.tsx boundary', () => {
     await expect(page.locator('[data-testid="error-digest"]')).not.toBeVisible();
   });
 
+  test('async unhandled error renders error.tsx with 500', async ({ page }) => {
+    const response = await page.goto('/errors/async-crash');
+    expect(response?.status()).toBe(500);
+    await expect(page.locator('[data-testid="error-boundary"]')).toBeVisible();
+    await expect(page.locator('[data-testid="error-heading"]')).toHaveText('Something went wrong');
+    await expect(page.locator('[data-testid="error-message"]')).toHaveText(
+      'Intentional async crash for E2E testing'
+    );
+  });
+
   test('RenderError renders error boundary with digest', async ({ page }) => {
     const response = await page.goto('/errors/render-error');
     expect(response?.status()).toBe(500);

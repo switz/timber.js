@@ -185,6 +185,12 @@ Forms wired to server actions work without JavaScript. The `<form action={action
 
 `.schema()` accepts any schema library implementing the [Standard Schema](https://github.com/standard-schema/standard-schema) protocol (`~standard.validate`). This includes Zod ≥3.24, Valibot ≥1.0, and ArkType. Legacy schemas with `.parse()` / `.safeParse()` are also accepted. Validation errors are returned to the client as `result.validationErrors` — typed to the schema's shape. The action body only runs if validation passes.
 
+**File uploads through schemas:** `parseFormData()` preserves `File` objects, so schemas can validate file fields using `z.instanceof(File)` (Zod), `v.instance(File)` (Valibot), or a custom Standard Schema check. Empty file inputs (no selection) are normalized to `undefined` before schema validation. `createActionClient` accepts an optional `fileSizeLimit` (in bytes) to reject oversized files before schema validation runs:
+
+```typescript
+const action = createActionClient({ fileSizeLimit: 5 * 1024 * 1024 }); // 5MB per file
+```
+
 ---
 
 ## Client-Side Form Mechanics

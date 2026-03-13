@@ -256,6 +256,236 @@ describe('useFormErrors()', () => {
   });
 });
 
+// ─── File Upload Through Schema Validation ──────────────────────────
+
+describe('file upload through schema validation', () => {
+  it('File objects pass through Standard Schema validation', async () => {
+    const schema = mockStandardSchema((data: unknown) => {
+      const obj = data as Record<string, unknown>;
+      if (!obj?.title || typeof obj.title !== 'string') {
+        return { issues: [{ message: 'Title is required', path: ['title'] }] };
+      }
+      if (!(obj.file instanceof File)) {
+        return { issues: [{ message: 'File is required', path: ['file'] }] };
+      }
+      return { title: obj.title, file: obj.file as File };
+    });
+
+    const action = createActionClient()
+      .schema(schema)
+      .action(async ({ input }) => {
+        const typed = input as { title: string; file: File };
+        return { name: typed.file.name, size: typed.file.size };
+      });
+
+    // Direct call with File object
+    const file = new File(['hello world'], 'test.txt', { type: 'text/plain' });
+    const result = await action({ title: 'Upload', file });
+    expect(result.data).toEqual({ name: 'test.txt', size: 11 });
+  });
+
+  it('File objects from FormData pass through Standard Schema validation', async () => {
+    const schema = mockStandardSchema((data: unknown) => {
+      const obj = data as Record<string, unknown>;
+      if (!(obj?.avatar instanceof File)) {
+        return { issues: [{ message: 'Avatar is required', path: ['avatar'] }] };
+      }
+      return { avatar: obj.avatar as File };
+    });
+
+    const action = createActionClient()
+      .schema(schema)
+      .action(async ({ input }) => {
+        const typed = input as { avatar: File };
+        return { name: typed.avatar.name, size: typed.avatar.size };
+      });
+
+    const fd = new FormData();
+    fd.append('avatar', new File(['image-data'], 'photo.jpg', { type: 'image/jpeg' }));
+    const result = await (
+      action as (prev: unknown, fd: FormData) => Promise<ActionResult<unknown>>
+    )(null, fd);
+    expect(result.data).toEqual({ name: 'photo.jpg', size: 10 });
+  });
+
+  it('File objects pass through legacy schema validation', async () => {
+    const schema = mockLegacySchema((data: unknown) => {
+      const obj = data as Record<string, unknown>;
+      if (!(obj?.file instanceof File)) {
+        throw new Error('File is required');
+      }
+      return { file: obj.file as File };
+    });
+
+    const action = createActionClient()
+      .schema(schema)
+      .action(async ({ input }) => {
+        const typed = input as { file: File };
+        return { name: typed.file.name };
+      });
+
+    const file = new File(['content'], 'doc.pdf', { type: 'application/pdf' });
+    const result = await action({ file });
+    expect(result.data).toEqual({ name: 'doc.pdf' });
+  });
+
+  it('schema rejection works for missing File fields', async () => {
+    const schema = mockStandardSchema((data: unknown) => {
+      const obj = data as Record<string, unknown>;
+      if (!(obj?.file instanceof File)) {
+        return { issues: [{ message: 'File is required', path: ['file'] }] };
+      }
+      return { file: obj.file as File };
+    });
+
+    const action = createActionClient()
+      .schema(schema)
+      .action(async ({ input }) => input);
+
+    // Submit without file
+    const result = await action({ title: 'no file' });
+    expect(result.validationErrors).toBeDefined();
+    expect(result.validationErrors!.file).toContain('File is required');
+  });
+
+  it('File objects stripped from submittedValues on validation failure', async () => {
+    const schema = mockStandardSchema((_data: unknown) => {
+      return { issues: [{ message: 'Invalid', path: ['title'] }] };
+    });
+
+    const action = createActionClient()
+      .schema(schema)
+      .action(async ({ input }) => input);
+
+    const file = new File(['data'], 'secret.txt');
+    const result = await action({ title: 'x', file });
+    expect(result.validationErrors).toBeDefined();
+    // File should be stripped from submittedValues
+    expect(result.submittedValues).toBeDefined();
+    expect(result.submittedValues!.file).toBeUndefined();
+    expect(result.submittedValues!.title).toBe('x');
+  });
+
+  it('empty File inputs from FormData become undefined (not validated as File)', async () => {
+    const schema = mockStandardSchema((data: unknown) => {
+      const obj = data as Record<string, unknown>;
+      // Avatar is optional — undefined is fine
+      return { title: obj?.title as string, avatar: obj?.avatar };
+    });
+
+    const action = createActionClient()
+      .schema(schema)
+      .action(async ({ input }) => {
+        const typed = input as { title: string; avatar?: File };
+        return { hasAvatar: typed.avatar instanceof File };
+      });
+
+    const fd = new FormData();
+    fd.append('title', 'Test');
+    // Empty file input — browsers send File with name="" and size=0
+    fd.append('avatar', new File([], ''));
+    const result = await (
+      action as (prev: unknown, fd: FormData) => Promise<ActionResult<unknown>>
+    )(null, fd);
+    expect(result.data).toEqual({ hasAvatar: false });
+  });
+
+  it('multiple file uploads in FormData pass through validation', async () => {
+    const schema = mockStandardSchema((data: unknown) => {
+      const obj = data as Record<string, unknown>;
+      if (!Array.isArray(obj?.files)) {
+        return { issues: [{ message: 'Files required', path: ['files'] }] };
+      }
+      return { files: obj.files as File[] };
+    });
+
+    const action = createActionClient()
+      .schema(schema)
+      .action(async ({ input }) => {
+        const typed = input as { files: File[] };
+        return { count: typed.files.length, names: typed.files.map((f) => f.name) };
+      });
+
+    const fd = new FormData();
+    fd.append('files', new File(['a'], 'a.txt'));
+    fd.append('files', new File(['b'], 'b.txt'));
+    fd.append('files', new File(['c'], 'c.txt'));
+    const result = await (
+      action as (prev: unknown, fd: FormData) => Promise<ActionResult<unknown>>
+    )(null, fd);
+    expect(result.data).toEqual({ count: 3, names: ['a.txt', 'b.txt', 'c.txt'] });
+  });
+});
+
+// ─── File Size Validation ────────────────────────────────────────────
+
+describe('file size validation in action client', () => {
+  it('rejects files exceeding configured size limit', async () => {
+    const schema = mockStandardSchema((data: unknown) => {
+      const obj = data as Record<string, unknown>;
+      return { file: obj?.file as File };
+    });
+
+    const action = createActionClient({
+      fileSizeLimit: 100, // 100 bytes
+    })
+      .schema(schema)
+      .action(async ({ input }) => {
+        const typed = input as { file: File };
+        return { name: typed.file.name };
+      });
+
+    // File exceeding limit
+    const bigFile = new File([new ArrayBuffer(200)], 'big.bin');
+    const result = await action({ file: bigFile });
+    expect(result.validationErrors).toBeDefined();
+    expect(result.validationErrors!.file).toBeDefined();
+    expect(result.validationErrors!.file[0]).toMatch(/exceeds.*limit/i);
+  });
+
+  it('allows files within size limit', async () => {
+    const schema = mockStandardSchema((data: unknown) => {
+      const obj = data as Record<string, unknown>;
+      return { file: obj?.file as File };
+    });
+
+    const action = createActionClient({
+      fileSizeLimit: 1000,
+    })
+      .schema(schema)
+      .action(async ({ input }) => {
+        const typed = input as { file: File };
+        return { name: typed.file.name };
+      });
+
+    const smallFile = new File(['hello'], 'small.txt');
+    const result = await action({ file: smallFile });
+    expect(result.data).toEqual({ name: 'small.txt' });
+  });
+
+  it('validates multiple files individually', async () => {
+    const schema = mockStandardSchema((data: unknown) => {
+      const obj = data as Record<string, unknown>;
+      return { files: obj?.files as File[] };
+    });
+
+    const action = createActionClient({
+      fileSizeLimit: 100,
+    })
+      .schema(schema)
+      .action(async ({ input }) => input);
+
+    const fd = new FormData();
+    fd.append('files', new File(['small'], 'ok.txt'));
+    fd.append('files', new File([new ArrayBuffer(200)], 'toobig.bin'));
+    const result = await (
+      action as (prev: unknown, fd: FormData) => Promise<ActionResult<unknown>>
+    )(null, fd);
+    expect(result.validationErrors).toBeDefined();
+    expect(result.validationErrors!.files).toBeDefined();
+  });
+});
+
 // ─── Form Flash ──────────────────────────────────────────────────────────
 
 describe('form flash (ALS)', () => {

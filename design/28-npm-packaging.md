@@ -68,66 +68,70 @@ Most modern Vite-ecosystem frameworks ship compiled ESM with declaration files.
 
 ---
 
-## Build Tooling: tsup
+## Build Tooling: Vite Library Mode (Rolldown) + tsc
 
 ### Decision
 
-Use **tsup** for the library build.
+Use **Vite library mode** (backed by Rolldown) for JS bundling, and a separate **tsc** pass (or `tsgo` once it supports emit) for `.d.ts` generation. No new runtime dependencies.
 
 ### Rationale
 
 | Tool | Pros | Cons |
 |---|---|---|
-| **tsup** | Zero-config for TS→ESM+d.ts, handles multiple entry points, tree-shakes, fast (esbuild under the hood) | Another dependency |
-| **unbuild** | Similar to tsup, auto-infers entries from exports | Less adoption, more magic |
+| **Vite library mode** | Already a dependency, Rolldown is fast (Rust-native), Vite dogfoods this for its own build, TanStack Start uses it | No `.d.ts` generation — needs separate tsc pass |
+| **tsup** | Single command for JS+d.ts, multiple entry points | New dependency (pulls esbuild + rollup-plugin-dts), redundant with Vite already in stack |
+| **unbuild** | Similar to tsup, auto-infers entries from exports | Less adoption, more magic, also a new dep |
 | **plain tsc** | No extra deps, outputs match source structure 1:1 | No bundling, no tree-shaking, emits every internal file individually |
-| **Vite library mode** | Already in the stack | Designed for single-entry libraries, awkward with multiple subpath exports |
-| **esbuild direct** | Fastest | No `.d.ts` generation, need separate tsc pass |
+| **esbuild direct** | Fast | No `.d.ts` generation, not Rust-native like Rolldown |
 
-**tsup** is the best fit because:
+**Vite library mode** is the best fit because:
 
-1. Handles multiple entry points natively — one config for all 8+ exports
-2. Generates `.d.ts` files (via rollup-plugin-dts internally) — single tool, single command
-3. React Router uses it, so the pattern is proven for Vite-plugin frameworks
-4. ESM-only output is the default, no extra config needed
-5. Preserves the source directory structure in output (no flattening)
+1. **Zero new dependencies** — Vite is already a peer dep and the core of timber's toolchain. Building a Vite plugin with Vite is the natural choice.
+2. **Rolldown is proven** — Vite itself recently migrated from Rollup to Rolldown for its own build. If it's good enough for Vite's self-hosting, it's good enough for a Vite plugin.
+3. **TanStack Start uses this pattern** — proven for multi-entry Vite-plugin frameworks shipping to npm.
+4. **Faster than esbuild** — Rolldown is Rust-native and handles bundling, tree-shaking, and code splitting natively.
+5. **Two commands, but no new deps** — the `.d.ts` gap is solved with `tsc --emitDeclarationOnly` (or `tsgo --emitDeclarationOnly` once available). This is the same pattern Vite uses: Rolldown for JS, separate pass for types.
 
 ### Configuration Sketch
 
 ```ts
-// packages/timber-app/tsup.config.ts
-import { defineConfig } from 'tsup';
+// packages/timber-app/vite.lib.config.ts
+import { defineConfig } from 'vite';
 
 export default defineConfig({
-  entry: {
-    index: 'src/index.ts',
-    'server/index': 'src/server/index.ts',
-    'client/index': 'src/client/index.ts',
-    'cache/index': 'src/cache/index.ts',
-    'content/index': 'src/content/index.ts',
-    'search-params/index': 'src/search-params/index.ts',
-    'routing/index': 'src/routing/index.ts',
-    'adapters/cloudflare': 'src/adapters/cloudflare.ts',
-    'adapters/nitro': 'src/adapters/nitro.ts',
-    cli: 'src/cli.ts',
+  build: {
+    lib: {
+      entry: {
+        index: 'src/index.ts',
+        'server/index': 'src/server/index.ts',
+        'client/index': 'src/client/index.ts',
+        'cache/index': 'src/cache/index.ts',
+        'content/index': 'src/content/index.ts',
+        'search-params/index': 'src/search-params/index.ts',
+        'routing/index': 'src/routing/index.ts',
+        'adapters/cloudflare': 'src/adapters/cloudflare.ts',
+        'adapters/nitro': 'src/adapters/nitro.ts',
+        cli: 'src/cli.ts',
+      },
+      formats: ['es'],
+    },
+    outDir: 'dist',
+    sourcemap: true,
+    target: 'es2022',
+    rollupOptions: {
+      external: [
+        'react',
+        'react-dom',
+        'vite',
+        '@vitejs/plugin-rsc',
+        '@vitejs/plugin-react',
+        'nuqs',
+        'zod',
+        /^node:/,
+        // All peer + optional deps externalized
+      ],
+    },
   },
-  format: ['esm'],
-  dts: true,
-  splitting: true,      // shared code extracted to chunks
-  sourcemap: true,
-  clean: true,
-  outDir: 'dist',
-  target: 'es2022',
-  external: [
-    'react',
-    'react-dom',
-    'vite',
-    '@vitejs/plugin-rsc',
-    '@vitejs/plugin-react',
-    'nuqs',
-    'zod',
-    // All peer + optional deps externalized
-  ],
 });
 ```
 
@@ -136,7 +140,7 @@ export default defineConfig({
 ```json
 {
   "scripts": {
-    "build": "tsup",
+    "build": "vite build --config vite.lib.config.ts && tsc --emitDeclarationOnly --outDir dist",
     "typecheck": "tsgo --noEmit"
   }
 }

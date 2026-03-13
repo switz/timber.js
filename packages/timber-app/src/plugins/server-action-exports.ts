@@ -98,9 +98,7 @@ interface RewriteTarget {
   names: string[];
 }
 
-function rewriteServerActionExports(
-  code: string
-): { code: string; map: null } | undefined {
+function rewriteServerActionExports(code: string): { code: string; map: null } | undefined {
   let ast: AcornNode;
   try {
     ast = jsxParser.parse(code, {
@@ -125,9 +123,7 @@ function rewriteServerActionExports(
       );
       if (!hasNonFunctionInit) continue;
 
-      const names = node.declaration.declarations.flatMap((d: AcornNode) =>
-        extractDeclNames(d.id)
-      );
+      const names = node.declaration.declarations.flatMap((d: AcornNode) => extractDeclNames(d.id));
       if (names.length === 0) continue;
 
       targets.push({
@@ -196,11 +192,10 @@ function rewriteServerActionExports(
  * NOT start with `async function` or `async (` (i.e., not an async
  * function expression or async arrow function).
  */
-function rewriteServerActionExportsFallback(
-  code: string
-): { code: string; map: null } | undefined {
+function rewriteServerActionExportsFallback(code: string): { code: string; map: null } | undefined {
   // Match: export const/let/var <name> = <non-async-function-expr>
-  const pattern = /^(export\s+)((?:const|let|var)\s+(\w+)\s*=\s*)(?!async\s+(?:function[\s(]|\())/gm;
+  const pattern =
+    /^(export\s+)((?:const|let|var)\s+(\w+)\s*=\s*)(?!async\s+(?:function[\s(]|\())/gm;
 
   const names: string[] = [];
   let result = code;

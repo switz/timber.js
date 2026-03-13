@@ -425,17 +425,17 @@ function logValidationFailure(errors: ValidationErrors): void {
  * Validate that all File objects in the input are within the size limit.
  * Returns validation errors keyed by field name, or null if all files are ok.
  */
-function validateFileSizes(
-  input: Record<string, unknown>,
-  limit: number
-): ValidationErrors | null {
+function validateFileSizes(input: Record<string, unknown>, limit: number): ValidationErrors | null {
   const errors: ValidationErrors = {};
   const limitKb = Math.round(limit / 1024);
-  const limitLabel = limit >= 1024 * 1024 ? `${Math.round(limit / (1024 * 1024))}MB` : `${limitKb}KB`;
+  const limitLabel =
+    limit >= 1024 * 1024 ? `${Math.round(limit / (1024 * 1024))}MB` : `${limitKb}KB`;
 
   for (const [key, value] of Object.entries(input)) {
     if (value instanceof File && value.size > limit) {
-      errors[key] = [`File "${value.name}" (${formatSize(value.size)}) exceeds the ${limitLabel} limit`];
+      errors[key] = [
+        `File "${value.name}" (${formatSize(value.size)}) exceeds the ${limitLabel} limit`,
+      ];
     } else if (Array.isArray(value)) {
       const oversized = value.filter((item) => item instanceof File && item.size > limit);
       if (oversized.length > 0) {

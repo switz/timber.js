@@ -13,4 +13,5 @@ export default function RootLayout({ children }: { children: ReactNode }) {
 export const metadata = {
   title: 'timber.js',
   description: 'A Vite-native React framework for Cloudflare Workers',
+  noindex: true,
 };

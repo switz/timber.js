@@ -23,10 +23,7 @@ export default defineConfig({
         'packages/timber-app/src/adapters/cloudflare.ts'
       ),
       '@timber/app/adapters/types': resolve(root, 'packages/timber-app/src/adapters/types.ts'),
-      '@timber/app/search-params': resolve(
-        root,
-        'packages/timber-app/src/search-params/index.ts'
-      ),
+      '@timber/app/search-params': resolve(root, 'packages/timber-app/src/search-params/index.ts'),
       '@timber/app': resolve(root, 'packages/timber-app/src/index.ts'),
     },
   },

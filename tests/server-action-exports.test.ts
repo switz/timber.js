@@ -33,7 +33,9 @@ export const createTodo = action.schema(schema).action(async ({ input }) => {
     const result = transform(input);
     expect(result).toBeDefined();
     expect(result.code).not.toContain('export const createTodo');
-    expect(result.code).toContain('const createTodo = action.schema(schema).action(async ({ input }) => {');
+    expect(result.code).toContain(
+      'const createTodo = action.schema(schema).action(async ({ input }) => {'
+    );
     expect(result.code).toContain('export { createTodo }');
   });
 

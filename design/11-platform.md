@@ -19,10 +19,10 @@ export default {
 };
 ```
 
-| Option                  | Server required | Client JS                              | Server Actions               |
-| ----------------------- | --------------- | -------------------------------------- | ---------------------------- |
-| `server`                | Yes             | Yes                                    | Yes                          |
-| `static`                | No              | Yes (hydration + SPA nav)              | Split deployment via adapter |
+| Option                                | Server required | Client JS                              | Server Actions               |
+| ------------------------------------- | --------------- | -------------------------------------- | ---------------------------- |
+| `server`                              | Yes             | Yes                                    | Yes                          |
+| `static`                              | No              | Yes (hydration + SPA nav)              | Split deployment via adapter |
 | `static` + `noClientJavascript: true` | No              | None (`'use client'` is a build error) | Build error                  |
 
 In `static` mode, `middleware.ts` files run at build time only — there is no server to run them at request time. Server actions are extracted and deployed as separate API endpoints by the adapter (see [Forms & Server Actions](08-forms-and-actions.md#server-actions-in-static-mode)). With `noClientJavascript: true`, `'use server'` is also a build error.

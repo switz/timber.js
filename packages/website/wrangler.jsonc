@@ -6,12 +6,8 @@
   "no_bundle": true,
   "find_additional_modules": true,
   "assets": {
-    "directory": "dist/cloudflare/static"
+    "directory": "dist/cloudflare/static",
   },
-  "rules": [
-    { "type": "ESModule", "globs": ["**/*.js"] }
-  ],
-  "routes": [
-    { "pattern": "timberjs.com", "custom_domain": true }
-  ]
+  "rules": [{ "type": "ESModule", "globs": ["**/*.js"] }],
+  "routes": [{ "pattern": "timberjs.com", "custom_domain": true }],
 }

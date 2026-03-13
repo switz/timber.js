@@ -43,9 +43,7 @@ test.describe('file upload (with JS)', () => {
 
     await expect(page.locator('[data-testid="success-message"]')).toBeVisible();
     await expect(page.locator('[data-testid="success-message"]')).toContainText('My Upload');
-    await expect(page.locator('[data-testid="success-message"]')).toContainText(
-      'test-upload.txt'
-    );
+    await expect(page.locator('[data-testid="success-message"]')).toContainText('test-upload.txt');
   });
 
   test('shows validation error when title is missing', async ({ page }) => {

@@ -88,6 +88,9 @@ export function scanRoutes(appDir: string, config: ScannerConfig = {}): RouteTre
   // Scan children recursively
   scanChildren(appDir, tree.root, extSet);
 
+  // Validate: detect route group collisions (different groups producing pages at the same URL)
+  validateRouteGroupCollisions(tree.root);
+
   return tree;
 }
 
@@ -391,6 +394,66 @@ function scanChildren(dirPath: string, parentNode: SegmentNode, extSet: Set<stri
     } else {
       parentNode.children.push(childNode);
     }
+  }
+}
+
+/**
+ * Validate that route groups don't produce conflicting pages/routes at the same URL path.
+ *
+ * Two route groups like (auth)/login/page.tsx and (marketing)/login/page.tsx both claim
+ * /login — the scanner must detect and reject this at build time.
+ *
+ * Parallel slots are excluded from collision detection — they intentionally coexist at
+ * the same URL path as their parent (that's the whole point of parallel routes).
+ */
+function validateRouteGroupCollisions(root: SegmentNode): void {
+  // Map from urlPath → { filePath, source } for the first page/route seen at that path
+  const seen = new Map<string, { filePath: string; segmentPath: string }>();
+  collectRoutableLeaves(root, seen, '', false);
+}
+
+/**
+ * Walk the segment tree and collect all routable leaves (page or route files),
+ * throwing on collision. Slots are tracked in their own collision space since
+ * they are parallel routes that intentionally share URL paths with their parent.
+ */
+function collectRoutableLeaves(
+  node: SegmentNode,
+  seen: Map<string, { filePath: string; segmentPath: string }>,
+  segmentPath: string,
+  insideSlot: boolean
+): void {
+  const currentPath = segmentPath
+    ? `${segmentPath}/${node.segmentName}`
+    : node.segmentName || '(root)';
+
+  // Only check collisions for non-slot pages — slots intentionally share URL paths
+  if (!insideSlot) {
+    const routableFile = node.page ?? node.route;
+    if (routableFile) {
+      const existing = seen.get(node.urlPath);
+      if (existing) {
+        throw new Error(
+          `Build error: route collision — multiple route groups produce a page/route at the same URL path.\n` +
+            `  URL path: ${node.urlPath}\n` +
+            `  File 1:   ${existing.filePath} (via ${existing.segmentPath})\n` +
+            `  File 2:   ${routableFile.filePath} (via ${currentPath})\n` +
+            `Each URL path must map to exactly one page or route handler. ` +
+            `Rename or move one of the conflicting files.`
+        );
+      }
+      seen.set(node.urlPath, { filePath: routableFile.filePath, segmentPath: currentPath });
+    }
+  }
+
+  // Recurse into children
+  for (const child of node.children) {
+    collectRoutableLeaves(child, seen, currentPath, insideSlot);
+  }
+
+  // Recurse into slots — each slot is its own parallel route space
+  for (const [, slotNode] of node.slots) {
+    collectRoutableLeaves(slotNode, seen, currentPath, true);
   }
 }
 

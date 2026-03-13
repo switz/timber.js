@@ -560,4 +560,88 @@ describe('scanRoutes', () => {
     const segment = tree.root.children.find((c) => c.segmentName === '100%');
     expect(segment).toBeDefined();
   });
+
+  // --- Route group collision detection ---
+
+  it('detects route group page collision at same URL path', () => {
+    const root = createApp({
+      '(auth)/login/page.tsx': '',
+      '(marketing)/login/page.tsx': '',
+    });
+
+    expect(() => scanRoutes(root)).toThrowError(/route collision/i);
+  });
+
+  it('detects route group collision with route.ts', () => {
+    const root = createApp({
+      '(api)/users/route.ts': '',
+      '(internal)/users/route.ts': '',
+    });
+
+    expect(() => scanRoutes(root)).toThrowError(/route collision/i);
+  });
+
+  it('detects route group collision between page and route.ts at same URL', () => {
+    const root = createApp({
+      '(web)/about/page.tsx': '',
+      '(api)/about/route.ts': '',
+    });
+
+    expect(() => scanRoutes(root)).toThrowError(/route collision/i);
+  });
+
+  it('detects deeply nested route group collision', () => {
+    const root = createApp({
+      '(shop)/products/[id]/page.tsx': '',
+      '(catalog)/products/[id]/page.tsx': '',
+    });
+
+    expect(() => scanRoutes(root)).toThrowError(/route collision/i);
+  });
+
+  it('allows route groups with different child paths (no collision)', () => {
+    const root = createApp({
+      '(auth)/login/page.tsx': '',
+      '(auth)/register/page.tsx': '',
+      '(marketing)/page.tsx': '',
+      '(marketing)/about/page.tsx': '',
+    });
+
+    // No collision — different URL paths
+    const tree = scanRoutes(root);
+    expect(tree.root.children.length).toBe(2);
+  });
+
+  it('allows route groups with only layouts (no page collision)', () => {
+    const root = createApp({
+      '(auth)/layout.tsx': '',
+      '(auth)/login/page.tsx': '',
+      '(marketing)/layout.tsx': '',
+      '(marketing)/about/page.tsx': '',
+    });
+
+    // Layouts in different groups at same URL level are fine —
+    // only page/route collisions matter
+    const tree = scanRoutes(root);
+    expect(tree.root.children.length).toBe(2);
+  });
+
+  it('detects root-level route group page collision', () => {
+    const root = createApp({
+      '(auth)/page.tsx': '',
+      '(marketing)/page.tsx': '',
+    });
+
+    expect(() => scanRoutes(root)).toThrowError(/route collision/i);
+  });
+
+  it('collision error message includes file paths', () => {
+    const root = createApp({
+      '(a)/conflict/page.tsx': '',
+      '(b)/conflict/page.tsx': '',
+    });
+
+    expect(() => scanRoutes(root)).toThrowError(/\(a\).*conflict|conflict.*\(a\)/);
+    expect(() => scanRoutes(root)).toThrowError(/\(b\).*conflict|conflict.*\(b\)/);
+  });
 });

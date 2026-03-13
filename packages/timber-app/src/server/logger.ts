@@ -9,6 +9,7 @@
  */
 
 import { getTraceStore } from './tracing.js';
+import { formatSsrError } from './error-formatter.js';
 
 // ─── Logger Interface ─────────────────────────────────────────────────────
 
@@ -108,8 +109,9 @@ export function logRenderError(data: { method: string; path: string; error: unkn
   if (_logger) {
     _logger.error('unhandled render-phase error', withTraceContext(data));
   } else if (process.env.NODE_ENV !== 'production') {
-    // No logger configured — fall back to console.error in dev so errors are visible.
-    console.error('[timber] render error', data.error);
+    // No logger configured — fall back to console.error in dev with
+    // cleaned-up error messages (vendor paths rewritten, hints added).
+    console.error('[timber] render error:', formatSsrError(data.error));
   }
 }
 

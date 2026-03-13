@@ -19,7 +19,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { writeFileSync, readFileSync, unlinkSync, mkdirSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-const FIXTURE_DIR = resolve(__dirname, '../fixtures/phase2-app/app');
+const FIXTURE_DIR = resolve(import.meta.dirname!, '../fixtures/phase2-app/app');
 const HMR_DIR = resolve(FIXTURE_DIR, 'hmr-test');
 
 /**

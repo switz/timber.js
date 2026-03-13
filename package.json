@@ -1,6 +1,7 @@
 {
   "name": "timber-js",
   "private": true,
+  "type": "module",
   "scripts": {
     "build": "pnpm --filter @timber/app run build",
     "test": "vitest run",

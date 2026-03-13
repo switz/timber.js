@@ -18,7 +18,7 @@ async function waitForHydration(page: Page): Promise<void> {
 }
 
 // Create a temp test file for uploads
-const TMP_DIR = join(import.meta.dirname ?? __dirname, '..', '..', 'tmp-test-files');
+const TMP_DIR = join(import.meta.dirname!, '..', '..', 'tmp-test-files');
 const TEST_FILE = join(TMP_DIR, 'test-upload.txt');
 
 test.beforeAll(() => {

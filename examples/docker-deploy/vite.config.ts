@@ -7,9 +7,6 @@ const root = resolve(import.meta.dirname, '../..');
 export default defineConfig({
   plugins: [timber()],
   root: import.meta.dirname,
-  esbuild: {
-    jsx: 'automatic',
-  },
   resolve: {
     alias: {
       '@timber/app/cache': resolve(root, 'packages/timber-app/src/cache/index.ts'),

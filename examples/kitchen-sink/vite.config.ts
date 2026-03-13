@@ -14,9 +14,6 @@ export default defineConfig({
     strictPort: true,
     cors: false,
   },
-  esbuild: {
-    jsx: 'automatic',
-  },
   resolve: {
     alias: {
       '@timber/app/cache': resolve(root, 'packages/timber-app/src/cache/index.ts'),

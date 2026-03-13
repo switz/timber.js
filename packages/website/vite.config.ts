@@ -13,9 +13,6 @@ export default defineConfig({
     port: 3010,
     strictPort: true,
   },
-  esbuild: {
-    jsx: 'automatic',
-  },
   resolve: {
     alias: {
       '@timber/app/cache': resolve(root, 'packages/timber-app/src/cache/index.ts'),

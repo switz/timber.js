@@ -66,9 +66,6 @@ function benchmarkAnalyze(): Plugin {
 export default defineConfig({
   plugins: [timber(), benchmarkAnalyze()],
   root: import.meta.dirname,
-  esbuild: {
-    jsx: 'automatic',
-  },
   resolve: {
     alias: {
       '@timber/app/cache': resolve(root, 'packages/timber-app/src/cache/index.ts'),

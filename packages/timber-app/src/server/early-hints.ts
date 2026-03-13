@@ -74,20 +74,33 @@ export function formatLinkHeader(hint: EarlyHint): string {
 
 // ─── collectEarlyHintHeaders ──────────────────────────────────────────────
 
+/** Options for early hint collection. */
+export interface EarlyHintOptions {
+  /** Skip JS modulepreload hints (e.g. when client JavaScript is disabled). */
+  skipJs?: boolean;
+}
+
 /**
  * Collect all Link header strings for a matched route's segment chain.
  *
  * Walks the build manifest to emit hints for:
  * - CSS stylesheets (rel=preload; as=style)
  * - Font assets (rel=preload; as=font; crossorigin)
- * - JS modulepreload hints (rel=modulepreload)
+ * - JS modulepreload hints (rel=modulepreload) — unless skipJs is set
+ *
+ * Also emits global CSS from the `_global` manifest key. Route files
+ * are server components that don't appear in the client bundle, so
+ * per-route CSS keying doesn't work with the RSC plugin. The `_global`
+ * key contains all CSS assets from the client build — fine for early
+ * hints since they're just prefetch signals.
  *
  * Returns formatted Link header strings, deduplicated, root → leaf order.
  * Returns an empty array in dev mode (manifest is empty).
  */
 export function collectEarlyHintHeaders(
   segments: SegmentWithFiles[],
-  manifest: BuildManifest
+  manifest: BuildManifest,
+  options?: EarlyHintOptions
 ): string[] {
   const result: string[] = [];
   const seen = new Set<string>();
@@ -99,8 +112,15 @@ export function collectEarlyHintHeaders(
     }
   };
 
-  // CSS — rel=preload; as=style
+  // Per-route CSS — rel=preload; as=style
   for (const url of collectRouteCss(segments, manifest)) {
+    add(formatLinkHeader({ href: url, rel: 'preload', as: 'style' }));
+  }
+
+  // Global CSS — all CSS assets from the client bundle.
+  // Covers CSS that the RSC plugin injects via data-rsc-css-href,
+  // which isn't keyed to route segments in our manifest.
+  for (const url of manifest.css['_global'] ?? []) {
     add(formatLinkHeader({ href: url, rel: 'preload', as: 'style' }));
   }
 
@@ -111,9 +131,11 @@ export function collectEarlyHintHeaders(
     );
   }
 
-  // JS chunks — rel=modulepreload
-  for (const url of collectRouteModulepreloads(segments, manifest)) {
-    add(formatLinkHeader({ href: url, rel: 'modulepreload' }));
+  // JS chunks — rel=modulepreload (skip when client JS is disabled)
+  if (!options?.skipJs) {
+    for (const url of collectRouteModulepreloads(segments, manifest)) {
+      add(formatLinkHeader({ href: url, rel: 'modulepreload' }));
+    }
   }
 
   return result;

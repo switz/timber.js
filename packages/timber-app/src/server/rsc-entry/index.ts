@@ -130,7 +130,9 @@ async function createRequestHandler(manifest: typeof routeManifest, runtimeConfi
         layout?: { filePath: string };
         page?: { filePath: string };
       }>;
-      const headers = collectEarlyHintHeaders(segments, typedBuildManifest);
+      const headers = collectEarlyHintHeaders(segments, typedBuildManifest, {
+        skipJs: clientJsDisabled,
+      });
       for (const h of headers) {
         responseHeaders.append('Link', h);
       }
@@ -311,9 +313,12 @@ async function renderRoute(
     headHtml += buildFontPreloadTags(fontEntries);
   }
 
-  const preloadUrls = collectRouteModulepreloads(segments, typedManifest);
-  if (preloadUrls.length > 0) {
-    headHtml += buildModulepreloadTags(preloadUrls);
+  // Skip modulepreload tags when client JavaScript is disabled — no JS to preload.
+  if (!clientJsDisabled) {
+    const preloadUrls = collectRouteModulepreloads(segments, typedManifest);
+    if (preloadUrls.length > 0) {
+      headHtml += buildModulepreloadTags(preloadUrls);
+    }
   }
 
   for (const el of headElements) {

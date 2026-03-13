@@ -176,8 +176,32 @@ describe('timber-shims plugin', () => {
       expect(() => mod.cookies()).toThrow('outside of a request context');
     });
 
-    // font-google and font-local shims are now virtual modules served by timber-fonts plugin.
-    // Their behavior is tested in fonts-plugin.test.ts via the plugin's load hook.
+    it('font-google shim exports stub font functions', async () => {
+      const mod = await import('../packages/timber-app/src/shims/font-google.js');
+      expect(typeof mod.Inter).toBe('function');
+      expect(typeof mod.Roboto).toBe('function');
+      expect(typeof mod.JetBrains_Mono).toBe('function');
+      expect(typeof mod.createFont).toBe('function');
+    });
+
+    it('font-google shim returns valid FontResult shape', async () => {
+      const mod = await import('../packages/timber-app/src/shims/font-google.js');
+      const result = mod.Inter({ subsets: ['latin'], display: 'swap', variable: '--font-sans' });
+      expect(result).toHaveProperty('className');
+      expect(result).toHaveProperty('style');
+      expect(result.style).toHaveProperty('fontFamily');
+      expect(result).toHaveProperty('variable', '--font-sans');
+    });
+
+    it('font-google shim returns empty values (fallback)', async () => {
+      const mod = await import('../packages/timber-app/src/shims/font-google.js');
+      const result = mod.Inter({ subsets: ['latin'] });
+      expect(result.className).toBe('');
+      expect(result.style.fontFamily).toBe('');
+    });
+
+    // font-local shim is a virtual module served by timber-fonts plugin.
+    // Its behavior is tested in fonts-plugin.test.ts via the plugin's load hook.
   });
 
   describe('resolveId — client environment overrides', () => {

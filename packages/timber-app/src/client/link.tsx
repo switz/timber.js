@@ -14,6 +14,7 @@
 
 import type { AnchorHTMLAttributes, ReactNode } from 'react';
 import type { SearchParamsDefinition } from '../search-params/create.js';
+import { LinkStatusProvider } from './link-status-provider.js';
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -279,7 +280,9 @@ export function Link({
 
   return (
     <a {...rest} {...linkProps}>
-      {children}
+      <LinkStatusProvider href={linkProps.href}>
+        {children}
+      </LinkStatusProvider>
     </a>
   );
 }

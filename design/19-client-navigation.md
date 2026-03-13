@@ -275,24 +275,36 @@ It does NOT include Suspense streaming after the shell — only the initial shel
 
 ## `useLinkStatus()`
 
-A client-side hook that returns `{ pending: boolean }` scoped to a specific link. Unlike `useNavigationPending()` which is global, `useLinkStatus()` is true only while a navigation targeting the given `href` is in flight.
+A client-side hook that returns `{ pending: boolean }` scoped to the nearest parent `<Link>`. Unlike `useNavigationPending()` which is global, `useLinkStatus()` is true only while that specific link's navigation is in flight.
+
+The hook takes no arguments — it reads from a React context provided by `<Link>`. This means it must be used inside a `<Link>` component's children tree.
 
 ```tsx
 'use client';
-import { useLinkStatus } from '@timber/app/client';
-import { Link } from '@timber/app/client';
+import { Link, useLinkStatus } from '@timber/app/client';
 
-export function Tab({ href, children }: { href: string; children: React.ReactNode }) {
-  const { pending } = useLinkStatus(href);
+function Hint() {
+  const { pending } = useLinkStatus();
+  return <span className={pending ? 'opacity-50' : ''} />;
+}
+
+export function NavLink({ href, children }: { href: string; children: React.ReactNode }) {
   return (
-    <Link href={href} className={pending ? 'opacity-50' : ''}>
-      {children}
+    <Link href={href}>
+      {children} <Hint />
     </Link>
   );
 }
 ```
 
-The `href` argument must match the URL passed to `router.navigate()` exactly (pathname + search, no origin). The hook compares the given `href` against the router's pending URL — the URL of the currently in-flight navigation.
+### How It Works
+
+1. `<Link>` renders a `LinkStatusProvider` (a `'use client'` component) around its children
+2. `LinkStatusProvider` subscribes to the router's pending URL via `useSyncExternalStore`
+3. When the router's pending URL matches the link's resolved href, the context value becomes `{ pending: true }`
+4. `useLinkStatus()` reads from this context via `useContext`
+
+The `<Link>` component itself remains a pure function (no hooks, no `'use client'` directive) so it can be used from server components. The `LinkStatusProvider` is a client component boundary that activates on hydration.
 
 The pending state follows the same lifecycle as `useNavigationPending()`: true from when the RSC fetch starts until React reconciliation completes.
 

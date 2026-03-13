@@ -61,6 +61,14 @@ interface TimberPlatformAdapter {
   // Optional: start a local preview server for the built output.
   // Falls back to the built-in Node.js preview server if not provided.
   preview?(config: TimberConfig, buildDir: string): Promise<void>;
+
+  // Register a promise to be kept alive after the response is sent.
+  waitUntil?(promise: Promise<unknown>): void;
+
+  // Send 103 Early Hints to the client before the final response.
+  // On Node.js/Bun, uses res.writeEarlyHints(). On Cloudflare, the CDN
+  // handles 103 automatically via Link headers — not needed.
+  sendEarlyHints?(links: string[]): void;
 }
 ```
 

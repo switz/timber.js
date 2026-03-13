@@ -50,6 +50,10 @@ export type {
 export { collectEarlyHintHeaders, formatLinkHeader } from './early-hints';
 export type { EarlyHint } from './early-hints';
 
+// Early Hints 103 Sender — ALS bridge for platform adapters
+export { runWithEarlyHintsSender, sendEarlyHints103 } from './early-hints-sender';
+export type { EarlyHintsSenderFn } from './early-hints-sender';
+
 // Canonicalization
 export { canonicalize } from './canonicalize';
 export type { CanonicalizeResult } from './canonicalize';

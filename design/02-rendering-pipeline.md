@@ -48,6 +48,13 @@ Early Hints fire at route match time — before `middleware.ts`, before `access.
 
 **Platform support:** Early Hints require HTTP/2+ and platform support. Not all hosting environments pass 103 responses through to the client. The framework sends them opportunistically — if the platform doesn't support it, nothing breaks. The HTML `<head>` still contains all the same `<link>` tags as a fallback.
 
+**103 delivery mechanism by platform:**
+
+- **Cloudflare Workers/Pages** — the CDN automatically converts `Link` response headers into 103 Early Hints. No application-level 103 sending needed.
+- **Node.js (node-server preset)** — the generated Nitro entry wraps the request handler with `runWithEarlyHintsSender()`, which installs a per-request ALS-scoped function that calls `res.writeEarlyHints()` on the raw `http.ServerResponse` (Node.js v18.11+). The pipeline calls `sendEarlyHints103()` at route-match time, which invokes the sender if installed.
+- **Bun (bun preset)** — same mechanism as Node.js, using Bun's `writeEarlyHints()` implementation.
+- **Serverless (Vercel, Netlify, AWS Lambda, etc.)** — no application-level 103 support. The `Link` headers are set on the response and may be picked up by the CDN layer if configured.
+
 ### Developer Control Over the Flush Point
 
 Developers control where the flush point sits by where they place `<Suspense>` boundaries.

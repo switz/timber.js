@@ -161,6 +161,24 @@ deny(404, { resourceId: params.id }); // data passed as dangerouslyPassData prop
 > **Known limitation: deny() inside Suspense and hydration.**
 > Error boundaries are keyed per-route and wrap page content inside layouts. When `deny()` fires inside a `<Suspense>` boundary after the SSR shell flushes, the server-rendered HTML correctly shows the page shell with the Suspense fallback. However, during client hydration React retries the Suspense content, re-throws the deny signal, and the error boundary catches it — replacing the page shell with the error page. The net result is the error page renders with a 200 status. This matches Next.js behavior. A future improvement may suppress error boundary activation for errors already handled server-side in a Suspense boundary.
 
+### Connection Abort Suppression
+
+When the user refreshes the page or navigates away while Suspense boundaries are still streaming, the aborted connection causes errors in both the RSC and SSR streams. These are not application errors — they are a side effect of the browser tearing down the connection. The framework suppresses these abort errors at multiple layers:
+
+**Server-side:**
+- The request's `AbortSignal` is passed to both RSC and SSR `renderToReadableStream` via the `signal` option. React stops rendering on abort without firing `onError`.
+- The RSC `onError` callback checks `isAbortError()` and `req.signal.aborted` — abort errors are not tracked as deny/redirect/render signals.
+- `wrapStreamWithErrorHandling` in SSR detects abort errors and closes the stream silently (no logging).
+- If SSR fails due to abort, the handler returns an empty 499 response.
+
+**Client-side:**
+- `TimberErrorBoundary.getDerivedStateFromError` checks if the page is being unloaded (`beforeunload`/`pagehide` events) and suppresses error boundary activation.
+- `hydrateRoot`'s `onRecoverableError` suppresses errors during page unload.
+- The client router's `navigate()` catches and silently discards `AbortError` from aborted fetches.
+- Dev-mode error forwarding (to Vite error overlay) suppresses errors during page unload.
+
+This ensures that a page refresh during streaming never shows a flash of an error boundary to the user.
+
 ---
 
 ## Status-Code Files

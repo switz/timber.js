@@ -37,11 +37,16 @@ import { renderToReadableStream } from 'react-dom/server';
  */
 export async function renderSsrStream(
   element: ReactNode,
-  options?: { bootstrapScriptContent?: string; deferSuspenseFor?: number }
+  options?: { bootstrapScriptContent?: string; deferSuspenseFor?: number; signal?: AbortSignal }
 ): Promise<ReadableStream<Uint8Array>> {
+  const signal = options?.signal;
   const stream = await renderToReadableStream(element, {
     bootstrapScriptContent: options?.bootstrapScriptContent || undefined,
+    signal,
     onError(error: unknown) {
+      // Suppress logging for connection aborts — the user refreshed or
+      // navigated away, not an application error.
+      if (isAbortError(error) || signal?.aborted) return;
       console.error('[timber] SSR render error:', error);
     },
   });
@@ -83,7 +88,7 @@ export async function renderSsrStream(
   // The transform catches these post-shell streaming errors and closes
   // the stream cleanly — the shell (with correct status code) has
   // already been sent.
-  return wrapStreamWithErrorHandling(stream);
+  return wrapStreamWithErrorHandling(stream, signal);
 }
 
 /**
@@ -100,7 +105,8 @@ export async function renderSsrStream(
  * outside Suspense) has already been sent to the client.
  */
 function wrapStreamWithErrorHandling(
-  stream: ReadableStream<Uint8Array>
+  stream: ReadableStream<Uint8Array>,
+  signal?: AbortSignal
 ): ReadableStream<Uint8Array> {
   const reader = stream.getReader();
 
@@ -114,6 +120,12 @@ function wrapStreamWithErrorHandling(
         }
         controller.enqueue(value);
       } catch (error) {
+        // Connection abort (user refreshed or navigated away) — close
+        // silently without logging. This is not an application error.
+        if (isAbortError(error) || signal?.aborted) {
+          controller.close();
+          return;
+        }
         // Streaming-phase error (e.g. React boundary flush failure).
         // The shell has already been sent. Log and close cleanly.
         console.error('[timber] SSR streaming error (post-shell):', error);
@@ -124,6 +136,19 @@ function wrapStreamWithErrorHandling(
       reader.cancel().catch(() => {});
     },
   });
+}
+
+/**
+ * Check if an error is an abort error (connection closed by client).
+ *
+ * When the browser aborts a request (page refresh, navigation away),
+ * the AbortSignal fires and React/streams throw an AbortError. This
+ * is not an application error — suppress it from error boundaries and logs.
+ */
+function isAbortError(error: unknown): boolean {
+  if (error instanceof DOMException && error.name === 'AbortError') return true;
+  if (error instanceof Error && error.name === 'AbortError') return true;
+  return false;
 }
 
 /**

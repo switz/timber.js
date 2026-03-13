@@ -35,6 +35,7 @@ import type { RouterDeps, RouterInstance } from './router.js';
 import { applyHeadElements } from './head.js';
 import { setGlobalRouter, getRouter } from './router-ref.js';
 import { TimberNuqsAdapter } from './nuqs-adapter.js';
+import { isPageUnloading } from './unload-guard.js';
 
 // ─── Server Action Dispatch ──────────────────────────────────────
 
@@ -210,7 +211,15 @@ function bootstrap(runtimeConfig: typeof config): void {
     // DOMContentLoaded fires after the HTML parser has processed all
     // inline scripts (including streamed Suspense replacements and
     // RSC data), so all push() calls have completed by this point.
+    //
+    // If the page is unloading (user refreshed or navigated away),
+    // do NOT close the stream. When the connection drops mid-stream,
+    // DOMContentLoaded fires because the parser finishes. Closing an
+    // incomplete RSC stream causes React's Flight client to throw
+    // "Connection closed." — a jarring error on a page being replaced.
+    // Leaving the stream open is harmless: the page is being torn down.
     function onDOMContentLoaded(): void {
+      if (isPageUnloading()) return;
       if (streamWriter && !streamFlushed) {
         streamWriter.close();
         streamFlushed = true;
@@ -240,6 +249,10 @@ function bootstrap(runtimeConfig: typeof config): void {
       // the shell is flushed). React replays the error during hydration
       // but the server HTML is already correct — no recovery needed.
       onRecoverableError(error: unknown) {
+        // Suppress errors during page unload (refresh/navigate away).
+        // The aborted stream causes incomplete HTML which React flags
+        // as a recoverable error — but the page is being replaced.
+        if (isPageUnloading()) return;
         // Only log in dev — in production these are expected for
         // deny() inside Suspense and streaming error boundaries.
         if (process.env.NODE_ENV === 'development') {
@@ -481,6 +494,8 @@ function setupClientErrorForwarding(hot: { send(event: string, data: unknown): v
   window.addEventListener('error', (event: ErrorEvent) => {
     // Skip errors without useful information
     if (!event.error && !event.message) return;
+    // Skip errors during page unload — these are abort-related, not application errors
+    if (isPageUnloading()) return;
 
     const error = event.error;
     hot.send('timber:client-error', {
@@ -493,6 +508,8 @@ function setupClientErrorForwarding(hot: { send(event: string, data: unknown): v
   window.addEventListener('unhandledrejection', (event: PromiseRejectionEvent) => {
     const reason = event.reason;
     if (!reason) return;
+    // Skip rejections during page unload — aborted fetches/streams cause these
+    if (isPageUnloading()) return;
 
     const message = reason instanceof Error ? reason.message : String(reason);
     const stack = reason instanceof Error ? (reason.stack ?? '') : '';

@@ -21,6 +21,19 @@ import type {
 import { DEFAULT_PAGE_EXTENSIONS, INTERCEPTION_MARKERS } from './types.js';
 
 /**
+ * Pattern matching encoded path delimiters that must be rejected during route discovery.
+ * %2F / %2f (forward slash) and %5C / %5c (backslash) can cause route collisions
+ * when decoded. See design/13-security.md §"Encoded separators rejected".
+ */
+const ENCODED_SEPARATOR_PATTERN = /%(?:2[fF]|5[cC])/;
+
+/**
+ * Pattern matching encoded null bytes (%00) that must be rejected.
+ * See design/13-security.md §"Null bytes rejected".
+ */
+const ENCODED_NULL_PATTERN = /%00/;
+
+/**
  * File convention names that use pageExtensions (can be .tsx, .ts, .jsx, .js, .mdx, etc.)
  */
 const PAGE_EXT_CONVENTIONS = new Set(['page', 'layout', 'error', 'default', 'denied']);
@@ -328,6 +341,26 @@ function scanChildren(dirPath: string, parentNode: SegmentNode, extSet: Set<stri
       if (!statSync(fullPath).isDirectory()) continue;
     } catch {
       continue;
+    }
+
+    // Reject directories with encoded path delimiters or null bytes.
+    // These can cause route collisions when decoded at the URL boundary.
+    // See design/13-security.md §"Encoded separators rejected" and §"Null bytes rejected".
+    if (ENCODED_SEPARATOR_PATTERN.test(entry)) {
+      throw new Error(
+        `Build error: directory name contains an encoded path delimiter (%%2F or %%5C).\n` +
+          `  Directory: ${fullPath}\n` +
+          `Encoded separators in directory names cause route collisions when decoded. ` +
+          `Rename the directory to remove the encoded delimiter.`
+      );
+    }
+    if (ENCODED_NULL_PATTERN.test(entry)) {
+      throw new Error(
+        `Build error: directory name contains an encoded null byte (%%00).\n` +
+          `  Directory: ${fullPath}\n` +
+          `Encoded null bytes in directory names are not allowed. ` +
+          `Rename the directory to remove the null byte encoding.`
+      );
     }
 
     const { type, paramName, interceptionMarker, interceptedSegmentName } = classifySegment(entry);

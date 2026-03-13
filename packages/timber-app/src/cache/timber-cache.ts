@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import type { CacheHandler, CacheOptions } from './index';
 import { stableStringify } from './stable-stringify';
 import { createSingleflight } from './singleflight';
-import { addSpanEvent } from '../server/tracing.js';
+import { addSpanEvent } from '@/server/tracing.js';
 
 const singleflight = createSingleflight();
 

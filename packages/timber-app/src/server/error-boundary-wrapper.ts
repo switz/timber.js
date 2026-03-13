@@ -5,7 +5,7 @@
  * See design/10-error-handling.md.
  */
 
-import { TimberErrorBoundary } from '../client/error-boundary.js';
+import { TimberErrorBoundary } from '@/client/error-boundary.js';
 import type { ManifestSegmentNode } from './route-matcher.js';
 
 /**

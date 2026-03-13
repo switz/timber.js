@@ -27,7 +27,7 @@
  *   Then framework default (returns null)
  */
 
-import type { SegmentNode, RouteFile } from '../routing/types.js';
+import type { SegmentNode, RouteFile } from '@/routing/types.js';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 

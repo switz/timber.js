@@ -24,18 +24,18 @@ import buildManifest from 'virtual:timber-build-manifest';
 
 import { renderToReadableStream } from '@vitejs/plugin-rsc/rsc';
 
-import { createPipeline } from '../pipeline.js';
-import { initDevTracing } from '../tracing.js';
-import type { PipelineConfig, RouteMatch, InterceptionContext } from '../pipeline.js';
-import { logRenderError } from '../logger.js';
-import { resolveLogMode } from '../dev-logger.js';
-import { createRouteMatcher } from '../route-matcher.js';
-import type { ManifestSegmentNode } from '../route-matcher.js';
-import { DenySignal, RedirectSignal, RenderError } from '../primitives.js';
-import { buildClientScripts } from '../html-injectors.js';
-import type { ClientBootstrapConfig } from '../html-injectors.js';
-import { renderDenyPage, renderDenyPageAsRsc } from '../deny-renderer.js';
-import type { LayoutEntry } from '../deny-renderer.js';
+import { createPipeline } from '@/server/pipeline.js';
+import { initDevTracing } from '@/server/tracing.js';
+import type { PipelineConfig, RouteMatch, InterceptionContext } from '@/server/pipeline.js';
+import { logRenderError } from '@/server/logger.js';
+import { resolveLogMode } from '@/server/dev-logger.js';
+import { createRouteMatcher } from '@/server/route-matcher.js';
+import type { ManifestSegmentNode } from '@/server/route-matcher.js';
+import { DenySignal, RedirectSignal, RenderError } from '@/server/primitives.js';
+import { buildClientScripts } from '@/server/html-injectors.js';
+import type { ClientBootstrapConfig } from '@/server/html-injectors.js';
+import { renderDenyPage, renderDenyPageAsRsc } from '@/server/deny-renderer.js';
+import type { LayoutEntry } from '@/server/deny-renderer.js';
 import {
   collectRouteCss,
   collectRouteFonts,
@@ -43,15 +43,15 @@ import {
   buildCssLinkTags,
   buildFontPreloadTags,
   buildModulepreloadTags,
-} from '../build-manifest.js';
-import type { BuildManifest } from '../build-manifest.js';
-import { collectEarlyHintHeaders } from '../early-hints.js';
-import type { NavContext } from '../ssr-entry.js';
-import { buildRouteElement, RouteSignalWithContext } from '../route-element-builder.js';
-import { isActionRequest, handleActionRequest } from '../action-handler.js';
-import type { FormRerender } from '../action-handler.js';
-import type { BodyLimitsConfig } from '../body-limits.js';
-import { runWithFormFlash } from '../form-flash.js';
+} from '@/server/build-manifest.js';
+import type { BuildManifest } from '@/server/build-manifest.js';
+import { collectEarlyHintHeaders } from '@/server/early-hints.js';
+import type { NavContext } from '@/server/ssr-entry.js';
+import { buildRouteElement, RouteSignalWithContext } from '@/server/route-element-builder.js';
+import { isActionRequest, handleActionRequest } from '@/server/action-handler.js';
+import type { FormRerender } from '@/server/action-handler.js';
+import type { BodyLimitsConfig } from '@/server/body-limits.js';
+import { runWithFormFlash } from '@/server/form-flash.js';
 
 import {
   createDebugChannelSink,

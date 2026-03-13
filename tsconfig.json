@@ -16,7 +16,8 @@
     "rootDir": ".",
     "paths": {
       "@timber/app": ["./packages/timber-app/src/index.ts"],
-      "@timber/app/*": ["./packages/timber-app/src/*"]
+      "@timber/app/*": ["./packages/timber-app/src/*"],
+      "@/*": ["./packages/timber-app/src/*"]
     }
   },
   "include": [

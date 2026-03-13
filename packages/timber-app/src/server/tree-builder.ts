@@ -10,8 +10,8 @@
  * See design/02-rendering-pipeline.md §"Element Tree Construction"
  */
 
-import type { SegmentNode, RouteFile } from '../routing/types.js';
-import { TimberErrorBoundary } from '../client/error-boundary.js';
+import type { SegmentNode, RouteFile } from '@/routing/types.js';
+import { TimberErrorBoundary } from '@/client/error-boundary.js';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 

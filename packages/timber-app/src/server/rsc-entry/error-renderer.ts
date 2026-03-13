@@ -7,14 +7,14 @@
 import { createElement } from 'react';
 import { renderToReadableStream } from '@vitejs/plugin-rsc/rsc';
 
-import type { RouteMatch } from '../pipeline.js';
-import { logRenderError } from '../logger.js';
-import type { ManifestSegmentNode } from '../route-matcher.js';
-import { DenySignal, RenderError } from '../primitives.js';
-import type { ClientBootstrapConfig } from '../html-injectors.js';
-import { renderDenyPage } from '../deny-renderer.js';
-import type { LayoutEntry } from '../deny-renderer.js';
-import type { NavContext } from '../ssr-entry.js';
+import type { RouteMatch } from '@/server/pipeline.js';
+import { logRenderError } from '@/server/logger.js';
+import type { ManifestSegmentNode } from '@/server/route-matcher.js';
+import { DenySignal, RenderError } from '@/server/primitives.js';
+import type { ClientBootstrapConfig } from '@/server/html-injectors.js';
+import { renderDenyPage } from '@/server/deny-renderer.js';
+import type { LayoutEntry } from '@/server/deny-renderer.js';
+import type { NavContext } from '@/server/ssr-entry.js';
 import { createDebugChannelSink } from './helpers.js';
 import { callSsr } from './ssr-bridge.js';
 

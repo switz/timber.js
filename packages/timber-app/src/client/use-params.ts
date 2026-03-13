@@ -17,7 +17,7 @@
  * Design doc: design/09-typescript.md §"Typed Routes"
  */
 
-import type { Routes } from '../index.js';
+import type { Routes } from '@/index.js';
 
 // The current params are set by the framework during navigation.
 // In production, this is populated by the segment router when it

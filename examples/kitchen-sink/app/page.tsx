@@ -133,6 +133,35 @@ export default function HomePage() {
         </section>
 
         <section className="rounded-lg border border-stone-200 bg-white p-5 shadow-sm">
+          <h2 className="text-base font-semibold text-stone-800 mb-1">Routing Patterns</h2>
+          <p className="text-xs text-stone-400 mb-3">
+            Intercepting routes, parallel slots, nested layouts, and MDX pages.
+          </p>
+          <ul className="space-y-1.5 text-sm">
+            <li>
+              <Link href="/gallery" className="text-amber-700 hover:text-amber-900 hover:underline">
+                Intercepting routes (photo modal)
+              </Link>
+            </li>
+            <li>
+              <Link href="/parallel-test" className="text-amber-700 hover:text-amber-900 hover:underline">
+                Parallel route slots (dashboard)
+              </Link>
+            </li>
+            <li>
+              <Link href="/nested-layouts" className="text-amber-700 hover:text-amber-900 hover:underline">
+                Nested layouts
+              </Link>
+            </li>
+            <li>
+              <Link href="/mdx-test" className="text-amber-700 hover:text-amber-900 hover:underline">
+                MDX page
+              </Link>
+            </li>
+          </ul>
+        </section>
+
+        <section className="rounded-lg border border-stone-200 bg-white p-5 shadow-sm">
           <h2 className="text-base font-semibold text-stone-800 mb-1">Metadata</h2>
           <p className="text-xs text-stone-400 mb-3">
             Title templates, absolute titles, and dynamic generateMetadata.

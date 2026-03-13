@@ -10,5 +10,8 @@
   },
   "rules": [
     { "type": "ESModule", "globs": ["**/*.js"] }
+  ],
+  "routes": [
+    { "pattern": "timberjs.com", "custom_domain": true }
   ]
 }

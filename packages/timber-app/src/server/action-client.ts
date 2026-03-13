@@ -325,26 +325,26 @@ export function createActionClient<TCtx = Record<string, never>>(
               );
             }
             if (result.issues) {
-              return {
-                validationErrors: extractStandardSchemaErrors(result.issues),
-                submittedValues,
-              };
+              const validationErrors = extractStandardSchemaErrors(result.issues);
+              logValidationFailure(validationErrors);
+              return { validationErrors, submittedValues };
             }
             input = result.value;
           } else if (typeof schema.safeParse === 'function') {
             const result = schema.safeParse(rawInput);
             if (!result.success) {
-              return { validationErrors: extractValidationErrors(result.error), submittedValues };
+              const validationErrors = extractValidationErrors(result.error);
+              logValidationFailure(validationErrors);
+              return { validationErrors, submittedValues };
             }
             input = result.data;
           } else {
             try {
               input = schema.parse(rawInput);
             } catch (parseError) {
-              return {
-                validationErrors: extractValidationErrors(parseError as SchemaError),
-                submittedValues,
-              };
+              const validationErrors = extractValidationErrors(parseError as SchemaError);
+              logValidationFailure(validationErrors);
+              return { validationErrors, submittedValues };
             }
           }
         } else {
@@ -406,6 +406,20 @@ export function validated<TInput, TData>(
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────
+
+/**
+ * Log validation failures in dev mode so developers can see what went wrong.
+ * In production, validation errors are only returned to the client.
+ */
+function logValidationFailure(errors: ValidationErrors): void {
+  const isDev = typeof process !== 'undefined' && process.env.NODE_ENV !== 'production';
+  if (!isDev) return;
+
+  const fields = Object.entries(errors)
+    .map(([field, messages]) => `  ${field}: ${messages.join(', ')}`)
+    .join('\n');
+  console.warn(`[timber] action schema validation failed:\n${fields}`);
+}
 
 /**
  * Validate that all File objects in the input are within the size limit.

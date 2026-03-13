@@ -8,7 +8,7 @@
  * This module handles:
  * 1. Loading page/layout components from the segment chain
  * 2. Running access.ts checks (DenySignal/RedirectSignal propagate to caller)
- * 3. Resolving metadata (static + generateMetadata)
+ * 3. Resolving metadata (static object or async function, both exported as `metadata`)
  * 4. Building the React element tree (page → error boundaries → access gates → layouts)
  * 5. Resolving parallel slots
  *
@@ -115,20 +115,31 @@ export async function buildRouteElement(
           segment,
         });
       }
-      if (mod.metadata) {
-        metadataEntries.push({ metadata: mod.metadata as Metadata, isPage: false });
+      // Reject legacy generateMetadata export — use `export async function metadata()` instead
+      if ('generateMetadata' in mod) {
+        const filePath = segment.layout.filePath ?? segment.urlPath;
+        throw new Error(
+          `${filePath}: "generateMetadata" is not a valid export. ` +
+            `Export an async function named "metadata" instead.\n\n` +
+            `  // Before\n` +
+            `  export async function generateMetadata({ params }) { ... }\n\n` +
+            `  // After\n` +
+            `  export async function metadata({ params }) { ... }`
+        );
       }
-      // Dynamic generateMetadata for layouts — wrapped in OTEL span
-      if (typeof mod.generateMetadata === 'function') {
+      // Unified metadata export: static object or async function
+      if (typeof mod.metadata === 'function') {
         type MetadataFn = (props: Record<string, unknown>) => Promise<Metadata>;
         const generated = await withSpan(
           'timber.metadata',
           { 'timber.segment': segment.segmentName ?? segment.urlPath },
-          () => (mod.generateMetadata as MetadataFn)({ params: paramsPromise })
+          () => (mod.metadata as MetadataFn)({ params: paramsPromise })
         );
         if (generated) {
           metadataEntries.push({ metadata: generated, isPage: false });
         }
+      } else if (mod.metadata) {
+        metadataEntries.push({ metadata: mod.metadata as Metadata, isPage: false });
       }
       // deferSuspenseFor hold window — max across all segments
       if (typeof mod.deferSuspenseFor === 'number' && mod.deferSuspenseFor > deferSuspenseFor) {
@@ -155,21 +166,31 @@ export async function buildRouteElement(
       if (mod.default) {
         PageComponent = mod.default as (...args: unknown[]) => unknown;
       }
-      // Static metadata export
-      if (mod.metadata) {
-        metadataEntries.push({ metadata: mod.metadata as Metadata, isPage: true });
+      // Reject legacy generateMetadata export — use `export async function metadata()` instead
+      if ('generateMetadata' in mod) {
+        const filePath = segment.page.filePath ?? segment.urlPath;
+        throw new Error(
+          `${filePath}: "generateMetadata" is not a valid export. ` +
+            `Export an async function named "metadata" instead.\n\n` +
+            `  // Before\n` +
+            `  export async function generateMetadata({ params }) { ... }\n\n` +
+            `  // After\n` +
+            `  export async function metadata({ params }) { ... }`
+        );
       }
-      // Dynamic generateMetadata function — wrapped in OTEL span
-      if (typeof mod.generateMetadata === 'function') {
+      // Unified metadata export: static object or async function
+      if (typeof mod.metadata === 'function') {
         type MetadataFn = (props: Record<string, unknown>) => Promise<Metadata>;
         const generated = await withSpan(
           'timber.metadata',
           { 'timber.segment': segment.segmentName ?? segment.urlPath },
-          () => (mod.generateMetadata as MetadataFn)({ params: paramsPromise })
+          () => (mod.metadata as MetadataFn)({ params: paramsPromise })
         );
         if (generated) {
           metadataEntries.push({ metadata: generated, isPage: true });
         }
+      } else if (mod.metadata) {
+        metadataEntries.push({ metadata: mod.metadata as Metadata, isPage: true });
       }
       // deferSuspenseFor hold window — max across all segments
       if (typeof mod.deferSuspenseFor === 'number' && mod.deferSuspenseFor > deferSuspenseFor) {

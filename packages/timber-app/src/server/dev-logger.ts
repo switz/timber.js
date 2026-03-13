@@ -98,7 +98,7 @@ function spanLabel(span: ReadableSpan): { label: string; env: string } {
       return { label: String(name), env: 'rsc' };
     }
     case 'timber.metadata':
-      return { label: 'generateMetadata()', env: 'rsc' };
+      return { label: 'metadata()', env: 'rsc' };
     case 'timber.layout': {
       const seg = attrs['timber.segment'] ?? '/';
       return { label: `layout ${seg}`, env: 'rsc' };

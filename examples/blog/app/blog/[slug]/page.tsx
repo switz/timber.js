@@ -6,7 +6,7 @@ export async function generateStaticParams() {
   return allBlogs.filter((p) => !p.draft).map((post) => ({ slug: post._meta.path }));
 }
 
-export async function generateMetadata({
+export async function metadata({
   params,
 }: {
   params: Promise<{ slug: string }>;

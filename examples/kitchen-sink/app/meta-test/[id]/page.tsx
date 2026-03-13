@@ -1,6 +1,6 @@
 import type { Metadata } from '@timber/app/server';
 
-export async function generateMetadata({
+export async function metadata({
   params,
 }: {
   params: Promise<{ id: string }>;
@@ -21,7 +21,7 @@ export default async function DynamicMetaPage({ params }: { params: Promise<{ id
           Dynamic Metadata
         </h1>
         <p className="mt-1 text-sm text-stone-500">
-          Uses <code className="rounded bg-stone-100 px-1 py-0.5 text-xs font-mono">generateMetadata()</code> to
+          Uses <code className="rounded bg-stone-100 px-1 py-0.5 text-xs font-mono">metadata()</code> to
           produce a title from route params.
         </p>
       </div>

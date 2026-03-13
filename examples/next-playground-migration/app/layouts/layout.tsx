@@ -9,7 +9,7 @@ import type { Metadata } from '@timber/app/server';
 import { Mdx } from '#/ui/codehike';
 import readme from './readme.mdx';
 
-export async function generateMetadata(): Promise<Metadata> {
+export async function metadata(): Promise<Metadata> {
   const demo = db.demo.find({ where: { slug: 'layouts' } });
 
   return {

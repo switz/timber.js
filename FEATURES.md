@@ -44,7 +44,7 @@ Features tagged as **[novel]** (not in Next.js or Vinext), **[enhanced]** (impro
 
 ## Metadata & SEO
 
-- **[parity]** `metadata` export and `generateMetadata()` — static or async per page/layout ([16-metadata.md](design/16-metadata.md))
+- **[novel]** Unified `metadata` export — static object or async function, one name for both ([16-metadata.md](design/16-metadata.md))
 - **[parity]** Open Graph, Twitter card, robots, canonical, verification, icons ([16-metadata.md](design/16-metadata.md))
 - **[parity]** Title templates — `%s | App` with nested override and `{ absolute }` escape hatch ([16-metadata.md](design/16-metadata.md))
 - **[parity]** `metadataBase` — relative URL resolution for OG images and alternates ([16-metadata.md](design/16-metadata.md))

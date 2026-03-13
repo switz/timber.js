@@ -5,7 +5,7 @@ import { Mdx } from '#/ui/codehike';
 import React from 'react';
 import readme from './readme.mdx';
 
-export async function generateMetadata(): Promise<Metadata> {
+export async function metadata(): Promise<Metadata> {
   const demo = db.demo.find({ where: { slug: 'cached-functions' } });
 
   return {

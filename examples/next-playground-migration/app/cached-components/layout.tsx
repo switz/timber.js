@@ -4,7 +4,7 @@ import { Mdx } from '#/ui/codehike';
 import React from 'react';
 import readme from './readme.mdx';
 
-export function generateMetadata() {
+export function metadata() {
   const demo = db.demo.find({ where: { slug: 'cached-components' } });
 
   return {

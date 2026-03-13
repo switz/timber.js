@@ -6,6 +6,8 @@ import {
   renderMetadataToElements,
   type SegmentMetadataEntry,
 } from '../packages/timber-app/src/server/metadata';
+import { buildRouteElement } from '../packages/timber-app/src/server/route-element-builder';
+import type { ManifestSegmentNode } from '../packages/timber-app/src/server/route-matcher';
 import type { Metadata } from '../packages/timber-app/src/server/types';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -42,11 +44,11 @@ describe('static metadata', () => {
   });
 });
 
-// ─── Generate Metadata ────────────────────────────────────────────────────────
+// ─── Dynamic Metadata ─────────────────────────────────────────────────────────
 
-describe('generate metadata', () => {
-  it('resolves async generateMetadata results', () => {
-    // generateMetadata is called by the framework before resolveMetadata.
+describe('dynamic metadata', () => {
+  it('resolves async metadata function results', () => {
+    // Dynamic metadata() is called by the framework before resolveMetadata.
     // The test validates that the resolved output is correctly merged.
     const result = resolveMetadata([
       entry({ title: { default: 'Store', template: '%s | Store' } }),
@@ -641,5 +643,116 @@ describe('renderMetadataToElements', () => {
       tag: 'meta',
       attrs: { name: 'format-detection', content: 'telephone=no, email=no' },
     });
+  });
+});
+
+// ─── Unified metadata export validation ──────────────────────────────────────
+
+describe('unified metadata export', () => {
+  /** Create a minimal segment node for testing. */
+  function makeSegment(overrides: Partial<ManifestSegmentNode> = {}): ManifestSegmentNode {
+    return {
+      urlPath: '/',
+      children: [],
+      slots: {},
+      ...overrides,
+    } as ManifestSegmentNode;
+  }
+
+  it('rejects generateMetadata export on page', async () => {
+    const segment = makeSegment({
+      page: {
+        filePath: 'app/products/[id]/page.tsx',
+        load: async () => ({
+          default: () => null,
+          generateMetadata: async () => ({ title: 'Test' }),
+        }),
+      },
+    });
+
+    await expect(
+      buildRouteElement(new Request('http://localhost/'), {
+        segments: [segment] as never,
+        params: {},
+      })
+    ).rejects.toThrow('"generateMetadata" is not a valid export');
+  });
+
+  it('rejects generateMetadata export on layout', async () => {
+    const segment = makeSegment({
+      layout: {
+        filePath: 'app/layout.tsx',
+        load: async () => ({
+          default: () => null,
+          generateMetadata: async () => ({ title: 'Test' }),
+        }),
+      },
+      page: {
+        filePath: 'app/page.tsx',
+        load: async () => ({ default: () => null }),
+      },
+    });
+
+    await expect(
+      buildRouteElement(new Request('http://localhost/'), {
+        segments: [segment] as never,
+        params: {},
+      })
+    ).rejects.toThrow('"generateMetadata" is not a valid export');
+  });
+
+  it('error message includes file path', async () => {
+    const segment = makeSegment({
+      page: {
+        filePath: 'app/blog/[slug]/page.tsx',
+        load: async () => ({
+          default: () => null,
+          generateMetadata: async () => ({ title: 'Test' }),
+        }),
+      },
+    });
+
+    await expect(
+      buildRouteElement(new Request('http://localhost/'), {
+        segments: [segment] as never,
+        params: {},
+      })
+    ).rejects.toThrow('app/blog/[slug]/page.tsx');
+  });
+
+  it('accepts static metadata object', async () => {
+    const segment = makeSegment({
+      page: {
+        filePath: 'app/page.tsx',
+        load: async () => ({
+          default: () => 'Hello',
+          metadata: { title: 'Static Title' },
+        }),
+      },
+    });
+
+    const result = await buildRouteElement(new Request('http://localhost/'), {
+      segments: [segment] as never,
+      params: {},
+    });
+    expect(result.headElements).toContainEqual({ tag: 'title', content: 'Static Title' });
+  });
+
+  it('accepts dynamic metadata function', async () => {
+    const segment = makeSegment({
+      page: {
+        filePath: 'app/page.tsx',
+        load: async () => ({
+          default: () => 'Hello',
+          metadata: async () => ({ title: 'Dynamic Title' }),
+        }),
+      },
+    });
+
+    const result = await buildRouteElement(new Request('http://localhost/'), {
+      segments: [segment] as never,
+      params: {},
+    });
+    expect(result.headElements).toContainEqual({ tag: 'title', content: 'Dynamic Title' });
   });
 });

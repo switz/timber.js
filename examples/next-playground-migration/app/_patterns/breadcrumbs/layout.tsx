@@ -3,7 +3,7 @@ import { Boundary } from '#/ui/boundary';
 import { Tabs } from '#/ui/tabs';
 import React from 'react';
 
-// export function generateMetadata() {
+// export function metadata() {
 //   const demo = db.demo.find({ where: { slug: 'breadcrumbs' } });
 //   return {
 //     title: demo.name,

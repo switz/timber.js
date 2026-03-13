@@ -7,7 +7,7 @@ import React from 'react';
 import readme from './readme.mdx';
 import db from '#/lib/db';
 
-export async function generateMetadata(): Promise<Metadata> {
+export async function metadata(): Promise<Metadata> {
   const demo = db.demo.find({ where: { slug: 'parallel-routes' } });
 
   return {

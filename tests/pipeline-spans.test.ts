@@ -173,14 +173,14 @@ describe('action span', () => {
 // ─── timber.metadata span ────────────────────────────────────────────────
 
 describe('metadata span', () => {
-  it('withSpan wraps generateMetadata execution', async () => {
-    const generateMetadata = vi.fn().mockResolvedValue({ title: 'Test Page' });
+  it('withSpan wraps dynamic metadata execution', async () => {
+    const metadataFn = vi.fn().mockResolvedValue({ title: 'Test Page' });
 
     const result = await withSpan('timber.metadata', { 'timber.segment': '/products/[id]' }, () =>
-      generateMetadata({ params: Promise.resolve({ id: '123' }) })
+      metadataFn({ params: Promise.resolve({ id: '123' }) })
     );
 
-    expect(generateMetadata).toHaveBeenCalledOnce();
+    expect(metadataFn).toHaveBeenCalledOnce();
     expect(result).toEqual({ title: 'Test Page' });
   });
 });

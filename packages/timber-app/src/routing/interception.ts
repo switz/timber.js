@@ -145,6 +145,12 @@ function collectLeavesWithRewrites(
  * - (..) — one level up: parent's parent URL path
  * - (...) — root level: /
  * - (..)(..) — two levels up: parent's grandparent URL path
+ *
+ * Level counting operates on URL path segments, NOT filesystem directories.
+ * Route groups and parallel slots are already excluded from urlPath (they
+ * don't add URL depth), so (..) correctly climbs visible segments. This
+ * avoids the Vinext bug where path.dirname() on filesystem paths would
+ * waste climbs on invisible route groups.
  */
 function computeInterceptedBase(parentUrlPath: string, marker: InterceptionMarker): string {
   switch (marker) {

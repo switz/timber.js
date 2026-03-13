@@ -75,6 +75,18 @@ export function enforceBodyLimits(
   return bodySize <= limit ? { ok: true } : { ok: false, status: 413 };
 }
 
+/** Check whether a FormData payload exceeds the configured field count limit. */
+export function enforceFieldLimit(
+  formData: FormData,
+  config: BodyLimitsConfig
+): BodyLimitResult {
+  const maxFields = config.limits?.maxFields ?? DEFAULT_LIMITS.maxFields;
+  // Count unique keys — FormData.keys() yields duplicates for multi-value fields,
+  // so we use a Set to count distinct field names.
+  const fieldCount = new Set(formData.keys()).size;
+  return fieldCount <= maxFields ? { ok: true } : { ok: false, status: 413 };
+}
+
 /**
  * Resolve the byte limit for a given body kind, using config overrides or defaults.
  */

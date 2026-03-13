@@ -3,6 +3,7 @@ import { validateCsrf } from '../packages/timber-app/src/server/csrf';
 import {
   parseBodySize,
   enforceBodyLimits,
+  enforceFieldLimit,
   DEFAULT_LIMITS,
 } from '../packages/timber-app/src/server/body-limits';
 
@@ -372,6 +373,70 @@ describe('Body Limits', () => {
       });
       const result = enforceBodyLimits(req, 'action', {});
       expect(result.ok).toBe(true);
+    });
+  });
+
+  describe('field count limit', () => {
+    function makeFormData(fieldCount: number): FormData {
+      const fd = new FormData();
+      for (let i = 0; i < fieldCount; i++) {
+        fd.append(`field${i}`, `value${i}`);
+      }
+      return fd;
+    }
+
+    it('allows FormData with exactly 100 fields (default limit)', () => {
+      const fd = makeFormData(100);
+      const result = enforceFieldLimit(fd, {});
+      expect(result.ok).toBe(true);
+    });
+
+    it('rejects FormData with 101 fields (exceeds default limit)', () => {
+      const fd = makeFormData(101);
+      const result = enforceFieldLimit(fd, {});
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.status).toBe(413);
+    });
+
+    it('allows FormData with 0 fields', () => {
+      const fd = new FormData();
+      const result = enforceFieldLimit(fd, {});
+      expect(result.ok).toBe(true);
+    });
+
+    it('uses custom maxFields from config', () => {
+      const fd = makeFormData(11);
+      const result = enforceFieldLimit(fd, { limits: { maxFields: 10 } });
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.status).toBe(413);
+    });
+
+    it('custom maxFields allows within limit', () => {
+      const fd = makeFormData(10);
+      const result = enforceFieldLimit(fd, { limits: { maxFields: 10 } });
+      expect(result.ok).toBe(true);
+    });
+
+    it('counts unique keys, not duplicate entries', () => {
+      const fd = new FormData();
+      // 5 unique keys, each with 3 values = 15 entries but only 5 fields
+      for (let i = 0; i < 5; i++) {
+        fd.append(`tag`, `value${i}`);
+      }
+      fd.append('other', 'x');
+      // Only 2 unique keys: "tag" and "other"
+      const result = enforceFieldLimit(fd, { limits: { maxFields: 2 } });
+      expect(result.ok).toBe(true);
+    });
+
+    it('rejects with 413 when unique keys exceed limit', () => {
+      const fd = new FormData();
+      fd.append('a', '1');
+      fd.append('b', '2');
+      fd.append('c', '3');
+      const result = enforceFieldLimit(fd, { limits: { maxFields: 2 } });
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.status).toBe(413);
     });
   });
 

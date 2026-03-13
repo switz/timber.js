@@ -300,21 +300,17 @@ The compiled output should be significantly smaller than shipping the full `src/
 
 ```json
 {
-  "react": "19.3.0-canary-46103596-20260305",
-  "react-dom": "19.3.0-canary-46103596-20260305",
+  "react": "^19.0.0",
+  "react-dom": "^19.0.0",
   "vite": "^7.0.0"
 }
 ```
 
 ### Concerns
 
-**React canary pin:** The exact canary pin (`19.3.0-canary-*`) blocks adoption. No one outside the React team uses pinned canary versions in production. Options:
+**React version:** timber uses stable React 19 APIs (`use`, `useActionState`, server components). All RSC Flight APIs come from `@vitejs/plugin-rsc` which vendors its own `react-server-dom-webpack` internally — the project-level React version is not used for Flight deserialization. The `^19.0.0` peer dependency range accepts any React 19.x stable release.
 
-1. **Keep the pin for now** — timber requires RSC features only available in canary. Document this prominently. When React 19.3 (or whatever version ships RSC stable) releases, relax to `^19.3.0`.
-2. **Use a range** — `>=19.3.0-canary.0` — risky, canaries can break between builds.
-3. **Accept the constraint** — timber targets early adopters who are already on React canary. This is the same position TanStack Start and other RSC frameworks are in.
-
-**Recommendation:** Keep the exact canary pin. Add a prominent note in README. Relax when React ships stable RSC support.
+**Recommendation:** Keep `^19.0.0` peer dependency range. No canary pin is needed.
 
 **Vite 7:** Not yet widely adopted. The `^7.0.0` range is correct — Vite follows semver. Once Vite 7 is stable, this is a non-issue.
 
@@ -356,10 +352,10 @@ Use `0.x` semver with a `canary` dist-tag for pre-release builds.
 
 ### Rationale
 
-- `0.x` communicates that the API is not yet stable — expected for a framework depending on React canary and Vite 7 pre-release
+- `0.x` communicates that the API is not yet stable — expected for a framework depending on Vite 7 and `@vitejs/plugin-rsc` pre-release
 - Follow semver strictly: in `0.x`, minor bumps signal breaking changes, patch bumps signal fixes
 - `canary` dist-tag for CI-published pre-release builds: `npm install @timber/app@canary`
-- Move to `1.0.0` only when: React RSC is stable, Vite 7 is stable, `@vitejs/plugin-rsc` is `>=1.0.0`, and timber's public API surface is settled
+- Move to `1.0.0` only when: Vite 7 is stable, `@vitejs/plugin-rsc` is `>=1.0.0`, and timber's public API surface is settled
 
 ### Monorepo Publishing (Out of Scope)
 
@@ -399,7 +395,7 @@ These are the concrete steps to implement this strategy (each should be a separa
 
 - Add installation instructions to README
 - Document peer dependency requirements
-- Document canary React version requirement
+- Document React 19 stable peer dependency requirement
 
 ---
 

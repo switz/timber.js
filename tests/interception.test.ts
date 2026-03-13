@@ -119,4 +119,61 @@ describe('collectInterceptionRewrites', () => {
     const rewrites = collectInterceptionRewrites(tree.root);
     expect(rewrites).toHaveLength(0);
   });
+
+  it('(..) climbs visible URL segments, not filesystem dirs (skips route groups)', () => {
+    // Route group (marketing) is a filesystem dir but invisible in URLs.
+    // (..) should climb one visible segment, not one filesystem dir.
+    const root = createApp({
+      '(marketing)/shop/page.tsx': '',
+      '(marketing)/shop/@modal/(..)photo/[id]/page.tsx': '',
+      '(marketing)/shop/@modal/default.tsx': '',
+      '(marketing)/photo/[id]/page.tsx': '',
+    });
+
+    const tree = scanRoutes(root);
+    const rewrites = collectInterceptionRewrites(tree.root);
+
+    expect(rewrites).toHaveLength(1);
+    // (..) from /shop should climb one visible segment → /
+    // (not stay at /shop because (marketing) "wasted" a climb)
+    expect(rewrites[0].interceptedPattern).toBe('/photo/[id]');
+    expect(rewrites[0].interceptingPrefix).toBe('/shop');
+  });
+
+  it('(..)(..) climbs visible URL segments through nested route groups', () => {
+    // Two route groups in the ancestor chain should not waste climb levels
+    const root = createApp({
+      '(org)/dashboard/(team)/projects/page.tsx': '',
+      '(org)/dashboard/(team)/projects/@modal/(..)(..)settings/page.tsx': '',
+      '(org)/dashboard/(team)/projects/@modal/default.tsx': '',
+      '(org)/dashboard/settings/page.tsx': '',
+    });
+
+    const tree = scanRoutes(root);
+    const rewrites = collectInterceptionRewrites(tree.root);
+
+    expect(rewrites).toHaveLength(1);
+    // (..)(..) from /dashboard/projects → two visible segments up → /
+    // Route groups (org) and (team) should not count as levels
+    expect(rewrites[0].interceptedPattern).toBe('/settings');
+    expect(rewrites[0].interceptingPrefix).toBe('/dashboard/projects');
+  });
+
+  it('(..) works correctly when slot is inside a route group', () => {
+    const root = createApp({
+      'feed/page.tsx': '',
+      'feed/(detail)/@modal/(..)photo/[id]/page.tsx': '',
+      'feed/(detail)/@modal/default.tsx': '',
+      'photo/[id]/page.tsx': '',
+    });
+
+    const tree = scanRoutes(root);
+    const rewrites = collectInterceptionRewrites(tree.root);
+
+    expect(rewrites).toHaveLength(1);
+    // (..) from /feed → one visible segment up → /
+    // The (detail) group between feed and @modal doesn't add URL depth
+    expect(rewrites[0].interceptedPattern).toBe('/photo/[id]');
+    expect(rewrites[0].interceptingPrefix).toBe('/feed');
+  });
 });

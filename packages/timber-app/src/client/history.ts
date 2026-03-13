@@ -12,6 +12,8 @@ export interface HistoryEntry {
   scrollY: number;
   /** Resolved head elements for this page (title, meta tags). Null for SSR'd initial page. */
   headElements?: HeadElement[] | null;
+  /** Route params for this page (for useParams). Null for SSR'd initial page. */
+  params?: Record<string, string | string[]> | null;
 }
 
 // ─── History Stack ───────────────────────────────────────────────

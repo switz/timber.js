@@ -486,6 +486,12 @@ async function renderRoute(
     const segmentInfo = buildSegmentInfo(segments, layoutComponents);
     responseHeaders.set('X-Timber-Segments', JSON.stringify(segmentInfo));
 
+    // Send route params so the client can populate useParams() after
+    // SPA navigation. Without this, useParams() returns {}.
+    if (Object.keys(match.params).length > 0) {
+      responseHeaders.set('X-Timber-Params', JSON.stringify(match.params));
+    }
+
     return new Response(rscStream!, {
       status: 200,
       headers: responseHeaders,
@@ -519,13 +525,20 @@ async function renderRoute(
     ? ''
     : `<script>self.__timber_segments=${JSON.stringify(buildSegmentInfo(segments, layoutComponents))}</script>`;
 
+  // Embed route params in HTML so useParams() works on initial hydration.
+  // Without this, useParams() returns {} until the first client navigation.
+  const paramsScript =
+    clientJsDisabled || Object.keys(match.params).length === 0
+      ? ''
+      : `<script>self.__timber_params=${JSON.stringify(match.params)}</script>`;
+
   const navContext: NavContext = {
     pathname: new URL(_req.url).pathname,
     params: match.params,
     searchParams: Object.fromEntries(new URL(_req.url).searchParams),
     statusCode: 200,
     responseHeaders,
-    headHtml: headHtml + clientBootstrap.preloadLinks + segmentScript,
+    headHtml: headHtml + clientBootstrap.preloadLinks + segmentScript + paramsScript,
     bootstrapScriptContent: clientBootstrap.bootstrapScriptContent,
     // Skip RSC inline stream when client JS is disabled — no client to hydrate.
     rscStream: clientJsDisabled ? undefined : inlineStream,

@@ -5,6 +5,7 @@ import { SegmentCache, PrefetchCache, buildSegmentTree } from './segment-cache';
 import type { SegmentInfo } from './segment-cache';
 import { HistoryStack } from './history';
 import type { HeadElement } from './head';
+import { setCurrentParams } from './use-params.js';
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -60,6 +61,8 @@ interface FetchResult {
   headElements: HeadElement[] | null;
   /** Segment metadata from X-Timber-Segments header for populating the segment cache. */
   segmentInfo: SegmentInfo[] | null;
+  /** Route params from X-Timber-Params header for populating useParams(). */
+  params: Record<string, string | string[]> | null;
 }
 
 export interface RouterInstance {
@@ -198,6 +201,22 @@ function extractSegmentInfo(response: Response): SegmentInfo[] | null {
 }
 
 /**
+ * Extract route params from the X-Timber-Params response header.
+ * Returns null if the header is missing or malformed.
+ *
+ * Used to populate useParams() after client-side navigation.
+ */
+function extractParams(response: Response): Record<string, string | string[]> | null {
+  const header = response.headers.get('X-Timber-Params');
+  if (!header) return null;
+  try {
+    return JSON.parse(header);
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Fetch an RSC payload from the server. If a decodeRsc function is provided,
  * the response is decoded into a React element tree via createFromFetch.
  * Otherwise, the raw response text is returned (test mode).
@@ -223,6 +242,7 @@ async function fetchRscPayload(
     const fetchPromise = deps.fetch(rscUrl, { headers, redirect: 'manual' });
     let headElements: HeadElement[] | null = null;
     let segmentInfo: SegmentInfo[] | null = null;
+    let params: Record<string, string | string[]> | null = null;
     const wrappedPromise = fetchPromise.then((response) => {
       // Detect server-side redirects. The server returns 204 + X-Timber-Redirect
       // for RSC payload requests instead of a raw 302, because fetch with
@@ -236,14 +256,15 @@ async function fetchRscPayload(
       }
       headElements = extractHeadElements(response);
       segmentInfo = extractSegmentInfo(response);
+      params = extractParams(response);
       return response;
     });
-    // Await so headElements/segmentInfo are populated before we return.
+    // Await so headElements/segmentInfo/params are populated before we return.
     // Also await the decoded payload — createFromFetch returns a thenable
     // that resolves to the React element tree.
     await wrappedPromise;
     const payload = await deps.decodeRsc(wrappedPromise);
-    return { payload, headElements, segmentInfo };
+    return { payload, headElements, segmentInfo, params };
   }
   // Test/fallback path: return raw text
   const response = await deps.fetch(rscUrl, { headers, redirect: 'manual' });
@@ -258,6 +279,7 @@ async function fetchRscPayload(
     payload: await response.text(),
     headElements: extractHeadElements(response),
     segmentInfo: extractSegmentInfo(response),
+    params: extractParams(response),
   };
 }
 
@@ -306,6 +328,11 @@ export function createRouter(deps: RouterDeps): RouterInstance {
     if (deps.renderRoot) {
       deps.renderRoot(payload);
     }
+  }
+
+  /** Update useParams() with route params from the server response. */
+  function updateParams(params: Record<string, string | string[]> | null | undefined): void {
+    setCurrentParams(params ?? {});
   }
 
   /** Apply head elements (title, meta tags) to the DOM if available. */
@@ -363,12 +390,16 @@ export function createRouter(deps: RouterDeps): RouterInstance {
         payload: result.payload,
         scrollY: 0,
         headElements: result.headElements,
+        params: result.params,
       });
 
       // Update the segment cache with the new route's segment tree.
       // This must happen before the next navigation so the state tree
       // header reflects the currently mounted segments.
       updateSegmentCache(result.segmentInfo);
+
+      // Update useParams() with the new route's params before rendering.
+      updateParams(result.params);
 
       // Render the decoded RSC tree into the DOM.
       renderPayload(result.payload);
@@ -428,10 +459,14 @@ export function createRouter(deps: RouterDeps): RouterInstance {
         payload: result.payload,
         scrollY: deps.getScrollY(),
         headElements: result.headElements,
+        params: result.params,
       });
 
       // Update segment cache with fresh segment info from full render
       updateSegmentCache(result.segmentInfo);
+
+      // Update useParams() with refreshed route params
+      updateParams(result.params);
 
       // Render the fresh RSC tree and update head elements
       renderPayload(result.payload);
@@ -454,6 +489,7 @@ export function createRouter(deps: RouterDeps): RouterInstance {
 
     if (entry && entry.payload !== null) {
       // Replay cached payload — no server roundtrip
+      updateParams(entry.params);
       renderPayload(entry.payload);
       applyHead(entry.headElements);
       afterPaint(() => {
@@ -471,10 +507,12 @@ export function createRouter(deps: RouterDeps): RouterInstance {
         const stateTree = segmentCache.serializeStateTree();
         const result = await fetchRscPayload(url, deps, stateTree);
         updateSegmentCache(result.segmentInfo);
+        updateParams(result.params);
         historyStack.push(url, {
           payload: result.payload,
           scrollY: savedScrollY,
           headElements: result.headElements,
+          params: result.params,
         });
         renderPayload(result.payload);
         applyHead(result.headElements);

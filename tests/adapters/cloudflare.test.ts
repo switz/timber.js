@@ -74,7 +74,7 @@ describe('Cloudflare adapter implements interface', () => {
 
     // Should write worker entry
     const workerCall = mockWriteFile.mock.calls.find(
-      (call) => typeof call[0] === 'string' && (call[0] as string).includes('_worker.ts')
+      (call) => typeof call[0] === 'string' && (call[0] as string).includes('_worker.js')
     );
     expect(workerCall).toBeDefined();
   });
@@ -99,7 +99,7 @@ describe('generateWranglerConfig', () => {
     );
     expect(config.compatibility_date).toBe('2026-03-01');
     expect(config.compatibility_flags).toContain('nodejs_compat');
-    expect(config.main).toBe('_worker.ts');
+    expect(config.main).toBe('_worker.js');
   });
 
   it('uses current date as default compatibility date', () => {
@@ -140,15 +140,15 @@ describe('generateWranglerConfig', () => {
 });
 
 describe('generateWorkerEntry', () => {
-  it('generates entry importing wrapWithExecutionContext', () => {
+  it('generates entry importing rsc handler', () => {
     const entry = generateWorkerEntry('/tmp/build', '/tmp/build/cloudflare');
-    expect(entry).toContain('wrapWithExecutionContext');
-    expect(entry).toContain('@timber/app/adapters/cloudflare');
+    expect(entry).toContain('import handler from');
+    expect(entry).toContain('rsc/index.js');
   });
 
-  it('generates relative import to server entry', () => {
+  it('generates relative import to rsc entry', () => {
     const entry = generateWorkerEntry('/tmp/build', '/tmp/build/cloudflare');
-    expect(entry).toContain('server/entry.js');
+    expect(entry).toContain('../rsc/index.js');
   });
 
   it('sets TIMBER_RUNTIME to cloudflare', () => {

@@ -329,12 +329,18 @@ export function timberBuildReport(ctx: PluginContext): Plugin {
 
       reported = true;
       const outputMode = ctx.config.output ?? 'server';
-      const { entries, sharedGzip } = buildEntries(
-        ctx.routeTree,
-        chunkSizes,
-        clientBundle,
-        outputMode
-      );
+      const noClientJs = ctx.config.noClientJavascript ?? false;
+      const { entries, sharedGzip } = noClientJs
+        ? {
+            entries: collectRoutes(ctx.routeTree).map((info) => ({
+              path: info.path,
+              type: classifyRoute(info.segments, outputMode),
+              size: 0,
+              firstLoadSize: 0,
+            })),
+            sharedGzip: 0,
+          }
+        : buildEntries(ctx.routeTree, chunkSizes, clientBundle, outputMode);
       const elapsed = ((performance.now() - buildStart) / 1000).toFixed(2);
       const lines = buildRouteReport(entries, sharedGzip);
 

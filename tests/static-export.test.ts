@@ -94,7 +94,7 @@ export default function Counter() {
     const outDir = join(buildDir, 'cloudflare');
     const files = await readdir(outDir);
     expect(files).toContain('static');
-    expect(files).toContain('_worker.ts');
+    expect(files).toContain('_worker.js');
   });
 
   it('nitro adapter produces static output directory', async () => {
@@ -158,6 +158,15 @@ describe('noClientJavascript strips scripts', () => {
       'export const handler = async () => new Response("ok");'
     );
 
+    // RSC and SSR bundles are still required
+    const rscDir = join(buildDir, 'rsc');
+    await mkdir(rscDir, { recursive: true });
+    await writeFile(join(rscDir, 'index.js'), 'export default async (req) => new Response("ok");');
+
+    const ssrDir = join(buildDir, 'ssr');
+    await mkdir(ssrDir, { recursive: true });
+    await writeFile(join(ssrDir, 'index.js'), '// ssr entry');
+
     const adapter = cloudflare();
     const config: TimberConfig = { output: 'static', noClientJavascript: true };
 
@@ -166,7 +175,7 @@ describe('noClientJavascript strips scripts', () => {
 
     const outDir = join(buildDir, 'cloudflare');
     const files = await readdir(outDir);
-    expect(files).toContain('_worker.ts');
+    expect(files).toContain('_worker.js');
   });
 });
 
@@ -381,6 +390,15 @@ async function createMockStaticBuildDir(baseDir: string): Promise<string> {
     join(serverDir, 'entry.js'),
     'export const handler = async () => new Response("ok");'
   );
+
+  // RSC and SSR bundles (copied by cloudflare adapter)
+  const rscDir = join(buildDir, 'rsc');
+  await mkdir(rscDir, { recursive: true });
+  await writeFile(join(rscDir, 'index.js'), 'export default async (req) => new Response("ok");');
+
+  const ssrDir = join(buildDir, 'ssr');
+  await mkdir(ssrDir, { recursive: true });
+  await writeFile(join(ssrDir, 'index.js'), '// ssr entry');
 
   const clientDir = join(buildDir, 'client');
   const assetsDir = join(clientDir, 'assets');

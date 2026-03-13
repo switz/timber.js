@@ -2,7 +2,7 @@
  * Request pipeline — the central dispatch for all timber.js requests.
  *
  * Pipeline stages (in order):
- *   proxy.ts → canonicalize → redirects/rewrites → route match → 103 Early Hints → middleware.ts → render
+ *   proxy.ts → canonicalize → route match → 103 Early Hints → middleware.ts → render
  *
  * Each stage is a pure function or returns a Response to short-circuit.
  * Each request gets a trace ID, structured logging, and OTEL spans.
@@ -12,7 +12,6 @@
  */
 
 import { canonicalize } from './canonicalize.js';
-import { createRedirectMatcher } from './redirects.js';
 import { runProxy, type ProxyExport } from './proxy.js';
 import { runMiddleware, type MiddlewareFn } from './middleware-runner.js';
 import { runWithRequestContext, applyRequestHeaderOverlay } from './request-context.js';
@@ -92,10 +91,6 @@ export interface PipelineConfig {
   stripTrailingSlash?: boolean;
   /** Slow request threshold in ms. Requests exceeding this emit a warning. 0 to disable. Default: 3000. */
   slowRequestMs?: number;
-  /** Config-level redirect rules. Evaluated after canonicalization, before route matching. */
-  redirects?: import('../index.js').RedirectRule[];
-  /** Config-level rewrite rules. Evaluated after canonicalization, before route matching. */
-  rewrites?: import('../index.js').RewriteRule[];
   /**
    * Interception rewrites — conditional routes for the modal pattern.
    * Generated at build time from intercepting route directories.
@@ -130,9 +125,6 @@ export function createPipeline(config: PipelineConfig): (req: Request) => Promis
     slowRequestMs = 3000,
     onPipelineError,
   } = config;
-
-  // Compile redirect/rewrite rules once at startup
-  const matchRedirect = createRedirectMatcher(config.redirects, config.rewrites);
 
   return async (req: Request): Promise<Response> => {
     const url = new URL(req.url);
@@ -211,26 +203,13 @@ export function createPipeline(config: PipelineConfig): (req: Request) => Promis
     if (!result.ok) {
       return new Response(null, { status: result.status });
     }
-    let canonicalPathname = result.pathname;
+    const canonicalPathname = result.pathname;
 
-    // Stage 2: Config-level redirects and rewrites
-    const redirectResult = matchRedirect(canonicalPathname);
-    if (redirectResult) {
-      if (redirectResult.type === 'redirect') {
-        return new Response(null, {
-          status: redirectResult.status,
-          headers: { Location: redirectResult.destination },
-        });
-      }
-      // Rewrite: transparently change the pathname for route matching
-      canonicalPathname = redirectResult.destination;
-    }
-
-    // Stage 3: Route matching
+    // Stage 2: Route matching
     let match = matchRoute(canonicalPathname);
     let interception: InterceptionContext | undefined;
 
-    // Stage 3a: Intercepting route resolution (modal pattern).
+    // Stage 2a: Intercepting route resolution (modal pattern).
     // On soft navigation, check if an intercepting route should render instead.
     // The client sends X-Timber-URL with the current pathname (where they're
     // navigating FROM). If a rewrite matches, re-route to the source URL so
@@ -266,7 +245,7 @@ export function createPipeline(config: PipelineConfig): (req: Request) => Promis
     const responseHeaders = new Headers();
     const requestHeaderOverlay = new Headers();
 
-    // Stage 3: 103 Early Hints (before middleware, after match)
+    // Stage 2b: 103 Early Hints (before middleware, after match)
     // Fires before middleware so the browser can begin fetching critical
     // assets while middleware runs. Non-fatal — a failing emitter never
     // blocks the request.
@@ -278,7 +257,7 @@ export function createPipeline(config: PipelineConfig): (req: Request) => Promis
       }
     }
 
-    // Stage 4: Leaf middleware.ts (only the leaf route's middleware runs)
+    // Stage 3: Leaf middleware.ts (only the leaf route's middleware runs)
     if (match.middleware) {
       const ctx: MiddlewareContext = {
         req,
@@ -318,7 +297,7 @@ export function createPipeline(config: PipelineConfig): (req: Request) => Promis
       }
     }
 
-    // Stage 5: Render (access gates + element tree + renderToReadableStream)
+    // Stage 4: Render (access gates + element tree + renderToReadableStream)
     try {
       return await withSpan('timber.render', { 'http.route': canonicalPathname }, () =>
         render(req, match, responseHeaders, requestHeaderOverlay, interception)

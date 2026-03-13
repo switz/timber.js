@@ -37,7 +37,7 @@ describe('timber-entries plugin', () => {
     it('resolves rsc entry', () => {
       const resolveId = createResolveId();
       expect(resolveId.call({}, 'virtual:timber-rsc-entry')).toBe(
-        resolve(SRC_DIR, 'server/rsc-entry.ts')
+        resolve(SRC_DIR, 'server/rsc-entry/index.ts')
       );
     });
 
@@ -65,7 +65,7 @@ describe('timber-entries plugin', () => {
     it('strips null prefix from rsc entry', () => {
       const resolveId = createResolveId();
       expect(resolveId.call({}, '\0virtual:timber-rsc-entry')).toBe(
-        resolve(SRC_DIR, 'server/rsc-entry.ts')
+        resolve(SRC_DIR, 'server/rsc-entry/index.ts')
       );
     });
 
@@ -93,7 +93,7 @@ describe('timber-entries plugin', () => {
     it('handles root prefix for rsc entry', () => {
       const resolveId = createResolveId();
       expect(resolveId.call({}, `${PROJECT_ROOT}/virtual:timber-rsc-entry`)).toBe(
-        resolve(SRC_DIR, 'server/rsc-entry.ts')
+        resolve(SRC_DIR, 'server/rsc-entry/index.ts')
       );
     });
 
@@ -159,14 +159,14 @@ describe('timber-entries plugin', () => {
 
     it('returns null for entry file IDs (they are real files)', () => {
       const load = createLoad();
-      expect(load.call({}, resolve(SRC_DIR, 'server/rsc-entry.ts'))).toBeNull();
+      expect(load.call({}, resolve(SRC_DIR, 'server/rsc-entry/index.ts'))).toBeNull();
     });
   });
 
   describe('entry file structure', () => {
     it('rsc entry file exists and is a real TypeScript file', async () => {
       const { existsSync } = await import('node:fs');
-      expect(existsSync(resolve(SRC_DIR, 'server/rsc-entry.ts'))).toBe(true);
+      expect(existsSync(resolve(SRC_DIR, 'server/rsc-entry/index.ts'))).toBe(true);
     });
 
     it('ssr entry file exists and is a real TypeScript file', async () => {
@@ -181,7 +181,7 @@ describe('timber-entries plugin', () => {
 
     it('rsc entry imports route manifest and creates request handler', async () => {
       const { readFileSync } = await import('node:fs');
-      const content = readFileSync(resolve(SRC_DIR, 'server/rsc-entry.ts'), 'utf-8');
+      const content = readFileSync(resolve(SRC_DIR, 'server/rsc-entry/index.ts'), 'utf-8');
       expect(content).toContain("from 'virtual:timber-route-manifest'");
       expect(content).toContain("from 'virtual:timber-config'");
       expect(content).toContain('createRequestHandler');

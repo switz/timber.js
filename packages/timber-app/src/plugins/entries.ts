@@ -35,7 +35,7 @@ const VIRTUAL_IDS = {
  * config is handled specially in the load hook (generated code).
  */
 const ENTRY_FILE_MAP: Record<string, string> = {
-  [VIRTUAL_IDS.rscEntry]: resolve(SRC_DIR, 'server', 'rsc-entry.ts'),
+  [VIRTUAL_IDS.rscEntry]: resolve(SRC_DIR, 'server', 'rsc-entry', 'index.ts'),
   [VIRTUAL_IDS.ssrEntry]: resolve(SRC_DIR, 'server', 'ssr-entry.ts'),
   [VIRTUAL_IDS.browserEntry]: resolve(SRC_DIR, 'client', 'browser-entry.ts'),
 };

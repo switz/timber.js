@@ -36,6 +36,7 @@ import { applyHeadElements } from './head.js';
 import { setGlobalRouter, getRouter } from './router-ref.js';
 import { TimberNuqsAdapter } from './nuqs-adapter.js';
 import { isPageUnloading } from './unload-guard.js';
+import { setCurrentParams } from './use-params.js';
 
 // ─── Server Action Dispatch ──────────────────────────────────────
 
@@ -326,6 +327,14 @@ function bootstrap(runtimeConfig: typeof config): void {
   if (Array.isArray(timberSegments)) {
     router.initSegmentCache(timberSegments);
     delete (self as unknown as Record<string, unknown>).__timber_segments;
+  }
+
+  // Populate useParams() from server-embedded route params.
+  // Without this, useParams() returns {} until the first client navigation.
+  const timberParams = (self as unknown as Record<string, unknown>).__timber_params;
+  if (timberParams && typeof timberParams === 'object') {
+    setCurrentParams(timberParams as Record<string, string | string[]>);
+    delete (self as unknown as Record<string, unknown>).__timber_params;
   }
 
   // Register popstate handler for back/forward navigation.

@@ -1333,3 +1333,115 @@ describe('Segment diffing', () => {
     expect(tree.segments).not.toContain('/dashboard');
   });
 });
+
+// ─── useParams population ────────────────────────────────────────
+
+import { setCurrentParams, useParams } from '../packages/timber-app/src/client/use-params';
+
+describe('useParams populated via X-Timber-Params header', () => {
+  let router: RouterInstance;
+  let mockFetch: ReturnType<typeof vi.fn<(url: string, init: RequestInit) => Promise<Response>>>;
+
+  const mockPushState = vi.fn();
+  const mockReplaceState = vi.fn();
+  const mockScrollTo = vi.fn();
+
+  beforeEach(() => {
+    mockFetch = vi.fn();
+    mockPushState.mockClear();
+    mockReplaceState.mockClear();
+    mockScrollTo.mockClear();
+    // Reset params before each test
+    setCurrentParams({});
+
+    router = createRouter({
+      fetch: mockFetch,
+      pushState: mockPushState,
+      replaceState: mockReplaceState,
+      scrollTo: mockScrollTo,
+      getCurrentUrl: () => '/',
+      getScrollY: () => 0,
+    });
+  });
+
+  it('sets params from X-Timber-Params header on navigate', async () => {
+    mockFetch.mockResolvedValueOnce(
+      new Response('payload', {
+        headers: {
+          'content-type': 'text/x-component',
+          'X-Timber-Params': JSON.stringify({ id: '42' }),
+        },
+      })
+    );
+
+    await router.navigate('/products/42');
+    expect(useParams()).toEqual({ id: '42' });
+  });
+
+  it('clears params when navigating to a route without params', async () => {
+    // First navigate to a route with params
+    setCurrentParams({ id: '42' });
+
+    mockFetch.mockResolvedValueOnce(
+      new Response('payload', {
+        headers: { 'content-type': 'text/x-component' },
+      })
+    );
+
+    await router.navigate('/about');
+    expect(useParams()).toEqual({});
+  });
+
+  it('handles catch-all params', async () => {
+    mockFetch.mockResolvedValueOnce(
+      new Response('payload', {
+        headers: {
+          'content-type': 'text/x-component',
+          'X-Timber-Params': JSON.stringify({ slug: ['docs', 'getting-started'] }),
+        },
+      })
+    );
+
+    await router.navigate('/docs/getting-started');
+    expect(useParams()).toEqual({ slug: ['docs', 'getting-started'] });
+  });
+
+  it('restores params from history on popstate', async () => {
+    // Push a history entry with params
+    router.historyStack.push('/products/42', {
+      payload: 'product-payload',
+      scrollY: 0,
+      params: { id: '42' },
+    });
+
+    await router.handlePopState('/products/42');
+    expect(useParams()).toEqual({ id: '42' });
+  });
+
+  it('restores empty params from history on popstate to static route', async () => {
+    setCurrentParams({ id: '42' });
+
+    router.historyStack.push('/about', {
+      payload: 'about-payload',
+      scrollY: 0,
+      params: null,
+    });
+
+    await router.handlePopState('/about');
+    expect(useParams()).toEqual({});
+  });
+
+  it('updates params on refresh', async () => {
+    mockFetch.mockResolvedValueOnce(
+      new Response('payload', {
+        headers: {
+          'content-type': 'text/x-component',
+          'X-Timber-Params': JSON.stringify({ id: '99' }),
+        },
+      })
+    );
+
+    await router.refresh();
+    expect(useParams()).toEqual({ id: '99' });
+  });
+});

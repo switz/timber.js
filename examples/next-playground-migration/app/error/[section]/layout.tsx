@@ -4,7 +4,7 @@ import { Boundary } from '#/ui/boundary';
 import { Tabs } from '#/ui/tabs';
 import type { Metadata } from '@timber/app/server';
 
-export async function generateMetadata(): Promise<Metadata> {
+export async function metadata(): Promise<Metadata> {
   const demo = db.demo.find({ where: { slug: 'error' } });
 
   return {

@@ -1,11 +1,11 @@
 /**
- * E2E tests for metadata resolution: title templates, absolute titles, generateMetadata,
+ * E2E tests for metadata resolution: title templates, absolute titles, dynamic metadata,
  * and client-side title updates on SPA navigation.
  *
  * Validates:
  * - Page title applies nearest ancestor template
  * - title.absolute skips template
- * - generateMetadata produces dynamic title
+ * - dynamic metadata() produces dynamic title
  * - Metadata present in no-JS SSR response
  * - document.title updates on SPA navigation (via X-Timber-Head header)
  *
@@ -31,10 +31,10 @@ test.describe('metadata title templates', () => {
   });
 });
 
-test.describe('generateMetadata', () => {
-  test('generateMetadata produces dynamic title', async ({ page }) => {
+test.describe('dynamic metadata', () => {
+  test('dynamic metadata() produces dynamic title', async ({ page }) => {
     await page.goto('/meta-test/abc');
-    // generateMetadata returns title: 'Item abc'
+    // metadata() returns title: 'Item abc'
     // Root template: '%s | Kitchen Sink'
     // Resolved: 'Item abc | Kitchen Sink'
     await expect(page).toHaveTitle('Item abc | Kitchen Sink');
@@ -97,7 +97,7 @@ test.describe('metadata on SPA navigation', () => {
     await expect(page).toHaveTitle('Absolute Title');
   });
 
-  test('dynamic generateMetadata title on navigation', async ({ page }) => {
+  test('dynamic metadata title on navigation', async ({ page }) => {
     // Start on /meta-test
     await page.goto('/meta-test');
     await expect(page).toHaveTitle('Meta Test Page | Kitchen Sink');

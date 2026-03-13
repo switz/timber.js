@@ -159,7 +159,7 @@ The route manifest virtual module contains the route tree data. The entry file c
 
 - Imports the route manifest and creates the request handler via `createPipeline`
 - Builds a `RouteMatcher` from the manifest tree (see `server/route-matcher.ts`)
-- Implements the renderer: loads page/layout components along the matched segment chain, resolves metadata (static `metadata` exports and `generateMetadata`), builds the React element tree, and renders via `renderToReadableStream`
+- Implements the renderer: loads page/layout components along the matched segment chain, resolves metadata (static or dynamic `metadata` exports), builds the React element tree, and renders via `renderToReadableStream`
 - Catches `DenySignal` (from `deny()`) during render to produce the correct HTTP status
 - Injects resolved metadata (`<title>`, `<meta>`) into the HTML stream before `</head>`
 - Exports a `default` function that handles `Request → Response`

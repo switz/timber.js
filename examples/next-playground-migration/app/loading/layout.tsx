@@ -11,7 +11,7 @@ import type { Metadata } from '@timber/app/server';
 import Readme from './readme.mdx';
 import Loading from './loading';
 
-export async function generateMetadata(): Promise<Metadata> {
+export async function metadata(): Promise<Metadata> {
   const demo = db.demo.find({ where: { slug: 'loading' } });
 
   return {

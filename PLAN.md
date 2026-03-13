@@ -139,7 +139,7 @@ The rendering pipeline: correct HTTP status codes, unified element tree, access 
 ### 1i. Metadata
 
 - [ ] `metadata` static export on `page.tsx` and `layout.tsx`
-- [ ] `generateMetadata(props)` async function export — resolves inside render pass, outside Suspense
+- [ ] Dynamic `metadata()` async function export — resolves inside render pass, outside Suspense
 - [ ] Title templates: `{ default, template, absolute }`
 - [ ] Shallow merge: page metadata wins over layout metadata
 - [ ] `metadataBase` for resolving relative URLs in metadata fields
@@ -402,7 +402,7 @@ Static builds and the opt-in static shell optimization for server mode. Signific
 - [ ] `output: 'static'` in `timber.config.ts` — full build-time render, no server
 - [ ] `middleware.ts` and `access.ts` run at build time only
 - [ ] `cookies()`/`headers()` calls in static mode → build error
-- [ ] `generateMetadata` runs at build time in static mode
+- [ ] Dynamic `metadata()` runs at build time in static mode
 - [ ] Server actions extracted as separate API endpoints by adapter
 - [ ] `revalidatePath()` in static mode requires two roundtrips (documented)
 - [ ] `output: 'static', noClientJavascript: true`:

@@ -76,7 +76,7 @@ After URL canonicalization, the canonical pathname is matched against the segmen
 
 A match succeeds when all URL segments are consumed and the leaf segment has a `page` or `route` file. The result includes the full segment chain (root → leaf) and extracted params.
 
-**Params as Promise:** Following the React 19+ convention (and Next.js 15+), `params` is passed to page components and `generateMetadata` as a `Promise<Record<string, string>>` rather than a plain object. Components `await` the params promise to access values.
+**Params as Promise:** Following the React 19+ convention (and Next.js 15+), `params` is passed to page components and dynamic `metadata()` as a `Promise<Record<string, string>>` rather than a plain object. Components `await` the params promise to access values.
 
 **No-match signal:** When no route matches, the pipeline returns `404` with an `X-Timber-No-Match` header. This distinguishes "no route found" from a deliberate `deny(404)` thrown during rendering. In dev mode, only no-match 404s pass through to Vite's fallback; route-level 404s are served directly.
 

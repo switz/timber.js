@@ -6,7 +6,7 @@ import React from 'react';
 import Readme from './readme.mdx';
 import { Mdx } from '#/ui/codehike';
 
-export async function generateMetadata(): Promise<Metadata> {
+export async function metadata(): Promise<Metadata> {
   const demo = db.demo.find({ where: { slug: 'error' } });
 
   return {

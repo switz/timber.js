@@ -12,7 +12,7 @@ import Readme from './readme.mdx';
 import { Mdx } from '#/ui/codehike';
 import Loading from './loading';
 
-export async function generateMetadata(): Promise<Metadata> {
+export async function metadata(): Promise<Metadata> {
   const demo = db.demo.find({ where: { slug: 'use-link-status' } });
   return {
     title: demo.name,

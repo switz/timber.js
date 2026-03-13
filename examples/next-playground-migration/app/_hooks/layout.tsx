@@ -4,7 +4,7 @@ import { ClickCounter } from '#/ui/click-counter';
 import { Tabs } from '#/ui/tabs';
 import React from 'react';
 
-// export function generateMetadata() {
+// export function metadata() {
 //   const demo = db.demo.find({ where: { slug: 'hooks' } });
 
 //   return {

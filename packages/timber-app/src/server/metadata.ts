@@ -22,7 +22,7 @@ export { renderMetadataToElements } from './metadata-render.js';
 
 /** A single metadata entry from a layout or page module. */
 export interface SegmentMetadataEntry {
-  /** The resolved metadata object (from static export or generateMetadata). */
+  /** The resolved metadata object (from static or async `metadata` export). */
   metadata: Metadata;
   /** Whether this entry is from the page (leaf) module. */
   isPage: boolean;

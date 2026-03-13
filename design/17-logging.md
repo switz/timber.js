@@ -245,7 +245,7 @@ One per incoming request. Follows [OTel HTTP server semantic conventions](https:
 | `timber.render.suspense` | Each `<Suspense>` boundary that streams | `timber.boundary`, `timber.flush`: `'pre'` \| `'post'`                          |
 | `timber.ssr`             | SSR hydration render                    | `timber.environment`: `'ssr'`                                                   |
 | `timber.action`          | Server action execution                 | `timber.action_file`, `timber.action_name`                                      |
-| `timber.metadata`        | `generateMetadata()` execution          | `timber.segment`                                                                |
+| `timber.metadata`        | Dynamic `metadata()` execution          | `timber.segment`                                                                |
 | `timber.layout`          | Each layout component render            | `timber.segment`                                                                |
 | `timber.page`            | Page component render                   | `timber.route`                                                                  |
 

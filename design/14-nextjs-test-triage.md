@@ -268,7 +268,7 @@ Based on code audit and Next.js feature comparison:
 | Server Actions                            | Full            | External redirect handling                                                                                                               |
 | Route Handlers                            | Full            | OPTIONS/Allow header                                                                                                                     |
 | Middleware                                | Full            | Response headers fixed (PR #290). Request-side forwarding for afterFiles/fallback rewrites pending (branch `james/fix-rewrite-req-ctx`). |
-| Metadata (static + generateMetadata)      | Full            | Duplicate title with Suspense layout. Default viewport meta fixed (PR #298).                                                             |
+| Metadata (static + dynamic)               | Full            | Duplicate title with Suspense layout. Default viewport meta fixed (PR #298).                                                             |
 | Streaming / Suspense                      | Full            | loading.tsx not visible in dev                                                                                                           |
 | ISR / Revalidation                        | Full            | `unstable_cache` stale entries fixed (PR #294). RSC module caching in dev still open.                                                    |
 | next/link                                 | Full            | —                                                                                                                                        |

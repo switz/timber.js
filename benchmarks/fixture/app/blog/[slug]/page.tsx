@@ -1,4 +1,4 @@
-export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
+export async function metadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   return { title: `Blog: ${slug}` };
 }

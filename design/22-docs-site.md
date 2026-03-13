@@ -662,6 +662,6 @@ All of these should include the AI header.
 - [Forms & Server Actions](08-forms-and-actions.md) — `createActionClient`, progressive enhancement
 - [Content Collections & MDX](20-content-collections.md) — Collection schemas, MDX rendering, `generateStaticParams`
 - [Routing & Middleware](07-routing.md) — File-system routing, `middleware.ts`, `<Link>`
-- [Metadata](16-metadata.md) — Title templates, `generateMetadata`
+- [Metadata](16-metadata.md) — Title templates, dynamic `metadata()`
 - [Complete Examples](12-example.md) — Patterns used in the example routes
 - [Fonts & Web Font Loading](24-fonts.md) — Framework-level font optimization

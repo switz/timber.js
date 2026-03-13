@@ -164,7 +164,7 @@ export default function HomePage() {
         <section className="rounded-lg border border-stone-200 bg-white p-5 shadow-sm">
           <h2 className="text-base font-semibold text-stone-800 mb-1">Metadata</h2>
           <p className="text-xs text-stone-400 mb-3">
-            Title templates, absolute titles, and dynamic generateMetadata.
+            Title templates, absolute titles, and dynamic metadata.
           </p>
           <ul className="space-y-1.5 text-sm">
             <li>
@@ -179,7 +179,7 @@ export default function HomePage() {
             </li>
             <li>
               <Link href="/meta-test/abc" className="text-amber-700 hover:text-amber-900 hover:underline">
-                Dynamic generateMetadata
+                Dynamic metadata
               </Link>
             </li>
           </ul>

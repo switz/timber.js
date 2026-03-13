@@ -341,14 +341,14 @@ Secondary content — like "related posts" or "recent articles" sidebar — can 
 
 ### Metadata from Content
 
-`generateMetadata` reads content entry data directly:
+Dynamic `metadata()` reads content entry data directly:
 
 ```tsx
 // app/blog/[slug]/page.tsx
 import type { Metadata } from '@timber/app/server';
 import { allBlogs } from 'content-collections';
 
-export async function generateMetadata({
+export async function metadata({
   params,
 }: {
   params: Promise<{ slug: string }>;
@@ -534,7 +534,7 @@ export async function generateStaticParams() {
   return allBlogs.filter((p) => !p.draft).map((post) => ({ slug: post._meta.path }));
 }
 
-export async function generateMetadata({
+export async function metadata({
   params,
 }: {
   params: Promise<{ slug: string }>;
@@ -645,5 +645,5 @@ No content-specific config is added to `TimberUserConfig` — content-collection
 - [Routing](07-routing.md) — Page Extensions, MDX as valid route segments
 - [Build System](18-build-system.md) — Plugin decomposition, virtual module patterns
 - [Caching](06-caching.md) — `timber.cache` for remote content caching
-- [Metadata](16-metadata.md) — `generateMetadata` integration with content data
+- [Metadata](16-metadata.md) — Dynamic `metadata()` integration with content data
 - [Rendering Pipeline](02-rendering-pipeline.md) — Content renders as RSC, primary vs secondary content distinction

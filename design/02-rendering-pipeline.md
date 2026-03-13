@@ -208,7 +208,7 @@ There are three moments framework logic can run:
 
 3. **After render** — too late. The status code is committed, the shell is flushing.
 
-For concerns that need to share data with components (access checks reading `requireUser()`, metadata calling `getProduct()`), resolving during the render pass means they naturally participate in `React.cache` deduplication without any extra wiring. The same function call in an access check, in `generateMetadata`, and in the page component hits the cache — one execution, three consumers.
+For concerns that need to share data with components (access checks reading `requireUser()`, metadata calling `getProduct()`), resolving during the render pass means they naturally participate in `React.cache` deduplication without any extra wiring. The same function call in an access check, in `metadata()`, and in the page component hits the cache — one execution, three consumers.
 
 ### The Pattern
 
@@ -224,7 +224,7 @@ The framework resolves these concerns as part of the element tree construction i
 | Concern                        | Why render-pass                                                                                                             | Behavior on failure                                                                     |
 | ------------------------------ | --------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
 | `access.ts`                    | Shares `React.cache` with layouts/page. Must gate child rendering — parent access failure prevents children from executing. | Calls `deny()` or `redirect()`. Correct HTTP status.                                    |
-| `generateMetadata()`           | Shares `React.cache` with page. Must complete before flush so `<head>` is in the shell.                                     | If it throws, treated as a render-phase error. Error boundary (`error.tsx`) catches it. |
+| `metadata()`                   | Shares `React.cache` with page. Must complete before flush so `<head>` is in the shell.                                     | If it throws, treated as a render-phase error. Error boundary (`error.tsx`) catches it. |
 | Slot access (`SlotAccessGate`) | Same scope as parent. Failure is graceful — renders `denied.tsx`, does not affect HTTP status.                              | Calls `deny()`. Slot degrades, page still renders.                                      |
 
 Future framework concerns that need the single `React.cache` scope should follow this same pattern: resolve inside the render pass, outside `<Suspense>`, with `middleware.ts` cache warming as the prefetch mechanism.

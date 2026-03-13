@@ -158,7 +158,7 @@ These Next.js modules are **not shimmed** and will produce import errors:
 | Module            | Reason                                                                                 |
 | ----------------- | -------------------------------------------------------------------------------------- |
 | `next/router`     | Pages Router only — timber is App Router only                                          |
-| `next/head`       | Pages Router only — use `metadata` export or `generateMetadata`                        |
+| `next/head`       | Pages Router only — use `metadata` export (static object or async function)            |
 | `next/script`     | Not yet implemented                                                                    |
 | `next/dynamic`    | Use React.lazy() + Suspense                                                            |
 | `next/server`     | Internal Next.js server utilities — no equivalent needed                               |

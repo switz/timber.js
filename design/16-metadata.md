@@ -2,7 +2,7 @@
 
 ## Declaration API
 
-Two forms, both exports from `page.tsx` or `layout.tsx`:
+One export name — `metadata` — handles both static and dynamic cases. The framework detects whether the export is an object (static) or a function (dynamic):
 
 ```tsx
 // Static — known at module load time
@@ -13,8 +13,8 @@ export const metadata: Metadata = {
   description: 'Your project dashboard',
 };
 
-// Dynamic — async, receives route context
-export async function generateMetadata({
+// Dynamic — async function, receives route context
+export async function metadata({
   params,
   searchParams,
 }: {
@@ -31,13 +31,13 @@ export async function generateMetadata({
 }
 ```
 
-A module exports one or the other — not both. Build error if both are present.
+A module exports `metadata` as either an object or a function — never both (TypeScript enforces this). Exporting `generateMetadata` is a build error; use `metadata` for both forms.
 
-### `generateMetadata` Receives Promises
+### Dynamic `metadata` Receives Promises
 
 `params` and `searchParams` are passed as Promises, matching React 19 conventions. The framework wraps the values in a thenable-object pattern (Promise that also has sync property access in dev mode for migration convenience), but the declared type is `Promise<T>`.
 
-`generateMetadata` runs during the render pass. `React.cache` is active. A `getProduct()` call inside `generateMetadata` and the same call in the page component share one `React.cache` scope — no duplicate fetches.
+The dynamic `metadata` function runs during the render pass. `React.cache` is active. A `getProduct()` call inside `metadata()` and the same call in the page component share one `React.cache` scope — no duplicate fetches.
 
 ---
 
@@ -160,11 +160,11 @@ Viewport rarely changes per-page. A separate export adds API surface for minimal
 
 ## Resolution: Part of the Render Pass
 
-Metadata resolves during the `renderToReadableStream` call — inside the React render pass, not before it. The framework walks the segment chain (layouts + page), resolves each module's metadata (static export or `generateMetadata()` call), merges the results, and renders `<title>`, `<meta>`, `<link>` elements into the `<head>`.
+Metadata resolves during the `renderToReadableStream` call — inside the React render pass, not before it. The framework walks the segment chain (layouts + page), resolves each module's metadata (static export or dynamic `metadata()` call), merges the results, and renders `<title>`, `<meta>`, `<link>` elements into the `<head>`.
 
 Because resolution happens inside the render pass:
 
-- **`React.cache` is active.** A `getProduct()` call inside `generateMetadata` and the same call in the page component share one `React.cache` scope — no duplicate fetches.
+- **`React.cache` is active.** A `getProduct()` call inside `metadata()` and the same call in the page component share one `React.cache` scope — no duplicate fetches.
 - **Metadata is outside `<Suspense>`.** It resolves as part of the shell, before `onShellReady`.
 - **Metadata is complete before flush.** No race condition, no partial metadata, no client-side injection.
 
@@ -176,9 +176,9 @@ Metadata follows the render-pass resolution pattern (see [Rendering Pipeline —
 timber.js metadata timeline:
 
   t=0ms   → Request arrives
-  t=2ms   → middleware.ts runs (can warm caches used by generateMetadata)
+  t=2ms   → middleware.ts runs (can warm caches used by metadata())
   t=5ms   → Render begins
-  t=8ms   → All generateMetadata() calls resolve (React.cache shared with page)
+  t=8ms   → All metadata() calls resolve (React.cache shared with page)
   t=10ms  → <head> tags rendered into shell
   t=15ms  → Page component renders
   t=20ms  → onShellReady fires
@@ -187,12 +187,12 @@ timber.js metadata timeline:
 
 ### middleware.ts Can Warm Metadata Caches
 
-`generateMetadata` often fetches the same data the page needs. Because `middleware.ts` runs before rendering and fires prefetches via `timber.cache`, the data is often already warm:
+Dynamic `metadata()` often fetches the same data the page needs. Because `middleware.ts` runs before rendering and fires prefetches via `timber.cache`, the data is often already warm:
 
 ```typescript
 // app/products/[id]/middleware.ts
 export default async function middleware(ctx: MiddlewareContext) {
-  void getProduct(ctx.params.id); // warms cache for both generateMetadata and page
+  void getProduct(ctx.params.id); // warms cache for both metadata() and page
 }
 ```
 
@@ -214,7 +214,7 @@ The merge algorithm processes metadata from root layout to page, in segment orde
 
 5. **`title.default` is the layout's own title.** When a layout defines `title: { default: 'Dashboard', template: '%s | Dashboard' }`, the `default` is used when no child provides a title. The `template` is applied to child titles.
 
-6. **Parallel slots do not contribute metadata.** Slots are secondary content regions — only the segment chain (layouts + page) produces metadata. A slot's `page.tsx` cannot export `metadata` or `generateMetadata`. Build error if it does.
+6. **Parallel slots do not contribute metadata.** Slots are secondary content regions — only the segment chain (layouts + page) produces metadata. A slot's `page.tsx` cannot export `metadata`. Build error if it does.
 
 ### Title Template Example
 
@@ -272,7 +272,7 @@ These are not part of the `Metadata` type and cannot be removed. The framework d
 
 Metadata lives outside `<Suspense>` by definition. `<MetadataResolver>` is placed in the element tree above all Suspense boundaries and resolves as part of the shell.
 
-A slow `generateMetadata()` blocks `onShellReady` — just like a slow page component outside Suspense. This is correct: metadata must be complete before bytes are sent. If `generateMetadata` is slow because it fetches data, warm the cache in `middleware.ts`.
+A slow `metadata()` blocks `onShellReady` — just like a slow page component outside Suspense. This is correct: metadata must be complete before bytes are sent. If `metadata()` is slow because it fetches data, warm the cache in `middleware.ts`.
 
 There is no mechanism for a component inside a Suspense boundary to contribute metadata. Metadata is a page/layout module export, not a component concern.
 
@@ -284,7 +284,7 @@ When an error boundary catches a render-phase error (`deny()`, unhandled throw),
 
 1. **Parent layout metadata applies.** Layouts above the error boundary already contributed their metadata to `<MetadataResolver>`. That metadata renders normally.
 
-2. **Page metadata is lost.** The page threw — its `generateMetadata` may not have completed. The framework does not attempt partial page metadata.
+2. **Page metadata is lost.** The page threw — its `metadata()` may not have completed. The framework does not attempt partial page metadata.
 
 3. **Auto `noindex`.** The framework injects `<meta name="robots" content="noindex">` for all error states. Error pages should not be indexed.
 
@@ -320,7 +320,7 @@ Relative URLs in any metadata field are resolved against `metadataBase`:
 
 ```tsx
 // app/products/[id]/page.tsx
-export async function generateMetadata({ params }) {
+export async function metadata({ params }) {
   const { id } = await params;
   const product = await getProduct(id);
   return {
@@ -427,7 +427,7 @@ Nestable image routes in a segment are linked only for pages within that segment
 ### `static` Mode
 
 - `export const metadata` resolves at build time
-- `generateMetadata()` runs at build time. It cannot read `cookies()` or `headers()` (build error). It can read `params` (from the static params set) and `searchParams` (empty at build time)
+- Dynamic `metadata()` runs at build time. It cannot read `cookies()` or `headers()` (build error). It can read `params` (from the static params set) and `searchParams` (empty at build time)
 - Metadata routes execute at build time and emit static files
 
 ### `static` + `noClientJavascript` Mode

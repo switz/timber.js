@@ -273,6 +273,31 @@ It does NOT include Suspense streaming after the shell — only the initial shel
 
 ---
 
+## `useLinkStatus()`
+
+A client-side hook that returns `{ pending: boolean }` scoped to a specific link. Unlike `useNavigationPending()` which is global, `useLinkStatus()` is true only while a navigation targeting the given `href` is in flight.
+
+```tsx
+'use client';
+import { useLinkStatus } from '@timber/app/client';
+import { Link } from '@timber/app/client';
+
+export function Tab({ href, children }: { href: string; children: React.ReactNode }) {
+  const { pending } = useLinkStatus(href);
+  return (
+    <Link href={href} className={pending ? 'opacity-50' : ''}>
+      {children}
+    </Link>
+  );
+}
+```
+
+The `href` argument must match the URL passed to `router.navigate()` exactly (pathname + search, no origin). The hook compares the given `href` against the router's pending URL — the URL of the currently in-flight navigation.
+
+The pending state follows the same lifecycle as `useNavigationPending()`: true from when the RSC fetch starts until React reconciliation completes.
+
+---
+
 ## Progressive Enhancement
 
 Without JavaScript, `<Link>` renders as a plain `<a>` tag. Clicking it triggers a full page navigation — standard browser behavior. The server renders the full HTML response.

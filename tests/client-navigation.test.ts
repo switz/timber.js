@@ -451,6 +451,112 @@ describe('Router', () => {
     });
   });
 
+  describe('per-link pending URL', () => {
+    it('getPendingUrl returns null when idle', () => {
+      expect(router.getPendingUrl()).toBeNull();
+    });
+
+    it('getPendingUrl returns the target URL during navigation', async () => {
+      let resolveFetch!: (res: Response) => void;
+      mockFetch.mockReturnValueOnce(
+        new Promise<Response>((resolve) => {
+          resolveFetch = resolve;
+        })
+      );
+
+      const navPromise = router.navigate('/projects');
+      expect(router.getPendingUrl()).toBe('/projects');
+
+      resolveFetch(
+        new Response('payload', {
+          headers: { 'content-type': 'text/x-component' },
+        })
+      );
+      await navPromise;
+
+      expect(router.getPendingUrl()).toBeNull();
+    });
+
+    it('getPendingUrl returns current URL during refresh', async () => {
+      let resolveFetch!: (res: Response) => void;
+      mockFetch.mockReturnValueOnce(
+        new Promise<Response>((resolve) => {
+          resolveFetch = resolve;
+        })
+      );
+
+      const refreshPromise = router.refresh();
+      expect(router.getPendingUrl()).toBe('/dashboard');
+
+      resolveFetch(
+        new Response('payload', {
+          headers: { 'content-type': 'text/x-component' },
+        })
+      );
+      await refreshPromise;
+
+      expect(router.getPendingUrl()).toBeNull();
+    });
+
+    it('getPendingUrl returns target URL during popstate fetch', async () => {
+      let resolveFetch!: (res: Response) => void;
+      mockFetch.mockReturnValueOnce(
+        new Promise<Response>((resolve) => {
+          resolveFetch = resolve;
+        })
+      );
+
+      // No cached entry → triggers fetch
+      const popPromise = router.handlePopState('/unknown-page');
+      expect(router.getPendingUrl()).toBe('/unknown-page');
+
+      resolveFetch(
+        new Response('payload', {
+          headers: { 'content-type': 'text/x-component' },
+        })
+      );
+      await popPromise;
+
+      expect(router.getPendingUrl()).toBeNull();
+    });
+
+    it('getPendingUrl is null during popstate with cached entry', async () => {
+      router.historyStack.push('/projects', {
+        payload: 'cached-payload',
+        scrollY: 0,
+      });
+
+      await router.handlePopState('/projects');
+
+      // No pending URL — cached entry replays instantly
+      expect(router.getPendingUrl()).toBeNull();
+    });
+
+    it('notifies listeners with pending URL changes', async () => {
+      let resolveFetch!: (res: Response) => void;
+      mockFetch.mockReturnValueOnce(
+        new Promise<Response>((resolve) => {
+          resolveFetch = resolve;
+        })
+      );
+
+      const urls: (string | null)[] = [];
+      router.onPendingChange(() => {
+        urls.push(router.getPendingUrl());
+      });
+
+      const navPromise = router.navigate('/projects');
+      resolveFetch(
+        new Response('payload', {
+          headers: { 'content-type': 'text/x-component' },
+        })
+      );
+      await navPromise;
+
+      expect(urls).toEqual(['/projects', null]);
+    });
+  });
+
   describe('decodeRsc and renderRoot integration', () => {
     let routerWithRenderer: RouterInstance;
     let mockDecodeRsc: ReturnType<typeof vi.fn>;

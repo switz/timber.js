@@ -54,6 +54,7 @@ Features tagged as **[novel]** (not in Next.js or Vinext), **[enhanced]** (impro
 - **[parity]** Client-side RSC navigation — `<Link>` fetches RSC payload, reconciles DOM ([19-client-navigation.md](design/19-client-navigation.md))
 - **[parity]** `useSelectedLayoutSegment` hooks ([19-client-navigation.md](design/19-client-navigation.md))
 - **[parity]** `permanentRedirect()` in navigation shim ([07-routing.md](design/07-routing.md))
+- **[parity]** `useLinkStatus()` — per-link pending status during navigation ([19-client-navigation.md](design/19-client-navigation.md))
 
 ## Fonts
 

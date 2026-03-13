@@ -15,6 +15,8 @@ export type {
   RootRenderer,
 } from './router';
 export { useNavigationPending } from './use-navigation-pending';
+export { useLinkStatus } from './use-link-status';
+export type { LinkStatus } from './use-link-status';
 export { getRouter } from './router-ref';
 export { useRouter } from './use-router';
 export type { AppRouterInstance } from './use-router';

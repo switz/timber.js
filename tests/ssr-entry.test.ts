@@ -223,6 +223,95 @@ describe('SSR entry — isAbortError helper', () => {
   });
 });
 
+describe('SSR entry — post-flush noindex injection', () => {
+  /**
+   * Helper: create a ReadableStream that yields data then errors.
+   * Simulates a post-flush streaming error (deny()/throw in Suspense).
+   */
+  function createErroringStream(chunks: string[], error: Error): ReadableStream<Uint8Array> {
+    const encoder = new TextEncoder();
+    let index = 0;
+    return new ReadableStream<Uint8Array>({
+      pull(controller) {
+        if (index < chunks.length) {
+          controller.enqueue(encoder.encode(chunks[index]!));
+          index++;
+        } else {
+          controller.error(error);
+        }
+      },
+    });
+  }
+
+  it('injects noindex script when stream errors (post-flush deny/error)', async () => {
+    const { wrapStreamWithErrorHandling } = await import(
+      resolve(SRC_DIR, 'server/ssr-render.ts')
+    );
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const source = createErroringStream(
+      ['<html><body><div>Shell OK</div>'],
+      new Error('deny() signal inside Suspense')
+    );
+
+    const wrapped = wrapStreamWithErrorHandling(source);
+    const html = await streamToString(wrapped);
+
+    expect(html).toContain('Shell OK');
+    expect(html).toContain(
+      '<script>document.head.appendChild(Object.assign(document.createElement("meta"),{name:"robots",content:"noindex"}))</script>'
+    );
+
+    consoleSpy.mockRestore();
+  });
+
+  it('does NOT inject noindex script when stream completes normally', async () => {
+    const { renderSsrStream } = await import(resolve(SRC_DIR, 'server/ssr-render.ts'));
+
+    const element = createTestElement('Normal page');
+    const stream = await renderSsrStream(element);
+    const html = await streamToString(stream);
+
+    expect(html).toContain('Normal page');
+    expect(html).not.toContain('noindex');
+  });
+
+  it('does NOT inject noindex script on connection abort', async () => {
+    const { wrapStreamWithErrorHandling } = await import(
+      resolve(SRC_DIR, 'server/ssr-render.ts')
+    );
+
+    const abortError = new DOMException('The operation was aborted.', 'AbortError');
+    const source = createErroringStream(['<html><body>Content</body></html>'], abortError);
+
+    const wrapped = wrapStreamWithErrorHandling(source);
+    const html = await streamToString(wrapped);
+
+    expect(html).toContain('Content');
+    expect(html).not.toContain('noindex');
+  });
+
+  it('does NOT inject noindex when signal is already aborted', async () => {
+    const { wrapStreamWithErrorHandling } = await import(
+      resolve(SRC_DIR, 'server/ssr-render.ts')
+    );
+
+    const ac = new AbortController();
+    ac.abort();
+
+    const source = createErroringStream(
+      ['<html><body>Content</body></html>'],
+      new Error('some error')
+    );
+
+    const wrapped = wrapStreamWithErrorHandling(source, ac.signal);
+    const html = await streamToString(wrapped);
+
+    expect(html).toContain('Content');
+    expect(html).not.toContain('noindex');
+  });
+});
+
 describe('SSR entry — decodes RSC stream', () => {
   it('handleSsr passes through status and headers with stub decoder', async () => {
     // This test validates the handleSsr function's response construction.

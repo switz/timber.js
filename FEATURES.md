@@ -121,6 +121,7 @@ Features tagged as **[novel]** (not in Next.js or Vinext), **[enhanced]** (impro
 ## Shim Compatibility
 
 - **[parity]** ALS-backed `headers()` and `cookies()` for server components ([07-routing.md](design/07-routing.md))
+- **[enhanced]** `cookies().set()` / `.delete()` / `.clear()` with context-dependent mutation guards and secure defaults ([29-cookies.md](design/29-cookies.md))
 - **[parity]** next-intl compatibility ([07-routing.md](design/07-routing.md))
 - **[parity]** next/font/\* shims redirected to timber-fonts virtual modules ([24-fonts.md](design/24-fonts.md))
 - **[parity]** `server-only` / `client-only` poison pill packages — build-time error when imported in the wrong environment ([14-ecosystem.md](design/14-ecosystem.md))

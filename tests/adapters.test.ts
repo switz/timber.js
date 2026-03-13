@@ -1,8 +1,8 @@
 /**
  * Cloudflare adapter production readiness tests.
  *
- * Tests the Cloudflare adapter's runtime behavior: wrapWithExecutionContext,
- * waitUntil() binding, env bindings passthrough, and wrangler config generation.
+ * Tests the Cloudflare adapter's runtime behavior: waitUntil() binding,
+ * env bindings passthrough, and wrangler config generation.
  *
  * Design docs: design/11-platform.md, design/25-production-deployments.md
  * Task: timber-zuk
@@ -11,7 +11,6 @@
 import { describe, it, expect } from 'vitest';
 import {
   cloudflare,
-  wrapWithExecutionContext,
   getCloudflareBindings,
   runWithBindings,
   generateWorkerEntry,
@@ -57,97 +56,13 @@ describe('cloudflare compat flags', () => {
   });
 });
 
-// ─── wrapWithExecutionContext ──────────────────────────────────────────────
+// ─── adapter waitUntil ──────────────────────────────────────────────
 
-describe('wrapWithExecutionContext', () => {
-  /** Create a mock ExecutionContext for testing. */
-  function createMockExecutionContext() {
-    const waitUntilPromises: Promise<unknown>[] = [];
-    return {
-      ctx: {
-        waitUntil(promise: Promise<unknown>) {
-          waitUntilPromises.push(promise);
-        },
-        passThroughOnException() {},
-      } as ExecutionContext,
-      waitUntilPromises,
-    };
-  }
-
-  it('delegates waitUntil to ExecutionContext.waitUntil', async () => {
+describe('adapter waitUntil', () => {
+  it('adapter has waitUntil method', () => {
     const adapter = cloudflare();
-    const { ctx, waitUntilPromises } = createMockExecutionContext();
-
-    const handler = async (_req: Request) => {
-      // Simulate calling waitUntil during request handling
-      adapter.waitUntil!(Promise.resolve('background-work'));
-      return new Response('ok');
-    };
-
-    const wrapped = wrapWithExecutionContext(adapter, handler);
-    await wrapped.fetch!(new Request('http://localhost/'), {}, ctx);
-
-    expect(waitUntilPromises).toHaveLength(1);
-    await expect(waitUntilPromises[0]).resolves.toBe('background-work');
-  });
-
-  it('restores original waitUntil after request completes', async () => {
-    const adapter = cloudflare();
-    const originalWaitUntil = adapter.waitUntil;
-    const { ctx } = createMockExecutionContext();
-
-    const handler = async () => new Response('ok');
-    const wrapped = wrapWithExecutionContext(adapter, handler);
-
-    await wrapped.fetch!(new Request('http://localhost/'), {}, ctx);
-
-    // After the request, the adapter's waitUntil should be restored
-    expect(adapter.waitUntil).toBe(originalWaitUntil);
-  });
-
-  it('restores waitUntil even if handler throws', async () => {
-    const adapter = cloudflare();
-    const originalWaitUntil = adapter.waitUntil;
-    const { ctx } = createMockExecutionContext();
-
-    const handler = async () => {
-      throw new Error('handler failed');
-    };
-    const wrapped = wrapWithExecutionContext(adapter, handler);
-
-    await expect(wrapped.fetch!(new Request('http://localhost/'), {}, ctx)).rejects.toThrow(
-      'handler failed'
-    );
-
-    expect(adapter.waitUntil).toBe(originalWaitUntil);
-  });
-
-  it('passes request through to handler', async () => {
-    const adapter = cloudflare();
-    const { ctx } = createMockExecutionContext();
-
-    let receivedUrl = '';
-    const handler = async (req: Request) => {
-      receivedUrl = req.url;
-      return new Response('ok');
-    };
-
-    const wrapped = wrapWithExecutionContext(adapter, handler);
-    await wrapped.fetch!(new Request('http://localhost/test-path'), {}, ctx);
-
-    expect(receivedUrl).toBe('http://localhost/test-path');
-  });
-
-  it('returns handler response', async () => {
-    const adapter = cloudflare();
-    const { ctx } = createMockExecutionContext();
-
-    const handler = async () => new Response('hello', { status: 201 });
-    const wrapped = wrapWithExecutionContext(adapter, handler);
-
-    const response = await wrapped.fetch!(new Request('http://localhost/'), {}, ctx);
-    expect(response.status).toBe(201);
-    expect(await response.text()).toBe('hello');
+    expect(adapter.waitUntil).toBeDefined();
+    expect(typeof adapter.waitUntil).toBe('function');
   });
 });
 
@@ -218,45 +133,29 @@ describe('getCloudflareBindings', () => {
   });
 });
 
-// ─── Bindings passthrough via wrapWithExecutionContext ─────────────────────
+// ─── Bindings passthrough via runWithBindings ─────────────────────
 
-describe('bindings passthrough via wrapWithExecutionContext', () => {
-  it('makes env accessible via getCloudflareBindings during request', async () => {
-    const adapter = cloudflare();
-    const ctx = {
-      waitUntil() {},
-      passThroughOnException() {},
-    } as ExecutionContext;
-
+describe('bindings passthrough via runWithBindings', () => {
+  it('makes env accessible via getCloudflareBindings during request', () => {
     const env = { MY_KV: { get: () => 'test-value' }, API_KEY: 'secret' };
 
     let capturedBindings: Record<string, unknown> | null = null;
-    const handler = async () => {
+    runWithBindings(env, () => {
       capturedBindings = getCloudflareBindings();
-      return new Response('ok');
-    };
-
-    const wrapped = wrapWithExecutionContext(adapter, handler);
-    await wrapped.fetch!(new Request('http://localhost/'), env, ctx);
+    });
 
     expect(capturedBindings).toBe(env);
     expect(capturedBindings!.MY_KV).toBeDefined();
     expect(capturedBindings!.API_KEY).toBe('secret');
   });
 
-  it('bindings not available after request completes', async () => {
-    const adapter = cloudflare();
-    const ctx = {
-      waitUntil() {},
-      passThroughOnException() {},
-    } as ExecutionContext;
+  it('bindings not available after runWithBindings completes', () => {
+    runWithBindings({ MY_KV: {} }, () => {
+      // inside scope, bindings available
+      expect(getCloudflareBindings()).toBeDefined();
+    });
 
-    const handler = async () => new Response('ok');
-    const wrapped = wrapWithExecutionContext(adapter, handler);
-
-    await wrapped.fetch!(new Request('http://localhost/'), { MY_KV: {} }, ctx);
-
-    // After the request, bindings should no longer be available
+    // After the call, bindings should no longer be available
     expect(() => getCloudflareBindings()).toThrow();
   });
 });
@@ -264,16 +163,9 @@ describe('bindings passthrough via wrapWithExecutionContext', () => {
 // ─── Worker entry structure ───────────────────────────────────────────────
 
 describe('worker entry structure', () => {
-  it('entry imports wrapWithExecutionContext from adapter', () => {
+  it('entry imports handler from rsc/index.js', () => {
     const entry = generateWorkerEntry('/build', '/build/out');
-    expect(entry).toContain(
-      "import { wrapWithExecutionContext } from '@timber/app/adapters/cloudflare'"
-    );
-  });
-
-  it('entry imports handler and adapter from server entry', () => {
-    const entry = generateWorkerEntry('/build', '/build/out');
-    expect(entry).toContain("import { handler, adapter } from '../server/entry.js'");
+    expect(entry).toContain("import handler from '../rsc/index.js'");
   });
 
   it('entry sets up process.env polyfill for Workers', () => {
@@ -287,18 +179,29 @@ describe('worker entry structure', () => {
     expect(entry).toContain("process.env.TIMBER_RUNTIME = 'cloudflare'");
   });
 
-  it('entry exports default wrapWithExecutionContext result', () => {
+  it('entry exports default with fetch handler', () => {
     const entry = generateWorkerEntry('/build', '/build/out');
-    expect(entry).toContain('export default wrapWithExecutionContext(adapter, handler)');
+    expect(entry).toContain('export default { fetch: handler }');
   });
 });
 
 // ─── Wrangler config ──────────────────────────────────────────────────────
 
 describe('wrangler config', () => {
-  it('main points to _worker.ts', () => {
+  it('main points to _worker.js', () => {
     const config = generateWranglerConfig(SERVER_CONFIG, {});
-    expect(config.main).toBe('_worker.ts');
+    expect(config.main).toBe('_worker.js');
+  });
+
+  it('includes no_bundle and find_additional_modules', () => {
+    const config = generateWranglerConfig(SERVER_CONFIG, {});
+    expect(config.no_bundle).toBe(true);
+    expect(config.find_additional_modules).toBe(true);
+  });
+
+  it('includes ESModule rules for .js files', () => {
+    const config = generateWranglerConfig(SERVER_CONFIG, {});
+    expect(config.rules).toEqual([{ type: 'ESModule', globs: ['**/*.js'] }]);
   });
 
   it('assets directory points to static/', () => {

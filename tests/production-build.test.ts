@@ -239,7 +239,7 @@ describe('buildClientScripts() — production', () => {
 
     const result = buildClientScripts({
       output: 'server',
-      noJS: false,
+      noClientJavascript: false,
       dev: false,
       buildManifest: manifest,
     });
@@ -264,7 +264,7 @@ describe('buildClientScripts() — production', () => {
 
     const result = buildClientScripts({
       output: 'server',
-      noJS: false,
+      noClientJavascript: false,
       dev: false,
       buildManifest: manifest,
     });
@@ -278,7 +278,7 @@ describe('buildClientScripts() — production', () => {
   it('dev mode uses dynamic import() with virtual module paths', () => {
     const result = buildClientScripts({
       output: 'server',
-      noJS: false,
+      noClientJavascript: false,
       dev: true,
     });
 
@@ -290,10 +290,10 @@ describe('buildClientScripts() — production', () => {
     expect(result.bootstrapScriptContent).toContain('import("/@vite/client")');
   });
 
-  it('noJS mode returns empty config', () => {
+  it('noClientJavascript mode returns empty config', () => {
     const result = buildClientScripts({
       output: 'static',
-      noJS: true,
+      noClientJavascript: true,
       dev: false,
     });
 
@@ -311,7 +311,7 @@ describe('buildClientScripts() — production', () => {
 
     const result = buildClientScripts({
       output: 'server',
-      noJS: false,
+      noClientJavascript: false,
       dev: false,
       buildManifest: manifest,
     });

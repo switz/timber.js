@@ -17,7 +17,7 @@ export default function HomePage() {
   return <h1>Hello</h1>
 }
 `;
-    const errors = validateStaticMode(code, 'app/page.tsx', { noJS: false });
+    const errors = validateStaticMode(code, 'app/page.tsx', { noClientJavascript: false });
     expect(errors).toHaveLength(0);
   });
 
@@ -30,7 +30,7 @@ export default async function Page() {
   return <ul>{posts.map(p => <li key={p.id}>{p.title}</li>)}</ul>
 }
 `;
-    const errors = validateStaticMode(code, 'app/page.tsx', { noJS: false });
+    const errors = validateStaticMode(code, 'app/page.tsx', { noClientJavascript: false });
     expect(errors).toHaveLength(0);
   });
 });
@@ -47,7 +47,7 @@ export function middleware(ctx) {
   return ctx.next()
 }
 `;
-    const errors = validateStaticMode(code, 'app/middleware.ts', { noJS: false });
+    const errors = validateStaticMode(code, 'app/middleware.ts', { noClientJavascript: false });
     expect(errors).toHaveLength(0);
   });
 
@@ -58,7 +58,7 @@ export default function access(ctx) {
   return ctx.allow()
 }
 `;
-    const errors = validateStaticMode(code, 'app/dashboard/access.ts', { noJS: false });
+    const errors = validateStaticMode(code, 'app/dashboard/access.ts', { noClientJavascript: false });
     expect(errors).toHaveLength(0);
   });
 });
@@ -136,76 +136,76 @@ export default function Page() {
 });
 
 // ---------------------------------------------------------------------------
-// noJS use client error: 'use client' → build error in noJS mode
+// noClientJavascript use client error: 'use client' → build error in noClientJavascript mode
 // ---------------------------------------------------------------------------
 
 describe('nojs use client error', () => {
-  it('rejects "use client" directive in noJS mode', () => {
+  it('rejects "use client" directive in noClientJavascript mode', () => {
     const code = `'use client'
 
 export default function Counter() {
   return <button>Click</button>
 }
 `;
-    const errors = detectDirectives(code, 'app/components/Counter.tsx', { noJS: true });
+    const errors = detectDirectives(code, 'app/components/Counter.tsx', { noClientJavascript: true });
     expect(errors.length).toBeGreaterThan(0);
     expect(errors[0].type).toBe('nojs-directive');
     expect(errors[0].message).toContain("'use client'");
   });
 
-  it('rejects "use server" directive in noJS mode', () => {
+  it('rejects "use server" directive in noClientJavascript mode', () => {
     const code = `'use server'
 
 export async function createPost(data) {
   await db.posts.create(data)
 }
 `;
-    const errors = detectDirectives(code, 'app/actions.ts', { noJS: true });
+    const errors = detectDirectives(code, 'app/actions.ts', { noClientJavascript: true });
     expect(errors.length).toBeGreaterThan(0);
     expect(errors[0].type).toBe('nojs-directive');
     expect(errors[0].message).toContain("'use server'");
   });
 
-  it('rejects double-quoted "use client" in noJS mode', () => {
+  it('rejects double-quoted "use client" in noClientJavascript mode', () => {
     const code = `"use client"
 
 export default function Widget() {
   return <div />
 }
 `;
-    const errors = detectDirectives(code, 'app/widget.tsx', { noJS: true });
+    const errors = detectDirectives(code, 'app/widget.tsx', { noClientJavascript: true });
     expect(errors.length).toBeGreaterThan(0);
     expect(errors[0].type).toBe('nojs-directive');
   });
 
-  it('does not flag "use client" in non-noJS static mode', () => {
+  it('does not flag "use client" in non-noClientJavascript static mode', () => {
     const code = `'use client'
 
 export default function Counter() {
   return <button>Click</button>
 }
 `;
-    const errors = detectDirectives(code, 'app/components/Counter.tsx', { noJS: false });
+    const errors = detectDirectives(code, 'app/components/Counter.tsx', { noClientJavascript: false });
     expect(errors).toHaveLength(0);
   });
 
-  it('does not flag code without directives in noJS mode', () => {
+  it('does not flag code without directives in noClientJavascript mode', () => {
     const code = `
 export default function Page() {
   return <h1>Static</h1>
 }
 `;
-    const errors = detectDirectives(code, 'app/page.tsx', { noJS: true });
+    const errors = detectDirectives(code, 'app/page.tsx', { noClientJavascript: true });
     expect(errors).toHaveLength(0);
   });
 });
 
 // ---------------------------------------------------------------------------
-// noJS no runtime: no React runtime in output
+// noClientJavascript no runtime: no React runtime in output
 // ---------------------------------------------------------------------------
 
 describe('nojs no runtime', () => {
-  it('reports "use client" as a noJS violation', () => {
+  it('reports "use client" as a noClientJavascript violation', () => {
     const code = `'use client'
 import { useState } from 'react'
 export default function Counter() {
@@ -213,9 +213,9 @@ export default function Counter() {
   return <button onClick={() => setCount(c => c + 1)}>{count}</button>
 }
 `;
-    const errors = detectDirectives(code, 'app/counter.tsx', { noJS: true });
+    const errors = detectDirectives(code, 'app/counter.tsx', { noClientJavascript: true });
     expect(errors.length).toBeGreaterThan(0);
-    // In noJS mode, 'use client' is the build error — React runtime removal
+    // In noClientJavascript mode, 'use client' is the build error — React runtime removal
     // is a consequence of rejecting all client components
     expect(errors[0].type).toBe('nojs-directive');
   });
@@ -236,8 +236,8 @@ export default function Page() {
   return <form action={submitForm}><button>Submit</button></form>
 }
 `;
-    // In static mode (non-noJS), server actions must be extracted
-    const errors = validateStaticMode(code, 'app/page.tsx', { noJS: false });
+    // In static mode (non-noClientJavascript), server actions must be extracted
+    const errors = validateStaticMode(code, 'app/page.tsx', { noClientJavascript: false });
     // No errors — action extraction is a transform, not a validation error.
     // The plugin handles extraction during build.
     expect(errors).toHaveLength(0);
@@ -254,8 +254,8 @@ export async function deletePost(id) {
   await db.posts.delete(id)
 }
 `;
-    // In non-noJS static mode, server action files are valid — they get extracted
-    const errors = validateStaticMode(code, 'app/actions.ts', { noJS: false });
+    // In non-noClientJavascript static mode, server action files are valid — they get extracted
+    const errors = validateStaticMode(code, 'app/actions.ts', { noClientJavascript: false });
     expect(errors).toHaveLength(0);
   });
 });
@@ -265,7 +265,7 @@ export async function deletePost(id) {
 // ---------------------------------------------------------------------------
 
 describe('validateStaticMode combined', () => {
-  it('catches both dynamic APIs and noJS violations', () => {
+  it('catches both dynamic APIs and noClientJavascript violations', () => {
     const code = `'use client'
 import { cookies } from 'next/headers'
 
@@ -274,7 +274,7 @@ export default function Page() {
   return <div>{token}</div>
 }
 `;
-    const errors = validateStaticMode(code, 'app/page.tsx', { noJS: true });
+    const errors = validateStaticMode(code, 'app/page.tsx', { noClientJavascript: true });
     // Should report both the 'use client' and cookies() issues
     expect(errors.length).toBeGreaterThanOrEqual(2);
     const types = errors.map((e: StaticValidationError) => e.type);
@@ -289,7 +289,7 @@ export default async function Page() {
   return <div>{cookies().get('x')}</div>
 }
 `;
-    const errors = validateStaticMode(code, 'app/dashboard/page.tsx', { noJS: false });
+    const errors = validateStaticMode(code, 'app/dashboard/page.tsx', { noClientJavascript: false });
     for (const err of errors) {
       expect(err.file).toBe('app/dashboard/page.tsx');
     }

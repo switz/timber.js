@@ -201,12 +201,12 @@ describe('buildOutput', () => {
     expect(configCall).toBeDefined();
   });
 
-  it('does not fail when client dir is missing (static+noJS)', async () => {
+  it('does not fail when client dir is missing (noClientJavascript)', async () => {
     mockCp.mockRejectedValueOnce(new Error('ENOENT'));
     const adapter = nitro({ preset: 'vercel' });
 
     await expect(
-      adapter.buildOutput({ output: 'static', static: { noJS: true } }, '/tmp/build')
+      adapter.buildOutput({ output: 'static', noClientJavascript: true }, '/tmp/build')
     ).resolves.not.toThrow();
   });
 });

@@ -18,6 +18,8 @@ import { timberBuildManifest } from './plugins/build-manifest';
 import { timberDevLogs } from './plugins/dev-logs';
 import { timberReactProd } from './plugins/react-prod';
 import { timberChunks } from './plugins/chunks';
+import { timberServerBundle } from './plugins/server-bundle';
+import { timberAdapterBuild } from './plugins/adapter-build';
 import { timberBuildReport } from './plugins/build-report';
 import type { RouteTree } from './routing/types';
 import type { BuildManifest } from './server/build-manifest';
@@ -44,7 +46,14 @@ export interface RewriteRule {
 
 export interface TimberUserConfig {
   output?: 'server' | 'static';
-  static?: { noJS?: boolean };
+  /**
+   * Disable all client-side JavaScript output. When true, no client JS
+   * bundles are emitted or referenced in HTML. Pages work entirely via
+   * server-rendered HTML. Works in both 'server' and 'static' modes.
+   *
+   * Server-side JS still runs — this only affects what is sent to the browser.
+   */
+  noClientJavascript?: boolean;
   adapter?: unknown;
   cacheHandler?: unknown;
   allowedOrigins?: string[];
@@ -153,9 +162,6 @@ function mergeFileConfig(ctx: PluginContext, fileConfig: TimberUserConfig): void
       : {}),
     ...(fileConfig.dev && inline.dev ? { dev: { ...fileConfig.dev, ...inline.dev } } : {}),
     ...(fileConfig.mdx && inline.mdx ? { mdx: { ...fileConfig.mdx, ...inline.mdx } } : {}),
-    ...(fileConfig.static && inline.static
-      ? { static: { ...fileConfig.static, ...inline.static } }
-      : {}),
   };
 }
 
@@ -251,8 +257,10 @@ export function timber(config?: TimberUserConfig): PluginOption[] {
     timberFonts(ctx),
     timberMdx(ctx),
     timberContent(ctx),
+    timberServerBundle(), // Bundle all deps in server environments for prod
     timberChunks(),
     timberBuildReport(ctx), // Post-build: route table with bundle sizes
+    timberAdapterBuild(ctx), // Post-build: invoke adapter.buildOutput()
     timberDevLogs(ctx), // Dev-only: forward server console.* to browser console
     timberDevServer(ctx), // Must be last — configureServer post-hook runs after all watchers
   ];

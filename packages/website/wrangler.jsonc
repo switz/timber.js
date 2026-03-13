@@ -1,0 +1,17 @@
+{
+  "name": "timberjs-website",
+  "main": "dist/cloudflare/_worker.js",
+  "compatibility_date": "2026-03-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "no_bundle": true,
+  "find_additional_modules": true,
+  "assets": {
+    "directory": "dist/cloudflare/static"
+  },
+  "rules": [
+    { "type": "ESModule", "globs": ["**/*.js"] }
+  ],
+  "routes": [
+    { "pattern": "timberjs.com", "custom_domain": true }
+  ]
+}

@@ -15,7 +15,7 @@ export default {
 // static with zero JavaScript
 export default {
   output: 'static',
-  static: { noJS: true },
+  noClientJavascript: true,
 };
 ```
 
@@ -23,9 +23,9 @@ export default {
 | ----------------------- | --------------- | -------------------------------------- | ---------------------------- |
 | `server`                | Yes             | Yes                                    | Yes                          |
 | `static`                | No              | Yes (hydration + SPA nav)              | Split deployment via adapter |
-| `static` + `noJS: true` | No              | None (`'use client'` is a build error) | Build error                  |
+| `static` + `noClientJavascript: true` | No              | None (`'use client'` is a build error) | Build error                  |
 
-In `static` mode, `middleware.ts` files run at build time only — there is no server to run them at request time. Server actions are extracted and deployed as separate API endpoints by the adapter (see [Forms & Server Actions](08-forms-and-actions.md#server-actions-in-static-mode)). With `noJS: true`, `'use server'` is also a build error.
+In `static` mode, `middleware.ts` files run at build time only — there is no server to run them at request time. Server actions are extracted and deployed as separate API endpoints by the adapter (see [Forms & Server Actions](08-forms-and-actions.md#server-actions-in-static-mode)). With `noClientJavascript: true`, `'use server'` is also a build error.
 
 An opt-in static shell optimization within `server` mode (`'use dynamic'`, `prerender.ts`) is designed but deferred to a later phase. See [Future: Pre-Rendering](15-future-prerendering.md).
 

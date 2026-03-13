@@ -40,6 +40,16 @@ async function createMockBuildDir(baseDir: string): Promise<string> {
     'export const handler = async (req) => new Response("ok");'
   );
 
+  // RSC output
+  const rscDir = join(buildDir, 'rsc');
+  await mkdir(rscDir, { recursive: true });
+  await writeFile(join(rscDir, 'index.js'), 'export default async (req) => new Response("ok");');
+
+  // SSR output
+  const ssrDir = join(buildDir, 'ssr');
+  await mkdir(ssrDir, { recursive: true });
+  await writeFile(join(ssrDir, 'index.js'), '// ssr entry');
+
   // Client output (client build step)
   const clientDir = join(buildDir, 'client');
   const assetsDir = join(clientDir, 'assets');
@@ -54,7 +64,7 @@ async function createMockBuildDir(baseDir: string): Promise<string> {
 
 const SERVER_CONFIG: TimberConfig = { output: 'server' };
 const STATIC_CONFIG: TimberConfig = { output: 'static' };
-const STATIC_NOJS_CONFIG: TimberConfig = { output: 'static', static: { noJS: true } };
+const STATIC_NOJS_CONFIG: TimberConfig = { output: 'static', noClientJavascript: true };
 
 let tempDir: string;
 
@@ -69,7 +79,7 @@ afterEach(async () => {
 // ─── Cloudflare adapter build ─────────────────────────────────────────────
 
 describe('cloudflare build', () => {
-  it('produces _worker.ts, wrangler.jsonc, and static/ directory', async () => {
+  it('produces _worker.js, wrangler.jsonc, and static/ directory', async () => {
     const buildDir = await createMockBuildDir(tempDir);
     const adapter = cloudflare();
 
@@ -78,21 +88,21 @@ describe('cloudflare build', () => {
     const outDir = join(buildDir, 'cloudflare');
     const files = await readdir(outDir);
 
-    expect(files).toContain('_worker.ts');
+    expect(files).toContain('_worker.js');
     expect(files).toContain('wrangler.jsonc');
     expect(files).toContain('static');
   });
 
-  it('_worker.ts imports server entry and sets TIMBER_RUNTIME', async () => {
+  it('_worker.js imports rsc entry and sets TIMBER_RUNTIME', async () => {
     const buildDir = await createMockBuildDir(tempDir);
     const adapter = cloudflare();
 
     await adapter.buildOutput(SERVER_CONFIG, buildDir);
 
-    const workerEntry = await readFile(join(buildDir, 'cloudflare', '_worker.ts'), 'utf-8');
+    const workerEntry = await readFile(join(buildDir, 'cloudflare', '_worker.js'), 'utf-8');
     expect(workerEntry).toContain("process.env.TIMBER_RUNTIME = 'cloudflare'");
-    expect(workerEntry).toContain('wrapWithExecutionContext');
-    expect(workerEntry).toContain('server/entry.js');
+    expect(workerEntry).toContain('rsc/index.js');
+    expect(workerEntry).toContain('export default { fetch: handler }');
   });
 
   it('wrangler.jsonc contains nodejs_compat flag', async () => {
@@ -105,7 +115,10 @@ describe('cloudflare build', () => {
     const wrangler = JSON.parse(wranglerRaw);
 
     expect(wrangler.compatibility_flags).toContain('nodejs_compat');
-    expect(wrangler.main).toBe('_worker.ts');
+    expect(wrangler.main).toBe('_worker.js');
+    expect(wrangler.no_bundle).toBe(true);
+    expect(wrangler.find_additional_modules).toBe(true);
+    expect(wrangler.rules).toEqual([{ type: 'ESModule', globs: ['**/*.js'] }]);
     expect(wrangler.assets).toEqual({ directory: './static' });
   });
 
@@ -355,7 +368,7 @@ describe('static export', () => {
 
     const outDir = join(buildDir, 'cloudflare');
     const files = await readdir(outDir);
-    expect(files).toContain('_worker.ts');
+    expect(files).toContain('_worker.js');
     expect(files).toContain('static');
   });
 
@@ -371,8 +384,8 @@ describe('static export', () => {
     expect(files).toContain('public');
   });
 
-  it('static+noJS mode gracefully handles missing client dir', async () => {
-    // Create a build dir without client/ directory (noJS mode)
+  it('static+noClientJavascript mode gracefully handles missing client dir', async () => {
+    // Create a build dir without client/ directory (noClientJavascript mode)
     const buildDir = join(tempDir, '.timber', 'build');
     const serverDir = join(buildDir, 'server');
     await mkdir(serverDir, { recursive: true });
@@ -381,13 +394,21 @@ describe('static export', () => {
       'export const handler = async () => new Response("ok");'
     );
 
+    // RSC and SSR bundles are still required
+    const rscDir = join(buildDir, 'rsc');
+    await mkdir(rscDir, { recursive: true });
+    await writeFile(join(rscDir, 'index.js'), 'export default async (req) => new Response("ok");');
+    const ssrDir = join(buildDir, 'ssr');
+    await mkdir(ssrDir, { recursive: true });
+    await writeFile(join(ssrDir, 'index.js'), '// ssr entry');
+
     const adapter = cloudflare();
     // Should not throw even without client/ directory
     await adapter.buildOutput(STATIC_NOJS_CONFIG, buildDir);
 
     const outDir = join(buildDir, 'cloudflare');
     const files = await readdir(outDir);
-    expect(files).toContain('_worker.ts');
+    expect(files).toContain('_worker.js');
     expect(files).toContain('wrangler.jsonc');
   });
 });
@@ -395,12 +416,12 @@ describe('static export', () => {
 // ─── Worker entry generation ──────────────────────────────────────────────
 
 describe('generateWorkerEntry', () => {
-  it('uses correct relative path to server entry', () => {
+  it('uses correct relative path to rsc entry', () => {
     const entry = generateWorkerEntry(
-      '/project/.timber/build',
+      '/project/.timber/build/cloudflare',
       '/project/.timber/build/cloudflare'
     );
-    expect(entry).toContain('../server/entry.js');
+    expect(entry).toContain('rsc/index.js');
   });
 
   it('includes TIMBER_RUNTIME assignment', () => {
@@ -408,11 +429,9 @@ describe('generateWorkerEntry', () => {
     expect(entry).toContain("process.env.TIMBER_RUNTIME = 'cloudflare'");
   });
 
-  it('imports wrapWithExecutionContext', () => {
+  it('exports fetch handler directly', () => {
     const entry = generateWorkerEntry('/build', '/build/out');
-    expect(entry).toContain(
-      "import { wrapWithExecutionContext } from '@timber/app/adapters/cloudflare'"
-    );
+    expect(entry).toContain('export default { fetch: handler }');
   });
 });
 

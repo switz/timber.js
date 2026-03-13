@@ -12,9 +12,6 @@ function mergeFileConfig(inline: TimberUserConfig, fileConfig: TimberUserConfig)
       : {}),
     ...(fileConfig.dev && inline.dev ? { dev: { ...fileConfig.dev, ...inline.dev } } : {}),
     ...(fileConfig.mdx && inline.mdx ? { mdx: { ...fileConfig.mdx, ...inline.mdx } } : {}),
-    ...(fileConfig.static && inline.static
-      ? { static: { ...fileConfig.static, ...inline.static } }
-      : {}),
   };
 }
 

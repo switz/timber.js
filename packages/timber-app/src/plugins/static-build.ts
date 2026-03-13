@@ -3,7 +3,7 @@
  *
  * When `output: 'static'` is set in timber.config.ts, this plugin:
  * 1. Validates that no dynamic APIs (cookies(), headers()) are used
- * 2. In noJS mode, rejects 'use client' and 'use server' directives
+ * 2. In noClientJavascript mode, rejects 'use client' and 'use server' directives
  * 3. Coordinates build-time rendering of all pages
  *
  * Design doc: design/15-future-prerendering.md
@@ -25,7 +25,7 @@ export interface StaticValidationError {
 }
 
 interface StaticOptions {
-  noJS: boolean;
+  noClientJavascript: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -79,15 +79,15 @@ export function detectDynamicApis(code: string, fileId: string): StaticValidatio
 }
 
 // ---------------------------------------------------------------------------
-// Detection: 'use client' / 'use server' directives (noJS mode)
+// Detection: 'use client' / 'use server' directives (noClientJavascript mode)
 // ---------------------------------------------------------------------------
 
 /**
  * Detect 'use client' and 'use server' directives using AST-based parsing.
- * In noJS mode, both are hard build errors — no React runtime or server
+ * In noClientJavascript mode, both are hard build errors — no React runtime or server
  * actions are allowed in the output.
  *
- * In non-noJS static mode, these are allowed (client components hydrate,
+ * In non-noClientJavascript static mode, these are allowed (client components hydrate,
  * server actions get extracted to API endpoints).
  */
 export function detectDirectives(
@@ -95,7 +95,7 @@ export function detectDirectives(
   fileId: string,
   options: StaticOptions
 ): StaticValidationError[] {
-  if (!options.noJS) return [];
+  if (!options.noClientJavascript) return [];
 
   const errors: StaticValidationError[] = [];
 
@@ -105,8 +105,8 @@ export function detectDirectives(
       type: 'nojs-directive',
       file: fileId,
       message:
-        `'use client' is not allowed in noJS mode (output: 'static', static.noJS: true). ` +
-        `noJS mode produces zero JavaScript — client components cannot exist.`,
+        `'use client' is not allowed in noClientJavascript mode (noClientJavascript: true). ` +
+        `noClientJavascript mode produces zero JavaScript — client components cannot exist.`,
       line: clientDirective.line,
     });
   }
@@ -117,8 +117,8 @@ export function detectDirectives(
       type: 'nojs-directive',
       file: fileId,
       message:
-        `'use server' is not allowed in noJS mode (output: 'static', static.noJS: true). ` +
-        `noJS mode produces zero JavaScript — server actions cannot exist.`,
+        `'use server' is not allowed in noClientJavascript mode (noClientJavascript: true). ` +
+        `noClientJavascript mode produces zero JavaScript — server actions cannot exist.`,
       line: serverDirective.line,
     });
   }
@@ -135,7 +135,7 @@ export function detectDirectives(
  *
  * Combines:
  * - Dynamic API detection (cookies, headers) — always in static mode
- * - Directive detection ('use client', 'use server') — only in noJS mode
+ * - Directive detection ('use client', 'use server') — only in noClientJavascript mode
  */
 export function validateStaticMode(
   code: string,
@@ -164,7 +164,7 @@ export function validateStaticMode(
  */
 export function timberStaticBuild(ctx: PluginContext): Plugin {
   const isStatic = ctx.config.output === 'static';
-  const noJS = ctx.config.static?.noJS ?? false;
+  const noClientJavascript = ctx.config.noClientJavascript ?? false;
 
   return {
     name: 'timber-static-build',
@@ -174,7 +174,7 @@ export function timberStaticBuild(ctx: PluginContext): Plugin {
      *
      * In static mode, we check every app/ file for:
      * - Dynamic API usage (cookies(), headers()) → build error
-     * - In noJS mode: 'use client' / 'use server' directives → build error
+     * - In noClientJavascript mode: 'use client' / 'use server' directives → build error
      */
     transform(code: string, id: string) {
       // Only active in static mode
@@ -189,7 +189,7 @@ export function timberStaticBuild(ctx: PluginContext): Plugin {
       // Only check JS/TS files
       if (!/\.[jt]sx?$/.test(id)) return null;
 
-      const errors = validateStaticMode(code, id, { noJS });
+      const errors = validateStaticMode(code, id, { noClientJavascript });
 
       if (errors.length > 0) {
         // Format all errors into a single build error message

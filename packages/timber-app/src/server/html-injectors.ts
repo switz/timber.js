@@ -85,7 +85,7 @@ export function injectHead(
 /**
  * Inject client bootstrap scripts before </body> in the HTML stream.
  *
- * Returns the stream unchanged if scriptsHtml is empty (noJS mode).
+ * Returns the stream unchanged if scriptsHtml is empty (noClientJavascript mode).
  * If no </body> is found, the buffer is emitted as-is.
  */
 export function injectScripts(
@@ -334,7 +334,7 @@ export interface ClientBootstrapConfig {
 /**
  * Build client bootstrap configuration based on runtime config.
  *
- * Returns empty strings when `output: 'static'` + `noJS: true`,
+ * Returns empty strings when `noClientJavascript: true`,
  * which produces zero-JS output. In dev mode, imports the Vite
  * HMR client and virtual browser entry. In production, uses hashed
  * chunk URLs from the build manifest.
@@ -348,11 +348,11 @@ export interface ClientBootstrapConfig {
  */
 export function buildClientScripts(runtimeConfig: {
   output: string;
-  noJS: boolean;
+  noClientJavascript: boolean;
   dev: boolean;
   buildManifest?: import('./build-manifest.js').BuildManifest;
 }): ClientBootstrapConfig {
-  if (runtimeConfig.output === 'static' && runtimeConfig.noJS) {
+  if (runtimeConfig.noClientJavascript) {
     return { bootstrapScriptContent: '', preloadLinks: '' };
   }
 

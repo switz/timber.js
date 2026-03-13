@@ -169,7 +169,7 @@ In `static` output mode, there is no server to execute actions at request time. 
 
 - `revalidatePath()` cannot return an inline RSC payload — there is no server-side renderer to produce one. After the action completes, the client performs a separate navigation fetch to get fresh data (two roundtrips).
 - The adapter must support split deployment (static assets + API functions). The Nitro adapter handles this for platforms like Vercel, Netlify, etc.
-- `'use server'` is a build error in `static` + `noJS` mode — that mode ships zero JavaScript and cannot call server functions.
+- `'use server'` is a build error in `static` + `noClientJavascript` mode — that mode ships zero JavaScript and cannot call server functions.
 
 This is a known trade-off. Static mode prioritizes zero-server deployment for content sites. Apps with heavy mutation patterns should use `server` mode.
 

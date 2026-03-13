@@ -210,11 +210,11 @@ describe('cloudflare runtime', () => {
     expect(entry).toContain("process.env.TIMBER_RUNTIME = 'cloudflare'");
   });
 
-  it('TIMBER_RUNTIME is set before handler is called', () => {
+  it('TIMBER_RUNTIME is set before export', () => {
     const entry = generateWorkerEntry('/build', '/build/out');
     const runtimeLine = entry.indexOf("TIMBER_RUNTIME = 'cloudflare'");
-    const handlerLine = entry.indexOf('wrapWithExecutionContext(adapter, handler)');
-    expect(runtimeLine).toBeLessThan(handlerLine);
+    const exportLine = entry.indexOf('export default { fetch: handler }');
+    expect(runtimeLine).toBeLessThan(exportLine);
   });
 
   it('TIMBER_RUNTIME is available via process.env', () => {

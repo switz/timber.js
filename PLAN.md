@@ -405,7 +405,7 @@ Static builds and the opt-in static shell optimization for server mode. Signific
 - [ ] `generateMetadata` runs at build time in static mode
 - [ ] Server actions extracted as separate API endpoints by adapter
 - [ ] `revalidatePath()` in static mode requires two roundtrips (documented)
-- [ ] `output: 'static', static: { noJS: true }`:
+- [ ] `output: 'static', noClientJavascript: true`:
   - [ ] `'use client'` → hard build error
   - [ ] `'use server'` → hard build error
   - [ ] No React runtime in output
@@ -425,7 +425,7 @@ Static builds and the opt-in static shell optimization for server mode. Signific
 ### 5c. Phase 5 Testing
 
 - [ ] `static` mode: all pages render at build time, no server code in output
-- [ ] `noJS` mode: `'use client'` and `'use server'` produce build errors
+- [ ] `noClientJavascript` mode: `'use client'` and `'use server'` produce build errors
 - [ ] Static mode `cookies()`/`headers()` produce build errors
 - [ ] `'use dynamic'` boundaries: dynamic components render per-request, static shell unchanged
 - [ ] Pre-rendered shell invalidated by `revalidateTag`

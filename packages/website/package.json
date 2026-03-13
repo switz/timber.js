@@ -1,0 +1,22 @@
+{
+  "name": "@timber/website",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "NODE_ENV=production vite build",
+    "preview": "NODE_ENV=production vite build && wrangler dev",
+    "deploy": "NODE_ENV=production vite build && wrangler deploy"
+  },
+  "dependencies": {
+    "@timber/app": "workspace:*",
+    "react": "19.3.0-canary-46103596-20260305",
+    "react-dom": "19.3.0-canary-46103596-20260305"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.0.0",
+    "tailwindcss": "^4.2.1",
+    "vite": "^7.0.0",
+    "wrangler": "^4.0.0"
+  }
+}

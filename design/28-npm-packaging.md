@@ -1,0 +1,410 @@
+# npm Packaging Strategy
+
+## Current State
+
+`@timber/app` has no build step — `package.json` build script is `echo 'TODO: build step'`. All 8 exports point directly to `.ts` source files, the CLI bin entry points to raw TypeScript, and there is no `dist/` output, `publishConfig`, `files` field, or publishing CI. This works for local workspace consumption via pnpm and Vite path aliases, but is not viable for npm distribution.
+
+> **Note on package name:** The `@timber` npm scope is taken. The published package will likely be `@timber-js/app` (or another available scope). This doc uses `@timber/app` to match the current workspace name — the rename is a separate concern addressed during the actual publish step.
+
+Current `exports`:
+
+```json
+{
+  ".": "./src/index.ts",
+  "./server": "./src/server/index.ts",
+  "./client": "./src/client/index.ts",
+  "./cache": "./src/cache/index.ts",
+  "./content": "./src/content/index.ts",
+  "./search-params": "./src/search-params/index.ts",
+  "./routing": "./src/routing/index.ts",
+  "./adapters/*": "./src/adapters/*.ts"
+}
+```
+
+---
+
+## Recommendation: Ship Compiled ESM + Declaration Files
+
+### Decision
+
+Ship compiled `.js` (ESM) + `.d.ts` + `.d.ts.map` in `dist/`. Do NOT ship raw `.ts` source as the primary entry.
+
+### Rationale
+
+**Why not ship raw `.ts` source (the SvelteKit/Vinxi approach)?**
+
+SvelteKit ships raw `.js` source (not TypeScript — JSDoc-annotated JavaScript) with separately generated `.d.ts` files. Vinxi does the same. This works because:
+
+1. Their source is already JavaScript — no compilation needed by consumers
+2. They control the tooling chain that consumes the package
+
+timber.js is TypeScript, and shipping `.ts` source would require every consumer's toolchain to compile it. This creates problems:
+
+- **Vite dev mode works** (Vite transpiles `.ts` on the fly), but many tools in the ecosystem don't — Jest, older webpack setups, `tsx`/`ts-node` in scripts, etc.
+- **Version skew**: If a consumer's `tsconfig.json` has different `target`, `moduleResolution`, or `strict` settings, compilation may fail or produce different behavior
+- **Slower cold starts**: Every `vite dev` invocation must compile the framework source on first load
+- **Type-checking burden**: Consumer's `tsc --noEmit` would type-check timber's internals, catching internal implementation issues that are not the consumer's concern
+
+**Why ESM-only (no CJS)?**
+
+- `@timber/app` is `"type": "module"` — already ESM
+- All peer dependencies (Vite 7, React 19, `@vitejs/plugin-rsc`) are ESM
+- The target runtime (Cloudflare Workers) is ESM
+- Shipping dual CJS/ESM adds complexity and bundle size for zero benefit
+- React Router (`@react-router/dev`) is the only comparable framework still shipping CJS, and only for legacy Node.js compatibility that timber doesn't need
+
+### Industry Survey
+
+| Framework | Ships | Build Tool | ESM/CJS |
+|---|---|---|---|
+| @tanstack/react-start | compiled ESM + d.ts (+ raw src) | Vite library mode | ESM |
+| vinxi | raw JS source + generated d.ts | tsc (types only) | ESM |
+| @react-router/dev | compiled JS + d.ts | tsup | CJS |
+| astro | compiled JS + d.ts | esbuild + tsc | ESM |
+| @sveltejs/kit | raw JS source (JSDoc) + generated d.ts | dts-buddy (types only) | ESM |
+| vite | compiled JS + d.ts | Rolldown + tsc | ESM |
+
+Most modern Vite-ecosystem frameworks ship compiled ESM with declaration files.
+
+---
+
+## Build Tooling: tsup
+
+### Decision
+
+Use **tsup** for the library build.
+
+### Rationale
+
+| Tool | Pros | Cons |
+|---|---|---|
+| **tsup** | Zero-config for TS→ESM+d.ts, handles multiple entry points, tree-shakes, fast (esbuild under the hood) | Another dependency |
+| **unbuild** | Similar to tsup, auto-infers entries from exports | Less adoption, more magic |
+| **plain tsc** | No extra deps, outputs match source structure 1:1 | No bundling, no tree-shaking, emits every internal file individually |
+| **Vite library mode** | Already in the stack | Designed for single-entry libraries, awkward with multiple subpath exports |
+| **esbuild direct** | Fastest | No `.d.ts` generation, need separate tsc pass |
+
+**tsup** is the best fit because:
+
+1. Handles multiple entry points natively — one config for all 8+ exports
+2. Generates `.d.ts` files (via rollup-plugin-dts internally) — single tool, single command
+3. React Router uses it, so the pattern is proven for Vite-plugin frameworks
+4. ESM-only output is the default, no extra config needed
+5. Preserves the source directory structure in output (no flattening)
+
+### Configuration Sketch
+
+```ts
+// packages/timber-app/tsup.config.ts
+import { defineConfig } from 'tsup';
+
+export default defineConfig({
+  entry: {
+    index: 'src/index.ts',
+    'server/index': 'src/server/index.ts',
+    'client/index': 'src/client/index.ts',
+    'cache/index': 'src/cache/index.ts',
+    'content/index': 'src/content/index.ts',
+    'search-params/index': 'src/search-params/index.ts',
+    'routing/index': 'src/routing/index.ts',
+    'adapters/cloudflare': 'src/adapters/cloudflare.ts',
+    'adapters/nitro': 'src/adapters/nitro.ts',
+    cli: 'src/cli.ts',
+  },
+  format: ['esm'],
+  dts: true,
+  splitting: true,      // shared code extracted to chunks
+  sourcemap: true,
+  clean: true,
+  outDir: 'dist',
+  target: 'es2022',
+  external: [
+    'react',
+    'react-dom',
+    'vite',
+    '@vitejs/plugin-rsc',
+    '@vitejs/plugin-react',
+    'nuqs',
+    'zod',
+    // All peer + optional deps externalized
+  ],
+});
+```
+
+### Build Script
+
+```json
+{
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsgo --noEmit"
+  }
+}
+```
+
+---
+
+## Exports Field
+
+### Decision
+
+Use conditional exports with `types` + `import` conditions. The `types` condition MUST come first (TypeScript requires it).
+
+```json
+{
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./server": {
+      "types": "./dist/server/index.d.ts",
+      "import": "./dist/server/index.js"
+    },
+    "./client": {
+      "types": "./dist/client/index.d.ts",
+      "import": "./dist/client/index.js"
+    },
+    "./cache": {
+      "types": "./dist/cache/index.d.ts",
+      "import": "./dist/cache/index.js"
+    },
+    "./content": {
+      "types": "./dist/content/index.d.ts",
+      "import": "./dist/content/index.js"
+    },
+    "./search-params": {
+      "types": "./dist/search-params/index.d.ts",
+      "import": "./dist/search-params/index.js"
+    },
+    "./routing": {
+      "types": "./dist/routing/index.d.ts",
+      "import": "./dist/routing/index.js"
+    },
+    "./adapters/cloudflare": {
+      "types": "./dist/adapters/cloudflare.d.ts",
+      "import": "./dist/adapters/cloudflare.js"
+    },
+    "./adapters/nitro": {
+      "types": "./dist/adapters/nitro.d.ts",
+      "import": "./dist/adapters/nitro.js"
+    },
+    "./package.json": "./package.json"
+  }
+}
+```
+
+### Adapters: Named Exports Replace Wildcard
+
+The current `"./adapters/*": "./src/adapters/*.ts"` wildcard must change to explicit entries. Wildcard exports with conditional subpaths are ambiguous and poorly supported by TypeScript's `moduleResolution: "bundler"`. With only two adapters (cloudflare, nitro), explicit entries are clearer and fully type-safe.
+
+### Development: `publishConfig` for Local Workspace
+
+During development, the workspace still needs to resolve to `.ts` source (Vite transpiles on the fly, tests need source). Two options:
+
+**Option A — `publishConfig` override (recommended):**
+
+```json
+{
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js"
+      }
+    }
+  }
+}
+```
+
+pnpm applies `publishConfig` fields when packing/publishing, so workspace consumers see `.ts` source while npm consumers see `dist/`. This is the approach TanStack Start uses.
+
+**Option B — Vite path aliases only:**
+
+Keep the path aliases in the root `tsconfig.json` (`@timber/app` → `./packages/timber-app/src/index.ts`) and point `exports` directly to `dist/`. The workspace never resolves via `exports` — Vite and tsgo use the path aliases.
+
+Option A is recommended because it's explicit and self-documenting. Option B relies on implicit alias behavior that may break with different toolchains.
+
+---
+
+## CLI Binary
+
+### Decision
+
+The CLI bin entry must point to compiled JavaScript with a shebang.
+
+```json
+{
+  "bin": {
+    "timber": "./dist/cli.js"
+  }
+}
+```
+
+tsup can inject the shebang automatically:
+
+```ts
+// tsup.config.ts
+{
+  entry: { cli: 'src/cli.ts' },
+  banner: { js: '#!/usr/bin/env node' },
+}
+```
+
+Alternatively, use a thin wrapper at `bin/timber.mjs`:
+
+```js
+#!/usr/bin/env node
+import '../dist/cli.js';
+```
+
+The thin wrapper approach (used by Astro, Vite, React Router) is more robust — the bin entry never changes location regardless of build output changes.
+
+---
+
+## `files` Field
+
+### Decision
+
+Explicitly list published files to minimize package size:
+
+```json
+{
+  "files": [
+    "dist",
+    "bin",
+    "README.md",
+    "LICENSE"
+  ]
+}
+```
+
+This excludes `src/`, `tests/`, `design/`, examples, and config files. A `.npmignore` is NOT needed when `files` is specified — `files` acts as an allowlist.
+
+### Estimated Package Size
+
+The compiled output should be significantly smaller than shipping the full `src/` directory (100+ `.ts` files). tsup's `splitting: true` deduplicates shared code across entry points. Estimate: 200-400 KB total (JS + d.ts + sourcemaps).
+
+---
+
+## Peer Dependencies
+
+### Current State
+
+```json
+{
+  "react": "19.3.0-canary-46103596-20260305",
+  "react-dom": "19.3.0-canary-46103596-20260305",
+  "vite": "^7.0.0"
+}
+```
+
+### Concerns
+
+**React canary pin:** The exact canary pin (`19.3.0-canary-*`) blocks adoption. No one outside the React team uses pinned canary versions in production. Options:
+
+1. **Keep the pin for now** — timber requires RSC features only available in canary. Document this prominently. When React 19.3 (or whatever version ships RSC stable) releases, relax to `^19.3.0`.
+2. **Use a range** — `>=19.3.0-canary.0` — risky, canaries can break between builds.
+3. **Accept the constraint** — timber targets early adopters who are already on React canary. This is the same position TanStack Start and other RSC frameworks are in.
+
+**Recommendation:** Keep the exact canary pin. Add a prominent note in README. Relax when React ships stable RSC support.
+
+**Vite 7:** Not yet widely adopted. The `^7.0.0` range is correct — Vite follows semver. Once Vite 7 is stable, this is a non-issue.
+
+**`@vitejs/plugin-rsc`:** Currently a direct dependency (not peer). This is correct — `@timber/app` depends on a specific version of the RSC plugin and consumers should not need to install it separately. However, if the RSC plugin's API stabilizes and consumers may want to configure it directly, it could move to a peer dependency in the future.
+
+---
+
+## `@vitejs/plugin-rsc` Stability
+
+### Assessment
+
+`@vitejs/plugin-rsc` is at `^0.5.19` — semver `0.x` signals instability. The package is maintained by the Vite team and is the only viable RSC-on-Vite integration. Risks:
+
+- **Breaking changes in 0.x releases** — any minor bump can break the API
+- **Tight coupling** — timber relies on specific plugin hooks, entry configuration, and build pipeline behavior
+- **No alternative** — if the plugin changes direction, timber must adapt
+
+### Mitigation
+
+1. **Pin to a narrow range** — use `~0.5.19` (patch only) instead of `^0.5.19` (minor). Update deliberately after testing.
+2. **Keep it as a direct dependency** — consumers should not need to know about or install it.
+3. **Abstract the integration** — timber already wraps the RSC plugin configuration in `index.ts`. If the plugin API changes, only one file needs updating.
+4. **Track upstream** — monitor the `@vitejs/plugin-rsc` changelog and test against pre-releases.
+
+---
+
+## Versioning Strategy
+
+### Decision
+
+Use `0.x` semver with a `canary` dist-tag for pre-release builds.
+
+```
+0.1.0        — first npm publish (latest tag)
+0.1.1        — patch fix
+0.2.0        — breaking API change (new minor in 0.x = breaking)
+0.2.1-canary.0  — canary pre-release (canary tag)
+```
+
+### Rationale
+
+- `0.x` communicates that the API is not yet stable — expected for a framework depending on React canary and Vite 7 pre-release
+- Follow semver strictly: in `0.x`, minor bumps signal breaking changes, patch bumps signal fixes
+- `canary` dist-tag for CI-published pre-release builds: `npm install @timber/app@canary`
+- Move to `1.0.0` only when: React RSC is stable, Vite 7 is stable, `@vitejs/plugin-rsc` is `>=1.0.0`, and timber's public API surface is settled
+
+### Monorepo Publishing (Out of Scope)
+
+Changesets (`@changesets/cli`) or similar tooling for monorepo version management is a follow-up task. The current workspace has only one publishable package (`@timber/app`), so manual versioning suffices initially.
+
+---
+
+## Implementation Plan
+
+These are the concrete steps to implement this strategy (each should be a separate task/PR):
+
+### Step 1: Add tsup and build config
+
+- Install `tsup` as a dev dependency
+- Create `tsup.config.ts` with entry points
+- Update `build` script to `tsup`
+- Verify `dist/` output matches expected structure
+- Add `dist/` to `.gitignore`
+
+### Step 2: Update package.json for publishing
+
+- Switch `exports` to conditional `types` + `import` pointing to `dist/`
+- Add `publishConfig` with the production exports (keep dev exports pointing to `src/`)
+- Add `files` field
+- Update `bin` entry
+- Pin `@vitejs/plugin-rsc` to `~0.5.x`
+- Verify workspace resolution still works (`pnpm test`, `pnpm run typecheck`)
+
+### Step 3: Add publishing CI
+
+- GitHub Actions workflow: build → test → publish on tag
+- `canary` dist-tag for main branch builds
+- `latest` dist-tag for version tags
+- npm provenance (SLSA) for supply chain security
+
+### Step 4: Documentation
+
+- Add installation instructions to README
+- Document peer dependency requirements
+- Document canary React version requirement
+
+---
+
+## Open Questions
+
+1. **Source maps in published package?** Including `sourcemap: true` in tsup adds ~30% to package size but enables debugging into timber internals. Recommended: yes, include them.
+
+2. **`typesVersions` fallback?** Older TypeScript versions (< 4.7) don't support `exports` conditions. A `typesVersions` field can provide fallback resolution. Worth adding if adoption data shows consumers on older TS versions.
+
+3. **Should examples be a separate package?** Currently in the same repo. If examples grow, they could be published as `create-timber-app` or similar. Out of scope for now.
+
+4. **Prepublish validation?** A `prepublishOnly` script that runs `tsc --noEmit && vitest run && tsup` ensures broken code never reaches npm. Recommended.

@@ -58,7 +58,11 @@ const navSections = [
     links: [
       { href: '/routes-test/42', testid: 'link-routes-dynamic', text: 'Dynamic' },
       { href: '/routes-test/catch/a/b', testid: 'link-routes-catch', text: 'Catch-All' },
-      { href: '/routes-test/optional', testid: 'link-routes-optional', text: 'Optional' },
+      {
+        href: '/routes-test/optional/foo/bar/baz',
+        testid: 'link-routes-optional',
+        text: 'Optional',
+      },
       { href: '/routes-test/grouped-a', testid: 'link-routes-group-a', text: 'Group A' },
       { href: '/routes-test/grouped-b', testid: 'link-routes-group-b', text: 'Group B' },
     ],

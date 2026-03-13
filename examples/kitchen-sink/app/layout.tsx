@@ -24,12 +24,12 @@ const navSections = [
   {
     label: 'Errors',
     links: [
-      { href: '/errors/crash', testid: 'link-errors-crash', text: 'Crash' },
+      { href: '/errors/crash', testid: 'link-errors-crash', text: 'Crash (500)' },
       { href: '/errors/render-error', testid: 'link-errors-render', text: 'RenderError' },
-      { href: '/errors/client-error', testid: 'link-errors-client', text: 'ClientError' },
-      { href: '/errors/deny-403', testid: 'link-errors-deny-403', text: 'Deny 403' },
-      { href: '/errors/deny-401', testid: 'link-errors-deny-401', text: 'Deny 401' },
-      { href: '/errors/deny-404', testid: 'link-errors-deny-404', text: 'Deny 404' },
+      { href: '/errors/client-error', testid: 'link-errors-client', text: 'Client Error' },
+      { href: '/errors/deny-403', testid: 'link-errors-deny-403', text: '403 Forbidden' },
+      { href: '/errors/deny-401', testid: 'link-errors-deny-401', text: '401 Fallback' },
+      { href: '/errors/deny-404', testid: 'link-errors-deny-404', text: '404 Segment' },
     ],
   },
   {
@@ -56,15 +56,15 @@ const navSections = [
   {
     label: 'Routes',
     links: [
-      { href: '/routes-test/42', testid: 'link-routes-dynamic', text: 'Dynamic' },
-      { href: '/routes-test/catch/a/b', testid: 'link-routes-catch', text: 'Catch-All' },
+      { href: '/routes-test/42', testid: 'link-routes-dynamic', text: '[id] Dynamic' },
+      { href: '/routes-test/catch/a/b', testid: 'link-routes-catch', text: '[...slug]' },
       {
         href: '/routes-test/optional/foo/bar/baz',
         testid: 'link-routes-optional',
-        text: 'Optional',
+        text: '[[...slug]]',
       },
-      { href: '/routes-test/grouped-a', testid: 'link-routes-group-a', text: 'Group A' },
-      { href: '/routes-test/grouped-b', testid: 'link-routes-group-b', text: 'Group B' },
+      { href: '/routes-test/grouped-a', testid: 'link-routes-group-a', text: '(group-a)' },
+      { href: '/routes-test/grouped-b', testid: 'link-routes-group-b', text: '(group-b)' },
     ],
   },
   {

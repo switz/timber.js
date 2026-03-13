@@ -49,6 +49,10 @@ export interface NavContext {
    *  without ever showing a fallback. Derived from route `deferSuspenseFor` exports.
    *  See design/05-streaming.md §"deferSuspenseFor". */
   deferSuspenseFor?: number;
+  /** Request abort signal. When the client disconnects (page refresh,
+   *  navigation away), this signal fires. Passed to renderToReadableStream
+   *  so React stops rendering and doesn't fire error boundaries for aborts. */
+  signal?: AbortSignal;
 }
 
 /**
@@ -100,6 +104,7 @@ export async function handleSsr(
     const htmlStream = await renderSsrStream(wrappedElement, {
       bootstrapScriptContent: navContext.bootstrapScriptContent || undefined,
       deferSuspenseFor: navContext.deferSuspenseFor,
+      signal: navContext.signal,
     });
 
     // Inject metadata into <head>, then interleave RSC payload chunks

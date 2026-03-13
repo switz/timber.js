@@ -106,6 +106,16 @@ class RedirectError extends Error {
   }
 }
 
+/**
+ * Check if an error is an abort error (connection closed / fetch aborted).
+ * Browsers throw DOMException with name 'AbortError' when a fetch is aborted.
+ */
+function isAbortError(error: unknown): boolean {
+  if (error instanceof DOMException && error.name === 'AbortError') return true;
+  if (error instanceof Error && error.name === 'AbortError') return true;
+  return false;
+}
+
 // ─── RSC Fetch ───────────────────────────────────────────────────
 
 const RSC_CONTENT_TYPE = 'text/x-component';
@@ -390,6 +400,10 @@ export function createRouter(deps: RouterDeps): RouterInstance {
         await navigate(error.redirectUrl, { replace: true });
         return;
       }
+      // Abort errors from the fetch (user refreshed or navigated away
+      // while the RSC payload was loading) are not application errors.
+      // Swallow them silently — the page is being replaced.
+      if (isAbortError(error)) return;
       throw error;
     } finally {
       setPending(false);

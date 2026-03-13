@@ -108,6 +108,19 @@ export function buildRedirectResponse(
   return new Response(null, { status: signal.status, headers: responseHeaders });
 }
 
+/**
+ * Check if an error is an abort error (connection closed by client).
+ *
+ * When the browser aborts a request (page refresh, navigation away),
+ * the AbortSignal fires and React/streams throw an AbortError. This
+ * is not an application error — suppress it from error boundaries and logs.
+ */
+export function isAbortError(error: unknown): boolean {
+  if (error instanceof DOMException && error.name === 'AbortError') return true;
+  if (error instanceof Error && error.name === 'AbortError') return true;
+  return false;
+}
+
 export function escapeHtml(str: string): string {
   return str
     .replace(/&/g, '&amp;')

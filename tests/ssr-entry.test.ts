@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createElement } from 'react';
@@ -140,6 +140,86 @@ describe('SSR entry — buildSsrResponse', () => {
 
     const response = buildSsrResponse(htmlStream, 404, new Headers());
     expect(response.status).toBe(404);
+  });
+});
+
+describe('SSR entry — abort signal handling', () => {
+  it('passes abort signal to renderToReadableStream', async () => {
+    const { renderSsrStream } = await import(resolve(SRC_DIR, 'server/ssr-render.ts'));
+    const element = createTestElement('Abort Test');
+    const ac = new AbortController();
+
+    // Render with a signal — should work normally when not aborted
+    const stream = await renderSsrStream(element, { signal: ac.signal });
+    const html = await streamToString(stream);
+    expect(html).toContain('Abort Test');
+  });
+
+  it('suppresses error logging for aborted connections', async () => {
+    const { renderSsrStream } = await import(resolve(SRC_DIR, 'server/ssr-render.ts'));
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const ac = new AbortController();
+
+    // Create an element with a Suspense boundary that will be interrupted
+    const element = createTestElement('Abort Suppress Test');
+    const stream = await renderSsrStream(element, { signal: ac.signal });
+
+    // Abort the signal
+    ac.abort();
+
+    // Read the stream — should close cleanly without logging
+    const html = await streamToString(stream);
+    expect(html).toContain('Abort Suppress Test');
+
+    // No SSR error should have been logged for abort
+    const ssrErrors = consoleSpy.mock.calls.filter(
+      (call) => typeof call[0] === 'string' && call[0].includes('[timber] SSR')
+    );
+    expect(ssrErrors).toHaveLength(0);
+
+    consoleSpy.mockRestore();
+  });
+
+  it('still logs real render errors (not abort)', async () => {
+    const { renderSsrStream } = await import(resolve(SRC_DIR, 'server/ssr-render.ts'));
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const element = createTestElement('Normal render');
+    const stream = await renderSsrStream(element);
+    const html = await streamToString(stream);
+    expect(html).toContain('Normal render');
+
+    consoleSpy.mockRestore();
+  });
+});
+
+describe('SSR entry — isAbortError helper', () => {
+  it('detects DOMException AbortError', async () => {
+    const { isAbortError } = await import(
+      resolve(SRC_DIR, 'server/rsc-entry/helpers.ts')
+    );
+    const abortError = new DOMException('The operation was aborted.', 'AbortError');
+    expect(isAbortError(abortError)).toBe(true);
+  });
+
+  it('detects Error with name AbortError', async () => {
+    const { isAbortError } = await import(
+      resolve(SRC_DIR, 'server/rsc-entry/helpers.ts')
+    );
+    const error = new Error('aborted');
+    error.name = 'AbortError';
+    expect(isAbortError(error)).toBe(true);
+  });
+
+  it('does not match regular errors', async () => {
+    const { isAbortError } = await import(
+      resolve(SRC_DIR, 'server/rsc-entry/helpers.ts')
+    );
+    expect(isAbortError(new Error('something went wrong'))).toBe(false);
+    expect(isAbortError(null)).toBe(false);
+    expect(isAbortError(undefined)).toBe(false);
+    expect(isAbortError('string error')).toBe(false);
   });
 });
 

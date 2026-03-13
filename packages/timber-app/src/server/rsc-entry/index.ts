@@ -59,6 +59,7 @@ import {
   isRscPayloadRequest,
   buildRedirectResponse,
   escapeHtml,
+  isAbortError,
   RSC_CONTENT_TYPE,
 } from './helpers.js';
 import { handleApiRoute } from './api-handler.js';
@@ -350,7 +351,11 @@ async function renderRoute(
     rscStream = renderToReadableStream(
       element,
       {
+        signal: _req.signal,
         onError(error: unknown) {
+          // Connection abort (user refreshed or navigated away) — suppress.
+          // Not an application error; no need to track or log.
+          if (isAbortError(error) || _req.signal?.aborted) return;
           if (error instanceof DenySignal) {
             denySignal = error;
             // Return structured digest for client-side error boundaries
@@ -502,11 +507,18 @@ async function renderRoute(
     // Skip RSC inline stream when client JS is disabled — no client to hydrate.
     rscStream: clientJsDisabled ? undefined : inlineStream,
     deferSuspenseFor: deferSuspenseFor > 0 ? deferSuspenseFor : undefined,
+    signal: _req.signal,
   };
 
   try {
     return await callSsr(ssrStream, navContext);
   } catch (ssrError) {
+    // Connection abort — the client disconnected (page refresh, navigation
+    // away). No response needed; return empty 499 (client closed request).
+    if (isAbortError(ssrError) || _req.signal?.aborted) {
+      return new Response(null, { status: 499 });
+    }
+
     // SSR shell rendering failed — the error was outside Suspense
     // (inside Suspense errors stream after shell succeeds).
 

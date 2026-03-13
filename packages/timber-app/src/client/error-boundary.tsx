@@ -20,6 +20,16 @@
 
 import { Component, createElement, type ReactNode } from 'react';
 
+// ─── Page Unload Detection ───────────────────────────────────────────────────
+// Track whether the page is being unloaded (user refreshed or navigated away).
+// When this is true, error boundaries suppress activation — the error is from
+// the aborted connection, not an application error.
+let _isUnloading = false;
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeunload', () => { _isUnloading = true; });
+  window.addEventListener('pagehide', () => { _isUnloading = true; });
+}
+
 // ─── Digest Types ────────────────────────────────────────────────────────────
 
 /** Structured digest returned by RSC onError for DenySignal. */
@@ -76,6 +86,13 @@ export class TimberErrorBoundary extends Component<
   }
 
   static getDerivedStateFromError(error: Error): TimberErrorBoundaryState {
+    // Suppress error boundaries during page unload (refresh/navigate away).
+    // The aborted connection causes React's streaming hydration to error,
+    // but the page is about to be replaced — showing an error boundary
+    // would be a jarring flash for the user.
+    if (_isUnloading) {
+      return { hasError: false, error: null };
+    }
     return { hasError: true, error };
   }
 

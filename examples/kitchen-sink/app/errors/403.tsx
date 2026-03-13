@@ -10,11 +10,28 @@ export default function Forbidden({
   dangerouslyPassData?: unknown;
 }) {
   return (
-    <div data-testid="forbidden-page">
-      <h1 data-testid="forbidden-heading">403 — Forbidden</h1>
-      <p data-testid="forbidden-status">Status: {status}</p>
+    <div data-testid="forbidden-page" className="max-w-lg space-y-4">
+      <div>
+        <h1 data-testid="forbidden-heading" className="text-2xl font-bold text-stone-900">
+          403 — Forbidden
+        </h1>
+        <p data-testid="forbidden-status" className="mt-1 text-sm text-stone-500">
+          Status: {status}
+        </p>
+      </div>
+      <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+        <p className="text-sm text-amber-800">
+          This is <code className="rounded bg-amber-100 px-1 py-0.5 text-xs font-mono">errors/403.tsx</code> —
+          a segment-level status-code file. timber.js returned a real HTTP 403.
+        </p>
+      </div>
       {dangerouslyPassData != null && (
-        <pre data-testid="forbidden-data">{JSON.stringify(dangerouslyPassData)}</pre>
+        <div className="rounded-lg border border-stone-200 bg-white p-4">
+          <div className="text-xs font-medium text-stone-400 mb-1">dangerouslyPassData</div>
+          <pre data-testid="forbidden-data" className="text-sm font-mono text-stone-700 overflow-x-auto">
+            {JSON.stringify(dangerouslyPassData, null, 2)}
+          </pre>
+        </div>
       )}
     </div>
   );

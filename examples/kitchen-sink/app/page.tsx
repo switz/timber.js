@@ -14,29 +14,23 @@ export default function HomePage() {
 
       <div className="grid gap-5 sm:grid-cols-2">
         <section className="rounded-lg border border-stone-200 bg-white p-5 shadow-sm">
-          <h2 className="text-base font-semibold text-stone-800 mb-3">Streaming</h2>
+          <h2 className="text-base font-semibold text-stone-800 mb-1">Streaming</h2>
+          <p className="text-xs text-stone-400 mb-3">
+            Suspense boundaries, deferred rendering, and the hold window.
+          </p>
           <ul className="space-y-1.5 text-sm">
             <li>
-              <Link
-                href="/streaming/suspense"
-                className="text-amber-700 hover:text-amber-900 hover:underline"
-              >
+              <Link href="/streaming/suspense" className="text-amber-700 hover:text-amber-900 hover:underline">
                 Suspense boundary
               </Link>
             </li>
             <li>
-              <Link
-                href="/streaming/deferred"
-                className="text-amber-700 hover:text-amber-900 hover:underline"
-              >
+              <Link href="/streaming/deferred" className="text-amber-700 hover:text-amber-900 hover:underline">
                 Deferred Suspense
               </Link>
             </li>
             <li>
-              <Link
-                href="/streaming/deny-inside"
-                className="text-amber-700 hover:text-amber-900 hover:underline"
-              >
+              <Link href="/streaming/deny-inside" className="text-amber-700 hover:text-amber-900 hover:underline">
                 deny() inside Suspense
               </Link>
             </li>
@@ -44,47 +38,77 @@ export default function HomePage() {
         </section>
 
         <section className="rounded-lg border border-stone-200 bg-white p-5 shadow-sm">
-          <h2 className="text-base font-semibold text-stone-800 mb-3">Error Handling</h2>
+          <h2 className="text-base font-semibold text-stone-800 mb-1">Error Handling</h2>
+          <p className="text-xs text-stone-400 mb-3">
+            Real HTTP status codes, status-code files, and typed error digests.
+          </p>
           <ul className="space-y-1.5 text-sm">
             <li>
-              <Link
-                href="/errors/crash"
-                className="text-amber-700 hover:text-amber-900 hover:underline"
-              >
-                Unhandled error (error.tsx)
+              <Link href="/errors/crash" className="text-amber-700 hover:text-amber-900 hover:underline">
+                Unhandled error → error.tsx (500)
               </Link>
             </li>
             <li>
-              <Link
-                href="/errors/render-error"
-                className="text-amber-700 hover:text-amber-900 hover:underline"
-              >
-                RenderError with digest
+              <Link href="/errors/render-error" className="text-amber-700 hover:text-amber-900 hover:underline">
+                RenderError with typed digest (500)
               </Link>
             </li>
             <li>
-              <Link
-                href="/errors/deny-403"
-                className="text-amber-700 hover:text-amber-900 hover:underline"
-              >
-                deny(403)
+              <Link href="/errors/deny-403" className="text-amber-700 hover:text-amber-900 hover:underline">
+                deny(403) → 403.tsx
               </Link>
             </li>
             <li>
-              <Link
-                href="/errors/deny-401"
-                className="text-amber-700 hover:text-amber-900 hover:underline"
-              >
-                deny(401)
+              <Link href="/errors/deny-401" className="text-amber-700 hover:text-amber-900 hover:underline">
+                deny(401) → error.tsx fallback
               </Link>
             </li>
           </ul>
         </section>
 
         <section className="rounded-lg border border-stone-200 bg-white p-5 shadow-sm">
-          <h2 className="text-base font-semibold text-stone-800 mb-3">
-            Search Params + Typed Routes
-          </h2>
+          <h2 className="text-base font-semibold text-stone-800 mb-1">Middleware</h2>
+          <p className="text-xs text-stone-400 mb-3">
+            Per-route middleware that sets headers, injects context, and short-circuits.
+          </p>
+          <ul className="space-y-1.5 text-sm">
+            <li>
+              <Link href="/middleware-test/headers" className="text-amber-700 hover:text-amber-900 hover:underline">
+                Response headers
+              </Link>
+            </li>
+            <li>
+              <Link href="/middleware-test/inject" className="text-amber-700 hover:text-amber-900 hover:underline">
+                Request header injection
+              </Link>
+            </li>
+          </ul>
+        </section>
+
+        <section className="rounded-lg border border-stone-200 bg-white p-5 shadow-sm">
+          <h2 className="text-base font-semibold text-stone-800 mb-1">Auth &amp; Access Control</h2>
+          <p className="text-xs text-stone-400 mb-3">
+            Segment access.ts, slot denial with denied.tsx, and nested access chains.
+          </p>
+          <ul className="space-y-1.5 text-sm">
+            <li>
+              <Link href="/auth-test/parallel" className="text-amber-700 hover:text-amber-900 hover:underline">
+                Parallel slot (denied.tsx)
+              </Link>
+            </li>
+            <li>
+              <Link href="/auth-test/parallel-default" className="text-amber-700 hover:text-amber-900 hover:underline">
+                Slot default.tsx fallback
+              </Link>
+            </li>
+          </ul>
+        </section>
+
+        <section className="rounded-lg border border-stone-200 bg-white p-5 shadow-sm">
+          <h2 className="text-base font-semibold text-stone-800 mb-1">Search Params &amp; Typed Routes</h2>
+          <p className="text-xs text-stone-400 mb-3">
+            Typed searchParams, URL key aliasing, and typed Link/useParams.
+          </p>
           <ul className="space-y-1.5 text-sm">
             <li>
               <Link
@@ -109,29 +133,23 @@ export default function HomePage() {
         </section>
 
         <section className="rounded-lg border border-stone-200 bg-white p-5 shadow-sm">
-          <h2 className="text-base font-semibold text-stone-800 mb-3">Metadata</h2>
+          <h2 className="text-base font-semibold text-stone-800 mb-1">Metadata</h2>
+          <p className="text-xs text-stone-400 mb-3">
+            Title templates, absolute titles, and dynamic generateMetadata.
+          </p>
           <ul className="space-y-1.5 text-sm">
             <li>
-              <Link
-                href="/meta-test"
-                className="text-amber-700 hover:text-amber-900 hover:underline"
-              >
+              <Link href="/meta-test" className="text-amber-700 hover:text-amber-900 hover:underline">
                 Title template
               </Link>
             </li>
             <li>
-              <Link
-                href="/meta-test/absolute"
-                className="text-amber-700 hover:text-amber-900 hover:underline"
-              >
+              <Link href="/meta-test/absolute" className="text-amber-700 hover:text-amber-900 hover:underline">
                 Absolute title
               </Link>
             </li>
             <li>
-              <Link
-                href="/meta-test/abc"
-                className="text-amber-700 hover:text-amber-900 hover:underline"
-              >
+              <Link href="/meta-test/abc" className="text-amber-700 hover:text-amber-900 hover:underline">
                 Dynamic generateMetadata
               </Link>
             </li>

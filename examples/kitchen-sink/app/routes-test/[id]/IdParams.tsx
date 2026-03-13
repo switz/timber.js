@@ -7,8 +7,8 @@ import { useParams } from '@timber/app/client';
 export default function IdParams() {
   const { id } = useParams('/routes-test/[id]');
   return (
-    <p data-testid="use-params-value">
-      useParams id: <span data-testid="use-params-id">{id}</span>
-    </p>
+    <span data-testid="use-params-value">
+      <span data-testid="use-params-id">{id}</span>
+    </span>
   );
 }

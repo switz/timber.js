@@ -485,6 +485,85 @@ describe('renderMetadataToElements', () => {
     });
   });
 
+  it('renders root-level authors', () => {
+    const elements = renderMetadataToElements({
+      authors: [{ name: 'Alice', url: 'https://alice.dev' }],
+    });
+    expect(elements).toContainEqual({
+      tag: 'meta',
+      attrs: { name: 'author', content: 'Alice' },
+    });
+    expect(elements).toContainEqual({
+      tag: 'link',
+      attrs: { rel: 'author', href: 'https://alice.dev' },
+    });
+  });
+
+  it('renders single author object', () => {
+    const elements = renderMetadataToElements({
+      authors: { name: 'Bob' },
+    });
+    expect(elements).toContainEqual({
+      tag: 'meta',
+      attrs: { name: 'author', content: 'Bob' },
+    });
+  });
+
+  it('renders appleWebApp meta tags', () => {
+    const elements = renderMetadataToElements({
+      appleWebApp: {
+        capable: true,
+        title: 'My PWA',
+        statusBarStyle: 'black-translucent',
+      },
+    });
+    expect(elements).toContainEqual({
+      tag: 'meta',
+      attrs: { name: 'apple-mobile-web-app-capable', content: 'yes' },
+    });
+    expect(elements).toContainEqual({
+      tag: 'meta',
+      attrs: { name: 'apple-mobile-web-app-title', content: 'My PWA' },
+    });
+    expect(elements).toContainEqual({
+      tag: 'meta',
+      attrs: { name: 'apple-mobile-web-app-status-bar-style', content: 'black-translucent' },
+    });
+  });
+
+  it('renders appleWebApp startup images', () => {
+    const elements = renderMetadataToElements({
+      appleWebApp: {
+        startupImage: [
+          { url: '/splash-1.png', media: '(device-width: 375px)' },
+          { url: '/splash-2.png' },
+        ],
+      },
+    });
+    expect(elements).toContainEqual({
+      tag: 'link',
+      attrs: {
+        rel: 'apple-touch-startup-image',
+        href: '/splash-1.png',
+        media: '(device-width: 375px)',
+      },
+    });
+    expect(elements).toContainEqual({
+      tag: 'link',
+      attrs: { rel: 'apple-touch-startup-image', href: '/splash-2.png' },
+    });
+  });
+
+  it('renders appleWebApp with string startupImage', () => {
+    const elements = renderMetadataToElements({
+      appleWebApp: { startupImage: '/splash.png' },
+    });
+    expect(elements).toContainEqual({
+      tag: 'link',
+      attrs: { rel: 'apple-touch-startup-image', href: '/splash.png' },
+    });
+  });
+
   it('renders formatDetection', () => {
     const elements = renderMetadataToElements({
       formatDetection: { telephone: false, email: false },

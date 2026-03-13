@@ -10,13 +10,14 @@
  * - Navigation pending indicator
  * - Navigation links with various test IDs
  */
-import { useRef, useEffect } from 'react';
-import { Link } from '@timber/app/client';
+import { useState, useRef, useEffect } from 'react';
+import { Link, type OnNavigateEvent } from '@timber/app/client';
 import { useNavigationPending } from '@timber/app/client';
 
 export function RootShell({ children }: { children: React.ReactNode }) {
   const pending = useNavigationPending();
   const markerRef = useRef<HTMLDivElement>(null);
+  const [navigateFired, setNavigateFired] = useState(false);
 
   // Stamp a unique ID after mount — avoids hydration mismatch from Date.now()
   // while still giving tests a value that stays stable without revalidation.
@@ -50,6 +51,27 @@ export function RootShell({ children }: { children: React.ReactNode }) {
         <Link href="/dashboard" prefetch data-testid="link-prefetch-dashboard">
           Dashboard (prefetch)
         </Link>
+
+        {/* onNavigate test links */}
+        <Link
+          href="/on-navigate-test"
+          data-testid="link-on-navigate-prevent"
+          onNavigate={(e: OnNavigateEvent) => {
+            e.preventDefault();
+            setNavigateFired(true);
+          }}
+        >
+          Prevent Navigate
+        </Link>
+        <Link
+          href="/on-navigate-test"
+          data-testid="link-on-navigate-allow"
+          onNavigate={() => {
+            setNavigateFired(true);
+          }}
+        >
+          Allow Navigate
+        </Link>
       </nav>
 
       {/* Persistent input — tests DOM state preservation */}
@@ -66,6 +88,9 @@ export function RootShell({ children }: { children: React.ReactNode }) {
 
       {/* Layout marker — tests revalidation (data-id stays stable without revalidation) */}
       <div data-testid="layout-marker" ref={markerRef} />
+
+      {/* onNavigate fired indicator */}
+      {navigateFired && <div data-testid="on-navigate-fired" />}
 
       {/* Navigation pending indicator */}
       <div

@@ -22,6 +22,8 @@ All design documents are in `design/`. Key references:
 - `18-build-system.md` — plugin architecture, virtual modules, entry generation
 - `19-client-navigation.md` — segment router, prefetch cache, scroll restoration
 
+Ask questions in claude mode if we need to clarify anything.
+
 ## Phase 2: Implement
 
 1. Generate a short slug from the task title (lowercase, hyphens, max 30 chars)

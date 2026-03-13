@@ -481,6 +481,50 @@ export default function NotFound() {
 
 ---
 
+## 16. `next.config.ts` Redirects and Rewrites → `proxy.ts` or `middleware.ts`
+
+**Rule:** timber does not support `redirects` or `rewrites` in config. Next.js's `next.config.ts` declarative redirects/rewrites should be moved to `proxy.ts` (for global redirects) or `middleware.ts` (for route-specific redirects).
+
+**Before** (Next.js `next.config.ts`)
+
+```ts
+const nextConfig: NextConfig = {
+  redirects: async () => [
+    { source: '/old/:slug', destination: '/new/:slug', permanent: true },
+    { source: '/legacy', destination: '/modern', permanent: false },
+  ],
+  rewrites: async () => [
+    { source: '/api/v1/:path*', destination: '/api/v2/:path*' },
+  ],
+};
+```
+
+**After** (timber `proxy.ts` — runs on every request)
+
+```ts
+// app/proxy.ts
+export default async function proxy(req: Request, next: () => Promise<Response>) {
+  const url = new URL(req.url);
+
+  // Redirect: /old/:slug → /new/:slug (308 permanent)
+  const oldMatch = url.pathname.match(/^\/old\/(.+)$/);
+  if (oldMatch) {
+    return Response.redirect(new URL(`/new/${oldMatch[1]}`, url), 308);
+  }
+
+  // Redirect: /legacy → /modern (307 temporary)
+  if (url.pathname === '/legacy') {
+    return Response.redirect(new URL('/modern', url), 307);
+  }
+
+  return next();
+}
+```
+
+**Why:** Config-level redirects were removed because middleware and `proxy.ts` handle all the same cases with more flexibility — you get conditionals, async checks, header inspection, and no open redirect footgun from unvalidated pattern interpolation.
+
+---
+
 ## Summary of Gaps Filed
 
 | Gap                              | lb Issue | Description                                                                |

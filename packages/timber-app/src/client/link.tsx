@@ -14,6 +14,8 @@
 
 import type { AnchorHTMLAttributes, ReactNode } from 'react';
 import type { SearchParamsDefinition } from '../search-params/create.js';
+import type { OnNavigateHandler } from './link-navigate-interceptor.js';
+import { LinkNavigateInterceptor } from './link-navigate-interceptor.js';
 import { LinkStatusProvider } from './link-status-provider.js';
 
 // ─── Types ───────────────────────────────────────────────────────
@@ -29,6 +31,15 @@ interface LinkBaseProps extends Omit<AnchorHTMLAttributes<HTMLAnchorElement>, 'h
    * Set to false for tabbed interfaces where content changes within a fixed layout.
    */
   scroll?: boolean;
+  /**
+   * Called before client-side navigation commits. Call `e.preventDefault()`
+   * to cancel the default navigation — the caller is then responsible for
+   * navigating (e.g. via `router.push()`).
+   *
+   * Only fires for client-side SPA navigations, not full page loads.
+   * Has no effect during SSR.
+   */
+  onNavigate?: OnNavigateHandler;
   children?: ReactNode;
 }
 
@@ -273,16 +284,27 @@ export function Link({
   scroll,
   params,
   searchParams,
+  onNavigate,
   children,
   ...rest
 }: LinkProps) {
   const linkProps = buildLinkProps({ href, prefetch, scroll, params, searchParams });
 
+  const inner = (
+    <LinkStatusProvider href={linkProps.href}>
+      {children}
+    </LinkStatusProvider>
+  );
+
   return (
     <a {...rest} {...linkProps}>
-      <LinkStatusProvider href={linkProps.href}>
-        {children}
-      </LinkStatusProvider>
+      {onNavigate ? (
+        <LinkNavigateInterceptor onNavigate={onNavigate}>
+          {inner}
+        </LinkNavigateInterceptor>
+      ) : (
+        inner
+      )}
     </a>
   );
 }

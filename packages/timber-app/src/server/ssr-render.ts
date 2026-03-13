@@ -15,6 +15,20 @@ import { renderToReadableStream } from 'react-dom/server';
 import { formatSsrError } from './error-formatter.js';
 
 /**
+ * Inline script that injects <meta name="robots" content="noindex"> into <head>.
+ *
+ * Used when a post-flush error (deny() or throw inside Suspense after the shell
+ * has been flushed) is detected. Since <head> has already been sent to the client,
+ * we use a script to dynamically add the meta tag. This signals search engines
+ * not to index the page, mitigating the SEO impact of a 200 status code on what
+ * is effectively an error/deny page.
+ *
+ * See design/05-streaming.md §"deny() inside Suspense"
+ */
+const NOINDEX_SCRIPT =
+  '<script>document.head.appendChild(Object.assign(document.createElement("meta"),{name:"robots",content:"noindex"}))</script>';
+
+/**
  * Render a React element tree to a ReadableStream of HTML.
  *
  * Uses renderToReadableStream (NOT renderToString) for streaming SSR.
@@ -106,11 +120,13 @@ export async function renderSsrStream(
  * the output stream cleanly. The shell (headers, status code, content
  * outside Suspense) has already been sent to the client.
  */
-function wrapStreamWithErrorHandling(
+/** @internal Exported for testing only. */
+export function wrapStreamWithErrorHandling(
   stream: ReadableStream<Uint8Array>,
   signal?: AbortSignal
 ): ReadableStream<Uint8Array> {
   const reader = stream.getReader();
+  const encoder = new TextEncoder();
 
   return new ReadableStream<Uint8Array>({
     async pull(controller) {
@@ -128,9 +144,13 @@ function wrapStreamWithErrorHandling(
           controller.close();
           return;
         }
-        // Streaming-phase error (e.g. React boundary flush failure).
-        // The shell has already been sent. Log and close cleanly.
+        // Streaming-phase error (e.g. React boundary flush failure,
+        // deny() or throw inside Suspense after flush).
+        // The shell has already been sent with status 200. Inject a
+        // noindex meta tag so search engines don't index this error page,
+        // then close cleanly. See design/05-streaming.md.
         console.error('[timber] SSR streaming error (post-shell):', formatSsrError(error));
+        controller.enqueue(encoder.encode(NOINDEX_SCRIPT));
         controller.close();
       }
     },

@@ -48,4 +48,16 @@ export interface TimberPlatformAdapter {
    * on Cloudflare Workers). Undefined if the platform doesn't support it.
    */
   waitUntil?(promise: Promise<unknown>): void;
+
+  /**
+   * Send 103 Early Hints to the client before the final response.
+   *
+   * On Node.js (v18.11+) and Bun, uses `res.writeEarlyHints()` on the
+   * raw HTTP response. On Cloudflare, the CDN converts Link headers into
+   * 103 automatically — this method is not needed.
+   *
+   * Undefined if the platform doesn't support application-level 103,
+   * or if 103 is handled at the CDN level (Cloudflare).
+   */
+  sendEarlyHints?(links: string[]): void;
 }

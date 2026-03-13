@@ -97,6 +97,32 @@ describe('preset config', () => {
     expect(config.outputDir).toBe('.output');
   });
 
+  it('node-server preset supports early hints', () => {
+    const config = getPresetConfig('node-server');
+    expect(config.supportsEarlyHints).toBe(true);
+  });
+
+  it('bun preset supports early hints', () => {
+    const config = getPresetConfig('bun');
+    expect(config.supportsEarlyHints).toBe(true);
+  });
+
+  it('serverless presets do not support early hints', () => {
+    const serverless: NitroPreset[] = [
+      'vercel',
+      'vercel-edge',
+      'netlify',
+      'netlify-edge',
+      'aws-lambda',
+      'deno-deploy',
+      'azure-functions',
+    ];
+    for (const preset of serverless) {
+      const config = getPresetConfig(preset);
+      expect(config.supportsEarlyHints).toBe(false);
+    }
+  });
+
   it('all presets have required fields', () => {
     const presets: NitroPreset[] = [
       'vercel',
@@ -115,6 +141,7 @@ describe('preset config', () => {
       expect(config.nitroPreset).toBeTruthy();
       expect(config.outputDir).toBeTruthy();
       expect(typeof config.supportsWaitUntil).toBe('boolean');
+      expect(typeof config.supportsEarlyHints).toBe('boolean');
       expect(config.runtimeName).toBeTruthy();
     }
   });
@@ -268,6 +295,46 @@ describe('generateNitroEntry', () => {
     const manifestIdx = entry.indexOf("import './_timber-manifest-init.js'");
     const handlerIdx = entry.indexOf("import { defineEventHandler");
     expect(manifestIdx).toBeLessThan(handlerIdx);
+  });
+
+  it('node-server entry includes early hints support', () => {
+    const entry = generateNitroEntry('/tmp/build', '/tmp/build/nitro', 'node-server');
+    expect(entry).toContain('runWithEarlyHintsSender');
+    expect(entry).toContain('writeEarlyHints');
+    expect(entry).toContain('event.node?.res');
+  });
+
+  it('bun entry includes early hints support', () => {
+    const entry = generateNitroEntry('/tmp/build', '/tmp/build/nitro', 'bun');
+    expect(entry).toContain('runWithEarlyHintsSender');
+    expect(entry).toContain('writeEarlyHints');
+  });
+
+  it('vercel entry does not include early hints', () => {
+    const entry = generateNitroEntry('/tmp/build', '/tmp/build/nitro', 'vercel');
+    expect(entry).not.toContain('runWithEarlyHintsSender');
+    expect(entry).not.toContain('writeEarlyHints');
+  });
+
+  it('serverless entries do not include early hints', () => {
+    const presets: NitroPreset[] = ['netlify', 'aws-lambda', 'azure-functions'];
+    for (const preset of presets) {
+      const entry = generateNitroEntry('/tmp/build', '/tmp/build/nitro', preset);
+      expect(entry).not.toContain('runWithEarlyHintsSender');
+    }
+  });
+
+  it('early hints sender wraps handler call', () => {
+    const entry = generateNitroEntry('/tmp/build', '/tmp/build/nitro', 'node-server');
+    // The handler call should be wrapped in runWithEarlyHintsSender
+    expect(entry).toContain('runWithEarlyHintsSender(earlyHintsSender, () => handler(webRequest))');
+  });
+
+  it('early hints sender catches writeEarlyHints errors', () => {
+    const entry = generateNitroEntry('/tmp/build', '/tmp/build/nitro', 'node-server');
+    // The writeEarlyHints call should be wrapped in try/catch
+    expect(entry).toContain('try { nodeRes.writeEarlyHints');
+    expect(entry).toContain('} catch {}');
   });
 });
 

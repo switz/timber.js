@@ -46,6 +46,7 @@ import {
 } from '@/server/build-manifest.js';
 import type { BuildManifest } from '@/server/build-manifest.js';
 import { collectEarlyHintHeaders } from '@/server/early-hints.js';
+import { sendEarlyHints103 } from '@/server/early-hints-sender.js';
 import type { NavContext } from '@/server/ssr-entry.js';
 import { buildRouteElement, RouteSignalWithContext } from '@/server/route-element-builder.js';
 import { isActionRequest, handleActionRequest } from '@/server/action-handler.js';
@@ -136,6 +137,9 @@ async function createRequestHandler(manifest: typeof routeManifest, runtimeConfi
       for (const h of headers) {
         responseHeaders.append('Link', h);
       }
+      // Send 103 Early Hints if the platform supports it (Node.js, Bun).
+      // On Cloudflare, the CDN converts Link headers into 103 automatically.
+      sendEarlyHints103(headers);
     },
     render: async (
       req: Request,
@@ -608,5 +612,9 @@ async function renderRoute(
     throw ssrError;
   }
 }
+
+// Re-export for generated entry points (e.g., Nitro node-server/bun) to wrap
+// the handler with per-request 103 Early Hints sender via ALS.
+export { runWithEarlyHintsSender } from '@/server/early-hints-sender.js';
 
 export default await createRequestHandler(routeManifest, config);

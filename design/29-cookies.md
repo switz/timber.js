@@ -45,10 +45,10 @@ import { cookies } from '@timber/app/server';
 // In middleware.ts, server actions, or route.ts handlers:
 cookies().set('theme', 'dark');
 cookies().set('session_id', token, {
-  httpOnly: true,    // default: true
-  secure: true,      // default: true
-  sameSite: 'lax',   // default: 'lax'
-  path: '/',         // default: '/'
+  httpOnly: true, // default: true
+  secure: true, // default: true
+  sameSite: 'lax', // default: 'lax'
+  path: '/', // default: '/'
   maxAge: 60 * 60 * 24 * 30, // 30 days
 });
 cookies().delete('old_cookie');
@@ -106,15 +106,15 @@ cookies().delete('session_id', { path: '/dashboard', domain: '.example.com' });
 
 ## Where Cookies Can Be Set
 
-| Context | Read | Write | Why |
-|---|---|---|---|
-| `proxy.ts` | Yes | Yes | Wraps entire lifecycle, has access to the response |
-| `middleware.ts` | Yes | Yes | Runs before flush, can set response headers |
-| `access.ts` | Yes | No | Auth gate — should not have side effects |
-| Server components (RSC) | Yes | No | May run after flush (inside Suspense); no response header access |
-| Server actions | Yes | Yes | Mutation context — setting cookies after auth changes is expected |
-| `route.ts` handlers | Yes | Yes | Full request/response control |
-| Client components | No | No | Use `document.cookie` directly for client-only cookies |
+| Context                 | Read | Write | Why                                                               |
+| ----------------------- | ---- | ----- | ----------------------------------------------------------------- |
+| `proxy.ts`              | Yes  | Yes   | Wraps entire lifecycle, has access to the response                |
+| `middleware.ts`         | Yes  | Yes   | Runs before flush, can set response headers                       |
+| `access.ts`             | Yes  | No    | Auth gate — should not have side effects                          |
+| Server components (RSC) | Yes  | No    | May run after flush (inside Suspense); no response header access  |
+| Server actions          | Yes  | Yes   | Mutation context — setting cookies after auth changes is expected |
+| `route.ts` handlers     | Yes  | Yes   | Full request/response control                                     |
+| Client components       | No   | No    | Use `document.cookie` directly for client-only cookies            |
 
 ### Why Not in Server Components?
 
@@ -342,6 +342,7 @@ Set-Cookie: prefs=eyJsYW5nIjoiZW4ifQ.HMAC_SHA256_HEX; HttpOnly; Secure; ...
 ```
 
 When `cookies().getSigned('prefs')` is called:
+
 1. Split value at the last `.`
 2. Verify HMAC against each secret in the `secrets` array (newest first)
 3. Return the value if any signature matches, `undefined` if none match
@@ -374,21 +375,161 @@ One consideration: Workers have a 4KB limit per cookie (standard browser limit) 
 
 4. **Automatic CSRF cookies.** CSRF protection uses `Origin` header validation, not double-submit cookies. No CSRF cookie needed.
 
-5. **Client-side cookie helper.** Client components use `document.cookie` or a userland library. The framework is server-focused.
+5. **Automatic CSRF cookies.** CSRF protection uses `Origin` header validation, not double-submit cookies. No CSRF cookie needed.
+
+---
+
+## Client-Side Cookies
+
+### The Problem
+
+Several common patterns require client-side cookie access:
+
+- **Theme toggle** — user clicks "dark mode", client JS sets a cookie, server reads it on the next request to render the correct theme without a flash
+- **Consent banner** — client JS sets a consent cookie, server reads it to decide whether to include analytics scripts
+- **Client-side A/B assignment** — client assigns a variant, persists it in a cookie, server reads it for consistent rendering
+- **Dismissible UI** — "don't show this again" banners that persist across page loads
+
+All of these share a pattern: the **client writes** a cookie, and the **server reads** it on the next navigation. The cookie bridges the two worlds.
+
+### `useCookie(name)` Hook
+
+```typescript
+import { useCookie } from '@timber/app/client';
+
+function ThemeToggle() {
+  const [theme, setTheme] = useCookie('theme');
+  // theme: string | undefined — current cookie value
+  // setTheme: (value: string, options?) => void — sets the cookie
+
+  return (
+    <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
+      Toggle theme
+    </button>
+  );
+}
+```
+
+**Signature:**
+
+```typescript
+function useCookie(
+  name: string,
+  options?: ClientCookieOptions
+): [value: string | undefined, setCookie: CookieSetter, deleteCookie: () => void];
+
+type CookieSetter = (value: string, options?: ClientCookieOptions) => void;
+
+interface ClientCookieOptions {
+  /** URL path scope. Default: '/'. */
+  path?: string;
+  /** Domain scope. Default: omitted (current domain). */
+  domain?: string;
+  /** Max age in seconds. */
+  maxAge?: number;
+  /** Expiration date. */
+  expires?: Date;
+  /** Cross-site policy. Default: 'lax'. */
+  sameSite?: 'strict' | 'lax' | 'none';
+  /** Only send over HTTPS. Default: true in production. */
+  secure?: boolean;
+}
+```
+
+**Note:** No `httpOnly` option — client-side cookies cannot be `HttpOnly` by definition (the browser must access them via `document.cookie`). This is a natural constraint, not a design choice.
+
+### Reactivity
+
+`useCookie` is reactive — when the cookie changes (via `setTheme` or another `useCookie` instance on the same page), all components using `useCookie('theme')` re-render with the new value.
+
+Implementation uses `useSyncExternalStore` with a module-level cookie store that listens for changes. When `setCookie` is called, it:
+
+1. Writes to `document.cookie`
+2. Notifies all subscribers for that cookie name
+3. React re-renders components that read the cookie
+
+Cross-tab sync is **not** included — `document.cookie` does not fire events when another tab changes a cookie. If needed, developers can use the `storage` event with a `localStorage` sidecar (userland pattern). This is rare enough to not warrant framework support.
+
+### SSR Hydration
+
+During SSR, cookies come from the incoming `Cookie` request header. During hydration, they come from `document.cookie`. These should match — the server just set the response, and the browser sends back what it has.
+
+`useCookie` uses `useSyncExternalStore`'s server snapshot parameter:
+
+- **Server snapshot:** Read from the ALS-backed `cookies().get(name)` — the same value the server component tree sees
+- **Client snapshot:** Read from `document.cookie`
+
+If they diverge (rare — e.g., a browser extension modified a cookie), React handles the mismatch via the standard hydration mismatch path.
+
+### When to Use Server vs Client Cookie APIs
+
+| Scenario | API | Why |
+|---|---|---|
+| Session token | `cookies().set()` in middleware/action | HttpOnly, never exposed to client JS |
+| Auth redirect | `cookies()` in `access.ts` | Server-side auth check |
+| Theme preference (server render) | `cookies().get()` in layout | Server reads for initial render |
+| Theme preference (toggle) | `useCookie()` in client component | Client writes on user interaction |
+| Consent banner | `useCookie()` in client component | Client writes, server reads on next request |
+| Analytics ID | `cookies().set()` in middleware | Server-generated, HttpOnly |
+
+The general rule: **if the value is set by user interaction in the browser, use `useCookie()`. If it's set by server logic, use `cookies().set()`.** Many cookies are read by both — the server reads them via `cookies().get()`, and the client reads them via `useCookie()`.
+
+### Server Action + Cookie Roundtrip
+
+A common pattern is a server action that sets a cookie, followed by the client reading it. This works naturally:
+
+```typescript
+// actions.ts — server
+'use server';
+import { cookies } from '@timber/app/server';
+
+export async function setLocale(locale: string) {
+  cookies().set('locale', locale, { httpOnly: false }); // httpOnly: false so client can read
+  return revalidatePath('/');
+}
+```
+
+```tsx
+// locale-picker.tsx — client
+'use client';
+import { useCookie } from '@timber/app/client';
+import { setLocale } from './actions';
+
+export function LocalePicker() {
+  const [locale] = useCookie('locale');
+
+  return (
+    <form action={setLocale}>
+      <select name="locale" defaultValue={locale}>
+        <option value="en">English</option>
+        <option value="fr">Français</option>
+      </select>
+      <button type="submit">Save</button>
+    </form>
+  );
+}
+```
+
+After the action completes and the page revalidates, `useCookie('locale')` returns the new value because the browser received the `Set-Cookie` header from the action response.
+
+### No `useCookies()` (Plural)
+
+Unlike `useQueryStates` (which manages multiple URL params as a group), there is no `useCookies()` that watches all cookies. Cookies are independent key-value pairs with independent lifecycles. Watching all cookies would cause unnecessary re-renders — a change to an analytics cookie would re-render a theme toggle. Use one `useCookie(name)` per cookie.
 
 ---
 
 ## Prior Art Comparison
 
-| Feature | Next.js | Remix | Astro | timber.js |
-|---|---|---|---|---|
-| Read API | `cookies()` async fn | `request.headers.get('cookie')` + `cookie` helper | `Astro.cookies.get()` | `cookies().get()` |
-| Write API | `cookies().set()` (actions/route handlers only) | Return `Set-Cookie` headers manually | `Astro.cookies.set()` | `cookies().set()` (middleware/actions/route handlers) |
-| RSC writes | No (throws) | N/A | N/A | No (throws) |
-| Middleware writes | No (read-only in middleware) | N/A | N/A | **Yes** — middleware is a natural place for session refresh |
-| Signed cookies | No | Yes (`createCookie` with signing) | No | Yes (HMAC-SHA256) |
-| Defaults | No defaults | No defaults | No defaults | `HttpOnly`, `Secure`, `SameSite=Lax`, `Path=/` |
-| Read-your-own-writes | No | N/A | Yes | Yes |
+| Feature              | Next.js                                         | Remix                                             | Astro                 | timber.js                                                   |
+| -------------------- | ----------------------------------------------- | ------------------------------------------------- | --------------------- | ----------------------------------------------------------- |
+| Read API             | `cookies()` async fn                            | `request.headers.get('cookie')` + `cookie` helper | `Astro.cookies.get()` | `cookies().get()`                                           |
+| Write API            | `cookies().set()` (actions/route handlers only) | Return `Set-Cookie` headers manually              | `Astro.cookies.set()` | `cookies().set()` (middleware/actions/route handlers)       |
+| RSC writes           | No (throws)                                     | N/A                                               | N/A                   | No (throws)                                                 |
+| Middleware writes    | No (read-only in middleware)                    | N/A                                               | N/A                   | **Yes** — middleware is a natural place for session refresh |
+| Client-side hook     | No (use `document.cookie`)                      | No                                                | No                    | `useCookie(name)` — reactive, SSR-hydrated                 |
+| Signed cookies       | No                                              | Yes (`createCookie` with signing)                 | No                    | Yes (HMAC-SHA256)                                           |
+| Defaults             | No defaults                                     | No defaults                                       | No defaults           | `HttpOnly`, `Secure`, `SameSite=Lax`, `Path=/`              |
+| Read-your-own-writes | No                                              | N/A                                               | Yes                   | Yes                                                         |
 
 ### Key Difference from Next.js
 

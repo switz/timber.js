@@ -211,7 +211,15 @@ function bootstrap(runtimeConfig: typeof config): void {
     // DOMContentLoaded fires after the HTML parser has processed all
     // inline scripts (including streamed Suspense replacements and
     // RSC data), so all push() calls have completed by this point.
+    //
+    // If the page is unloading (user refreshed or navigated away),
+    // do NOT close the stream. When the connection drops mid-stream,
+    // DOMContentLoaded fires because the parser finishes. Closing an
+    // incomplete RSC stream causes React's Flight client to throw
+    // "Connection closed." — a jarring error on a page being replaced.
+    // Leaving the stream open is harmless: the page is being torn down.
     function onDOMContentLoaded(): void {
+      if (isPageUnloading()) return;
       if (streamWriter && !streamFlushed) {
         streamWriter.close();
         streamFlushed = true;

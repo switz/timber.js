@@ -21,14 +21,6 @@ export function timberReactProd(): Plugin {
   return {
     name: 'timber-react-prod',
     enforce: 'pre',
-    config(_cfg, { command }) {
-      // In production builds, disable esbuild's jsxDEV transform so that
-      // JSX compiles to jsx()/jsxs() instead of jsxDEV(). The dev runtime
-      // sets jsxDEV to undefined in production, causing runtime crashes.
-      if (command === 'build') {
-        return { esbuild: { jsxDev: false } };
-      }
-    },
     configResolved(config) {
       isProd = config.command === 'build' && config.mode === 'production';
     },

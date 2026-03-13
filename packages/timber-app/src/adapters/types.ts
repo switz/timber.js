@@ -11,6 +11,12 @@
 export interface TimberConfig {
   output: 'server' | 'static';
   clientJavascriptDisabled?: boolean;
+  /**
+   * JS module source that sets globalThis.__TIMBER_BUILD_MANIFEST__.
+   * Written by adapters as _timber-manifest-init.js, imported before the RSC handler.
+   * Undefined when no build manifest was produced (e.g., dev mode or no client assets).
+   */
+  manifestInit?: string;
 }
 
 /**

@@ -6,7 +6,10 @@ import {
   EMPTY_BUILD_MANIFEST,
 } from '../packages/timber-app/src/server/build-manifest';
 import type { BuildManifest } from '../packages/timber-app/src/server/build-manifest';
-import { parseViteManifest } from '../packages/timber-app/src/plugins/build-manifest';
+import {
+  parseViteManifest,
+  buildManifestFromBundle,
+} from '../packages/timber-app/src/plugins/build-manifest';
 
 // ─── collectRouteCss ──────────────────────────────────────────────────────
 
@@ -182,5 +185,176 @@ describe('parseViteManifest()', () => {
     expect(result.css).toEqual({});
     // JS chunk is still extracted
     expect(result.js['app/layout.tsx']).toBe('/assets/layout.js');
+  });
+});
+
+// ─── buildManifestFromBundle ──────────────────────────────────────────────
+
+// Minimal mock types matching the internal types in build-manifest.ts
+interface MockChunk {
+  type: 'chunk';
+  fileName: string;
+  facadeModuleId: string | null;
+  imports: string[];
+  name: string;
+  code: string;
+  viteMetadata?: { importedCss?: Set<string> };
+}
+
+interface MockAsset {
+  type: 'asset';
+  fileName: string;
+}
+
+type MockBundle = Record<string, MockChunk | MockAsset>;
+
+function mockChunk(overrides: Partial<MockChunk> & { fileName: string }): MockChunk {
+  return {
+    type: 'chunk',
+    code: '',
+    facadeModuleId: null,
+    imports: [],
+    name: overrides.fileName.replace(/\.js$/, ''),
+    ...overrides,
+  };
+}
+
+function mockAsset(fileName: string): MockAsset {
+  return { type: 'asset', fileName };
+}
+
+describe('buildManifestFromBundle()', () => {
+  it('extracts JS mappings from chunks with facadeModuleId', () => {
+    const bundle: MockBundle = {
+      'assets/layout-abc.js': mockChunk({
+        fileName: 'assets/layout-abc.js',
+        facadeModuleId: '/project/app/layout.tsx',
+      }),
+      'assets/page-def.js': mockChunk({
+        fileName: 'assets/page-def.js',
+        facadeModuleId: '/project/app/page.tsx',
+      }),
+    };
+
+    const result = buildManifestFromBundle(bundle, '/', '/project');
+    expect(result.js['app/layout.tsx']).toBe('/assets/layout-abc.js');
+    expect(result.js['app/page.tsx']).toBe('/assets/page-def.js');
+  });
+
+  it('extracts CSS from viteMetadata.importedCss', () => {
+    const chunk = mockChunk({
+      fileName: 'assets/layout-abc.js',
+      facadeModuleId: '/project/app/layout.tsx',
+    });
+    chunk.viteMetadata = {
+      importedCss: new Set(['assets/layout-abc.css', 'assets/shared.css']),
+    };
+
+    const bundle: MockBundle = {
+      'assets/layout-abc.js': chunk,
+      'assets/layout-abc.css': mockAsset('assets/layout-abc.css'),
+      'assets/shared.css': mockAsset('assets/shared.css'),
+    };
+
+    const result = buildManifestFromBundle(bundle, '/', '/project');
+    expect(result.css['app/layout.tsx']).toEqual(['/assets/layout-abc.css', '/assets/shared.css']);
+  });
+
+  it('applies base path to all URLs', () => {
+    const chunk = mockChunk({
+      fileName: 'assets/layout.js',
+      facadeModuleId: '/project/app/layout.tsx',
+    });
+    chunk.viteMetadata = {
+      importedCss: new Set(['assets/layout.css']),
+    };
+
+    const bundle: MockBundle = {
+      'assets/layout.js': chunk,
+    };
+
+    const result = buildManifestFromBundle(bundle, '/my-app/', '/project');
+    expect(result.js['app/layout.tsx']).toBe('/my-app/assets/layout.js');
+    expect(result.css['app/layout.tsx']).toEqual(['/my-app/assets/layout.css']);
+  });
+
+  it('collects transitive modulepreload dependencies', () => {
+    const entryChunk = mockChunk({
+      fileName: 'assets/layout-abc.js',
+      facadeModuleId: '/project/app/layout.tsx',
+      imports: ['assets/vendor-xyz.js'],
+    });
+
+    const vendorChunk = mockChunk({
+      fileName: 'assets/vendor-xyz.js',
+      imports: ['assets/react-123.js'],
+    });
+
+    const reactChunk = mockChunk({
+      fileName: 'assets/react-123.js',
+      imports: [],
+    });
+
+    const bundle: MockBundle = {
+      'assets/layout-abc.js': entryChunk,
+      'assets/vendor-xyz.js': vendorChunk,
+      'assets/react-123.js': reactChunk,
+    };
+
+    const result = buildManifestFromBundle(bundle, '/', '/project');
+    expect(result.modulepreload['app/layout.tsx']).toEqual([
+      '/assets/vendor-xyz.js',
+      '/assets/react-123.js',
+    ]);
+  });
+
+  it('skips chunks without facadeModuleId', () => {
+    const bundle: MockBundle = {
+      'assets/shared-chunk.js': mockChunk({
+        fileName: 'assets/shared-chunk.js',
+        facadeModuleId: null,
+      }),
+    };
+
+    const result = buildManifestFromBundle(bundle, '/', '/project');
+    expect(Object.keys(result.js)).toHaveLength(0);
+  });
+
+  it('collects all CSS assets under _global key', () => {
+    const bundle: MockBundle = {
+      'assets/layout-abc.css': mockAsset('assets/layout-abc.css'),
+      'assets/page-def.css': mockAsset('assets/page-def.css'),
+      'assets/chunk.js': mockChunk({ fileName: 'assets/chunk.js' }),
+    };
+
+    const result = buildManifestFromBundle(bundle, '/', '/project');
+    expect(result.css['_global']).toEqual(['/assets/layout-abc.css', '/assets/page-def.css']);
+  });
+
+  it('returns empty manifest for empty bundle', () => {
+    const result = buildManifestFromBundle({}, '/', '/project');
+    expect(result).toEqual({ css: {}, js: {}, modulepreload: {}, fonts: {} });
+  });
+
+  it('handles circular imports without infinite loop', () => {
+    const chunkA = mockChunk({
+      fileName: 'assets/a.js',
+      facadeModuleId: '/project/app/a.tsx',
+      imports: ['assets/b.js'],
+    });
+
+    const chunkB = mockChunk({
+      fileName: 'assets/b.js',
+      imports: ['assets/a.js'], // circular
+    });
+
+    const bundle: MockBundle = {
+      'assets/a.js': chunkA,
+      'assets/b.js': chunkB,
+    };
+
+    const result = buildManifestFromBundle(bundle, '/', '/project');
+    // Should not throw, and should list b.js as a dep of a
+    expect(result.modulepreload['app/a.tsx']).toEqual(['/assets/b.js', '/assets/a.js']);
   });
 });

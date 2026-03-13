@@ -163,6 +163,52 @@ describe('auto-discovers critical assets', () => {
     expect(headers.some((h) => h.includes('dashboard-def'))).toBe(false);
   });
 
+  it('collects global CSS from _global manifest key', () => {
+    const globalManifest: BuildManifest = {
+      css: {
+        _global: ['/_timber/assets/layout-abc.css', '/_timber/assets/page-def.css'],
+      },
+      js: {},
+      modulepreload: {},
+      fonts: {},
+    };
+    const segments = [{ layout: { filePath: 'app/layout.tsx' } }];
+
+    const headers = collectEarlyHintHeaders(segments, globalManifest);
+    expect(headers).toContain('</_timber/assets/layout-abc.css>; rel=preload; as=style');
+    expect(headers).toContain('</_timber/assets/page-def.css>; rel=preload; as=style');
+  });
+
+  it('deduplicates per-route CSS with global CSS', () => {
+    const mixedManifest: BuildManifest = {
+      css: {
+        'app/layout.tsx': ['/_timber/assets/shared.css'],
+        _global: ['/_timber/assets/shared.css', '/_timber/assets/other.css'],
+      },
+      js: {},
+      modulepreload: {},
+      fonts: {},
+    };
+    const segments = [{ layout: { filePath: 'app/layout.tsx' } }];
+
+    const headers = collectEarlyHintHeaders(segments, mixedManifest);
+    const sharedCount = headers.filter((h) => h.includes('shared.css')).length;
+    expect(sharedCount).toBe(1);
+    expect(headers).toContain('</_timber/assets/other.css>; rel=preload; as=style');
+  });
+
+  it('skips JS modulepreload hints when skipJs is set', () => {
+    const segments = [{ layout: { filePath: 'app/layout.tsx' } }];
+
+    const headers = collectEarlyHintHeaders(segments, manifest, { skipJs: true });
+    expect(headers.some((h) => h.includes('modulepreload'))).toBe(false);
+    // CSS and fonts are still included
+    expect(headers).toContain('</_timber/assets/root-abc.css>; rel=preload; as=style');
+    expect(headers).toContain(
+      '</_timber/fonts/inter-latin-400-normal.woff2>; rel=preload; as=font; crossorigin=anonymous'
+    );
+  });
+
   it('deduplicates hints across segments', () => {
     const sharedManifest: BuildManifest = {
       css: {

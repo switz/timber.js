@@ -183,6 +183,23 @@ describe('worker entry structure', () => {
     const entry = generateWorkerEntry('/build', '/build/out');
     expect(entry).toContain('export default { fetch: handler }');
   });
+
+  it('entry does not include manifest init import by default', () => {
+    const entry = generateWorkerEntry('/build', '/build/out');
+    expect(entry).not.toContain('_timber-manifest-init');
+  });
+
+  it('entry includes manifest init import when hasManifestInit is true', () => {
+    const entry = generateWorkerEntry('/build', '/build/out', true);
+    expect(entry).toContain("import './_timber-manifest-init.js'");
+  });
+
+  it('manifest init import comes before handler import', () => {
+    const entry = generateWorkerEntry('/build', '/build/out', true);
+    const manifestIdx = entry.indexOf("import './_timber-manifest-init.js'");
+    const handlerIdx = entry.indexOf("import handler from");
+    expect(manifestIdx).toBeLessThan(handlerIdx);
+  });
 });
 
 // ─── Wrangler config ──────────────────────────────────────────────────────

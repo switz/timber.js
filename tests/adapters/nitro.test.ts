@@ -252,6 +252,23 @@ describe('generateNitroEntry', () => {
     const entry = generateNitroEntry('/tmp/build', '/tmp/build/nitro', 'bun');
     expect(entry).toContain("process.env.TIMBER_RUNTIME = 'bun'");
   });
+
+  it('does not include manifest init import by default', () => {
+    const entry = generateNitroEntry('/tmp/build', '/tmp/build/nitro', 'node-server');
+    expect(entry).not.toContain('_timber-manifest-init');
+  });
+
+  it('includes manifest init import when hasManifestInit is true', () => {
+    const entry = generateNitroEntry('/tmp/build', '/tmp/build/nitro', 'node-server', true);
+    expect(entry).toContain("import './_timber-manifest-init.js'");
+  });
+
+  it('manifest init import comes before handler import', () => {
+    const entry = generateNitroEntry('/tmp/build', '/tmp/build/nitro', 'node-server', true);
+    const manifestIdx = entry.indexOf("import './_timber-manifest-init.js'");
+    const handlerIdx = entry.indexOf("import { defineEventHandler");
+    expect(manifestIdx).toBeLessThan(handlerIdx);
+  });
 });
 
 // ─── Config Generation ──────────────────────────────────────────────────────

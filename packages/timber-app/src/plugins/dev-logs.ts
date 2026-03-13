@@ -167,6 +167,43 @@ function extractCallerLocation(projectRoot: string): string | null {
   return null;
 }
 
+// ─── Framework-Internal Detection ────────────────────────────────────────
+
+/**
+ * Check if the calling code is from timber's internal plugin/adapter plumbing.
+ *
+ * Only filters logs from `plugins/` and `adapters/` directories — these are
+ * framework operational noise (request summaries, codegen warnings, adapter
+ * setup). Logs from `server/` are preserved because they surface user errors
+ * (render errors, action errors, route handler errors, etc.).
+ *
+ * Handles both monorepo paths (timber-app/src/plugins/) and installed
+ * package paths (@timber/app/dist/plugins/).
+ */
+export function isFrameworkInternalCaller(): boolean {
+  const err = new Error();
+  const stack = err.stack;
+  if (!stack) return false;
+
+  const lines = stack.split('\n');
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i].trim();
+    // Skip our own patching frames
+    if (line.includes('dev-logs')) continue;
+    // Skip node internals (but NOT node_modules — we need to inspect those)
+    if (line.includes('node:')) continue;
+
+    // Check if this first real frame is inside timber's own source
+    const isTimberPath = line.includes('timber-app/') || line.includes('@timber/app/');
+    if (!isTimberPath) return false;
+
+    // Only filter plugin and adapter internals, not server/ runtime code
+    // which surfaces user errors (render errors, action errors, etc.)
+    return line.includes('/plugins/') || line.includes('/adapters/');
+  }
+  return false;
+}
+
 // ─── Console Patching ────────────────────────────────────────────────────
 
 /**
@@ -186,6 +223,10 @@ function patchConsole(server: ViteDevServer, projectRoot: string): () => void {
     console[level] = (...args: unknown[]) => {
       // Always call the original — server terminal output is preserved
       originals.get(level)!(...args);
+
+      // Skip framework-internal logs (plugins/, adapters/) from browser forwarding.
+      // Server runtime logs (render errors, action errors, etc.) are preserved.
+      if (isFrameworkInternalCaller()) return;
 
       // Serialize and forward to browser
       try {

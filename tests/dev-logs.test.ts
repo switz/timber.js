@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { ServerLogPayload, ServerLogLevel } from '../packages/timber-app/src/plugins/dev-logs';
+import { isFrameworkInternalCaller } from '../packages/timber-app/src/plugins/dev-logs';
 
 // ─── Mock Vite Server ────────────────────────────────────────────────────
 
@@ -336,5 +337,177 @@ describe('dev-logs serialization', () => {
 
     // Should not throw
     expect(() => console.log('safe')).not.toThrow();
+  });
+});
+
+// ─── Framework-Internal Filtering Tests ──────────────────────────────────
+
+describe('dev-logs framework-internal filtering', () => {
+  it('isFrameworkInternalCaller returns false for user code', () => {
+    // Called directly from this test file — not framework-internal
+    expect(isFrameworkInternalCaller()).toBe(false);
+  });
+
+  it('isFrameworkInternalCaller detects timber plugins/ in stack', () => {
+    // Mock Error to simulate a call originating from timber's plugins/ dir
+    const OrigError = globalThis.Error;
+    const mockStack = `Error
+    at Object.<anonymous> (/dev/null/dev-logs.ts:10:5)
+    at devServerLog (/workspace/packages/timber-app/src/plugins/dev-server.ts:104:9)
+    at handleRequest (/workspace/packages/timber-app/src/server/handler.ts:50:3)`;
+
+    globalThis.Error = class extends OrigError {
+      constructor(msg?: string) {
+        super(msg);
+        this.stack = mockStack;
+      }
+    } as ErrorConstructor;
+
+    try {
+      expect(isFrameworkInternalCaller()).toBe(true);
+    } finally {
+      globalThis.Error = OrigError;
+    }
+  });
+
+  it('isFrameworkInternalCaller detects timber adapters/ in stack', () => {
+    const OrigError = globalThis.Error;
+    const mockStack = `Error
+    at Object.<anonymous> (/dev/null/dev-logs.ts:10:5)
+    at waitUntilHandler (/workspace/packages/timber-app/src/adapters/nitro.ts:182:12)`;
+
+    globalThis.Error = class extends OrigError {
+      constructor(msg?: string) {
+        super(msg);
+        this.stack = mockStack;
+      }
+    } as ErrorConstructor;
+
+    try {
+      expect(isFrameworkInternalCaller()).toBe(true);
+    } finally {
+      globalThis.Error = OrigError;
+    }
+  });
+
+  it('isFrameworkInternalCaller returns false for timber server/ (user errors)', () => {
+    // server/ code surfaces user errors (render errors, action errors, etc.)
+    const OrigError = globalThis.Error;
+    const mockStack = `Error
+    at Object.<anonymous> (/dev/null/dev-logs.ts:10:5)
+    at logRenderError (/workspace/packages/timber-app/src/server/flush.ts:172:3)
+    at renderPage (/workspace/packages/timber-app/src/server/handler.ts:90:5)`;
+
+    globalThis.Error = class extends OrigError {
+      constructor(msg?: string) {
+        super(msg);
+        this.stack = mockStack;
+      }
+    } as ErrorConstructor;
+
+    try {
+      expect(isFrameworkInternalCaller()).toBe(false);
+    } finally {
+      globalThis.Error = OrigError;
+    }
+  });
+
+  it('isFrameworkInternalCaller handles @timber/app installed path', () => {
+    const OrigError = globalThis.Error;
+    const mockStack = `Error
+    at Object.<anonymous> (/dev/null/dev-logs.ts:10:5)
+    at summary (/app/node_modules/@timber/app/dist/plugins/dev-server.js:80:9)`;
+
+    globalThis.Error = class extends OrigError {
+      constructor(msg?: string) {
+        super(msg);
+        this.stack = mockStack;
+      }
+    } as ErrorConstructor;
+
+    try {
+      expect(isFrameworkInternalCaller()).toBe(true);
+    } finally {
+      globalThis.Error = OrigError;
+    }
+  });
+
+  it('does not forward framework plugin logs to HMR', async () => {
+    const { timberDevLogs } = await import('../packages/timber-app/src/plugins/dev-logs');
+    const mockServer = createMockServer();
+    const ctx = {
+      config: {},
+      routeTree: null,
+      appDir: '/tmp/app',
+      root: '/tmp',
+      dev: true,
+      buildManifest: null,
+    };
+
+    const plugin = timberDevLogs(ctx as never);
+    (plugin as { configureServer: (s: unknown) => void }).configureServer(mockServer);
+
+    // Simulate a call from plugins/ by mocking the stack
+    const OrigError = globalThis.Error;
+    const mockStack = `Error
+    at Object.<anonymous> (/dev/null/dev-logs.ts:10:5)
+    at devServerLog (/workspace/packages/timber-app/src/plugins/dev-server.ts:104:9)`;
+
+    globalThis.Error = class extends OrigError {
+      constructor(msg?: string) {
+        super(msg);
+        this.stack = mockStack;
+      }
+    } as ErrorConstructor;
+
+    try {
+      console.log('framework internal log');
+      // Should NOT be forwarded to browser
+      expect(mockServer.hot.send).not.toHaveBeenCalled();
+    } finally {
+      globalThis.Error = OrigError;
+    }
+  });
+
+  it('still calls original console for filtered framework logs', async () => {
+    const { timberDevLogs } = await import('../packages/timber-app/src/plugins/dev-logs');
+    const mockServer = createMockServer();
+    const ctx = {
+      config: {},
+      routeTree: null,
+      appDir: '/tmp/app',
+      root: '/tmp',
+      dev: true,
+      buildManifest: null,
+    };
+
+    const originalLog = vi.fn();
+    console.log = originalLog;
+
+    const plugin = timberDevLogs(ctx as never);
+    (plugin as { configureServer: (s: unknown) => void }).configureServer(mockServer);
+
+    // Simulate a call from plugins/
+    const OrigError = globalThis.Error;
+    const mockStack = `Error
+    at Object.<anonymous> (/dev/null/dev-logs.ts:10:5)
+    at devServerLog (/workspace/packages/timber-app/src/plugins/dev-server.ts:104:9)`;
+
+    globalThis.Error = class extends OrigError {
+      constructor(msg?: string) {
+        super(msg);
+        this.stack = mockStack;
+      }
+    } as ErrorConstructor;
+
+    try {
+      console.log('[timber] request summary');
+      // Original console should still be called (server terminal preserved)
+      expect(originalLog).toHaveBeenCalledWith('[timber] request summary');
+      // But NOT forwarded to browser
+      expect(mockServer.hot.send).not.toHaveBeenCalled();
+    } finally {
+      globalThis.Error = OrigError;
+    }
   });
 });

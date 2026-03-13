@@ -101,6 +101,10 @@ Features tagged as **[novel]** (not in Next.js or Vinext), **[enhanced]** (impro
 - **[novel]** Client bundle boundary tests — static import tracing ensures server modules never enter the browser entry dependency tree ([18-build-system.md](design/18-build-system.md))
 - **[novel]** Cache-tier chunk splitting — client bundles split into vendor-react (stable across deploys) and timber runtime (stable across app changes) for optimal browser caching ([27-chunking-strategy.md](design/27-chunking-strategy.md))
 
+## Bug Fixes from Next.js / Vinext
+
+- **[novel]** Connection abort suppression — mid-stream page refresh doesn't trigger error boundaries; `AbortSignal` propagated through RSC/SSR, client detects page unload ([10-error-handling.md](design/10-error-handling.md))
+
 ## Shim Compatibility
 
 - **[parity]** ALS-backed `headers()` and `cookies()` for server components ([07-routing.md](design/07-routing.md))

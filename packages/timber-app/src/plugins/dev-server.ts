@@ -282,10 +282,19 @@ function nodeReadableToWebStream(nodeStream: IncomingMessage): ReadableStream<Ui
 async function sendWebResponse(nodeRes: ServerResponse, webResponse: Response): Promise<void> {
   nodeRes.statusCode = webResponse.status;
 
-  // Copy headers
+  // Copy headers. Set-Cookie needs special handling: Headers.forEach()
+  // joins multiple Set-Cookie values with ", " into one entry, but each
+  // cookie must be its own header per RFC 6265 §4.1. Use getSetCookie()
+  // to preserve individual Set-Cookie headers.
   webResponse.headers.forEach((value, key) => {
-    nodeRes.setHeader(key, value);
+    if (key.toLowerCase() !== 'set-cookie') {
+      nodeRes.setHeader(key, value);
+    }
   });
+  const setCookies = webResponse.headers.getSetCookie();
+  if (setCookies.length > 0) {
+    nodeRes.setHeader('Set-Cookie', setCookies);
+  }
 
   // Stream the body
   if (!webResponse.body) {

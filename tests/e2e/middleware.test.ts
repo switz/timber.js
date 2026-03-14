@@ -88,7 +88,7 @@ test.describe('middleware error handling', () => {
 // ─── Cookie Handling ───────────────────────────────────────────────────────
 
 test.describe('middleware cookie handling', () => {
-  test('middleware reads cookies from request', async ({ page, context }) => {
+  test('middleware reads cookies from request via cookies() API', async ({ page, context }) => {
     await context.addCookies([
       {
         name: 'test-cookie',
@@ -101,17 +101,63 @@ test.describe('middleware cookie handling', () => {
     await expect(readCookie).toHaveText('hello-from-test');
   });
 
-  test('middleware sets response cookies', async ({ request }) => {
+  test('middleware sets response cookies via cookies().set()', async ({ request }) => {
     const response = await request.get('/middleware-test/cookies');
     expect(response.status()).toBe(200);
-    const setCookie = response.headers()['set-cookie'];
-    expect(setCookie).toContain('middleware-cookie=set-by-middleware');
+    // Multiple Set-Cookie headers — headersArray() captures all of them.
+    // Header names may be capitalized ("Set-Cookie") depending on the server.
+    const setCookies = response
+      .headersArray()
+      .filter((h) => h.name.toLowerCase() === 'set-cookie');
+    const values = setCookies.map((h) => h.value);
+    expect(values.some((v) => v.includes('middleware-cookie=set-by-middleware'))).toBe(true);
+  });
+
+  test('cookies().set() applies secure defaults (HttpOnly, Secure, SameSite=Lax, Path=/)', async ({
+    request,
+  }) => {
+    const response = await request.get('/middleware-test/cookies');
+    const setCookies = response
+      .headersArray()
+      .filter((h) => h.name.toLowerCase() === 'set-cookie');
+    const middlewareCookie = setCookies.find((h) =>
+      h.value.includes('middleware-cookie=set-by-middleware')
+    );
+    expect(middlewareCookie).toBeDefined();
+    // Verify all secure defaults from design/29-cookies.md
+    expect(middlewareCookie!.value).toContain('Path=/');
+    expect(middlewareCookie!.value).toContain('HttpOnly');
+    expect(middlewareCookie!.value).toContain('Secure');
+    expect(middlewareCookie!.value).toContain('SameSite=Lax');
+  });
+
+  test('read-your-own-writes: cookies().get() sees value set by cookies().set()', async ({
+    page,
+  }) => {
+    await page.goto('/middleware-test/cookies');
+    const rywCookie = page.locator('[data-testid="ryw-cookie"]');
+    await expect(rywCookie).toHaveText('written-in-middleware');
   });
 
   test('middleware reports no cookie when none sent', async ({ page }) => {
     await page.goto('/middleware-test/cookies');
     const readCookie = page.locator('[data-testid="read-cookie"]');
     await expect(readCookie).toHaveText('none');
+  });
+
+  test('cookies() read works in server components (read-only context)', async ({
+    page,
+    context,
+  }) => {
+    await context.addCookies([
+      { name: 'a', value: '1', url: 'http://localhost:3000' },
+      { name: 'b', value: '2', url: 'http://localhost:3000' },
+    ]);
+    await page.goto('/middleware-test/cookies');
+    const count = page.locator('[data-testid="cookie-count"]');
+    // At least 2 cookies from the test + cookies set by middleware (ryw-cookie, middleware-cookie)
+    const countValue = parseInt(await count.textContent() ?? '0');
+    expect(countValue).toBeGreaterThanOrEqual(2);
   });
 });
 

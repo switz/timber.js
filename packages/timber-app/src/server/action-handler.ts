@@ -22,7 +22,11 @@ import {
 
 import { validateCsrf, type CsrfConfig } from './csrf.js';
 import { executeAction, type RevalidateRenderer } from './actions.js';
-import { runWithRequestContext } from './request-context.js';
+import {
+  runWithRequestContext,
+  setMutableCookieContext,
+  getSetCookieHeaders,
+} from './request-context.js';
 import { handleActionError } from './action-client.js';
 import { enforceBodyLimits, enforceFieldLimit, type BodyLimitsConfig } from './body-limits.js';
 import { parseFormData } from './form-data.js';
@@ -103,16 +107,27 @@ export async function handleActionRequest(
   }
 
   // Run inside request context so headers(), cookies() work in actions.
+  // Actions are a mutable context — they can set cookies (design/29-cookies.md).
   return runWithRequestContext(req, async () => {
+    setMutableCookieContext(true);
     const actionId = req.headers.get('x-rsc-action');
 
+    let result: Response | FormRerender | null;
     if (actionId) {
       // With-JS path: client sent action ID in header, args in body
-      return handleRscAction(req, actionId, config);
+      result = await handleRscAction(req, actionId, config);
+    } else {
+      // No-JS path: form POST with React's hidden action fields
+      result = await handleFormAction(req, config);
     }
 
-    // No-JS path: form POST with React's hidden action fields
-    return handleFormAction(req, config);
+    // Apply cookie jar to action responses
+    if (result instanceof Response) {
+      for (const value of getSetCookieHeaders()) {
+        result.headers.append('Set-Cookie', value);
+      }
+    }
+    return result;
   });
 }
 

@@ -25,6 +25,8 @@ vi.mock('@vitejs/plugin-rsc/rsc', () => ({
 // Mock request-context — no ALS needed for these tests.
 vi.mock('../packages/timber-app/src/server/request-context', () => ({
   runWithRequestContext: vi.fn(async (_req: Request, fn: () => Promise<unknown>) => fn()),
+  setMutableCookieContext: vi.fn(),
+  getSetCookieHeaders: vi.fn(() => []),
 }));
 
 // Mock executeAction to avoid revalidation ALS setup.

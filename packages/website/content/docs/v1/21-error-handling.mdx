@@ -1,0 +1,94 @@
+---
+title: "Error Handling"
+description: "Status codes, deny(), error boundaries, and status-code files."
+section: "Guides"
+---
+
+# Error Handling
+
+timber.js distinguishes between two error phases. The phase determines how the error is handled and what HTTP status code the client sees.
+
+## Handler-Phase Errors
+
+Errors thrown before rendering (in middleware, access checks, or the page function before JSX) produce a clean HTTP error. No React involved — the server sends the status code and an empty or minimal body.
+
+## Render-Phase Errors
+
+Errors thrown during React rendering are caught by error boundaries. Because timber.js buffers until `onShellReady`, errors outside `<Suspense>` still produce correct HTTP status codes.
+
+## `deny()`
+
+`deny()` produces the correct HTTP status and renders the matching status file:
+
+```tsx
+import { deny } from '@timber/app/server';
+
+export default async function ProductPage({ params }) {
+  const { id } = await params;
+  const product = await getProduct(id);
+  if (!product) deny(404);    // Real HTTP 404
+  if (!canView(product)) deny(); // Default: 403
+
+  return <ProductView product={product} />;
+}
+```
+
+`deny()` called outside `<Suspense>` produces a real HTTP status code. Called inside `<Suspense>` (after the flush), it triggers the nearest error boundary and injects `<meta name="robots" content="noindex">`. The framework warns about this in dev mode.
+
+## Status-Code Files
+
+Place status-specific error UIs alongside your routes:
+
+```
+app/
+  dashboard/
+    page.tsx
+    error.tsx      # Catches any unhandled error
+    404.tsx        # "Not found" UI
+    403.tsx        # "Forbidden" UI
+    5xx.tsx        # Catch-all server errors
+    4xx.tsx        # Catch-all client errors
+```
+
+Priority order (innermost to outermost):
+1. Specific status files (`403.tsx`, `503.tsx`)
+2. Category catch-alls (`4xx.tsx`, `5xx.tsx`)
+3. `error.tsx` — catches anything unmatched
+
+## `error.tsx`
+
+The general error boundary. It's a client component:
+
+```tsx
+// app/dashboard/error.tsx
+'use client';
+
+export default function DashboardError({ error, reset }) {
+  return (
+    <div>
+      <h2>Something went wrong</h2>
+      <p>{error.message}</p>
+      <button onClick={reset}>Try again</button>
+    </div>
+  );
+}
+```
+
+Error boundaries wrap page content inside layouts — the layout shell (nav, sidebar) stays visible when an error fires.
+
+## `RenderError` — Structured Error Data
+
+Pass structured data to error boundaries with `RenderError`:
+
+```tsx
+import { RenderError } from '@timber/app/server';
+
+if (!product) {
+  throw new RenderError('PRODUCT_NOT_FOUND', {
+    title: 'Product not found',
+    resourceId: params.id,
+  });
+}
+```
+
+The error boundary receives the structured data via `dangerouslyPassData`, surviving the RSC → client boundary where plain error properties are stripped.

@@ -18,7 +18,34 @@ export function timberServerBundle(): Plugin {
     name: 'timber-server-bundle',
 
     config(_cfg, { command }) {
-      if (command !== 'build') return;
+      // In dev mode, Vite externalizes node_modules by default for fast HMR.
+      // But server-only/client-only must NOT be externalized — they need to
+      // go through the timber-shims plugin so it can replace them with no-op
+      // virtual modules. Without this, deps like `bright` that import
+      // `server-only` get the real CJS package loaded via Node's require(),
+      // which throws in the SSR environment.
+      if (command === 'serve') {
+        // In dev, Vite externalizes node_modules and loads them via Node's
+        // native require(). Deps that import `server-only` (like `bright`)
+        // hit the real CJS package which throws at runtime. We force these
+        // poison-pill packages to be non-external so they go through Vite's
+        // module pipeline, where the timber-shims plugin intercepts them
+        // and serves no-op virtual modules for server environments.
+        return {
+          environments: {
+            rsc: {
+              resolve: {
+                noExternal: ['server-only', 'client-only'],
+              },
+            },
+            ssr: {
+              resolve: {
+                noExternal: ['server-only', 'client-only'],
+              },
+            },
+          },
+        };
+      }
 
       // Bundle all dependencies in server environments for production.
       // Without this, bare imports like 'nuqs/adapters/custom' are left

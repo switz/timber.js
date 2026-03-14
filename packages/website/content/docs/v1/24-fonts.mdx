@@ -1,0 +1,27 @@
+---
+title: "Fonts"
+description: "Google Fonts and local fonts with build-time optimization."
+section: "Guides"
+---
+
+# Fonts
+
+timber.js handles font loading at the framework level — build-time download, subsetting, and self-hosting for Google Fonts, plus local font support.
+
+## Google Fonts
+
+Import named font functions from the `fonts/google` subpath of your timber package. Configure fonts with options like `subsets` and `weight`, then apply `className` to your root element in your layout.
+
+At build time, timber.js downloads the font files, subsets them, and serves them from your own domain. No requests to Google at runtime.
+
+## Local Fonts
+
+Use `localFont` from your timber fonts package to load custom font files. Pass `src` (path to the font file) and optional settings like `display`.
+
+## Font CSS Variables
+
+Fonts can expose CSS variables via the `variable` option. Apply the variable class to your root element, then reference it in CSS with `font-family: var(--your-variable)`.
+
+## Next.js Compatibility
+
+Imports from `next/font/google` and `next/font/local` are shimmed to timber's font system. Existing code that uses Next.js font imports works without changes.

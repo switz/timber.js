@@ -1,0 +1,87 @@
+---
+title: "Configuration"
+description: "Configure timber.js with timber.config.ts — output mode, adapters, caching, and more."
+section: "Getting Started"
+---
+
+# Configuration
+
+timber.js is configured through `timber.config.ts` at the project root. Vite configuration lives separately in `vite.config.ts`.
+
+## Minimal Config
+
+```ts
+// timber.config.ts
+export default {
+  output: 'server',
+};
+```
+
+That's it for most projects. The defaults are sensible.
+
+## Output Modes
+
+| Mode | Server required | Client JS | Server Actions |
+|------|----------------|-----------|----------------|
+| `'server'` | Yes | Yes | Yes |
+| `'static'` | No | Yes (hydration + SPA nav) | Via adapter |
+| `'static'` + `clientJavascript: false` | No | None | Build error |
+
+```ts
+// Static site with no JavaScript
+export default {
+  output: 'static',
+  clientJavascript: false,
+};
+```
+
+## Adapters
+
+Adapters transform the build output for your deployment platform. timber.js ships two:
+
+```ts
+import { cloudflare } from '@timber/app/adapters/cloudflare';
+
+export default {
+  output: 'server',
+  adapter: cloudflare(),
+};
+```
+
+```ts
+import { nitro } from '@timber/app/adapters/nitro';
+
+export default {
+  output: 'server',
+  adapter: nitro({ preset: 'node-server' }),
+  // Other presets: 'vercel', 'bun', 'netlify', 'aws-lambda'
+};
+```
+
+Cloudflare gets its own adapter because Workers are architecturally different — no file system, no `node:http`, different lifecycle model. Everything else goes through Nitro.
+
+## Cache Handler
+
+```ts
+import { MemoryCacheHandler } from '@timber/app/cache';
+
+export default {
+  output: 'server',
+  cacheHandler: new MemoryCacheHandler(),
+};
+```
+
+The default is in-memory. Plug in Redis, Cloudflare KV, or any custom handler that implements the `CacheHandler` interface. See [Caching](/pre-release/docs/v1/caching).
+
+## All Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `output` | `'server' \| 'static'` | `'server'` | Output mode |
+| `adapter` | `TimberPlatformAdapter` | — | Deployment adapter |
+| `cacheHandler` | `CacheHandler` | `MemoryCacheHandler` | Cache backend |
+| `clientJavascript` | `boolean \| object` | `true` | Control client-side JS |
+| `pageExtensions` | `string[]` | `['tsx', 'ts', 'jsx', 'js']` | File extensions for pages |
+| `mdx` | `object` | — | MDX remark/rehype plugins |
+
+For the full type definition, see the [Config API Reference](/pre-release/docs/v1/api-config).

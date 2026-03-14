@@ -1,0 +1,81 @@
+---
+title: "timber.js vs Next.js"
+description: "An honest comparison of timber.js and Next.js — where they differ and why."
+section: "Comparisons"
+slug: "timber-vs-nextjs"
+---
+
+# timber.js vs Next.js
+
+Next.js is the most widely used React framework. It's mature, well-documented, and backed by Vercel. timber.js would not exist without it — the app directory routing model, server components, and many API patterns are directly inspired by Next.js.
+
+That said, we made different design decisions in a few areas. Here's an honest comparison.
+
+## HTTP Semantics
+
+| Behavior | Next.js | timber.js |
+|----------|---------|-----------|
+| Status codes | Always 200 (streaming commits early) | Real status codes (flush held until shell ready) |
+| 404 pages | 200 + `not-found.tsx` error boundary | HTTP 404 + `404.tsx` |
+| Redirects in pages | Client-side via `redirect()` after 200 | HTTP 302/301 before any bytes sent |
+| Works without JS | Partially (primary content yes, interactions no) | Fully (forms, navigation, status codes all work) |
+
+This is the core philosophical difference. Next.js optimizes for earliest possible TTFB. timber.js optimizes for correct HTTP responses, at the cost of ~20ms additional server buffering.
+
+## Streaming
+
+Both frameworks support React Suspense streaming. The difference is when it starts:
+
+- **Next.js:** Streams immediately. `loading.tsx` renders while data loads. Status code is already committed.
+- **timber.js:** Holds until the shell is ready (everything outside `<Suspense>`). Then streams Suspense content. No `loading.tsx` — `<Suspense>` is opt-in only.
+
+## Routing
+
+Both use file-system routing in an `app/` directory. The models are similar:
+
+- Layouts, pages, dynamic segments, catch-all routes — same patterns
+- Parallel routes (slots) — both support `@sidebar`, `@modal` patterns
+- Route groups — both support `(group)` directories
+
+**Differences:**
+- **Middleware:** Next.js has a single global `middleware.ts`. timber.js has per-segment `middleware.ts` files.
+- **Authorization:** timber.js has `access.ts` files for per-segment access control with `deny()`. Next.js uses middleware or in-component checks.
+- **Typed routes:** timber.js generates route types at build time — `<Link>` type-checks `href` and params.
+
+## Caching
+
+| Behavior | Next.js | timber.js |
+|----------|---------|-----------|
+| `fetch()` caching | Cached by default (opt out with `cache: 'no-store'`) | Never cached (explicit is better) |
+| Cache API | `unstable_cache` / `'use cache'` | `timber.cache()` with TTL, tags, staleWhileRevalidate |
+| Revalidation | `revalidateTag()`, `revalidatePath()` | `revalidateTag()` |
+
+timber.js takes the position that implicit caching causes more bugs than it prevents. Nothing is cached unless you wrap it in `timber.cache()` or use `"use cache"`.
+
+## Build System
+
+| | Next.js | timber.js |
+|--|---------|-----------|
+| Bundler | Turbopack / Webpack | Vite 7 (Rolldown) |
+| Config | `next.config.js` | `vite.config.ts` + `timber.config.ts` |
+| Plugin ecosystem | Next.js-specific | Full Vite plugin ecosystem |
+
+## Platform Support
+
+Next.js is optimized for Vercel and works on other platforms through community adapters. timber.js ships a first-party Cloudflare Workers adapter and a Nitro adapter that covers Node.js, Vercel, Bun, Netlify, AWS Lambda, and more.
+
+## When to Use Next.js
+
+- You need the largest ecosystem and community support
+- You're deploying to Vercel
+- You need features timber.js hasn't built yet (image optimization, ISR, etc.)
+- Your team is already productive with Next.js
+
+## When to Use timber.js
+
+- You care about correct HTTP status codes and headers
+- You want pages that work fully without JavaScript
+- You're deploying to Cloudflare Workers
+- You prefer explicit caching over implicit
+- You want per-segment middleware and authorization
+- You want Vite's build speed and plugin ecosystem

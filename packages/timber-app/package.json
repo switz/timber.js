@@ -1,10 +1,10 @@
 {
   "name": "@timber/app",
   "version": "0.0.1",
-  "bin": {
-    "timber": "./src/cli.ts"
-  },
   "type": "module",
+  "bin": {
+    "timber": "./bin/timber.mjs"
+  },
   "imports": {
     "#/*": "./src/*"
   },
@@ -16,18 +16,71 @@
     "./content": "./src/content/index.ts",
     "./search-params": "./src/search-params/index.ts",
     "./routing": "./src/routing/index.ts",
-    "./adapters/*": "./src/adapters/*.ts"
+    "./adapters/cloudflare": "./src/adapters/cloudflare.ts",
+    "./adapters/nitro": "./src/adapters/nitro.ts",
+    "./package.json": "./package.json"
   },
+  "publishConfig": {
+    "bin": {
+      "timber": "./bin/timber.mjs"
+    },
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js"
+      },
+      "./server": {
+        "types": "./dist/server/index.d.ts",
+        "import": "./dist/server/index.js"
+      },
+      "./client": {
+        "types": "./dist/client/index.d.ts",
+        "import": "./dist/client/index.js"
+      },
+      "./cache": {
+        "types": "./dist/cache/index.d.ts",
+        "import": "./dist/cache/index.js"
+      },
+      "./content": {
+        "types": "./dist/content/index.d.ts",
+        "import": "./dist/content/index.js"
+      },
+      "./search-params": {
+        "types": "./dist/search-params/index.d.ts",
+        "import": "./dist/search-params/index.js"
+      },
+      "./routing": {
+        "types": "./dist/routing/index.d.ts",
+        "import": "./dist/routing/index.js"
+      },
+      "./adapters/cloudflare": {
+        "types": "./dist/adapters/cloudflare.d.ts",
+        "import": "./dist/adapters/cloudflare.js"
+      },
+      "./adapters/nitro": {
+        "types": "./dist/adapters/nitro.d.ts",
+        "import": "./dist/adapters/nitro.js"
+      },
+      "./package.json": "./package.json"
+    }
+  },
+  "files": [
+    "dist",
+    "bin",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
-    "build": "echo 'TODO: build step'",
-    "typecheck": "tsgo --noEmit"
+    "build": "vite build --config vite.lib.config.ts && tsc --emitDeclarationOnly --project tsconfig.json --outDir dist",
+    "typecheck": "tsgo --noEmit",
+    "prepublishOnly": "pnpm run build"
   },
   "dependencies": {
     "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/context-async-hooks": "^2.6.0",
     "@opentelemetry/sdk-trace-base": "^2.6.0",
     "@vitejs/plugin-react": "^6.0.0",
-    "@vitejs/plugin-rsc": "^0.5.21"
+    "@vitejs/plugin-rsc": "~0.5.21"
   },
   "peerDependencies": {
     "@content-collections/core": "^0.14.0",
@@ -35,8 +88,8 @@
     "@content-collections/vite": "^0.2.0",
     "@mdx-js/rollup": "^3.0.0",
     "nuqs": "^2.0.0",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
     "vite": "^8.0.0",
     "zod": "^3.22.0 || ^4.0.0"
   },

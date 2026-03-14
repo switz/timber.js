@@ -362,13 +362,14 @@ Changesets (`@changesets/cli`) or similar tooling for monorepo version managemen
 
 These are the concrete steps to implement this strategy (each should be a separate task/PR):
 
-### Step 1: Add tsup and build config
+### Step 1: Add Vite library mode build config
 
-- Install `tsup` as a dev dependency
-- Create `tsup.config.ts` with entry points
-- Update `build` script to `tsup`
+- Create `vite.lib.config.ts` with entry points (Vite library mode, Rolldown)
+- Add separate `tsc --emitDeclarationOnly` pass for `.d.ts` generation
+- Update `build` script to `vite build --config vite.lib.config.ts && tsc --emitDeclarationOnly`
+- Create `bin/timber.mjs` thin CLI wrapper with shebang
 - Verify `dist/` output matches expected structure
-- Add `dist/` to `.gitignore`
+- `dist/` already in `.gitignore`
 
 ### Step 2: Update package.json for publishing
 
@@ -396,10 +397,10 @@ These are the concrete steps to implement this strategy (each should be a separa
 
 ## Open Questions
 
-1. **Source maps in published package?** Including `sourcemap: true` in tsup adds ~30% to package size but enables debugging into timber internals. Recommended: yes, include them.
+1. **Source maps in published package?** Including `sourcemap: true` adds ~30% to package size but enables debugging into timber internals. **Decision: yes**, source maps are included in the Vite library mode build.
 
 2. **`typesVersions` fallback?** Older TypeScript versions (< 4.7) don't support `exports` conditions. A `typesVersions` field can provide fallback resolution. Worth adding if adoption data shows consumers on older TS versions.
 
 3. **Should examples be a separate package?** Currently in the same repo. If examples grow, they could be published as `create-timber-app` or similar. Out of scope for now.
 
-4. **Prepublish validation?** A `prepublishOnly` script that runs `tsc --noEmit && vitest run && tsup` ensures broken code never reaches npm. Recommended.
+4. **Prepublish validation?** **Decision: yes**, `prepublishOnly` runs `pnpm run build` which executes both the Vite library mode build and tsc declaration pass.

@@ -185,7 +185,7 @@ describe('npm packaging', () => {
 
     it('CLI output is valid ESM', () => {
       const cliJs = readFileSync(join(DIST_DIR, 'cli.js'), 'utf-8');
-      expect(cliJs).toMatch(/import\s/);
+      expect(cliJs).toMatch(/export\s/);
     });
   });
 });

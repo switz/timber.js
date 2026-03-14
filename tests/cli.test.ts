@@ -50,6 +50,7 @@ describe('runDev', () => {
   let mockServer: { listen: ReturnType<typeof vi.fn>; printUrls: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
+    vi.resetModules();
     mockServer = {
       listen: vi.fn().mockResolvedValue(undefined),
       printUrls: vi.fn(),
@@ -88,6 +89,7 @@ describe('runBuild', () => {
   let mockBuilder: { buildApp: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
+    vi.resetModules();
     mockBuilder = {
       buildApp: vi.fn().mockResolvedValue(undefined),
     };
@@ -129,6 +131,7 @@ describe('runPreview', () => {
   let mockPreview: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
+    vi.resetModules();
     mockPreview = vi.fn().mockResolvedValue({
       printUrls: vi.fn(),
     });
@@ -162,6 +165,7 @@ describe('runCheck', () => {
   let mockExecFile: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
+    vi.resetModules();
     mockExecFile = vi
       .fn()
       .mockImplementation(

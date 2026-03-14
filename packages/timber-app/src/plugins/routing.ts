@@ -14,6 +14,7 @@ import { join } from 'node:path';
 import { scanRoutes } from '#/routing/scanner.js';
 import { generateRouteMap } from '#/routing/codegen.js';
 import { collectInterceptionRewrites } from '#/routing/interception.js';
+import { lintStatusFileDirectives, formatStatusFileLintWarnings } from '#/routing/status-file-lint.js';
 import type { RouteTree, SegmentNode, RouteFile } from '#/routing/types.js';
 import type { PluginContext } from '#/index.js';
 
@@ -75,6 +76,9 @@ function writeCodegen(ctx: PluginContext): void {
 }
 
 export function timberRouting(ctx: PluginContext): Plugin {
+  /** Track warned files to avoid repeating warnings on rescan. */
+  const warnedFiles = new Set<string>();
+
   function rescan(): void {
     ctx.timer.start('route-scan');
     ctx.routeTree = scanRoutes(ctx.appDir, {
@@ -82,6 +86,14 @@ export function timberRouting(ctx: PluginContext): Plugin {
     });
     ctx.timer.end('route-scan');
     writeCodegen(ctx);
+
+    // Lint status files for missing 'use client' directive
+    const warnings = lintStatusFileDirectives(ctx.routeTree);
+    const newWarnings = warnings.filter((w) => !warnedFiles.has(w.filePath));
+    if (newWarnings.length > 0) {
+      for (const w of newWarnings) warnedFiles.add(w.filePath);
+      console.warn(formatStatusFileLintWarnings(newWarnings));
+    }
   }
 
   return {

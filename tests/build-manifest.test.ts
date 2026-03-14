@@ -336,6 +336,37 @@ describe('buildManifestFromBundle()', () => {
     expect(result).toEqual({ css: {}, js: {}, modulepreload: {}, fonts: {} });
   });
 
+  it('tracks vendor chunks in modulepreload dependencies', () => {
+    const pageChunk = mockChunk({
+      fileName: 'assets/page-abc.js',
+      facadeModuleId: '/project/app/page.tsx',
+      imports: ['assets/vendor-timber-xyz.js'],
+    });
+
+    const timberChunk = mockChunk({
+      fileName: 'assets/vendor-timber-xyz.js',
+      imports: ['assets/vendor-react-123.js'],
+    });
+
+    const reactChunk = mockChunk({
+      fileName: 'assets/vendor-react-123.js',
+      imports: [],
+    });
+
+    const bundle: MockBundle = {
+      'assets/page-abc.js': pageChunk,
+      'assets/vendor-timber-xyz.js': timberChunk,
+      'assets/vendor-react-123.js': reactChunk,
+    };
+
+    const result = buildManifestFromBundle(bundle, '/', '/project');
+    // Both vendor chunks should appear as modulepreload deps
+    expect(result.modulepreload['app/page.tsx']).toEqual([
+      '/assets/vendor-timber-xyz.js',
+      '/assets/vendor-react-123.js',
+    ]);
+  });
+
   it('handles circular imports without infinite loop', () => {
     const chunkA = mockChunk({
       fileName: 'assets/a.js',

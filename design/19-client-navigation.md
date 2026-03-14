@@ -372,6 +372,7 @@ Making `<Link>` a client component (like Next.js) would require every link to cr
 | Progressive enhancement | Works without JS (plain `<a>`) | Broken without JS (no `onClick`) |
 | Event listener count | O(1) total | O(n) per link |
 | React event integration | Indirect (native DOM events) | Direct (React synthetic events) |
+| Shadow DOM (open) | Works via `composedPath()` | Works (listener on element) |
 | Shadow DOM (closed) | Clicks not received | Works (listener on element) |
 | `stopPropagation` risk | Intermediate elements can block | Not affected |
 | RSC compatibility | `<Link>` is a server component | `<Link>` must be `'use client'` |
@@ -380,7 +381,7 @@ Making `<Link>` a client component (like Next.js) would require every link to cr
 
 - **Closed Shadow DOM:** Click events from inside closed shadow roots don't bubble to `document`. Links rendered inside closed Shadow DOM won't be intercepted. This is a theoretical edge case — Shadow DOM usage with framework links is extremely rare.
 - **`stopPropagation`:** If a parent element calls `event.stopPropagation()` on a click event, the global handler won't see it. Third-party libraries that aggressively stop propagation could cause this.
-- **Open Shadow DOM:** The handler uses `event.target.closest()` which doesn't traverse shadow boundaries. Using `event.composedPath()[0]` as the starting point would improve compatibility with open shadow roots.
+- **Open Shadow DOM:** Supported. The click handler walks `event.composedPath()` instead of using `event.target.closest()`, so links inside open shadow roots are intercepted correctly.
 
 These limitations are acceptable tradeoffs for the progressive enhancement and RSC server component benefits.
 

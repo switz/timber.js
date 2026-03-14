@@ -67,6 +67,7 @@ Features tagged as **[novel]** (not in Next.js or Vinext), **[enhanced]** (impro
 - **[parity]** `permanentRedirect()` in navigation shim ([07-routing.md](design/07-routing.md))
 - **[parity]** `useLinkStatus()` — per-link pending status during navigation ([19-client-navigation.md](design/19-client-navigation.md))
 - **[parity]** `Link.onNavigate` — intercept navigation before routing for custom logic like view transitions ([19-client-navigation.md](design/19-client-navigation.md))
+- **[novel]** Open Shadow DOM link interception — `composedPath()` traversal for links inside web components ([19-client-navigation.md](design/19-client-navigation.md))
 
 ## Fonts
 

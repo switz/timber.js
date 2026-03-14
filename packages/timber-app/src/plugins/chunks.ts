@@ -22,7 +22,7 @@ import type { Plugin } from 'vite';
  * Returns a chunk name for vendor modules, or undefined to let
  * Rollup's default splitting handle app/route code.
  */
-function assignChunk(id: string): string | undefined {
+export function assignChunk(id: string): string | undefined {
   // Tier 1: React ecosystem — changes on version bumps only
   if (
     id.includes('node_modules/react-dom') ||

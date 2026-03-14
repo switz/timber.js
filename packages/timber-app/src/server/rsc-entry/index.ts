@@ -88,6 +88,15 @@ export function setDevPipelineErrorHandler(handler: (error: Error, phase: string
  * 103 Early Hints → middleware.ts → render (RSC → SSR → HTML).
  */
 async function createRequestHandler(manifest: typeof routeManifest, runtimeConfig: typeof config) {
+  // Initialize cookie signing secrets from config (design/29-cookies.md §"Signed Cookies")
+  const cookieSecrets = (runtimeConfig as Record<string, unknown>).cookieSecrets as
+    | string[]
+    | undefined;
+  if (cookieSecrets?.length) {
+    const { setCookieSecrets } = await import('#/server/request-context.js');
+    setCookieSecrets(cookieSecrets);
+  }
+
   const matchRoute = createRouteMatcher(manifest);
 
   // Build the client bootstrap configuration.

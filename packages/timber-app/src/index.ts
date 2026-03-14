@@ -85,6 +85,18 @@ export interface TimberUserConfig {
     /** Threshold in ms to highlight slow phases in dev logging output. Default: 200. */
     slowPhaseMs?: number;
   };
+  /**
+   * Cookie signing configuration. See design/29-cookies.md §"Signed Cookies".
+   *
+   * Provide `secret` for a single key, or `secrets` (array) for key rotation.
+   * When `secrets` is used, index 0 is the signing key; all are tried for verification.
+   */
+  cookies?: {
+    /** Single signing secret. Shorthand for `secrets: [secret]`. */
+    secret?: string;
+    /** Array of signing secrets for key rotation. Index 0 signs; all verify. */
+    secrets?: string[];
+  };
   /** MDX compilation options passed to @mdx-js/rollup. See design/20-content-collections.md. */
   mdx?: {
     remarkPlugins?: unknown[];

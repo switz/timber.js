@@ -309,65 +309,39 @@ function renderTwitter(tw: NonNullable<Metadata['twitter']>, elements: HeadEleme
     }
   }
 
-  // App card fields
+  // App card fields — 3 platforms × 3 attributes (name, id, url)
   if (tw.app) {
+    const platforms: Array<[keyof NonNullable<typeof tw.app.id>, string]> = [
+      ['iPhone', 'iphone'],
+      ['iPad', 'ipad'],
+      ['googlePlay', 'googleplay'],
+    ];
+
+    // App name is shared across platforms but the spec uses per-platform names.
+    // Emit for each platform that has an ID.
     if (tw.app.name) {
-      // App name is shared across platforms — twitter:app:name:iphone = twitter:app:name:ipad = ...
-      // But the spec uses per-platform names. Emit for each platform that has an ID.
-      if (tw.app.id?.iPhone) {
-        elements.push({
-          tag: 'meta',
-          attrs: { name: 'twitter:app:name:iphone', content: tw.app.name },
-        });
-      }
-      if (tw.app.id?.iPad) {
-        elements.push({
-          tag: 'meta',
-          attrs: { name: 'twitter:app:name:ipad', content: tw.app.name },
-        });
-      }
-      if (tw.app.id?.googlePlay) {
-        elements.push({
-          tag: 'meta',
-          attrs: { name: 'twitter:app:name:googleplay', content: tw.app.name },
-        });
+      for (const [key, tag] of platforms) {
+        if (tw.app.id?.[key]) {
+          elements.push({
+            tag: 'meta',
+            attrs: { name: `twitter:app:name:${tag}`, content: tw.app.name },
+          });
+        }
       }
     }
-    if (tw.app.id?.iPhone) {
-      elements.push({
-        tag: 'meta',
-        attrs: { name: 'twitter:app:id:iphone', content: tw.app.id.iPhone },
-      });
+
+    for (const [key, tag] of platforms) {
+      const id = tw.app.id?.[key];
+      if (id) {
+        elements.push({ tag: 'meta', attrs: { name: `twitter:app:id:${tag}`, content: id } });
+      }
     }
-    if (tw.app.id?.iPad) {
-      elements.push({
-        tag: 'meta',
-        attrs: { name: 'twitter:app:id:ipad', content: tw.app.id.iPad },
-      });
-    }
-    if (tw.app.id?.googlePlay) {
-      elements.push({
-        tag: 'meta',
-        attrs: { name: 'twitter:app:id:googleplay', content: tw.app.id.googlePlay },
-      });
-    }
-    if (tw.app.url?.iPhone) {
-      elements.push({
-        tag: 'meta',
-        attrs: { name: 'twitter:app:url:iphone', content: tw.app.url.iPhone },
-      });
-    }
-    if (tw.app.url?.iPad) {
-      elements.push({
-        tag: 'meta',
-        attrs: { name: 'twitter:app:url:ipad', content: tw.app.url.iPad },
-      });
-    }
-    if (tw.app.url?.googlePlay) {
-      elements.push({
-        tag: 'meta',
-        attrs: { name: 'twitter:app:url:googleplay', content: tw.app.url.googlePlay },
-      });
+
+    for (const [key, tag] of platforms) {
+      const url = tw.app.url?.[key];
+      if (url) {
+        elements.push({ tag: 'meta', attrs: { name: `twitter:app:url:${tag}`, content: url } });
+      }
     }
   }
 }

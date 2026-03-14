@@ -1,0 +1,102 @@
+---
+title: Deployment
+description: Deploy timber.js to Cloudflare Workers, Node.js, Vercel, and more.
+order: 27
+section: Guides
+---
+
+# Deployment
+
+timber.js uses adapters to transform the build output for your deployment platform. Two first-party adapters cover all major platforms.
+
+## Cloudflare Workers
+
+The Cloudflare adapter is first-class. Workers are architecturally different from Node.js — no file system, no `node:http`, different lifecycle model — so they get a dedicated adapter.
+
+```ts
+// timber.config.ts
+import { cloudflare } from '@timber/app/adapters/cloudflare';
+
+export default {
+  output: 'server',
+  adapter: cloudflare(),
+};
+```
+
+```bash
+timber build
+wrangler deploy
+```
+
+The adapter generates `wrangler.jsonc` and wraps the request handler in a Workers-compatible entry point. KV, D1, Durable Objects, R2, and Queues bindings pass through directly.
+
+## Node.js / Docker / VPS
+
+```ts
+// timber.config.ts
+import { nitro } from '@timber/app/adapters/nitro';
+
+export default {
+  output: 'server',
+  adapter: nitro({ preset: 'node-server' }),
+};
+```
+
+```bash
+timber build
+node .output/server/index.mjs
+```
+
+## Vercel
+
+```ts
+import { nitro } from '@timber/app/adapters/nitro';
+
+export default {
+  output: 'server',
+  adapter: nitro({ preset: 'vercel' }),
+};
+```
+
+## Other Platforms
+
+The Nitro adapter supports many presets:
+
+| Preset | Platform |
+|--------|----------|
+| `node-server` | Node.js, Docker, VPS |
+| `vercel` | Vercel Serverless |
+| `bun` | Bun.serve() |
+| `netlify` | Netlify Functions |
+| `aws-lambda` | AWS Lambda |
+| `deno-deploy` | Deno Deploy |
+
+```ts
+adapter: nitro({ preset: 'bun' })
+```
+
+## Static Export
+
+For sites that don't need a server:
+
+```ts
+export default {
+  output: 'static',
+};
+```
+
+Static mode runs middleware at build time only. Server actions are extracted as separate API endpoints by the adapter.
+
+With `clientJavascript: false`, no JavaScript is shipped — `'use client'` and `'use server'` become build errors.
+
+## Build Commands
+
+```bash
+timber build    # Production build
+timber preview  # Local preview of the build output
+timber dev      # Development server with HMR
+```
+
+## Community Adapters
+
+Any package that exports a `TimberPlatformAdapter` is a valid adapter. The interface is documented in the [Config API Reference](/docs/v1/api/config).

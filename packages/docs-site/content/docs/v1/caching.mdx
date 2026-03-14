@@ -1,0 +1,107 @@
+---
+title: Caching
+description: Explicit caching with timber.cache — TTL, tags, staleWhileRevalidate, and pluggable backends.
+order: 13
+section: Core Docs
+---
+
+# Caching
+
+timber.js does not cache anything by default. No patched `fetch`, no implicit data cache. If you want caching, you ask for it explicitly.
+
+## `timber.cache()`
+
+Wrap any async function to cache its result:
+
+```ts
+import { cache } from '@timber/app/cache';
+
+export const getPopularProducts = cache(
+  async () => {
+    return db.products.findPopular();
+  },
+  { ttl: 300, tags: ['products'] }
+);
+```
+
+Call `getPopularProducts()` from any server component. The first call hits the database. Subsequent calls within 300 seconds return the cached result.
+
+## Options
+
+```ts
+const getUser = cache(
+  async (userId: string) => {
+    return db.users.findUnique({ where: { id: userId } });
+  },
+  {
+    ttl: 60,                           // Cache for 60 seconds
+    key: (userId) => `user:${userId}`, // Explicit cache key (optional)
+    staleWhileRevalidate: true,        // Serve stale while refetching
+    tags: (userId) => [`user:${userId}`], // For tag-based invalidation
+  }
+);
+```
+
+`tags` accepts a static array (`['products']`) or a function that receives the same arguments as the wrapped function.
+
+## Invalidation
+
+Invalidate by tag:
+
+```ts
+import { revalidateTag } from '@timber/app/cache';
+
+// In a server action after updating a product:
+revalidateTag('products');
+revalidateTag(`user:${userId}`);
+```
+
+## `staleWhileRevalidate`
+
+When enabled, expired entries are served immediately while a background refetch runs:
+
+- **0–60s:** Fresh. Served from cache.
+- **60s+:** Stale. Served immediately, background refetch starts.
+- **Next request after refetch:** Gets fresh data.
+
+## Singleflight
+
+When multiple concurrent requests miss the cache for the same key, only one executes the underlying function. The rest wait for the result. This is built in — no opt-in needed.
+
+## `"use cache"` Directive
+
+For component-level caching, use the `"use cache"` directive:
+
+```tsx
+"use cache";
+
+export default async function PopularProducts() {
+  const products = await db.products.findPopular();
+  return <ProductGrid products={products} />;
+}
+```
+
+This caches the rendered RSC output of the entire component.
+
+## Cache Handlers
+
+The default handler is in-memory. Configure a different backend in `timber.config.ts`:
+
+```ts
+import { MemoryCacheHandler } from '@timber/app/cache';
+
+export default {
+  cacheHandler: new MemoryCacheHandler(),
+};
+```
+
+Implement the `CacheHandler` interface for Redis, Cloudflare KV, or any other backend. See the [Cache API Reference](/docs/v1/api/cache).
+
+## timber.cache vs React.cache
+
+| | `timber.cache` | `React.cache` |
+|--|---------------|---------------|
+| Scope | Cross-request (persistent) | Single request |
+| TTL/tags | Yes | No |
+| Works in middleware | Yes | No |
+| Use case | Database queries, API calls | Request-scoped dedup |

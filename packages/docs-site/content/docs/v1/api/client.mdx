@@ -1,0 +1,147 @@
+---
+title: "API: @timber/app/client"
+description: Client-side exports — Link, useRouter, usePathname, navigation hooks, and form utilities.
+order: 31
+section: API Reference
+---
+
+# @timber/app/client
+
+Client-side components and hooks. Import from `@timber/app/client`.
+
+## Components
+
+### `<Link>`
+
+Client-side navigation link. Type-checks `href` against the generated route map.
+
+```tsx
+import { Link } from '@timber/app/client';
+
+<Link href="/about">About</Link>
+<Link href="/products/123" replace>Product</Link>
+<Link href="/gallery" onNavigate={(e) => { /* intercept */ }}>Gallery</Link>
+```
+
+#### Props
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `href` | `string` | Target URL (type-checked against route map) |
+| `replace` | `boolean` | Use `replaceState` instead of `pushState` |
+| `prefetch` | `boolean` | Prefetch on hover/viewport |
+| `onNavigate` | `OnNavigateHandler` | Intercept navigation before routing |
+
+### `<TimberErrorBoundary>`
+
+Error boundary component with reset support.
+
+## Hooks
+
+### `useRouter()`
+
+Programmatic navigation.
+
+```tsx
+const router = useRouter();
+router.push('/dashboard');
+router.replace('/settings');
+router.refresh();
+router.back();
+router.forward();
+```
+
+#### `RouterInstance`
+
+| Method | Description |
+|--------|-------------|
+| `push(href)` | Navigate, add history entry |
+| `replace(href)` | Navigate, replace history entry |
+| `refresh()` | Re-fetch current route RSC payload |
+| `back()` | Go back |
+| `forward()` | Go forward |
+
+### `usePathname()`
+
+Returns the current pathname as a string.
+
+```tsx
+const pathname = usePathname(); // "/dashboard/settings"
+```
+
+### `useSearchParams()`
+
+Returns the current URL search params.
+
+```tsx
+const searchParams = useSearchParams();
+const query = searchParams.get('q');
+```
+
+### `useSelectedLayoutSegment()`
+
+Returns the active child segment within a layout.
+
+```tsx
+const segment = useSelectedLayoutSegment(); // "settings"
+```
+
+### `useSelectedLayoutSegments()`
+
+Returns all active segments below the current layout.
+
+```tsx
+const segments = useSelectedLayoutSegments(); // ["settings", "profile"]
+```
+
+### `useNavigationPending()`
+
+Returns whether a navigation is in flight. Use instead of wrapping `children` in `<Suspense>`.
+
+```tsx
+const pending = useNavigationPending();
+```
+
+### `useLinkStatus()`
+
+Per-link pending state. Must be used inside a `<Link>` component's children.
+
+```tsx
+const { pending } = useLinkStatus();
+```
+
+### `useParams()`
+
+Returns the current route params.
+
+```tsx
+const params = useParams(); // { id: "123" }
+```
+
+## Form Hooks
+
+### `useActionState(action, initialState)`
+
+Standard React 19 `useActionState` — re-exported for convenience.
+
+### `useFormAction(action)`
+
+Bind a server action to a form with pending state.
+
+### `useFormErrors()`
+
+Access validation errors from the most recent action submission.
+
+## Utilities
+
+### `interpolateParams(pattern, params)`
+
+Fill a route pattern with param values.
+
+```ts
+interpolateParams('/products/[id]', { id: '123' }); // "/products/123"
+```
+
+### `useQueryStates(definition)`
+
+Sync typed search params to the URL. See [Search Params](/docs/v1/search-params).

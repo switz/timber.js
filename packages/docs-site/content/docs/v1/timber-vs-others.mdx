@@ -1,0 +1,68 @@
+---
+title: timber.js vs Other Frameworks
+description: How timber.js compares to Vinext, Remix, and other React server frameworks.
+order: 42
+section: Comparisons
+---
+
+# timber.js vs Other Frameworks
+
+Beyond Next.js, there are several React frameworks worth comparing against. Each makes different trade-offs.
+
+## Vinext (Cloudflare)
+
+Vinext is Cloudflare's implementation of Next.js on Vite. It aims for Next.js API compatibility running natively on Cloudflare Workers.
+
+**Shared ground:** Both timber.js and Vinext target Cloudflare Workers, use Vite, and support React Server Components.
+
+**Key differences:**
+
+| | Vinext | timber.js |
+|--|--------|-----------|
+| Goal | Next.js compatibility on Vite | Independent design, different trade-offs |
+| Streaming | Streams immediately (Next.js behavior) | Holds until shell ready |
+| Status codes | 200 for everything (Next.js behavior) | Real HTTP status codes |
+| API surface | Next.js-compatible | Similar but divergent where we disagree |
+| Caching | Next.js caching model | Explicit-only caching |
+
+If you want Next.js on Cloudflare with minimal code changes, Vinext is the right choice. If you want a different rendering model with correct HTTP semantics, that's timber.js.
+
+## Remix / React Router
+
+Remix (now React Router v7) pioneered many of the ideas timber.js agrees with: progressive enhancement, forms that work without JavaScript, and server-first rendering.
+
+**Shared philosophy:**
+- Forms should work without JS
+- Server rendering is the default
+- Progressive enhancement over client-side-first
+
+**Key differences:**
+
+| | Remix / React Router | timber.js |
+|--|---------------------|-----------|
+| Routing model | Flat route config or file convention | Nested `app/` directory (Next.js-style) |
+| Data loading | `loader` / `action` functions | Async server components + server actions |
+| RSC support | Not yet (planned) | Built on RSC from day one |
+| Streaming | Supports `defer()` for streaming | `<Suspense>` with explicit flush point |
+| Build system | Vite (React Router v7) | Vite |
+
+Remix's `loader`/`action` model is elegant and well-understood. timber.js bets on RSC as the data loading primitive — your components are your data layer.
+
+## TanStack Start
+
+TanStack Start is a full-stack React framework from the TanStack Router team.
+
+**Shared ground:** Both use Vite, both aim for good TypeScript support, both support server-side rendering.
+
+**Key differences:**
+
+| | TanStack Start | timber.js |
+|--|---------------|-----------|
+| Routing | TanStack Router (code-based, type-safe) | File-system routing with generated types |
+| Data loading | TanStack Query integration | Async server components + `timber.cache()` |
+| RSC support | Experimental | Core architecture |
+| Platform focus | General-purpose | Cloudflare-first, works everywhere |
+
+## Summary
+
+Every framework makes trade-offs. timber.js trades streaming speed for HTTP correctness and trades API surface size for explicitness. If those trade-offs align with how you think about web development, it's worth trying. If they don't, the frameworks above are all excellent choices.

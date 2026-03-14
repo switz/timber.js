@@ -112,6 +112,7 @@ function setupPlugin(files: Record<string, string>) {
 }
 
 beforeEach(() => {
+  rmSync(TMP_DIR, { recursive: true, force: true });
   mkdirSync(TMP_DIR, { recursive: true });
 });
 

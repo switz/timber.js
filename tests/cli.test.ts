@@ -136,10 +136,13 @@ describe('runPreview', () => {
       printUrls: vi.fn(),
     });
     vi.doMock('vite', () => ({ preview: mockPreview }));
+    // Mock node:fs so loadTimberConfig finds no config and falls through to Vite preview
+    vi.doMock('node:fs', () => ({ existsSync: () => false }));
   });
 
   afterEach(() => {
     vi.doUnmock('vite');
+    vi.doUnmock('node:fs');
   });
 
   it('preview serves build', async () => {

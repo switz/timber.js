@@ -1,0 +1,107 @@
+---
+title: Metadata & SEO
+description: Page titles, Open Graph, Twitter cards, robots, and metadata routes.
+order: 23
+section: Guides
+---
+
+# Metadata & SEO
+
+Export `metadata` from any page or layout to control `<head>` tags. One export name handles both static and dynamic cases.
+
+## Static Metadata
+
+```tsx
+import type { Metadata } from '@timber/app/server';
+
+export const metadata: Metadata = {
+  title: 'Dashboard',
+  description: 'Your project dashboard',
+};
+```
+
+## Dynamic Metadata
+
+Export `metadata` as an async function to compute values at request time:
+
+```tsx
+export async function metadata({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const product = await getProduct(id);
+  return {
+    title: product.name,
+    description: product.summary,
+    openGraph: { images: [product.imageUrl] },
+  };
+}
+```
+
+Dynamic `metadata` runs during the render pass — `React.cache` is active, so a `getProduct()` call here and in the page component share one scope.
+
+## Title Templates
+
+Layouts can define a title template. Pages fill in the `%s` placeholder:
+
+```tsx
+// app/layout.tsx
+export const metadata = {
+  title: { template: '%s | My App', default: 'My App' },
+};
+
+// app/about/page.tsx
+export const metadata = {
+  title: 'About', // Renders as "About | My App"
+};
+
+// Escape the template with absolute:
+export const metadata = {
+  title: { absolute: 'Custom Title' }, // Renders as "Custom Title"
+};
+```
+
+## Open Graph & Twitter Cards
+
+```tsx
+export const metadata: Metadata = {
+  title: 'My Product',
+  openGraph: {
+    title: 'My Product',
+    description: 'The best product ever.',
+    images: [{ url: '/og-image.png', width: 1200, height: 630 }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'My Product',
+    description: 'The best product ever.',
+    images: ['/og-image.png'],
+  },
+};
+```
+
+## Robots & Crawling
+
+```tsx
+export const metadata: Metadata = {
+  robots: { index: true, follow: true },
+  // Or as a string:
+  robots: 'index, follow',
+};
+```
+
+Error pages automatically get `<meta name="robots" content="noindex">`.
+
+## Metadata Routes
+
+Special files in your route tree generate metadata endpoints:
+
+| File | Output |
+|------|--------|
+| `sitemap.ts` | `/sitemap.xml` |
+| `robots.ts` | `/robots.txt` |
+| `manifest.ts` | `/manifest.json` |
+| `opengraph-image.tsx` | Dynamic OG image |
+| `favicon.ico` | `/favicon.ico` |
+
+## Metadata Timing
+
+Metadata is always complete before the flush. The `<head>` arrives fully formed — no client-side injection, no partial `<head>`, no flash of missing meta tags.

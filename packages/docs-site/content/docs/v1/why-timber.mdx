@@ -1,0 +1,46 @@
+---
+title: Why timber.js?
+description: The design decisions behind timber.js and why they matter.
+order: 40
+section: Comparisons
+---
+
+# Why timber.js?
+
+timber.js exists because we think the current generation of React frameworks made a wrong turn on streaming.
+
+## The Premise
+
+Most React frameworks stream HTML as fast as possible. The moment the server starts rendering, bytes go to the browser. This sounds great in theory — faster Time to First Byte, progressive rendering, the user sees _something_ sooner.
+
+The cost is real:
+
+- **Every page returns HTTP 200.** A 404? That's a 200 with an error boundary. A redirect? That's a 200 with client-side navigation. A 500? Also 200. Once you start streaming, you've committed the status code.
+- **Pages don't work without JavaScript.** The client needs JS to resolve suspense boundaries, handle error states, and execute redirects that the server couldn't express through HTTP.
+- **Loading states everywhere.** `loading.tsx` exists because the framework sends the shell before data is ready. Now you're designing skeleton states for every route, managing layout shift, and adding perceived complexity.
+
+## What timber.js Does Differently
+
+timber.js holds the response until the shell is ready. That's the content outside `<Suspense>` boundaries — the stuff that actually determines the page's HTTP status, headers, and primary content.
+
+The trade-off is roughly 20ms of server-side buffering before the first byte. In exchange:
+
+- **Real status codes.** `deny(404)` sends a genuine HTTP 404. CDNs cache it correctly. Search engines deindex it. `curl` sees it. APM tools report it.
+- **Pages work without JavaScript.** The initial render arrives complete. No JS needed to show the primary content.
+- **No implicit loading states.** There's no `loading.tsx`. If you want a loading state, you place a `<Suspense>` boundary explicitly around the slow content — and you choose where.
+
+Secondary content (reviews on a product page, comments on a post) can still stream via `<Suspense>`. You decide where the flush boundary sits. The framework doesn't decide for you.
+
+## What timber.js is Not
+
+This is not a framework for every use case. It's opinionated about a few things:
+
+- **Server-first rendering.** If you're building a single-page app with no server, this isn't the right tool.
+- **Explicit over implicit.** There's no magic caching, no implicit data fetching, no hidden loading states. You opt into each behavior.
+- **Smaller API surface.** We'd rather have fewer features that work correctly than many features with edge cases.
+
+Next.js is more mature, more battle-tested, and supports more use cases. If you're happy with it, there's no reason to switch. timber.js is for people who've run into the limitations of streaming-first and want HTTP semantics that work.
+
+## Built on Vite
+
+timber.js is a Vite plugin, not a standalone build system. You get Vite's ecosystem: sub-second HMR, the plugin ecosystem, native ESM, and Rolldown for production builds. Your `vite.config.ts` stays normal — timber.js adds to it, it doesn't replace it.

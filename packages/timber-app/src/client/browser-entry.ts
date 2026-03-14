@@ -536,6 +536,32 @@ function setupClientErrorForwarding(hot: { send(event: string, data: unknown): v
 
 /**
  * Handle click events on timber links. Intercepts clicks on <a> elements
+ * Find the closest `<a>` element with the given data attribute by walking
+ * the event's composed path. Unlike `event.target.closest()`, this
+ * traverses open Shadow DOM boundaries — if a timber `<Link>` is rendered
+ * inside a web component's shadow root, the click is still intercepted.
+ *
+ * Returns null if no matching anchor is found in the composed path.
+ */
+function findAnchorInComposedPath(
+  event: MouseEvent,
+  dataAttr: string
+): HTMLAnchorElement | null {
+  // composedPath() returns the full event path including shadow roots.
+  // Walk each element and check if it (or an ancestor within the same
+  // root) is an <a> with the target data attribute.
+  for (const node of event.composedPath()) {
+    // Stop at the document level — don't walk into unrelated trees
+    if (node === document || node === document.documentElement) break;
+    if (!(node instanceof Element)) continue;
+
+    const anchor = node.closest?.(`a[${dataAttr}]`) as HTMLAnchorElement | null;
+    if (anchor) return anchor;
+  }
+  return null;
+}
+
+/**
  * marked with data-timber-link and triggers SPA navigation instead of
  * a full page load.
  *
@@ -551,10 +577,11 @@ function handleLinkClick(event: MouseEvent, router: RouterInstance): void {
   if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
   if (event.defaultPrevented) return;
 
-  // Find the closest <a> ancestor with data-timber-link
-  const anchor = (event.target as Element).closest?.(
-    'a[data-timber-link]'
-  ) as HTMLAnchorElement | null;
+  // Find the closest <a> ancestor with data-timber-link.
+  // Uses composedPath()[0] instead of event.target so links inside
+  // open Shadow DOM roots are intercepted correctly — event.target
+  // returns the shadow host, not the actual clicked element.
+  const anchor = findAnchorInComposedPath(event, 'data-timber-link');
   if (!anchor) return;
 
   // Don't intercept links that should open externally
@@ -594,9 +621,7 @@ function handleLinkClick(event: MouseEvent, router: RouterInstance): void {
  * See design/19-client-navigation.md §"Prefetch Cache"
  */
 function handleLinkHover(event: MouseEvent, router: RouterInstance): void {
-  const anchor = (event.target as Element).closest?.(
-    'a[data-timber-prefetch]'
-  ) as HTMLAnchorElement | null;
+  const anchor = findAnchorInComposedPath(event, 'data-timber-prefetch');
   if (!anchor) return;
 
   const href = anchor.getAttribute('href');

@@ -18,6 +18,7 @@ export {
   setMutableCookieContext,
   markResponseFlushed,
   getSetCookieHeaders,
+  setCookieSecrets,
 } from './request-context';
 export type { ReadonlyHeaders, RequestCookies, CookieOptions } from './request-context';
 

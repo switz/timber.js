@@ -11,6 +11,7 @@
  */
 
 import { AsyncLocalStorage } from 'node:async_hooks';
+import { createHmac, timingSafeEqual } from 'node:crypto';
 import type { Routes } from '#/index.js';
 
 // ─── ALS Store ────────────────────────────────────────────────────────────
@@ -46,6 +47,30 @@ interface CookieEntry {
 }
 
 const requestContextAls = new AsyncLocalStorage<RequestContextStore>();
+
+// ─── Cookie Signing Secrets ──────────────────────────────────────────────
+
+/**
+ * Module-level cookie signing secrets. Index 0 is the newest (used for signing).
+ * All entries are tried for verification (key rotation support).
+ *
+ * Set by the framework at startup via `setCookieSecrets()`.
+ * See design/29-cookies.md §"Signed Cookies"
+ */
+let _cookieSecrets: string[] = [];
+
+/**
+ * Configure the cookie signing secrets.
+ *
+ * Called by the framework during server initialization with values from
+ * `cookies.secret` or `cookies.secrets` in timber.config.ts.
+ *
+ * The first secret (index 0) is used for signing new cookies.
+ * All secrets are tried for verification (supports key rotation).
+ */
+export function setCookieSecrets(secrets: string[]): void {
+  _cookieSecrets = secrets.filter(Boolean);
+}
 
 // ─── Public API ───────────────────────────────────────────────────────────
 
@@ -110,6 +135,12 @@ export function cookies(): RequestCookies {
       return map.size;
     },
 
+    getSigned(name: string): string | undefined {
+      const raw = map.get(name);
+      if (!raw || _cookieSecrets.length === 0) return undefined;
+      return verifySignedCookie(raw, _cookieSecrets);
+    },
+
     set(name: string, value: string, options?: CookieOptions): void {
       assertMutable(store, 'set');
       if (store.flushed) {
@@ -122,10 +153,21 @@ export function cookies(): RequestCookies {
         }
         return;
       }
+      let storedValue = value;
+      if (options?.signed) {
+        if (_cookieSecrets.length === 0) {
+          throw new Error(
+            `[timber] cookies().set('${name}', ..., { signed: true }) requires ` +
+              `cookies.secret or cookies.secrets in timber.config.ts.`
+          );
+        }
+        storedValue = signCookieValue(value, _cookieSecrets[0]);
+      }
       const opts = { ...DEFAULT_COOKIE_OPTIONS, ...options };
-      store.cookieJar.set(name, { name, value, options: opts });
-      // Read-your-own-writes: update the parsed cookies map
-      map.set(name, value);
+      store.cookieJar.set(name, { name, value: storedValue, options: opts });
+      // Read-your-own-writes: update the parsed cookies map with the signed value
+      // so getSigned() can verify it in the same request
+      map.set(name, storedValue);
     },
 
     delete(name: string, options?: Pick<CookieOptions, 'path' | 'domain'>): void {
@@ -241,6 +283,12 @@ export interface CookieOptions {
   sameSite?: 'strict' | 'lax' | 'none';
   /** Partitioned (CHIPS) — isolate cookie per top-level site. Default: false. */
   partitioned?: boolean;
+  /**
+   * Sign the cookie value with HMAC-SHA256 for integrity verification.
+   * Requires `cookies.secret` or `cookies.secrets` in timber.config.ts.
+   * See design/29-cookies.md §"Signed Cookies".
+   */
+  signed?: boolean;
 }
 
 const DEFAULT_COOKIE_OPTIONS: CookieOptions = {
@@ -265,6 +313,14 @@ export interface RequestCookies {
   getAll(): Array<{ name: string; value: string }>;
   /** Number of cookies. */
   readonly size: number;
+  /**
+   * Get a signed cookie value, verifying its HMAC-SHA256 signature.
+   * Returns undefined if the cookie is missing, the signature is invalid,
+   * or no secrets are configured. Never throws.
+   *
+   * See design/29-cookies.md §"Signed Cookies"
+   */
+  getSigned(name: string): string | undefined;
   /** Set a cookie. Only available in mutable contexts (middleware, actions, route handlers). */
   set(name: string, value: string, options?: CookieOptions): void;
   /** Delete a cookie. Only available in mutable contexts. */
@@ -435,6 +491,47 @@ function parseCookieHeader(header: string): Map<string, string> {
   }
 
   return map;
+}
+
+// ─── Cookie Signing ──────────────────────────────────────────────────────
+
+/**
+ * Sign a cookie value with HMAC-SHA256.
+ * Returns `value.hex_signature`.
+ */
+function signCookieValue(value: string, secret: string): string {
+  const signature = createHmac('sha256', secret).update(value).digest('hex');
+  return `${value}.${signature}`;
+}
+
+/**
+ * Verify a signed cookie value against an array of secrets.
+ * Returns the original value if any secret produces a matching signature,
+ * or undefined if none match. Uses timing-safe comparison.
+ *
+ * The signed format is `value.hex_signature` — split at the last `.`.
+ */
+function verifySignedCookie(raw: string, secrets: string[]): string | undefined {
+  const lastDot = raw.lastIndexOf('.');
+  if (lastDot <= 0 || lastDot === raw.length - 1) return undefined;
+
+  const value = raw.slice(0, lastDot);
+  const signature = raw.slice(lastDot + 1);
+
+  // Hex-encoded SHA-256 is always 64 chars
+  if (signature.length !== 64) return undefined;
+
+  const signatureBuffer = Buffer.from(signature, 'hex');
+  // If the hex decode produced fewer bytes, the signature was not valid hex
+  if (signatureBuffer.length !== 32) return undefined;
+
+  for (const secret of secrets) {
+    const expected = createHmac('sha256', secret).update(value).digest();
+    if (timingSafeEqual(expected, signatureBuffer)) {
+      return value;
+    }
+  }
+  return undefined;
 }
 
 /** Serialize a CookieEntry into a Set-Cookie header value. */

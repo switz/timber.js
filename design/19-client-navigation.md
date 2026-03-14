@@ -355,6 +355,37 @@ This means every navigation path works without JavaScript. The client runtime is
 
 ---
 
+## Click Interception: Global Delegation vs Per-Component Handlers
+
+timber.js uses **global event delegation** — a single `document.addEventListener('click')` intercepts clicks on `<a data-timber-link>` elements. This is fundamentally different from Next.js, which attaches per-component `onClick` handlers to each `<Link>` instance.
+
+### Why Global Delegation
+
+The primary reason is **progressive enhancement**: timber's `<Link>` is a server component with no `'use client'` directive. It renders as a plain `<a>` tag with `data-timber-link`, which works as standard browser navigation without JavaScript. The global click handler is a client-side enhancement that upgrades these links to SPA navigation.
+
+Making `<Link>` a client component (like Next.js) would require every link to create a client component boundary, increasing bundle size and requiring hydration — antithetical to timber's "pages that work without JavaScript" philosophy.
+
+### Tradeoffs
+
+| Aspect | Global delegation (timber) | Per-component onClick (Next.js) |
+| --- | --- | --- |
+| Progressive enhancement | Works without JS (plain `<a>`) | Broken without JS (no `onClick`) |
+| Event listener count | O(1) total | O(n) per link |
+| React event integration | Indirect (native DOM events) | Direct (React synthetic events) |
+| Shadow DOM (closed) | Clicks not received | Works (listener on element) |
+| `stopPropagation` risk | Intermediate elements can block | Not affected |
+| RSC compatibility | `<Link>` is a server component | `<Link>` must be `'use client'` |
+
+### Known Limitations
+
+- **Closed Shadow DOM:** Click events from inside closed shadow roots don't bubble to `document`. Links rendered inside closed Shadow DOM won't be intercepted. This is a theoretical edge case — Shadow DOM usage with framework links is extremely rare.
+- **`stopPropagation`:** If a parent element calls `event.stopPropagation()` on a click event, the global handler won't see it. Third-party libraries that aggressively stop propagation could cause this.
+- **Open Shadow DOM:** The handler uses `event.target.closest()` which doesn't traverse shadow boundaries. Using `event.composedPath()[0]` as the starting point would improve compatibility with open shadow roots.
+
+These limitations are acceptable tradeoffs for the progressive enhancement and RSC server component benefits.
+
+---
+
 ## What Client Navigation Does NOT Do
 
 - **Parallel route fetching.** Each navigation fetches one RSC payload. The server renders the full segment chain in one pass. There is no client-side orchestration of multiple parallel fetches.

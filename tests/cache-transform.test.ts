@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   transformUseCache,
   parseCacheLife,
+  detectPromiseParamsWarning,
 } from '../packages/timber-app/src/plugins/cache-transform';
 import { registerCachedFunction } from '../packages/timber-app/src/cache/index';
 import { MemoryCacheHandler } from '../packages/timber-app/src/cache/index';
@@ -201,6 +202,106 @@ async function Cached() {
     const result = transformUseCache(code, 'app/page.tsx');
     expect(result).not.toBeNull();
     expect(result!.code).toContain('registerCachedFunction');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Promise params warning for 'use cache' in dynamic routes
+// ---------------------------------------------------------------------------
+
+describe('detectPromiseParamsWarning', () => {
+  it('warns for page with Promise params in dynamic route', () => {
+    const warning = detectPromiseParamsWarning(
+      'async function Page({ params }: { params: Promise<{ slug: string }> })',
+      'Page',
+      'app/[slug]/page.tsx'
+    );
+    expect(warning).not.toBeNull();
+    expect(warning!.message).toContain('Promise params');
+    expect(warning!.functionName).toBe('Page');
+  });
+
+  it('warns for layout with Promise params in dynamic route', () => {
+    const warning = detectPromiseParamsWarning(
+      'async function Layout({ params }: { params: Promise<{ id: string }> })',
+      'Layout',
+      'app/[id]/layout.tsx'
+    );
+    expect(warning).not.toBeNull();
+  });
+
+  it('does not warn for static route page', () => {
+    const warning = detectPromiseParamsWarning(
+      'async function Page({ params }: { params: Promise<{ slug: string }> })',
+      'Page',
+      'app/about/page.tsx'
+    );
+    expect(warning).toBeNull();
+  });
+
+  it('does not warn for page without Promise params', () => {
+    const warning = detectPromiseParamsWarning(
+      'async function Page()',
+      'Page',
+      'app/[slug]/page.tsx'
+    );
+    expect(warning).toBeNull();
+  });
+
+  it('does not warn for non-page files in dynamic routes', () => {
+    const warning = detectPromiseParamsWarning(
+      'async function getData(params: Promise<{ id: string }>)',
+      'getData',
+      'app/[id]/data.ts'
+    );
+    expect(warning).toBeNull();
+  });
+
+  it('warns for nested dynamic route', () => {
+    const warning = detectPromiseParamsWarning(
+      'async function Page({ params }: { params: Promise<{ section: string }> })',
+      'Page',
+      'app/dashboard/[section]/page.tsx'
+    );
+    expect(warning).not.toBeNull();
+  });
+
+  it('warns for catch-all dynamic route', () => {
+    const warning = detectPromiseParamsWarning(
+      'async function Page({ params }: { params: Promise<{ slug: string[] }> })',
+      'Page',
+      'app/[...slug]/page.tsx'
+    );
+    expect(warning).not.toBeNull();
+  });
+});
+
+describe('transformUseCache with Promise params warning', () => {
+  it('returns warnings for use cache function with Promise params in dynamic route', () => {
+    const code = `
+export default async function Page({ params }: { params: Promise<{ slug: string }> }) {
+  'use cache'
+  const { slug } = await params
+  return <div>{slug}</div>
+}
+`;
+    const result = transformUseCache(code, 'app/[slug]/page.tsx');
+    expect(result).not.toBeNull();
+    expect(result!.warnings).toBeDefined();
+    expect(result!.warnings).toHaveLength(1);
+    expect(result!.warnings![0].message).toContain('Promise params');
+  });
+
+  it('does not return warnings for use cache in static route', () => {
+    const code = `
+async function PopularProducts() {
+  'use cache'
+  return await getProducts()
+}
+`;
+    const result = transformUseCache(code, 'app/products/page.tsx');
+    expect(result).not.toBeNull();
+    expect(result!.warnings).toBeUndefined();
   });
 });
 

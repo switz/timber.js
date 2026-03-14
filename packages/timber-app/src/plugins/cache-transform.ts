@@ -24,9 +24,15 @@ export function parseCacheLife(value: string | number): number {
 // Default TTL when no cacheLife() is specified (Infinity means cache until explicit invalidation).
 const DEFAULT_TTL = Infinity;
 
+export interface CacheTransformWarning {
+  message: string;
+  functionName: string;
+}
+
 interface TransformResult {
   code: string;
   map?: null;
+  warnings?: CacheTransformWarning[];
 }
 
 /**
@@ -63,6 +69,43 @@ function isComponentName(name: string): boolean {
 }
 
 /**
+ * Pattern matching page/layout file conventions in a dynamic route segment.
+ * Matches paths like: app/[slug]/page.tsx, app/[id]/layout.ts, etc.
+ */
+const DYNAMIC_ROUTE_PAGE_PATTERN = /\/\[[^\]]+\].*\/(page|layout)\.[jt]sx?$/;
+
+/**
+ * Detect if a function declaration has Promise-typed parameters.
+ *
+ * Checks for common patterns:
+ * - `params: Promise<...>`
+ * - `{ params }: { params: Promise<...> }`
+ * - `props: { params: Promise<...> }`
+ */
+const PROMISE_PARAMS_PATTERN = /params\s*(?::|.*?:)\s*Promise\s*</;
+
+/**
+ * Check if a 'use cache' function in a dynamic route page/layout receives
+ * Promise-typed params, which are not serializable as cache keys.
+ */
+export function detectPromiseParamsWarning(
+  declaration: string,
+  functionName: string,
+  fileId: string
+): CacheTransformWarning | null {
+  if (!DYNAMIC_ROUTE_PAGE_PATTERN.test(fileId)) return null;
+  if (!PROMISE_PARAMS_PATTERN.test(declaration)) return null;
+
+  return {
+    message:
+      `'use cache' on "${functionName}" in "${fileId}" receives Promise params. ` +
+      `Promise is not serializable as a cache key and will cause runtime errors. ` +
+      `Either remove 'use cache' or await the params before using them in a separate cached function.`,
+    functionName,
+  };
+}
+
+/**
  * Transform source code containing 'use cache' directives into
  * registerCachedFunction() calls.
  *
@@ -76,9 +119,13 @@ export function transformUseCache(code: string, fileId: string): TransformResult
 
   let result = code;
   let needsImport = false;
+  const warnings: CacheTransformWarning[] = [];
 
   // Process functions from end to start (sorted descending by start position)
   for (const fn of functions) {
+    // Warn if function receives Promise params in a dynamic route page/layout
+    const promiseWarning = detectPromiseParamsWarning(fn.declaration, fn.name, fileId);
+    if (promiseWarning) warnings.push(promiseWarning);
     const { cleanBody, ttl } = extractCacheDirectives(fn.bodyContent);
     const stableId = `${fileId}#${fn.name}`;
     const isComponent = isComponentName(fn.name);
@@ -118,7 +165,7 @@ export function transformUseCache(code: string, fileId: string): TransformResult
     result = `import { registerCachedFunction } from '@timber/app/cache';\n` + result;
   }
 
-  return { code: result, map: null };
+  return { code: result, map: null, warnings: warnings.length > 0 ? warnings : undefined };
 }
 
 /**
@@ -140,7 +187,13 @@ export function cacheTransformPlugin(): Plugin {
       // Quick bail-out: no 'use cache' directive in this file
       if (!containsDirective(code, 'use cache')) return null;
 
-      return transformUseCache(code, id);
+      const result = transformUseCache(code, id);
+      if (result?.warnings) {
+        for (const w of result.warnings) {
+          this.warn(`[timber] ${w.message}`);
+        }
+      }
+      return result;
     },
   };
 }

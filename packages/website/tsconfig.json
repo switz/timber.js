@@ -1,0 +1,18 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "../..",
+    "paths": {
+      "content-collections": ["./.content-collections/generated"],
+      "@timber/app": ["../timber-app/src/index.ts"],
+      "@timber/app/*": ["../timber-app/src/*"]
+    }
+  },
+  "include": [
+    "app/**/*.ts",
+    "app/**/*.tsx",
+    "content-collections.ts",
+    "mdx-components.tsx",
+    ".content-collections/generated/**/*.ts"
+  ]
+}

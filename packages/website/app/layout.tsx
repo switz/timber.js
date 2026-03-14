@@ -5,7 +5,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <head />
-      <body>{children}</body>
+      <body className="bg-white text-stone-800 antialiased dark:bg-stone-950 dark:text-stone-200">
+        {children}
+      </body>
     </html>
   );
 }
@@ -13,5 +15,5 @@ export default function RootLayout({ children }: { children: ReactNode }) {
 export const metadata = {
   title: 'timber.js',
   description: 'A Vite-native React framework for Cloudflare Workers',
-  noindex: true,
+  robots: 'noindex, nofollow',
 };

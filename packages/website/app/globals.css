@@ -1,1 +1,119 @@
 @import 'tailwindcss';
+
+@theme {
+  /* Light timber palette */
+  --color-timber: #5c3d2e;
+  --color-timber-light: #8b6914;
+  --color-timber-dark: #3e2723;
+  --color-bark: #6d4c41;
+  --color-bark-light: #8d6e63;
+  --color-walnut: #4e342e;
+  --color-walnut-light: #795548;
+  --color-grain: #d7ccc8;
+  --color-grain-light: #efebe9;
+  --color-grain-dark: #bcaaa4;
+  --color-sap: #a1887f;
+}
+
+/* ── Docs content typography ─────────────────────────────── */
+
+/* Light mode (default) */
+.docs-content h1 {
+  @apply text-3xl font-bold text-walnut mb-6 mt-2;
+}
+.docs-content h2 {
+  @apply text-xl font-semibold text-walnut-light mt-10 mb-4 pb-2 border-b border-grain;
+}
+.docs-content h3 {
+  @apply text-lg font-semibold text-bark mt-8 mb-3;
+}
+.docs-content h4 {
+  @apply text-base font-semibold text-bark-light mt-6 mb-2;
+}
+.docs-content p {
+  @apply text-stone-700 leading-relaxed mb-4;
+}
+.docs-content ul {
+  @apply list-disc pl-6 mb-4 space-y-1 text-stone-700;
+}
+.docs-content ol {
+  @apply list-decimal pl-6 mb-4 space-y-1 text-stone-700;
+}
+.docs-content li {
+  @apply leading-relaxed;
+}
+.docs-content a {
+  @apply text-bark underline decoration-grain-dark hover:text-walnut hover:decoration-bark-light transition-colors;
+}
+.docs-content pre {
+  @apply bg-walnut text-grain-light rounded-lg p-4 mb-4 overflow-x-auto text-sm leading-relaxed border border-bark/20;
+}
+.docs-content code {
+  @apply bg-grain-light text-walnut rounded px-1.5 py-0.5 text-[0.875em] font-mono;
+}
+.docs-content pre code {
+  @apply bg-transparent text-inherit p-0 rounded-none;
+}
+.docs-content blockquote {
+  @apply border-l-4 border-bark-light bg-grain-light pl-4 py-2 my-4 text-bark italic;
+}
+.docs-content table {
+  @apply w-full mb-4 text-sm;
+}
+.docs-content th {
+  @apply text-left font-semibold text-walnut pb-2 border-b-2 border-grain px-3 py-2;
+}
+.docs-content td {
+  @apply text-stone-700 border-b border-grain-light px-3 py-2;
+}
+.docs-content hr {
+  @apply border-grain my-8;
+}
+.docs-content > *:first-child {
+  @apply mt-0;
+}
+
+/* Dark mode overrides */
+@media (prefers-color-scheme: dark) {
+  .docs-content h1 {
+    @apply text-grain;
+  }
+  .docs-content h2 {
+    @apply text-grain-dark border-b-walnut-light/30;
+  }
+  .docs-content h3 {
+    @apply text-grain-dark;
+  }
+  .docs-content h4 {
+    @apply text-sap;
+  }
+  .docs-content p,
+  .docs-content ul,
+  .docs-content ol {
+    @apply text-stone-300;
+  }
+  .docs-content a {
+    @apply text-grain-dark decoration-walnut-light hover:text-grain hover:decoration-sap;
+  }
+  .docs-content pre {
+    @apply bg-stone-950 text-stone-300 border-walnut-light/20;
+  }
+  .docs-content code {
+    @apply bg-walnut/40 text-grain-dark;
+  }
+  .docs-content pre code {
+    @apply bg-transparent text-inherit;
+  }
+  .docs-content blockquote {
+    @apply border-walnut-light bg-walnut/20 text-sap;
+  }
+  .docs-content th {
+    @apply text-grain-dark border-b-walnut-light/30;
+  }
+  .docs-content td {
+    @apply text-stone-300 border-b-walnut/30;
+  }
+  .docs-content hr {
+    @apply border-walnut-light/30;
+  }
+}

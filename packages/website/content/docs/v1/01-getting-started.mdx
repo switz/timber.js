@@ -1,0 +1,72 @@
+---
+title: "Getting Started"
+description: "Create a timber.js project and deploy your first page in under five minutes."
+section: "Getting Started"
+---
+
+# Getting Started
+
+timber.js is a React framework built on Vite. It runs on Cloudflare Workers, Node.js, Bun, or any platform Nitro supports. Pages render on the server, return real HTTP status codes, and work without JavaScript.
+
+## Create a Project
+
+```bash
+pnpm create @timber/app my-app
+cd my-app
+pnpm dev
+```
+
+Open [http://localhost:3000](http://localhost:3000). You have a running app.
+
+## Project Structure
+
+A new timber.js project looks like this:
+
+```
+my-app/
+  app/
+    layout.tsx        # Root layout — wraps every page
+    page.tsx          # Home page (/)
+    globals.css
+  timber.config.ts    # Framework configuration
+  vite.config.ts      # Vite configuration
+  package.json
+  tsconfig.json
+```
+
+The `app/` directory is your route tree. Files named `page.tsx` become pages. Files named `layout.tsx` wrap their children. This should feel familiar if you've used Next.js — the key differences are in how rendering, status codes, and streaming work under the hood.
+
+## Your First Page
+
+```tsx
+// app/page.tsx
+export default async function HomePage() {
+  return (
+    <div>
+      <h1>Hello, timber.js</h1>
+      <p>This page was server-rendered with a real 200 status code.</p>
+    </div>
+  );
+}
+```
+
+Pages are async server components by default. No `'use client'` directive needed — your code runs on the server unless you say otherwise.
+
+## Adding a Second Route
+
+Create `app/about/page.tsx`:
+
+```tsx
+// app/about/page.tsx
+export default async function AboutPage() {
+  return <h1>About</h1>;
+}
+```
+
+Navigate to `/about`. The file system _is_ the router.
+
+## What's Next
+
+- [Configuration](/pre-release/docs/v1/configuration) — customize `timber.config.ts`
+- [Routing](/pre-release/docs/v1/routing) — layouts, dynamic segments, parallel routes
+- [Why timber.js?](/pre-release/docs/v1/why-timber) — the design decisions behind the framework

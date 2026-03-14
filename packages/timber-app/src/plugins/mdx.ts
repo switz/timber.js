@@ -142,6 +142,11 @@ export function timberMdx(ctx: PluginContext): Plugin {
 
     async resolveId(source, importer, options) {
       if (!innerPlugin) return null;
+      // MDX pages are server components — only compile in the RSC environment.
+      // This prevents server-only deps (e.g. bright via mdx-components) from
+      // being pulled into SSR or client bundles.
+      const envName = (this as unknown as { environment?: { name?: string } }).environment?.name;
+      if (envName && envName !== 'rsc') return null;
       if (typeof innerPlugin.resolveId === 'function') {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         return (innerPlugin.resolveId as any).call(this, source, importer, options);
@@ -151,6 +156,8 @@ export function timberMdx(ctx: PluginContext): Plugin {
 
     async load(id) {
       if (!innerPlugin) return null;
+      const envName = (this as unknown as { environment?: { name?: string } }).environment?.name;
+      if (envName && envName !== 'rsc') return null;
       if (typeof innerPlugin.load === 'function') {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         return (innerPlugin.load as any).call(this, id);
@@ -160,6 +167,8 @@ export function timberMdx(ctx: PluginContext): Plugin {
 
     async transform(code, id) {
       if (!innerPlugin) return null;
+      const envName = (this as unknown as { environment?: { name?: string } }).environment?.name;
+      if (envName && envName !== 'rsc') return null;
       if (typeof innerPlugin.transform === 'function') {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         return (innerPlugin.transform as any).call(this, code, id);

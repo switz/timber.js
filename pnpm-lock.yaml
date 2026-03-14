@@ -371,6 +371,9 @@ importers:
       '@timber/app':
         specifier: workspace:*
         version: link:../timber-app
+      bright:
+        specifier: ^1.0.0
+        version: 1.0.0(react@19.2.4)
       react:
         specifier: ^19.2.4
         version: 19.2.4
@@ -378,9 +381,30 @@ importers:
         specifier: ^19.2.4
         version: 19.2.4(react@19.2.4)
     devDependencies:
+      '@content-collections/core':
+        specifier: ^0.14.2
+        version: 0.14.2(typescript@5.9.3)
+      '@content-collections/mdx':
+        specifier: ^0.2.2
+        version: 0.2.2(@content-collections/core@0.14.2(typescript@5.9.3))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@content-collections/vite':
+        specifier: ^0.2.9
+        version: 0.2.9(@content-collections/core@0.14.2(typescript@5.9.3))(vite@8.0.0(@types/node@25.4.0)(esbuild@0.27.3)(jiti@2.6.1)(yaml@2.8.2))
+      '@mdx-js/rollup':
+        specifier: ^3.0.0
+        version: 3.1.1(rollup@4.59.0)
       '@tailwindcss/vite':
         specifier: ^4.0.0
         version: 4.2.1(vite@8.0.0(@types/node@25.4.0)(esbuild@0.27.3)(jiti@2.6.1)(yaml@2.8.2))
+      remark-frontmatter:
+        specifier: ^5.0.0
+        version: 5.0.0
+      remark-gfm:
+        specifier: ^4.0.1
+        version: 4.0.1
+      remark-mdx-frontmatter:
+        specifier: ^4.0.0
+        version: 4.0.0
       tailwindcss:
         specifier: ^4.2.1
         version: 4.2.1
@@ -390,6 +414,9 @@ importers:
       wrangler:
         specifier: ^4.0.0
         version: 4.72.0
+      zod:
+        specifier: ^4.3.6
+        version: 4.3.6
 
 packages:
 
@@ -454,6 +481,9 @@ packages:
 
   '@code-hike/lighter@1.0.1':
     resolution: {integrity: sha512-mccvcsk5UTScRrE02oBz1/qzckyhD8YE3VQlQv++2bSVVZgNuCUX8MpokSCi5OmfRAAxbj6kmNiqq1Um8eXPrw==}
+
+  '@code-hike/lighter@1.0.3':
+    resolution: {integrity: sha512-LU0TbZfu3L3fQZ7y9tZHttnxyFm7ewU96arGMFnjLbvFj+onYfVkznhQOmU1ZsQtv9rpQzZ313GRz6hCGDrlJQ==}
 
   '@content-collections/core@0.14.2':
     resolution: {integrity: sha512-YVoExn4qs21b6BYJ4TyHEYHu+q8CN4lemPSs8qMSvRMBuSiUtxmTKt6FO1Pi6p5uyNchwvPpkn/FZXcCMINzrQ==}
@@ -2256,6 +2286,11 @@ packages:
     resolution: {integrity: sha512-h+DEnpVvxmfVefa4jFbCf5HdH5YMDXRsmKflpf1pILZWRFlTbJpxeU55nJl4Smt5HQaGzg1o6RHFPJaOqnmBDg==}
     engines: {node: 18 || 20 || >=22}
 
+  bright@1.0.0:
+    resolution: {integrity: sha512-AX93OXFCdQQrnCmyZ85gazHhKBfKcTLnj7Hx3DM3vJwuU7VONDlB58vh3hJZ9rKWLTULbScAmuapgNgzK4u4fQ==}
+    peerDependencies:
+      react: ^19.2.4
+
   buffer-from@1.1.2:
     resolution: {integrity: sha512-E+XQCRwSbaaiChtv6k6Dwgc+bx+Bs6vuKJHHl5kox/BaKbhiXzqQOwK4cO22yElGp2OCmjwVhT3HmxgyPGnJfQ==}
 
@@ -3886,6 +3921,9 @@ packages:
     resolution: {integrity: sha512-DuGdB+Po43Q5Jxwpzt1lhyFSYKryqoNjQSA9M92tyw0lyHIOur+XCalOUe0KTJpyqzT8+fQ5A0Jf7vCx/NKmIg==}
     engines: {node: '>=20.0.0'}
 
+  server-only@0.0.1:
+    resolution: {integrity: sha512-qepMx2JxAa5jjfzxG79yPPq+8BuFToHd1hm7kI+Z4zAq1ftQiP7HcxMhDDItrbtwVeLg/cY2JnKnrcFkmiswNA==}
+
   set-function-length@1.2.2:
     resolution: {integrity: sha512-pgRc4hJ4/sNjWCSS9AmnS40x3bNMDTknHgL5UaMBTMyJnU90EgWh1Rz+MC9eFu4BuN/UwZjKQuY/1v3rM7HMfg==}
     engines: {node: '>= 0.4'}
@@ -4102,6 +4140,9 @@ packages:
   tinyrainbow@3.0.3:
     resolution: {integrity: sha512-PSkbLUoxOFRzJYjjxHJt9xro7D+iilgMX/C9lawzVuYiIdcihh9DXmVibBe8lmcFrRi/VzlPjBxbN7rH24q8/Q==}
     engines: {node: '>=14.0.0'}
+
+  tm-grammars@1.31.7:
+    resolution: {integrity: sha512-MzAARvfUKLKLGJ/D1caY612R5Xe9Kcu5mc0SlzVsYndnL6KjbGpf3BdWybUfGQ1jymCB9fFSh+lYPdaI95f/og==}
 
   toml@3.0.0:
     resolution: {integrity: sha512-y/mWCZinnvxjTKYhJ+pYxwD0mRLVvOtdS2Awbgxln6iEnt4rk0yBxeSBHkGJcPucRiG0e55mwWp+g/05rsrd6w==}
@@ -4513,6 +4554,11 @@ snapshots:
   '@code-hike/lighter@1.0.1':
     dependencies:
       ansi-sequence-parser: 1.1.1
+
+  '@code-hike/lighter@1.0.3':
+    dependencies:
+      ansi-sequence-parser: 1.1.1
+      tm-grammars: 1.31.7
 
   '@content-collections/core@0.14.2(typescript@5.9.3)':
     dependencies:
@@ -5978,6 +6024,12 @@ snapshots:
   brace-expansion@5.0.4:
     dependencies:
       balanced-match: 4.0.4
+
+  bright@1.0.0(react@19.2.4):
+    dependencies:
+      '@code-hike/lighter': 1.0.3
+      react: 19.2.4
+      server-only: 0.0.1
 
   buffer-from@1.1.2: {}
 
@@ -8171,6 +8223,8 @@ snapshots:
 
   serialize-javascript@7.0.4: {}
 
+  server-only@0.0.1: {}
+
   set-function-length@1.2.2:
     dependencies:
       define-data-property: 1.1.4
@@ -8429,6 +8483,8 @@ snapshots:
   tinypool@2.1.0: {}
 
   tinyrainbow@3.0.3: {}
+
+  tm-grammars@1.31.7: {}
 
   toml@3.0.0: {}
 

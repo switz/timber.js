@@ -87,6 +87,11 @@ function stripJsExtension(id: string): string {
 export function timberShims(_ctx: PluginContext): Plugin {
   return {
     name: 'timber-shims',
+    // Must run before Vite's built-in resolution so that server-only/client-only
+    // poison pills are intercepted even when imported from node_modules deps
+    // (e.g. bright, next-intl). Without this, the dep optimizer resolves to the
+    // real CJS package which throws at runtime in the SSR environment.
+    enforce: 'pre',
 
     /**
      * Resolve next/* and @timber/app/* imports to shim/source files.

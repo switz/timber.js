@@ -17,6 +17,7 @@ import { gzipSync } from 'node:zlib';
 import type { Plugin, Logger } from 'vite';
 import type { PluginContext } from '#/index.js';
 import type { SegmentNode, RouteTree } from '#/routing/types.js';
+import { formatSize } from '#/utils/format.js';
 
 // ─── Public types ─────────────────────────────────────────────────────────
 
@@ -65,11 +66,7 @@ export function classifyRoute(
 
 // ─── Size helpers ─────────────────────────────────────────────────────────
 
-export function formatSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} kB`;
-  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
-}
+export { formatSize };
 
 function green(text: string): string {
   return `\x1b[92m${text}\x1b[39m`; // bright/light green (ANSI 92)

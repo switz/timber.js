@@ -293,10 +293,30 @@ export function timberBuildManifest(ctx: PluginContext): Plugin {
     generateBundle(_options, bundle) {
       if (isDev) return;
 
-      const envName = this.environment?.name;
+      const envName = (this as { environment?: { name: string } }).environment?.name;
 
       if (envName === 'client') {
         ctx.buildManifest = buildManifestFromBundle(bundle, resolvedBase, ctx.root);
+
+        // When client JavaScript is disabled, strip JS chunks from the bundle
+        // so Rollup never writes them to disk. CSS assets are preserved —
+        // they're still needed for server-rendered HTML.
+        //
+        // This is an optimization: adapter-build.ts still strips JS from the
+        // build manifest and RSC assets manifest as a defense-in-depth fallback.
+        if (ctx.clientJavascript.disabled) {
+          // Clear JS and modulepreload from the manifest (they'd be stripped
+          // by adapter-build.ts anyway, but doing it here avoids the round-trip).
+          ctx.buildManifest.js = {};
+          ctx.buildManifest.modulepreload = {};
+
+          // Remove JS chunks from the Rollup bundle — prevents disk writes.
+          for (const [fileName, item] of Object.entries(bundle)) {
+            if (item.type === 'chunk') {
+              delete bundle[fileName];
+            }
+          }
+        }
       }
     },
   };

@@ -15,13 +15,7 @@ const IS_PENDING: LinkStatus = { pending: true };
  * a scoped LinkStatusContext to children. Renders no extra DOM — just a
  * context provider around children.
  */
-export function LinkStatusProvider({
-  href,
-  children,
-}: {
-  href: string;
-  children: ReactNode;
-}) {
+export function LinkStatusProvider({ href, children }: { href: string; children: ReactNode }) {
   const status = useSyncExternalStore(
     (callback) => {
       try {
@@ -42,9 +36,5 @@ export function LinkStatusProvider({
     () => NOT_PENDING
   );
 
-  return (
-    <LinkStatusContext.Provider value={status}>
-      {children}
-    </LinkStatusContext.Provider>
-  );
+  return <LinkStatusContext.Provider value={status}>{children}</LinkStatusContext.Provider>;
 }

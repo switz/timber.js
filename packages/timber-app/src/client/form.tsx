@@ -12,8 +12,8 @@
  */
 
 import { useActionState as reactUseActionState, useTransition } from 'react';
-import type { ActionResult, ValidationErrors } from '@/server/action-client';
-import type { FormFlashData } from '@/server/form-flash';
+import type { ActionResult, ValidationErrors } from '#/server/action-client';
+import type { FormFlashData } from '#/server/form-flash';
 
 // ─── Types ───────────────────────────────────────────────────────────────
 

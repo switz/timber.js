@@ -261,7 +261,11 @@ describe('renderErrorPage for unhandled errors', () => {
         error: {
           load: async () => ({
             default: (props: { error: Error }) =>
-              createElement('div', { 'data-testid': 'error-boundary' }, `Error: ${props.error.message}`),
+              createElement(
+                'div',
+                { 'data-testid': 'error-boundary' },
+                `Error: ${props.error.message}`
+              ),
           }),
           filePath: 'app/error.tsx',
         },

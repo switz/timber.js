@@ -12,8 +12,11 @@ export default async function OptionalCatchAllPage({
           Optional Catch-All Route
         </h1>
         <p className="mt-1 text-sm text-stone-500">
-          File: <code className="rounded bg-stone-100 px-1 py-0.5 text-xs font-mono">optional/[[...slug]]/page.tsx</code> — matches
-          the base path and any sub-paths.
+          File:{' '}
+          <code className="rounded bg-stone-100 px-1 py-0.5 text-xs font-mono">
+            optional/[[...slug]]/page.tsx
+          </code>{' '}
+          — matches the base path and any sub-paths.
         </p>
       </div>
 

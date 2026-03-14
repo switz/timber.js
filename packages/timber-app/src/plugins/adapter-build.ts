@@ -16,8 +16,8 @@
 import type { Plugin } from 'vite';
 import { join } from 'node:path';
 import { readFile, writeFile } from 'node:fs/promises';
-import type { PluginContext } from '@/index.js';
-import type { TimberPlatformAdapter, TimberConfig } from '@/adapters/types.js';
+import type { PluginContext } from '#/index.js';
+import type { TimberPlatformAdapter, TimberConfig } from '#/adapters/types.js';
 
 export function timberAdapterBuild(ctx: PluginContext): Plugin {
   return {
@@ -83,10 +83,7 @@ export function timberAdapterBuild(ctx: PluginContext): Plugin {
  */
 async function stripJsFromRscAssetsManifests(buildDir: string): Promise<void> {
   const manifestName = '__vite_rsc_assets_manifest.js';
-  const paths = [
-    join(buildDir, 'rsc', manifestName),
-    join(buildDir, 'ssr', manifestName),
-  ];
+  const paths = [join(buildDir, 'rsc', manifestName), join(buildDir, 'ssr', manifestName)];
 
   for (const path of paths) {
     let content: string;

@@ -1,7 +1,7 @@
 import type { Plugin } from 'vite';
 import { Parser } from 'acorn';
 import acornJsx from 'acorn-jsx';
-import { detectFileDirective } from '@/utils/directive-parser.js';
+import { detectFileDirective } from '#/utils/directive-parser.js';
 
 const jsxParser = Parser.extend(acornJsx());
 

@@ -112,9 +112,7 @@ export function formatSsrError(error: unknown): string {
 function extractErrorHint(message: string): string | null {
   // "Functions cannot be passed directly to Client Components"
   // Extract the component and prop name from the JSX-like syntax in the message
-  const fnPassedMatch = message.match(
-    /Functions cannot be passed directly to Client Components/
-  );
+  const fnPassedMatch = message.match(/Functions cannot be passed directly to Client Components/);
   if (fnPassedMatch) {
     // Try to extract the prop name from the message
     // React formats: <... propName={function ...} ...>

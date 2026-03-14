@@ -33,7 +33,7 @@ function extractRuntimeImports(filePath: string): string[] {
   let match;
   while ((match = importRegex.exec(content)) !== null) {
     const specifier = match[1];
-    if (specifier.startsWith('.') || specifier.startsWith('@/')) {
+    if (specifier.startsWith('.') || specifier.startsWith('#/')) {
       imports.push(specifier);
     }
   }
@@ -43,7 +43,7 @@ function extractRuntimeImports(filePath: string): string[] {
   const reExportRegex = /export\s+(?!type\s)\{[^}]*\}\s+from\s+['"]([^'"]+)['"]/g;
   while ((match = reExportRegex.exec(content)) !== null) {
     const specifier = match[1];
-    if (specifier.startsWith('.') || specifier.startsWith('@/')) {
+    if (specifier.startsWith('.') || specifier.startsWith('#/')) {
       imports.push(specifier);
     }
   }
@@ -56,7 +56,7 @@ function extractRuntimeImports(filePath: string): string[] {
  */
 function resolveImport(fromFile: string, specifier: string): string {
   let resolved: string;
-  if (specifier.startsWith('@/')) {
+  if (specifier.startsWith('#/')) {
     resolved = resolve(SRC_DIR, specifier.slice(2));
   } else {
     const dir = dirname(fromFile);

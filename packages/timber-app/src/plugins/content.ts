@@ -11,7 +11,7 @@
 import type { Plugin } from 'vite';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import type { PluginContext } from '@/index.js';
+import type { PluginContext } from '#/index.js';
 
 const CONFIG_FILE_NAMES = [
   'content-collections.ts',

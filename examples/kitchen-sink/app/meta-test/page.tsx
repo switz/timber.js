@@ -15,7 +15,9 @@ export default function MetaTestPage() {
         </h1>
         <p className="mt-1 text-sm text-stone-500">
           Title template from the root layout applies:{' '}
-          <code className="rounded bg-stone-100 px-1 py-0.5 text-xs font-mono">%s | Kitchen Sink</code>
+          <code className="rounded bg-stone-100 px-1 py-0.5 text-xs font-mono">
+            %s | Kitchen Sink
+          </code>
         </p>
       </div>
 

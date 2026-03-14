@@ -11,7 +11,7 @@
 import type { Plugin } from 'vite';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { PluginContext } from '@/index.js';
+import type { PluginContext } from '#/index.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SHIMS_DIR = resolve(__dirname, '..', 'shims');

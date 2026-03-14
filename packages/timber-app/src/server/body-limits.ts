@@ -76,10 +76,7 @@ export function enforceBodyLimits(
 }
 
 /** Check whether a FormData payload exceeds the configured field count limit. */
-export function enforceFieldLimit(
-  formData: FormData,
-  config: BodyLimitsConfig
-): BodyLimitResult {
+export function enforceFieldLimit(formData: FormData, config: BodyLimitsConfig): BodyLimitResult {
   const maxFields = config.limits?.maxFields ?? DEFAULT_LIMITS.maxFields;
   // Count unique keys — FormData.keys() yields duplicates for multi-value fields,
   // so we use a Set to count distinct field names.

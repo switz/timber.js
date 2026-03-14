@@ -125,5 +125,4 @@ describe('timber config merging', () => {
     const hasMdx = merged.pageExtensions?.some((ext) => ['mdx', 'md'].includes(ext));
     expect(hasMdx).toBe(true);
   });
-
 });

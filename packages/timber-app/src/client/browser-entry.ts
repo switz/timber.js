@@ -573,7 +573,11 @@ function handleLinkClick(event: MouseEvent, router: RouterInstance): void {
   const onNavigate = anchor[ON_NAVIGATE_KEY];
   if (onNavigate) {
     let prevented = false;
-    onNavigate({ preventDefault: () => { prevented = true; } });
+    onNavigate({
+      preventDefault: () => {
+        prevented = true;
+      },
+    });
     if (prevented) return;
   }
 

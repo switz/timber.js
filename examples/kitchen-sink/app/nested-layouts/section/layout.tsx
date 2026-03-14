@@ -7,10 +7,16 @@ export default function NestedInnerLayout({ children }: { children: ReactNode })
       <div className="rounded-lg border border-stone-200 bg-stone-50 p-3">
         <div className="text-xs font-medium text-stone-400 mb-2">Inner layout navigation</div>
         <nav className="flex gap-3 text-sm">
-          <Link href="/nested-layouts/section" className="text-amber-700 hover:text-amber-900 hover:underline">
+          <Link
+            href="/nested-layouts/section"
+            className="text-amber-700 hover:text-amber-900 hover:underline"
+          >
             Section index
           </Link>
-          <Link href="/nested-layouts/section/detail" className="text-amber-700 hover:text-amber-900 hover:underline">
+          <Link
+            href="/nested-layouts/section/detail"
+            className="text-amber-700 hover:text-amber-900 hover:underline"
+          >
             Detail page
           </Link>
         </nav>

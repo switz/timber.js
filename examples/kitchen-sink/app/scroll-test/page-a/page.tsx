@@ -8,7 +8,10 @@ export default function PageA() {
         <h1 className="text-2xl font-bold text-stone-900">Scroll Test — Page A</h1>
         <p className="mt-1 text-sm text-stone-500">
           Client navigation scrolls to top by default.{' '}
-          <code className="rounded bg-stone-100 px-1 py-0.5 text-xs font-mono">scroll=&#123;false&#125;</code> preserves position.
+          <code className="rounded bg-stone-100 px-1 py-0.5 text-xs font-mono">
+            scroll=&#123;false&#125;
+          </code>{' '}
+          preserves position.
         </p>
       </div>
       <div className="flex gap-2">

@@ -28,14 +28,18 @@ export default function ErrorBoundary(props: {
         </div>
         <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
           <p className="text-sm text-amber-800">
-            No specific status-code file ({props.status}.tsx) matched this denial.
-            This is the root <code className="rounded bg-amber-100 px-1 py-0.5 text-xs font-mono">error.tsx</code> fallback.
+            No specific status-code file ({props.status}.tsx) matched this denial. This is the root{' '}
+            <code className="rounded bg-amber-100 px-1 py-0.5 text-xs font-mono">error.tsx</code>{' '}
+            fallback.
           </p>
         </div>
         {props.dangerouslyPassData != null && (
           <div className="rounded-lg border border-stone-200 bg-white p-4">
             <div className="text-xs font-medium text-stone-400 mb-1">dangerouslyPassData</div>
-            <pre data-testid="denial-data" className="text-sm font-mono text-stone-700 overflow-x-auto">
+            <pre
+              data-testid="denial-data"
+              className="text-sm font-mono text-stone-700 overflow-x-auto"
+            >
               {JSON.stringify(props.dangerouslyPassData, null, 2)}
             </pre>
           </div>
@@ -57,17 +61,24 @@ export default function ErrorBoundary(props: {
       </div>
       <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
         <p className="text-sm text-amber-800">
-          This is the root <code className="rounded bg-amber-100 px-1 py-0.5 text-xs font-mono">error.tsx</code> boundary.
-          timber.js returned a real HTTP 500 — check the browser&apos;s network tab.
+          This is the root{' '}
+          <code className="rounded bg-amber-100 px-1 py-0.5 text-xs font-mono">error.tsx</code>{' '}
+          boundary. timber.js returned a real HTTP 500 — check the browser&apos;s network tab.
         </p>
       </div>
       {props.digest && (
-        <div data-testid="error-digest" className="rounded-lg border border-stone-200 bg-white p-4 space-y-2">
+        <div
+          data-testid="error-digest"
+          className="rounded-lg border border-stone-200 bg-white p-4 space-y-2"
+        >
           <div className="text-xs font-medium text-stone-400">RenderError digest</div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <div className="text-xs text-stone-400">code</div>
-              <div data-testid="error-digest-code" className="text-sm font-mono font-semibold text-stone-800">
+              <div
+                data-testid="error-digest-code"
+                className="text-sm font-mono font-semibold text-stone-800"
+              >
                 {props.digest.code}
               </div>
             </div>

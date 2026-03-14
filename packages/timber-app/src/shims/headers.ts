@@ -8,4 +8,4 @@
  * See design/14-ecosystem.md §"next/headers" for the full shim audit.
  */
 
-export { headers, cookies } from '@/server/request-context.js';
+export { headers, cookies } from '#/server/request-context.js';

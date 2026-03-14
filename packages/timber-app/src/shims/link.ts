@@ -5,5 +5,5 @@
  * get the timber equivalent without modification.
  */
 
-export { Link as default, Link } from '@/client/link.js';
-export type { LinkProps } from '@/client/link.js';
+export { Link as default, Link } from '#/client/link.js';
+export type { LinkProps } from '#/client/link.js';

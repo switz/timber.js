@@ -26,8 +26,12 @@ import { Component, createElement, type ReactNode } from 'react';
 // the aborted connection, not an application error.
 let _isUnloading = false;
 if (typeof window !== 'undefined') {
-  window.addEventListener('beforeunload', () => { _isUnloading = true; });
-  window.addEventListener('pagehide', () => { _isUnloading = true; });
+  window.addEventListener('beforeunload', () => {
+    _isUnloading = true;
+  });
+  window.addEventListener('pagehide', () => {
+    _isUnloading = true;
+  });
 }
 
 // ─── Digest Types ────────────────────────────────────────────────────────────

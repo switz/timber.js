@@ -4,8 +4,8 @@
  * Small, stateless functions used across the RSC entry modules.
  */
 
-import type { ManifestSegmentNode } from '@/server/route-matcher.js';
-import { RedirectSignal } from '@/server/primitives.js';
+import type { ManifestSegmentNode } from '#/server/route-matcher.js';
+import { RedirectSignal } from '#/server/primitives.js';
 
 /** RSC content type for client navigation payload requests. */
 export const RSC_CONTENT_TYPE = 'text/x-component';

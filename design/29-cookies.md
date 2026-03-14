@@ -549,14 +549,14 @@ The `%`-encoding is handled by the browser for `Set-Cookie` values that contain 
 
 ```typescript
 // These are equivalent:
-themeCookie.get()
+themeCookie.get();
 // vs
-themeCodec.parse(cookies().get('theme'))
+themeCodec.parse(cookies().get('theme'));
 
 // And:
-themeCookie.set('dark')
+themeCookie.set('dark');
 // vs
-cookies().set('theme', themeCodec.serialize('dark')!, themeCookie.options)
+cookies().set('theme', themeCodec.serialize('dark')!, themeCookie.options);
 ```
 
 `defineCookie` is sugar that bundles the name, codec, and options together so they don't drift out of sync between server and client code.
@@ -669,14 +669,14 @@ If they diverge (rare — e.g., a browser extension modified a cookie), React ha
 
 ### When to Use Server vs Client Cookie APIs
 
-| Scenario | API | Why |
-|---|---|---|
-| Session token | `cookies().set()` in middleware/action | HttpOnly, never exposed to client JS |
-| Auth redirect | `cookies()` in `access.ts` | Server-side auth check |
-| Theme preference (server render) | `cookies().get()` in layout | Server reads for initial render |
-| Theme preference (toggle) | `useCookie()` in client component | Client writes on user interaction |
-| Consent banner | `useCookie()` in client component | Client writes, server reads on next request |
-| Analytics ID | `cookies().set()` in middleware | Server-generated, HttpOnly |
+| Scenario                         | API                                    | Why                                         |
+| -------------------------------- | -------------------------------------- | ------------------------------------------- |
+| Session token                    | `cookies().set()` in middleware/action | HttpOnly, never exposed to client JS        |
+| Auth redirect                    | `cookies()` in `access.ts`             | Server-side auth check                      |
+| Theme preference (server render) | `cookies().get()` in layout            | Server reads for initial render             |
+| Theme preference (toggle)        | `useCookie()` in client component      | Client writes on user interaction           |
+| Consent banner                   | `useCookie()` in client component      | Client writes, server reads on next request |
+| Analytics ID                     | `cookies().set()` in middleware        | Server-generated, HttpOnly                  |
 
 The general rule: **if the value is set by user interaction in the browser, use `useCookie()`. If it's set by server logic, use `cookies().set()`.** Many cookies are read by both — the server reads them via `cookies().get()`, and the client reads them via `useCookie()`.
 
@@ -732,8 +732,8 @@ Unlike `useQueryStates` (which manages multiple URL params as a group), there is
 | Write API            | `cookies().set()` (actions/route handlers only) | Return `Set-Cookie` headers manually              | `Astro.cookies.set()` | `cookies().set()` (middleware/actions/route handlers)       |
 | RSC writes           | No (throws)                                     | N/A                                               | N/A                   | No (throws)                                                 |
 | Middleware writes    | No (read-only in middleware)                    | N/A                                               | N/A                   | **Yes** — middleware is a natural place for session refresh |
-| Client-side hook     | No (use `document.cookie`)                      | No                                                | No                    | `useCookie(name)` — reactive, SSR-hydrated                 |
-| Typed/validated      | No                                              | `createCookie` with custom serialize/parse        | No                    | `defineCookie` with `fromSchema()` (Zod/Valibot)           |
+| Client-side hook     | No (use `document.cookie`)                      | No                                                | No                    | `useCookie(name)` — reactive, SSR-hydrated                  |
+| Typed/validated      | No                                              | `createCookie` with custom serialize/parse        | No                    | `defineCookie` with `fromSchema()` (Zod/Valibot)            |
 | Signed cookies       | No                                              | Yes (`createCookie` with signing)                 | No                    | Yes (HMAC-SHA256)                                           |
 | Defaults             | No defaults                                     | No defaults                                       | No defaults           | `HttpOnly`, `Secure`, `SameSite=Lax`, `Path=/`              |
 | Read-your-own-writes | No                                              | N/A                                               | Yes                   | Yes                                                         |

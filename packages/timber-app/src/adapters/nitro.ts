@@ -167,9 +167,7 @@ export function nitro(options: NitroAdapterOptions = {}): TimberPlatformAdapter 
       await mkdir(publicDir, { recursive: true });
       await cp(clientDir, publicDir, {
         recursive: true,
-        filter: config.clientJavascriptDisabled
-          ? (src: string) => !src.endsWith('.js')
-          : undefined,
+        filter: config.clientJavascriptDisabled ? (src: string) => !src.endsWith('.js') : undefined,
       }).catch(() => {
         // Client dir may not exist when client JavaScript is disabled
       });

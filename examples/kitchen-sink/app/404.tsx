@@ -21,14 +21,18 @@ export default function NotFound({
       </div>
       <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
         <p className="text-sm text-amber-800">
-          This is the root <code className="rounded bg-amber-100 px-1 py-0.5 text-xs font-mono">404.tsx</code>.
+          This is the root{' '}
+          <code className="rounded bg-amber-100 px-1 py-0.5 text-xs font-mono">404.tsx</code>.
           timber.js returned a real HTTP 404 — not a 200 with a &ldquo;not found&rdquo; message.
         </p>
       </div>
       {dangerouslyPassData != null && (
         <div className="rounded-lg border border-stone-200 bg-white p-4">
           <div className="text-xs font-medium text-stone-400 mb-1">dangerouslyPassData</div>
-          <pre data-testid="not-found-data" className="text-sm font-mono text-stone-700 overflow-x-auto">
+          <pre
+            data-testid="not-found-data"
+            className="text-sm font-mono text-stone-700 overflow-x-auto"
+          >
             {JSON.stringify(dangerouslyPassData, null, 2)}
           </pre>
         </div>

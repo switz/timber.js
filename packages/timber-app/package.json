@@ -5,6 +5,9 @@
     "timber": "./src/cli.ts"
   },
   "type": "module",
+  "imports": {
+    "#/*": "./src/*"
+  },
   "exports": {
     ".": "./src/index.ts",
     "./server": "./src/server/index.ts",

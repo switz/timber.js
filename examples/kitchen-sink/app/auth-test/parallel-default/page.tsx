@@ -6,8 +6,8 @@ export default function ParallelDefaultPage() {
           Parallel Default Slot Test
         </h1>
         <p className="mt-1 text-sm text-stone-500">
-          The <code className="rounded bg-stone-100 px-1 py-0.5 text-xs font-mono">@widget</code> slot&apos;s access.ts denies,
-          but it has no denied.tsx — so it falls back to default.tsx.
+          The <code className="rounded bg-stone-100 px-1 py-0.5 text-xs font-mono">@widget</code>{' '}
+          slot&apos;s access.ts denies, but it has no denied.tsx — so it falls back to default.tsx.
         </p>
       </div>
       <div className="rounded-lg border border-stone-200 bg-white p-4">

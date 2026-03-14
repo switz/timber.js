@@ -15,8 +15,8 @@
  */
 
 import type { Plugin } from 'vite';
-import type { PluginContext } from '@/index.js';
-import { findFunctionsWithDirective, containsDirective } from '@/utils/directive-parser.js';
+import type { PluginContext } from '#/index.js';
+import { findFunctionsWithDirective, containsDirective } from '#/utils/directive-parser.js';
 
 // ---------------------------------------------------------------------------
 // Detection

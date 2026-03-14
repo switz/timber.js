@@ -55,14 +55,14 @@ timber.js is TypeScript, and shipping `.ts` source would require every consumer'
 
 ### Industry Survey
 
-| Framework | Ships | Build Tool | ESM/CJS |
-|---|---|---|---|
-| @tanstack/react-start | compiled ESM + d.ts (+ raw src) | Vite library mode | ESM |
-| vinxi | raw JS source + generated d.ts | tsc (types only) | ESM |
-| @react-router/dev | compiled JS + d.ts | tsup | CJS |
-| astro | compiled JS + d.ts | esbuild + tsc | ESM |
-| @sveltejs/kit | raw JS source (JSDoc) + generated d.ts | dts-buddy (types only) | ESM |
-| vite | compiled JS + d.ts | Rolldown + tsc | ESM |
+| Framework             | Ships                                  | Build Tool             | ESM/CJS |
+| --------------------- | -------------------------------------- | ---------------------- | ------- |
+| @tanstack/react-start | compiled ESM + d.ts (+ raw src)        | Vite library mode      | ESM     |
+| vinxi                 | raw JS source + generated d.ts         | tsc (types only)       | ESM     |
+| @react-router/dev     | compiled JS + d.ts                     | tsup                   | CJS     |
+| astro                 | compiled JS + d.ts                     | esbuild + tsc          | ESM     |
+| @sveltejs/kit         | raw JS source (JSDoc) + generated d.ts | dts-buddy (types only) | ESM     |
+| vite                  | compiled JS + d.ts                     | Rolldown + tsc         | ESM     |
 
 Most modern Vite-ecosystem frameworks ship compiled ESM with declaration files.
 
@@ -76,13 +76,13 @@ Use **Vite library mode** (backed by Rolldown) for JS bundling, and a separate *
 
 ### Rationale
 
-| Tool | Pros | Cons |
-|---|---|---|
-| **Vite library mode** | Already a dependency, Rolldown is fast (Rust-native), Vite dogfoods this for its own build, TanStack Start uses it | No `.d.ts` generation — needs separate tsc pass |
-| **tsup** | Single command for JS+d.ts, multiple entry points | New dependency (pulls esbuild + rollup-plugin-dts), redundant with Vite already in stack |
-| **unbuild** | Similar to tsup, auto-infers entries from exports | Less adoption, more magic, also a new dep |
-| **plain tsc** | No extra deps, outputs match source structure 1:1 | No bundling, no tree-shaking, emits every internal file individually |
-| **esbuild direct** | Fast | No `.d.ts` generation, not Rust-native like Rolldown |
+| Tool                  | Pros                                                                                                               | Cons                                                                                     |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
+| **Vite library mode** | Already a dependency, Rolldown is fast (Rust-native), Vite dogfoods this for its own build, TanStack Start uses it | No `.d.ts` generation — needs separate tsc pass                                          |
+| **tsup**              | Single command for JS+d.ts, multiple entry points                                                                  | New dependency (pulls esbuild + rollup-plugin-dts), redundant with Vite already in stack |
+| **unbuild**           | Similar to tsup, auto-infers entries from exports                                                                  | Less adoption, more magic, also a new dep                                                |
+| **plain tsc**         | No extra deps, outputs match source structure 1:1                                                                  | No bundling, no tree-shaking, emits every internal file individually                     |
+| **esbuild direct**    | Fast                                                                                                               | No `.d.ts` generation, not Rust-native like Rolldown                                     |
 
 **Vite library mode** is the best fit because:
 
@@ -102,7 +102,7 @@ export default defineConfig({
   build: {
     lib: {
       entry: {
-        index: 'src/index.ts',
+        'index': 'src/index.ts',
         'server/index': 'src/server/index.ts',
         'client/index': 'src/client/index.ts',
         'cache/index': 'src/cache/index.ts',
@@ -111,7 +111,7 @@ export default defineConfig({
         'routing/index': 'src/routing/index.ts',
         'adapters/cloudflare': 'src/adapters/cloudflare.ts',
         'adapters/nitro': 'src/adapters/nitro.ts',
-        cli: 'src/cli.ts',
+        'cli': 'src/cli.ts',
       },
       formats: ['es'],
     },
@@ -277,12 +277,7 @@ Explicitly list published files to minimize package size:
 
 ```json
 {
-  "files": [
-    "dist",
-    "bin",
-    "README.md",
-    "LICENSE"
-  ]
+  "files": ["dist", "bin", "README.md", "LICENSE"]
 }
 ```
 

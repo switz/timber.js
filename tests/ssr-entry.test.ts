@@ -196,26 +196,20 @@ describe('SSR entry — abort signal handling', () => {
 
 describe('SSR entry — isAbortError helper', () => {
   it('detects DOMException AbortError', async () => {
-    const { isAbortError } = await import(
-      resolve(SRC_DIR, 'server/rsc-entry/helpers.ts')
-    );
+    const { isAbortError } = await import(resolve(SRC_DIR, 'server/rsc-entry/helpers.ts'));
     const abortError = new DOMException('The operation was aborted.', 'AbortError');
     expect(isAbortError(abortError)).toBe(true);
   });
 
   it('detects Error with name AbortError', async () => {
-    const { isAbortError } = await import(
-      resolve(SRC_DIR, 'server/rsc-entry/helpers.ts')
-    );
+    const { isAbortError } = await import(resolve(SRC_DIR, 'server/rsc-entry/helpers.ts'));
     const error = new Error('aborted');
     error.name = 'AbortError';
     expect(isAbortError(error)).toBe(true);
   });
 
   it('does not match regular errors', async () => {
-    const { isAbortError } = await import(
-      resolve(SRC_DIR, 'server/rsc-entry/helpers.ts')
-    );
+    const { isAbortError } = await import(resolve(SRC_DIR, 'server/rsc-entry/helpers.ts'));
     expect(isAbortError(new Error('something went wrong'))).toBe(false);
     expect(isAbortError(null)).toBe(false);
     expect(isAbortError(undefined)).toBe(false);
@@ -244,9 +238,7 @@ describe('SSR entry — post-flush noindex injection', () => {
   }
 
   it('injects noindex script when stream errors (post-flush deny/error)', async () => {
-    const { wrapStreamWithErrorHandling } = await import(
-      resolve(SRC_DIR, 'server/ssr-render.ts')
-    );
+    const { wrapStreamWithErrorHandling } = await import(resolve(SRC_DIR, 'server/ssr-render.ts'));
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     const source = createErroringStream(
@@ -277,9 +269,7 @@ describe('SSR entry — post-flush noindex injection', () => {
   });
 
   it('does NOT inject noindex script on connection abort', async () => {
-    const { wrapStreamWithErrorHandling } = await import(
-      resolve(SRC_DIR, 'server/ssr-render.ts')
-    );
+    const { wrapStreamWithErrorHandling } = await import(resolve(SRC_DIR, 'server/ssr-render.ts'));
 
     const abortError = new DOMException('The operation was aborted.', 'AbortError');
     const source = createErroringStream(['<html><body>Content</body></html>'], abortError);
@@ -292,9 +282,7 @@ describe('SSR entry — post-flush noindex injection', () => {
   });
 
   it('does NOT inject noindex when signal is already aborted', async () => {
-    const { wrapStreamWithErrorHandling } = await import(
-      resolve(SRC_DIR, 'server/ssr-render.ts')
-    );
+    const { wrapStreamWithErrorHandling } = await import(resolve(SRC_DIR, 'server/ssr-render.ts'));
 
     const ac = new AbortController();
     ac.abort();

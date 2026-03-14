@@ -183,7 +183,7 @@ describe('auto-discovers critical assets', () => {
     const mixedManifest: BuildManifest = {
       css: {
         'app/layout.tsx': ['/_timber/assets/shared.css'],
-        _global: ['/_timber/assets/shared.css', '/_timber/assets/other.css'],
+        '_global': ['/_timber/assets/shared.css', '/_timber/assets/other.css'],
       },
       js: {},
       modulepreload: {},

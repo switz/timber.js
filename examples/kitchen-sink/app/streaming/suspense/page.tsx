@@ -13,8 +13,8 @@ export default function SuspensePage() {
       <div>
         <h1 className="text-2xl font-bold text-stone-900">Suspense Streaming</h1>
         <p className="mt-1 text-sm text-stone-500">
-          Content outside Suspense renders in the shell and blocks the status code.
-          Content inside Suspense streams after the shell flushes.
+          Content outside Suspense renders in the shell and blocks the status code. Content inside
+          Suspense streams after the shell flushes.
         </p>
       </div>
 
@@ -27,7 +27,10 @@ export default function SuspensePage() {
 
       <Suspense
         fallback={
-          <div data-testid="suspense-fallback" className="rounded-lg border border-dashed border-stone-300 bg-stone-50 p-4">
+          <div
+            data-testid="suspense-fallback"
+            className="rounded-lg border border-dashed border-stone-300 bg-stone-50 p-4"
+          >
             <div className="text-xs font-medium text-stone-400 mb-1">Suspense fallback</div>
             <p className="text-sm text-stone-500">Loading content...</p>
           </div>
@@ -41,8 +44,9 @@ export default function SuspensePage() {
 
       <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
         <p className="text-sm text-amber-800">
-          The HTTP 200 commits when <code className="rounded bg-amber-100 px-1 py-0.5 text-xs font-mono">onShellReady</code> fires.
-          The slow content streams into the open connection afterward.
+          The HTTP 200 commits when{' '}
+          <code className="rounded bg-amber-100 px-1 py-0.5 text-xs font-mono">onShellReady</code>{' '}
+          fires. The slow content streams into the open connection afterward.
         </p>
       </div>
     </div>

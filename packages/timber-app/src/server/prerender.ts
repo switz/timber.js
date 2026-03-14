@@ -9,7 +9,7 @@
  * Design doc: design/15-future-prerendering.md
  */
 
-import { parseCacheLife } from '@/plugins/cache-transform.js';
+import { parseCacheLife } from '#/plugins/cache-transform.js';
 
 // ---------------------------------------------------------------------------
 // Types — user-facing exports from prerender.ts

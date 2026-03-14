@@ -6,13 +6,13 @@
  * See design/04-authorization.md §"Auth in API Routes".
  */
 
-import { withSpan, setSpanAttribute } from '@/server/tracing.js';
-import type { ManifestSegmentNode } from '@/server/route-matcher.js';
-import type { RouteMatch } from '@/server/pipeline.js';
-import { DenySignal, RedirectSignal } from '@/server/primitives.js';
-import { handleRouteRequest } from '@/server/route-handler.js';
-import type { RouteModule } from '@/server/route-handler.js';
-import type { RouteContext } from '@/server/types.js';
+import { withSpan, setSpanAttribute } from '#/server/tracing.js';
+import type { ManifestSegmentNode } from '#/server/route-matcher.js';
+import type { RouteMatch } from '#/server/pipeline.js';
+import { DenySignal, RedirectSignal } from '#/server/primitives.js';
+import { handleRouteRequest } from '#/server/route-handler.js';
+import type { RouteModule } from '#/server/route-handler.js';
+import type { RouteContext } from '#/server/types.js';
 
 export async function handleApiRoute(
   req: Request,
@@ -90,7 +90,7 @@ async function renderApiDeny(
   segments: ManifestSegmentNode[],
   responseHeaders: Headers
 ): Promise<Response> {
-  const { resolveManifestStatusFile } = await import('@/server/manifest-status-resolver.js');
+  const { resolveManifestStatusFile } = await import('#/server/manifest-status-resolver.js');
 
   const resolution = resolveManifestStatusFile(deny.status, segments, 'json');
   if (resolution) {

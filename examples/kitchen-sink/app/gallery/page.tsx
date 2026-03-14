@@ -15,7 +15,9 @@ export default function GalleryPage() {
         <h1 className="text-2xl font-bold text-stone-900">Intercepting Routes</h1>
         <p className="mt-1 text-sm text-stone-500">
           Clicking a photo opens it in a modal overlay via the{' '}
-          <code className="rounded bg-stone-100 px-1 py-0.5 text-xs font-mono">@modal/(.)photo/[id]</code>{' '}
+          <code className="rounded bg-stone-100 px-1 py-0.5 text-xs font-mono">
+            @modal/(.)photo/[id]
+          </code>{' '}
           intercepting route. Navigating directly to the URL renders the full page.
         </p>
       </div>
@@ -39,8 +41,15 @@ export default function GalleryPage() {
 
       <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
         <p className="text-sm text-amber-800">
-          <strong>Soft nav</strong> (Link click) → modal overlay via <code className="rounded bg-amber-100 px-1 py-0.5 text-xs font-mono">@modal/(.)photo/[id]</code>.{' '}
-          <strong>Hard nav</strong> (direct URL) → full page at <code className="rounded bg-amber-100 px-1 py-0.5 text-xs font-mono">photo/[id]/page.tsx</code>.
+          <strong>Soft nav</strong> (Link click) → modal overlay via{' '}
+          <code className="rounded bg-amber-100 px-1 py-0.5 text-xs font-mono">
+            @modal/(.)photo/[id]
+          </code>
+          . <strong>Hard nav</strong> (direct URL) → full page at{' '}
+          <code className="rounded bg-amber-100 px-1 py-0.5 text-xs font-mono">
+            photo/[id]/page.tsx
+          </code>
+          .
         </p>
       </div>
     </div>

@@ -11,9 +11,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import {
-  buildManifestFromBundle,
-} from '../packages/timber-app/src/plugins/build-manifest';
+import { buildManifestFromBundle } from '../packages/timber-app/src/plugins/build-manifest';
 
 // ─── buildManifestFromBundle ─────────────────────────────────────────────────
 

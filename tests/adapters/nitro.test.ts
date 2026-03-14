@@ -293,7 +293,7 @@ describe('generateNitroEntry', () => {
   it('manifest init import comes before handler import', () => {
     const entry = generateNitroEntry('/tmp/build', '/tmp/build/nitro', 'node-server', true);
     const manifestIdx = entry.indexOf("import './_timber-manifest-init.js'");
-    const handlerIdx = entry.indexOf("import { defineEventHandler");
+    const handlerIdx = entry.indexOf('import { defineEventHandler');
     expect(manifestIdx).toBeLessThan(handlerIdx);
   });
 

@@ -13,7 +13,7 @@
  */
 
 import type { Plugin, ViteDevServer } from 'vite';
-import type { PluginContext } from '@/index.js';
+import type { PluginContext } from '#/index.js';
 
 // ─── Types ───────────────────────────────────────────────────────────────
 

@@ -15,8 +15,8 @@
 
 import { gzipSync } from 'node:zlib';
 import type { Plugin, Logger } from 'vite';
-import type { PluginContext } from '@/index.js';
-import type { SegmentNode, RouteTree } from '@/routing/types.js';
+import type { PluginContext } from '#/index.js';
+import type { SegmentNode, RouteTree } from '#/routing/types.js';
 
 // ─── Public types ─────────────────────────────────────────────────────────
 

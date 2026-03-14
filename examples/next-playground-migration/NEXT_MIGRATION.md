@@ -493,9 +493,7 @@ const nextConfig: NextConfig = {
     { source: '/old/:slug', destination: '/new/:slug', permanent: true },
     { source: '/legacy', destination: '/modern', permanent: false },
   ],
-  rewrites: async () => [
-    { source: '/api/v1/:path*', destination: '/api/v2/:path*' },
-  ],
+  rewrites: async () => [{ source: '/api/v1/:path*', destination: '/api/v2/:path*' }],
 };
 ```
 

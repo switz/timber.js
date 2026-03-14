@@ -13,7 +13,7 @@
 // - searchParams and inline query string are mutually exclusive
 
 import type { AnchorHTMLAttributes, ReactNode } from 'react';
-import type { SearchParamsDefinition } from '@/search-params/create.js';
+import type { SearchParamsDefinition } from '#/search-params/create.js';
 import type { OnNavigateHandler } from './link-navigate-interceptor.js';
 import { LinkNavigateInterceptor } from './link-navigate-interceptor.js';
 import { LinkStatusProvider } from './link-status-provider.js';
@@ -290,18 +290,12 @@ export function Link({
 }: LinkProps) {
   const linkProps = buildLinkProps({ href, prefetch, scroll, params, searchParams });
 
-  const inner = (
-    <LinkStatusProvider href={linkProps.href}>
-      {children}
-    </LinkStatusProvider>
-  );
+  const inner = <LinkStatusProvider href={linkProps.href}>{children}</LinkStatusProvider>;
 
   return (
     <a {...rest} {...linkProps}>
       {onNavigate ? (
-        <LinkNavigateInterceptor onNavigate={onNavigate}>
-          {inner}
-        </LinkNavigateInterceptor>
+        <LinkNavigateInterceptor onNavigate={onNavigate}>{inner}</LinkNavigateInterceptor>
       ) : (
         inner
       )}

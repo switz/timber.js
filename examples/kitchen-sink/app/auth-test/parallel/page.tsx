@@ -6,8 +6,10 @@ export default function ParallelPage() {
           Parallel Slot Auth Test
         </h1>
         <p className="mt-1 text-sm text-stone-500">
-          This page has an <code className="rounded bg-stone-100 px-1 py-0.5 text-xs font-mono">@admin</code> parallel slot
-          whose access.ts calls deny(). The slot renders denied.tsx while this main content stays visible.
+          This page has an{' '}
+          <code className="rounded bg-stone-100 px-1 py-0.5 text-xs font-mono">@admin</code>{' '}
+          parallel slot whose access.ts calls deny(). The slot renders denied.tsx while this main
+          content stays visible.
         </p>
       </div>
       <div className="rounded-lg border border-stone-200 bg-white p-4">

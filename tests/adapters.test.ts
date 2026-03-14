@@ -197,7 +197,7 @@ describe('worker entry structure', () => {
   it('manifest init import comes before handler import', () => {
     const entry = generateWorkerEntry('/build', '/build/out', true);
     const manifestIdx = entry.indexOf("import './_timber-manifest-init.js'");
-    const handlerIdx = entry.indexOf("import handler from");
+    const handlerIdx = entry.indexOf('import handler from');
     expect(manifestIdx).toBeLessThan(handlerIdx);
   });
 });

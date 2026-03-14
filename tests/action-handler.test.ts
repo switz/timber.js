@@ -74,7 +74,8 @@ function makeActionRequest(
   if (opts.contentType) headers['Content-Type'] = opts.contentType;
   const body = opts.body ?? 'test';
   // Default Content-Length to body length — enforceBodyLimits requires it.
-  headers['Content-Length'] = opts.contentLength ?? String(new TextEncoder().encode(body).byteLength);
+  headers['Content-Length'] =
+    opts.contentLength ?? String(new TextEncoder().encode(body).byteLength);
 
   return new Request('http://localhost/action', {
     method: 'POST',

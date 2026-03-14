@@ -38,9 +38,7 @@ describe('formatSsrError', () => {
   });
 
   it('adds hint for function-passed-to-client-component errors', () => {
-    const error = new Error(
-      'Functions cannot be passed directly to Client Components'
-    );
+    const error = new Error('Functions cannot be passed directly to Client Components');
     error.stack = error.message;
 
     const result = formatSsrError(error);
@@ -67,9 +65,7 @@ describe('formatSsrError', () => {
   });
 
   it('adds hint for null reference errors', () => {
-    const error = new Error(
-      "Cannot read properties of undefined (reading 'title')"
-    );
+    const error = new Error("Cannot read properties of undefined (reading 'title')");
     error.stack = error.message;
 
     const result = formatSsrError(error);
@@ -109,14 +105,15 @@ describe('formatSsrError', () => {
   });
 
   it('limits user frames to 5', () => {
-    const frames = Array.from({ length: 10 }, (_, i) =>
-      `    at fn${i} (/app/src/file${i}.tsx:${i}:1)`
+    const frames = Array.from(
+      { length: 10 },
+      (_, i) => `    at fn${i} (/app/src/file${i}.tsx:${i}:1)`
     ).join('\n');
     const error = new Error('fail');
     error.stack = `Error: fail\n${frames}`;
 
     const result = formatSsrError(error);
-    const userFrameLines = result.split('\n').filter(l => l.trim().startsWith('at '));
+    const userFrameLines = result.split('\n').filter((l) => l.trim().startsWith('at '));
     expect(userFrameLines.length).toBeLessThanOrEqual(5);
   });
 

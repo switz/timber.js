@@ -7,8 +7,11 @@ export default async function CatchAllPage({ params }: { params: Promise<{ slug:
           Catch-All Route
         </h1>
         <p className="mt-1 text-sm text-stone-500">
-          File: <code className="rounded bg-stone-100 px-1 py-0.5 text-xs font-mono">catch/[...slug]/page.tsx</code> — matches
-          any number of path segments.
+          File:{' '}
+          <code className="rounded bg-stone-100 px-1 py-0.5 text-xs font-mono">
+            catch/[...slug]/page.tsx
+          </code>{' '}
+          — matches any number of path segments.
         </p>
       </div>
 
@@ -18,7 +21,13 @@ export default async function CatchAllPage({ params }: { params: Promise<{ slug:
           {slug.join('/')}
         </div>
         <div className="mt-2 text-xs text-stone-400">
-          [{slug.map((s, i) => <span key={i}>{i > 0 ? ', ' : ''}&quot;{s}&quot;</span>)}]
+          [
+          {slug.map((s, i) => (
+            <span key={i}>
+              {i > 0 ? ', ' : ''}&quot;{s}&quot;
+            </span>
+          ))}
+          ]
         </div>
       </div>
     </div>

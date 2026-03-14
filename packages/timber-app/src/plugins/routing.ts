@@ -11,11 +11,11 @@
 import type { Plugin, ViteDevServer } from 'vite';
 import { writeFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
-import { scanRoutes } from '@/routing/scanner.js';
-import { generateRouteMap } from '@/routing/codegen.js';
-import { collectInterceptionRewrites } from '@/routing/interception.js';
-import type { RouteTree, SegmentNode, RouteFile } from '@/routing/types.js';
-import type { PluginContext } from '@/index.js';
+import { scanRoutes } from '#/routing/scanner.js';
+import { generateRouteMap } from '#/routing/codegen.js';
+import { collectInterceptionRewrites } from '#/routing/interception.js';
+import type { RouteTree, SegmentNode, RouteFile } from '#/routing/types.js';
+import type { PluginContext } from '#/index.js';
 
 const VIRTUAL_MODULE_ID = 'virtual:timber-route-manifest';
 const RESOLVED_VIRTUAL_ID = `\0${VIRTUAL_MODULE_ID}`;

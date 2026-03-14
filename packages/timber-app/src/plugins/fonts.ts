@@ -15,19 +15,19 @@
  */
 
 import type { Plugin } from 'vite';
-import type { PluginContext } from '@/index.js';
-import type { ExtractedFont, GoogleFontConfig } from '@/fonts/types.js';
-import type { ManifestFontEntry } from '@/server/build-manifest.js';
-import { generateVariableClass, generateFontFamilyClass } from '@/fonts/css.js';
-import { generateFallbackCss, buildFontStack } from '@/fonts/fallbacks.js';
-import { processLocalFont } from '@/fonts/local.js';
-import { inferFontFormat } from '@/fonts/local.js';
-import { downloadAndCacheFonts, type CachedFont } from '@/fonts/google.js';
+import type { PluginContext } from '#/index.js';
+import type { ExtractedFont, GoogleFontConfig } from '#/fonts/types.js';
+import type { ManifestFontEntry } from '#/server/build-manifest.js';
+import { generateVariableClass, generateFontFamilyClass } from '#/fonts/css.js';
+import { generateFallbackCss, buildFontStack } from '#/fonts/fallbacks.js';
+import { processLocalFont } from '#/fonts/local.js';
+import { inferFontFormat } from '#/fonts/local.js';
+import { downloadAndCacheFonts, type CachedFont } from '#/fonts/google.js';
 import {
   extractFontConfigAst,
   extractLocalFontConfigAst,
   detectDynamicFontCallAst,
-} from '@/fonts/ast.js';
+} from '#/fonts/ast.js';
 
 const VIRTUAL_GOOGLE = '@timber/fonts/google';
 const VIRTUAL_LOCAL = '@timber/fonts/local';

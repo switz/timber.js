@@ -261,4 +261,3 @@ export function resolveMetadataUrls(metadata: Metadata): Metadata {
 
   return result;
 }
-

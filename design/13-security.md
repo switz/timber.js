@@ -36,7 +36,7 @@ These are the specific attack classes that timber.js's design mitigates (identif
 | 25    | Server component source leak via RSC debug channel | `debugChannel` sink separates debug data from client payload; source code never inlined               | [Rendering Pipeline](02-rendering-pipeline.md) |
 | 26    | Middleware header deletion bypass                  | `headers()` returns frozen proxy; middleware overlay is additive-only; original request never mutated | [Routing](07-routing.md)                       |
 | 27    | Cookie mutation in unsafe context                  | `cookies().set()` throws in RSC/access.ts; post-flush writes silently dropped; secure defaults        | [Cookies](29-cookies.md)                       |
-| 28    | Cookie without secure flags                        | Default: `HttpOnly`, `Secure`, `SameSite=Lax`, `Path=/`; developer opts out explicitly               | [Cookies](29-cookies.md)                       |
+| 28    | Cookie without secure flags                        | Default: `HttpOnly`, `Secure`, `SameSite=Lax`, `Path=/`; developer opts out explicitly                | [Cookies](29-cookies.md)                       |
 
 ## Middleware Header Immutability
 
@@ -72,7 +72,7 @@ This architecture is structurally immune to the Vinext-style middleware header d
 | 14  | Cache key determinism           | `timber.cache(fn)` called with `{ a: 1, b: 2 }` and `{ b: 2, a: 1 }`       | Same cache key                                             |
 | 15  | `"use cache"` user data leak    | Component with user-derived props + `"use cache"`                          | Dev-mode warning emitted                                   |
 | 16  | FormData limits                 | Request body exceeding configured limit                                    | 413                                                        |
-| 16b | FormData limits (no length)     | Action/upload POST without `Content-Length` header                          | 411 Length Required                                        |
+| 16b | FormData limits (no length)     | Action/upload POST without `Content-Length` header                         | 411 Length Required                                        |
 | 17  | Codec ReDoS                     | Pathological search-param input to codec `.parse()`                        | Completes in <100ms                                        |
 | 18  | `deny()` status                 | `access.ts` calls `deny()` outside Suspense                                | HTTP 403, `403.tsx` rendered                               |
 | 19  | `deny(401)` status              | `access.ts` calls `deny(401)` outside Suspense                             | HTTP 401, `401.tsx` rendered                               |
@@ -86,6 +86,6 @@ This architecture is structurally immune to the Vinext-style middleware header d
 | 27  | Proxy request substitution      | `proxy.ts` creates modified Request, `headers()` checked in render         | Render sees original request headers, not proxy's          |
 | 28  | Cookie set in RSC               | `cookies().set('x', 'y')` in a server component                            | Throws descriptive error                                   |
 | 29  | Cookie set in access.ts         | `cookies().set('x', 'y')` in an access.ts file                             | Throws descriptive error                                   |
-| 30  | Cookie set after flush           | `cookies().set()` called after `onShellReady`                               | Dev warning, cookie silently dropped                       |
-| 31  | Cookie secure defaults           | `cookies().set('name', 'value')` with no options                            | `HttpOnly; Secure; SameSite=Lax; Path=/`                   |
-| 32  | Signed cookie tampering          | Modified signed cookie value read via `cookies().getSigned()`               | Returns `undefined`                                        |
+| 30  | Cookie set after flush          | `cookies().set()` called after `onShellReady`                              | Dev warning, cookie silently dropped                       |
+| 31  | Cookie secure defaults          | `cookies().set('name', 'value')` with no options                           | `HttpOnly; Secure; SameSite=Lax; Path=/`                   |
+| 32  | Signed cookie tampering         | Modified signed cookie value read via `cookies().getSigned()`              | Returns `undefined`                                        |

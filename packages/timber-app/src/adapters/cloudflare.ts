@@ -110,9 +110,7 @@ export function cloudflare(options: CloudflareAdapterOptions = {}): TimberPlatfo
       await mkdir(staticDir, { recursive: true });
       await cp(clientDir, staticDir, {
         recursive: true,
-        filter: config.clientJavascriptDisabled
-          ? (src: string) => !src.endsWith('.js')
-          : undefined,
+        filter: config.clientJavascriptDisabled ? (src: string) => !src.endsWith('.js') : undefined,
       }).catch(() => {
         // Client dir may not exist when client JavaScript is disabled
       });

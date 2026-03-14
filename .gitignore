@@ -18,6 +18,7 @@ playwright-report/
 .timber/
 .tmp-route-watching-test/
 tests/.tmp-*
+tmp-test-files/
 
 .DS_Store
 .lb

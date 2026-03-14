@@ -13,8 +13,11 @@ export default function AbsoluteTitlePage() {
           Absolute Title Test
         </h1>
         <p className="mt-1 text-sm text-stone-500">
-          Uses <code className="rounded bg-stone-100 px-1 py-0.5 text-xs font-mono">title: &#123; absolute: &apos;...&apos; &#125;</code> to
-          skip the layout&apos;s template.
+          Uses{' '}
+          <code className="rounded bg-stone-100 px-1 py-0.5 text-xs font-mono">
+            title: &#123; absolute: &apos;...&apos; &#125;
+          </code>{' '}
+          to skip the layout&apos;s template.
         </p>
       </div>
 

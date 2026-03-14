@@ -17,8 +17,8 @@ import type {
   SearchParamsDefinition,
   SetParams,
   QueryStatesOptions,
-} from '@/search-params/create.js';
-import { getSearchParams } from '@/search-params/registry.js';
+} from '#/search-params/create.js';
+import { getSearchParams } from '#/search-params/registry.js';
 
 // ─── Codec Bridge ─────────────────────────────────────────────────
 

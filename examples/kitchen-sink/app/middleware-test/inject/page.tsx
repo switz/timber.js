@@ -9,8 +9,10 @@ export default async function InjectPage() {
           Middleware: Header Injection
         </h1>
         <p className="mt-1 text-sm text-stone-500">
-          Middleware injects an <code className="rounded bg-stone-100 px-1 py-0.5 text-xs font-mono">X-Locale</code> request
-          header that server components can read via <code className="rounded bg-stone-100 px-1 py-0.5 text-xs font-mono">headers()</code>.
+          Middleware injects an{' '}
+          <code className="rounded bg-stone-100 px-1 py-0.5 text-xs font-mono">X-Locale</code>{' '}
+          request header that server components can read via{' '}
+          <code className="rounded bg-stone-100 px-1 py-0.5 text-xs font-mono">headers()</code>.
         </p>
       </div>
 
@@ -24,8 +26,14 @@ export default async function InjectPage() {
       <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
         <p className="text-sm text-amber-800">
           The original request has no X-Locale header. Middleware adds it via{' '}
-          <code className="rounded bg-amber-100 px-1 py-0.5 text-xs font-mono">ctx.requestHeaders.set()</code>,
-          and the server component reads it with <code className="rounded bg-amber-100 px-1 py-0.5 text-xs font-mono">headers().get(&apos;X-Locale&apos;)</code>.
+          <code className="rounded bg-amber-100 px-1 py-0.5 text-xs font-mono">
+            ctx.requestHeaders.set()
+          </code>
+          , and the server component reads it with{' '}
+          <code className="rounded bg-amber-100 px-1 py-0.5 text-xs font-mono">
+            headers().get(&apos;X-Locale&apos;)
+          </code>
+          .
         </p>
       </div>
     </div>

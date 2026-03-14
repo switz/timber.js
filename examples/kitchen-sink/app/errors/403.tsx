@@ -21,14 +21,18 @@ export default function Forbidden({
       </div>
       <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
         <p className="text-sm text-amber-800">
-          This is <code className="rounded bg-amber-100 px-1 py-0.5 text-xs font-mono">errors/403.tsx</code> —
-          a segment-level status-code file. timber.js returned a real HTTP 403.
+          This is{' '}
+          <code className="rounded bg-amber-100 px-1 py-0.5 text-xs font-mono">errors/403.tsx</code>{' '}
+          — a segment-level status-code file. timber.js returned a real HTTP 403.
         </p>
       </div>
       {dangerouslyPassData != null && (
         <div className="rounded-lg border border-stone-200 bg-white p-4">
           <div className="text-xs font-medium text-stone-400 mb-1">dangerouslyPassData</div>
-          <pre data-testid="forbidden-data" className="text-sm font-mono text-stone-700 overflow-x-auto">
+          <pre
+            data-testid="forbidden-data"
+            className="text-sm font-mono text-stone-700 overflow-x-auto"
+          >
             {JSON.stringify(dangerouslyPassData, null, 2)}
           </pre>
         </div>

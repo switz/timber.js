@@ -17,7 +17,9 @@ export default async function HeadersPage() {
           <div className="font-mono text-stone-500">Cache-Control</div>
           <div className="font-mono text-stone-800">no-store</div>
           <div className="font-mono text-stone-500">X-Test</div>
-          <div data-testid="header-x-test" className="font-mono text-stone-800">from-middleware</div>
+          <div data-testid="header-x-test" className="font-mono text-stone-800">
+            from-middleware
+          </div>
         </div>
       </div>
 

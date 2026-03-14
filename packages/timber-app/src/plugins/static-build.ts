@@ -10,8 +10,8 @@
  */
 
 import type { Plugin } from 'vite';
-import type { PluginContext } from '@/index.js';
-import { detectFileDirective } from '@/utils/directive-parser.js';
+import type { PluginContext } from '#/index.js';
+import { detectFileDirective } from '#/utils/directive-parser.js';
 
 // ---------------------------------------------------------------------------
 // Types

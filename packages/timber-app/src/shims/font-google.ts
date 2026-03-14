@@ -17,7 +17,7 @@
  * Design doc: 24-fonts.md, "Next.js Font Compatibility"
  */
 
-import type { GoogleFontConfig, FontResult } from '@/fonts/types.js';
+import type { GoogleFontConfig, FontResult } from '#/fonts/types.js';
 
 export type { GoogleFontConfig, FontResult };
 
@@ -64,5 +64,4 @@ export const Source_Code_Pro = (config?: GoogleFontConfig): FontResult =>
   createStubFontResult(config);
 export const Playfair_Display = (config?: GoogleFontConfig): FontResult =>
   createStubFontResult(config);
-export const Merriweather = (config?: GoogleFontConfig): FontResult =>
-  createStubFontResult(config);
+export const Merriweather = (config?: GoogleFontConfig): FontResult => createStubFontResult(config);

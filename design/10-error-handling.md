@@ -166,12 +166,14 @@ deny(404, { resourceId: params.id }); // data passed as dangerouslyPassData prop
 When the user refreshes the page or navigates away while Suspense boundaries are still streaming, the aborted connection causes errors in both the RSC and SSR streams. These are not application errors — they are a side effect of the browser tearing down the connection. The framework suppresses these abort errors at multiple layers:
 
 **Server-side:**
+
 - The request's `AbortSignal` is passed to both RSC and SSR `renderToReadableStream` via the `signal` option. React stops rendering on abort without firing `onError`.
 - The RSC `onError` callback checks `isAbortError()` and `req.signal.aborted` — abort errors are not tracked as deny/redirect/render signals.
 - `wrapStreamWithErrorHandling` in SSR detects abort errors and closes the stream silently (no logging).
 - If SSR fails due to abort, the handler returns an empty 499 response.
 
 **Client-side:**
+
 - `TimberErrorBoundary.getDerivedStateFromError` checks if the page is being unloaded (`beforeunload`/`pagehide` events) and suppresses error boundary activation.
 - `hydrateRoot`'s `onRecoverableError` suppresses errors during page unload.
 - The client router's `navigate()` catches and silently discards `AbortError` from aborted fetches.

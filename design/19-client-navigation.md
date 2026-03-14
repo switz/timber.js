@@ -367,14 +367,14 @@ Making `<Link>` a client component (like Next.js) would require every link to cr
 
 ### Tradeoffs
 
-| Aspect | Global delegation (timber) | Per-component onClick (Next.js) |
-| --- | --- | --- |
-| Progressive enhancement | Works without JS (plain `<a>`) | Broken without JS (no `onClick`) |
-| Event listener count | O(1) total | O(n) per link |
-| React event integration | Indirect (native DOM events) | Direct (React synthetic events) |
-| Shadow DOM (closed) | Clicks not received | Works (listener on element) |
-| `stopPropagation` risk | Intermediate elements can block | Not affected |
-| RSC compatibility | `<Link>` is a server component | `<Link>` must be `'use client'` |
+| Aspect                  | Global delegation (timber)      | Per-component onClick (Next.js)  |
+| ----------------------- | ------------------------------- | -------------------------------- |
+| Progressive enhancement | Works without JS (plain `<a>`)  | Broken without JS (no `onClick`) |
+| Event listener count    | O(1) total                      | O(n) per link                    |
+| React event integration | Indirect (native DOM events)    | Direct (React synthetic events)  |
+| Shadow DOM (closed)     | Clicks not received             | Works (listener on element)      |
+| `stopPropagation` risk  | Intermediate elements can block | Not affected                     |
+| RSC compatibility       | `<Link>` is a server component  | `<Link>` must be `'use client'`  |
 
 ### Known Limitations
 

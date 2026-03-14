@@ -14,7 +14,13 @@
 import { canonicalize } from './canonicalize.js';
 import { runProxy, type ProxyExport } from './proxy.js';
 import { runMiddleware, type MiddlewareFn } from './middleware-runner.js';
-import { runWithRequestContext, applyRequestHeaderOverlay } from './request-context.js';
+import {
+  runWithRequestContext,
+  applyRequestHeaderOverlay,
+  setMutableCookieContext,
+  getSetCookieHeaders,
+  markResponseFlushed,
+} from './request-context.js';
 import {
   generateTraceId,
   runWithTraceId,
@@ -277,10 +283,15 @@ export function createPipeline(config: PipelineConfig): (req: Request) => Promis
       };
 
       try {
+        // Enable cookie mutation during middleware (design/29-cookies.md §"Context Tracking")
+        setMutableCookieContext(true);
         const middlewareResponse = await withSpan('timber.middleware', {}, () =>
           runMiddleware(match.middleware!, ctx)
         );
+        setMutableCookieContext(false);
         if (middlewareResponse) {
+          // Apply cookie jar to short-circuit response
+          applyCookieJar(middlewareResponse.headers);
           logMiddlewareShortCircuit({ method, path, status: middlewareResponse.status });
           return middlewareResponse;
         }
@@ -288,6 +299,7 @@ export function createPipeline(config: PipelineConfig): (req: Request) => Promis
         // injected request headers so headers() returns them downstream.
         applyRequestHeaderOverlay(requestHeaderOverlay);
       } catch (error) {
+        setMutableCookieContext(false);
         // Middleware throw → HTTP 500 (middleware runs before rendering,
         // no error boundary to catch it)
         logMiddlewareError({ method, path, error });
@@ -297,11 +309,18 @@ export function createPipeline(config: PipelineConfig): (req: Request) => Promis
       }
     }
 
+    // Apply cookie jar to response headers before render commits them.
+    // Middleware may have set cookies; they need to be on responseHeaders
+    // before flushResponse creates the Response object.
+    applyCookieJar(responseHeaders);
+
     // Stage 4: Render (access gates + element tree + renderToReadableStream)
     try {
-      return await withSpan('timber.render', { 'http.route': canonicalPathname }, () =>
+      const response = await withSpan('timber.render', { 'http.route': canonicalPathname }, () =>
         render(req, match, responseHeaders, requestHeaderOverlay, interception)
       );
+      markResponseFlushed();
+      return response;
     } catch (error) {
       logRenderError({ method, path, error });
       await fireOnRequestError(error, req, 'render');
@@ -398,4 +417,16 @@ function pathnameMatchesPattern(pathname: string, pattern: string): boolean {
   }
 
   return pi === pathParts.length;
+}
+
+// ─── Cookie Helpers ──────────────────────────────────────────────────────
+
+/**
+ * Apply all Set-Cookie headers from the cookie jar to a Headers object.
+ * Each cookie gets its own Set-Cookie header per RFC 6265 §4.1.
+ */
+function applyCookieJar(headers: Headers): void {
+  for (const value of getSetCookieHeaders()) {
+    headers.append('Set-Cookie', value);
+  }
 }

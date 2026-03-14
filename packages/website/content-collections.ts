@@ -1,5 +1,6 @@
 import { defineCollection, defineConfig } from '@content-collections/core';
 import { compileMDX } from '@content-collections/mdx';
+import rehypePrettyCode from 'rehype-pretty-code';
 import remarkGfm from 'remark-gfm';
 import { z } from 'zod/v4';
 
@@ -31,6 +32,15 @@ const docs = defineCollection({
   transform: async (document, context) => {
     const mdx = await compileMDX(context, document, {
       remarkPlugins: [remarkGfm],
+      rehypePlugins: [
+        [
+          rehypePrettyCode,
+          {
+            theme: 'github-dark',
+            keepBackground: false,
+          },
+        ],
+      ],
     });
     const order = parseOrder(document._meta.fileName);
     const slug = document.slug ?? slugify(document.title);

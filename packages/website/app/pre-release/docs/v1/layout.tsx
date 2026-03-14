@@ -49,15 +49,15 @@ export default function DocsLayout({ children }: { children: ReactNode }) {
   const navSections = buildNav();
 
   return (
-    <div className="flex min-h-screen bg-grain-light/30 dark:bg-stone-950">
-      <aside className="w-60 shrink-0 border-r border-grain dark:border-walnut/30 bg-grain-light dark:bg-stone-900 overflow-y-auto sticky top-0 h-screen">
+    <div className="flex min-h-screen bg-grain-light/30 dark:bg-stone-800">
+      <aside className="w-60 shrink-0 border-r border-grain dark:border-stone-700 bg-grain-light dark:bg-stone-900 overflow-y-auto sticky top-0 h-screen">
         <nav className="p-5 flex flex-col gap-6">
-          <Link href="/" className="text-sm font-bold text-timber dark:text-grain tracking-tight">
+          <Link href="/" className="text-sm font-bold text-timber dark:text-stone-100 tracking-tight">
             timber.js
           </Link>
           {navSections.map((section) => (
             <div key={section.label}>
-              <h3 className="text-[11px] font-semibold uppercase tracking-wider text-sap dark:text-walnut-light mb-2">
+              <h3 className="text-[11px] font-semibold uppercase tracking-wider text-sap dark:text-stone-400 mb-2">
                 {section.label}
               </h3>
               <ul className="space-y-0.5">
@@ -65,7 +65,7 @@ export default function DocsLayout({ children }: { children: ReactNode }) {
                   <li key={link.href}>
                     <Link
                       href={link.href}
-                      className="block text-sm py-1 px-2 rounded text-bark dark:text-sap hover:text-walnut dark:hover:text-grain hover:bg-grain dark:hover:bg-walnut/30 transition-colors"
+                      className="block text-sm py-1 px-2 rounded text-bark dark:text-stone-400 hover:text-walnut dark:hover:text-stone-100 hover:bg-grain dark:hover:bg-stone-800 transition-colors"
                     >
                       {link.text}
                     </Link>

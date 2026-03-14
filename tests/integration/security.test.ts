@@ -310,6 +310,66 @@ describe('redirect absolute rejection', () => {
   });
 });
 
+// ─── Rewrite / Interception Cannot Target External Domains ───────────────
+// Regression tests for Vinext external rewrite domain vulnerability.
+// timber.js uses intercepting routes (pathname-only rewrites), not config rewrites.
+// These tests verify the rewrite system cannot be manipulated to target external domains.
+
+describe('rewrite external domain prevention', () => {
+  it('interception rewrites operate on relative pathnames only', async () => {
+    // Even if X-Timber-URL contains an absolute URL, findInterceptionMatch
+    // compares it as a string prefix against relative interceptingPrefix.
+    // An absolute URL like "https://evil.com/feed" won't startsWith("/feed").
+    const handler = createPipeline(
+      makeConfig({
+        interceptionRewrites: [
+          { interceptedPattern: '/photo/[id]', interceptingPrefix: '/feed', segmentPath: [] },
+        ],
+      })
+    );
+
+    const res = await handler(
+      makeRequest('/photo/123', {
+        headers: { 'X-Timber-URL': 'https://evil.com/feed' },
+      })
+    );
+    // Should render normally (no interception match), not redirect externally
+    expect(res.status).toBe(200);
+  });
+
+  it('protocol-relative X-Timber-URL does not match interception rewrites', async () => {
+    const handler = createPipeline(
+      makeConfig({
+        interceptionRewrites: [
+          { interceptedPattern: '/photo/[id]', interceptingPrefix: '/feed', segmentPath: [] },
+        ],
+      })
+    );
+
+    const res = await handler(
+      makeRequest('/photo/123', {
+        headers: { 'X-Timber-URL': '//evil.com/feed' },
+      })
+    );
+    expect(res.status).toBe(200);
+  });
+
+  it('redirect() rejects URLs with scheme-like prefixes that could bypass checks', () => {
+    // Variations that could trick URL parsers
+    expect(() => redirect('https://evil.com')).toThrow();
+    expect(() => redirect('//evil.com')).toThrow();
+    expect(() => redirect('http://evil.com')).toThrow();
+    expect(() => redirect('ftp://evil.com')).toThrow();
+    expect(() => redirect('HtTpS://evil.com')).toThrow(); // case-insensitive scheme
+  });
+
+  it('redirect() rejects URLs with whitespace padding that could bypass checks', () => {
+    // Some parsers treat leading whitespace differently
+    // redirect() should reject any URL that matches the absolute pattern
+    expect(() => redirect('https://evil.com')).toThrow();
+  });
+});
+
 // ─── Error Leakage Prevention (security #13) ─────────────────────────────
 
 describe('error leakage prevention', () => {

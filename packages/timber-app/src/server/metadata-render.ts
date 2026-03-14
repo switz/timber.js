@@ -28,50 +28,29 @@ export function renderMetadataToElements(metadata: Metadata): HeadElement[] {
     elements.push({ tag: 'title', content: metadata.title });
   }
 
-  // Description
-  if (metadata.description) {
-    elements.push({ tag: 'meta', attrs: { name: 'description', content: metadata.description } });
+  // Simple string meta tags
+  const simpleMetaProps: Array<[string, string | undefined]> = [
+    ['description', metadata.description],
+    ['generator', metadata.generator],
+    ['application-name', metadata.applicationName],
+    ['referrer', metadata.referrer],
+    ['category', metadata.category],
+    ['creator', metadata.creator],
+    ['publisher', metadata.publisher],
+  ];
+
+  for (const [name, content] of simpleMetaProps) {
+    if (content) {
+      elements.push({ tag: 'meta', attrs: { name, content } });
+    }
   }
 
-  // Generator
-  if (metadata.generator) {
-    elements.push({ tag: 'meta', attrs: { name: 'generator', content: metadata.generator } });
-  }
-
-  // Application name
-  if (metadata.applicationName) {
-    elements.push({
-      tag: 'meta',
-      attrs: { name: 'application-name', content: metadata.applicationName },
-    });
-  }
-
-  // Referrer
-  if (metadata.referrer) {
-    elements.push({ tag: 'meta', attrs: { name: 'referrer', content: metadata.referrer } });
-  }
-
-  // Keywords
+  // Keywords (array or string)
   if (metadata.keywords) {
     const content = Array.isArray(metadata.keywords)
       ? metadata.keywords.join(', ')
       : metadata.keywords;
     elements.push({ tag: 'meta', attrs: { name: 'keywords', content } });
-  }
-
-  // Category
-  if (metadata.category) {
-    elements.push({ tag: 'meta', attrs: { name: 'category', content: metadata.category } });
-  }
-
-  // Creator
-  if (metadata.creator) {
-    elements.push({ tag: 'meta', attrs: { name: 'creator', content: metadata.creator } });
-  }
-
-  // Publisher
-  if (metadata.publisher) {
-    elements.push({ tag: 'meta', attrs: { name: 'publisher', content: metadata.publisher } });
   }
 
   // Robots
@@ -433,23 +412,16 @@ function renderVerification(
   verification: NonNullable<Metadata['verification']>,
   elements: HeadElement[]
 ): void {
-  if (verification.google) {
-    elements.push({
-      tag: 'meta',
-      attrs: { name: 'google-site-verification', content: verification.google },
-    });
-  }
-  if (verification.yahoo) {
-    elements.push({
-      tag: 'meta',
-      attrs: { name: 'y_key', content: verification.yahoo },
-    });
-  }
-  if (verification.yandex) {
-    elements.push({
-      tag: 'meta',
-      attrs: { name: 'yandex-verification', content: verification.yandex },
-    });
+  const verificationProps: Array<[string, string | undefined]> = [
+    ['google-site-verification', verification.google],
+    ['y_key', verification.yahoo],
+    ['yandex-verification', verification.yandex],
+  ];
+
+  for (const [name, content] of verificationProps) {
+    if (content) {
+      elements.push({ tag: 'meta', attrs: { name, content } });
+    }
   }
   if (verification.other) {
     for (const [name, value] of Object.entries(verification.other)) {
@@ -503,9 +475,16 @@ function renderAppLinks(
   appLinks: NonNullable<Metadata['appLinks']>,
   elements: HeadElement[]
 ): void {
-  // Helper: emit al:platform:property tags for an array of platform entries
-  function emitPlatform(platform: string, entries: Array<Record<string, unknown>> | undefined) {
-    if (!entries) return;
+  const platformEntries: Array<[string, Array<Record<string, unknown>> | undefined]> = [
+    ['ios', appLinks.ios],
+    ['android', appLinks.android],
+    ['windows', appLinks.windows],
+    ['windows_phone', appLinks.windowsPhone],
+    ['windows_universal', appLinks.windowsUniversal],
+  ];
+
+  for (const [platform, entries] of platformEntries) {
+    if (!entries) continue;
     for (const entry of entries) {
       for (const [key, value] of Object.entries(entry)) {
         if (value !== undefined && value !== null) {
@@ -517,12 +496,6 @@ function renderAppLinks(
       }
     }
   }
-
-  emitPlatform('ios', appLinks.ios);
-  emitPlatform('android', appLinks.android);
-  emitPlatform('windows', appLinks.windows);
-  emitPlatform('windows_phone', appLinks.windowsPhone);
-  emitPlatform('windows_universal', appLinks.windowsUniversal);
 
   if (appLinks.web) {
     if (appLinks.web.url) {

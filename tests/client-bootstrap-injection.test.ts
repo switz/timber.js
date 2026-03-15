@@ -555,10 +555,10 @@ describe('buildClientScripts', () => {
       clientJavascript: { disabled: false, enableHMRInDev: false },
       dev: false,
       buildManifest: {
-        js: { 'virtual:timber-browser-entry': '/assets/entry-abc123.js' },
+        js: { 'src/client/browser-entry.ts': '/assets/entry-abc123.js' },
         css: {},
         modulepreload: {
-          'virtual:timber-browser-entry': ['/assets/chunk-1.js', '/assets/chunk-2.js'],
+          'src/client/browser-entry.ts': ['/assets/chunk-1.js', '/assets/chunk-2.js'],
         },
         fonts: {},
       },

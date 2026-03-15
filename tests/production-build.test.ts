@@ -229,10 +229,10 @@ describe('buildClientScripts() — production', () => {
     const manifest: BuildManifest = {
       css: {},
       js: {
-        'virtual:timber-browser-entry': '/assets/entry-abc123.js',
+        'src/client/browser-entry.ts': '/assets/entry-abc123.js',
       },
       modulepreload: {
-        'virtual:timber-browser-entry': ['/assets/react-vendor.js'],
+        'src/client/browser-entry.ts': ['/assets/react-vendor.js'],
       },
       fonts: {},
     };
@@ -254,10 +254,10 @@ describe('buildClientScripts() — production', () => {
     const manifest: BuildManifest = {
       css: {},
       js: {
-        'virtual:timber-browser-entry': '/assets/entry.js',
+        'src/client/browser-entry.ts': '/assets/entry.js',
       },
       modulepreload: {
-        'virtual:timber-browser-entry': ['/assets/react-vendor.js', '/assets/router.js'],
+        'src/client/browser-entry.ts': ['/assets/react-vendor.js', '/assets/router.js'],
       },
       fonts: {},
     };

@@ -274,8 +274,8 @@ describe('hashed assets', () => {
       dev: false,
       buildManifest: {
         css: {},
-        js: { 'virtual:timber-browser-entry': '/assets/browser-entry-abc123.js' },
-        modulepreload: { 'virtual:timber-browser-entry': ['/assets/react-vendor-def456.js'] },
+        js: { 'src/client/browser-entry.ts': '/assets/browser-entry-abc123.js' },
+        modulepreload: { 'src/client/browser-entry.ts': ['/assets/react-vendor-def456.js'] },
         fonts: {},
       },
     });
@@ -293,9 +293,9 @@ describe('hashed assets', () => {
       dev: false,
       buildManifest: {
         css: {},
-        js: { 'virtual:timber-browser-entry': '/assets/entry-xyz.js' },
+        js: { 'src/client/browser-entry.ts': '/assets/entry-xyz.js' },
         modulepreload: {
-          'virtual:timber-browser-entry': ['/assets/react-vendor-abc.js', '/assets/router-def.js'],
+          'src/client/browser-entry.ts': ['/assets/react-vendor-abc.js', '/assets/router-def.js'],
         },
         fonts: {},
       },

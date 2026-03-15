@@ -9,6 +9,7 @@
     "deploy": "NODE_ENV=production vite build && wrangler deploy"
   },
   "dependencies": {
+    "@shikijs/rehype": "^4.0.2",
     "@timber/app": "workspace:*",
     "react": "^19.2.4",
     "react-dom": "^19.2.4"

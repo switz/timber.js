@@ -331,6 +331,22 @@ export interface ClientBootstrapConfig {
   preloadLinks: string;
 }
 
+/** Find a manifest entry by matching the key suffix (e.g. 'client/browser-entry.ts'). */
+function findManifestEntry(map: Record<string, string>, suffix: string): string | undefined {
+  for (const [key, value] of Object.entries(map)) {
+    if (key.endsWith(suffix)) return value;
+  }
+  return undefined;
+}
+
+/** Find a manifest array entry by matching the key suffix. */
+function findManifestEntryArray(map: Record<string, string[]>, suffix: string): string[] | undefined {
+  for (const [key, value] of Object.entries(map)) {
+    if (key.endsWith(suffix)) return value;
+  }
+  return undefined;
+}
+
 /**
  * Build client bootstrap configuration based on runtime config.
  *
@@ -387,16 +403,21 @@ export function buildClientScripts(runtimeConfig: {
     };
   }
 
-  // Production: resolve browser entry to hashed chunk URL from manifest
+  // Production: resolve browser entry to hashed chunk URL from manifest.
+  // The manifest keys are facadeModuleIds — either root-relative paths or
+  // absolute paths (when the entry lives outside the project root, e.g. in
+  // a monorepo). Match by suffix to handle both cases.
   const manifest = runtimeConfig.buildManifest;
-  const browserEntryUrl = manifest?.js['virtual:timber-browser-entry'];
+  const browserEntryUrl = manifest
+    ? findManifestEntry(manifest.js, 'client/browser-entry.ts')
+    : undefined;
 
   let preloadLinks = '';
   let bootstrapScriptContent: string;
 
   if (browserEntryUrl) {
     // Modulepreload hints for browser entry dependencies
-    const preloads = manifest?.modulepreload['virtual:timber-browser-entry'] ?? [];
+    const preloads = (manifest ? findManifestEntryArray(manifest.modulepreload, 'client/browser-entry.ts') : undefined) ?? [];
     for (const url of preloads) {
       preloadLinks += `<link rel="modulepreload" href="${url}">`;
     }

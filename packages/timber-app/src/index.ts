@@ -233,6 +233,19 @@ export function timber(config?: TimberUserConfig): PluginOption[] {
   // Also loads timber.config.ts and merges it into ctx.config (inline config wins).
   const rootSync: Plugin = {
     name: 'timber-root-sync',
+    async config(userConfig) {
+      // Load timber.config.ts early — before configResolved/buildStart — so
+      // all plugins (including timber-mdx) see the merged config in their
+      // buildStart hooks. The config hook runs once and supports async.
+      const root = userConfig.root ?? process.cwd();
+      ctx.timer.start('config-load');
+      const fileConfig = await loadTimberConfigFile(root);
+      if (fileConfig) {
+        mergeFileConfig(ctx, fileConfig);
+        ctx.clientJavascript = resolveClientJavascript(ctx.config);
+      }
+      ctx.timer.end('config-load');
+    },
     configResolved(resolved) {
       ctx.root = resolved.root;
       ctx.appDir = join(resolved.root, 'app');
@@ -244,19 +257,6 @@ export function timber(config?: TimberUserConfig): PluginOption[] {
         // Start the overall dev server setup timer — ends in timber-dev-server
         ctx.timer.start('dev-server-setup');
       }
-    },
-    async buildStart() {
-      ctx.timer.start('config-load');
-      // Load timber.config.ts and merge into ctx.config.
-      // Inline config (from vite.config.ts) takes precedence over file config.
-      // This runs before other plugins' buildStart (plugin ordering in the array).
-      const fileConfig = await loadTimberConfigFile(ctx.root);
-      if (fileConfig) {
-        mergeFileConfig(ctx, fileConfig);
-        // Re-resolve clientJavascript after merge — file config may set it
-        ctx.clientJavascript = resolveClientJavascript(ctx.config);
-      }
-      ctx.timer.end('config-load');
     },
   };
   // @vitejs/plugin-rsc handles:

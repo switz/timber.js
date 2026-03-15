@@ -1,0 +1,82 @@
+---
+title: "HTML is a tree"
+description: "The DOM is a tree, React components are a tree, and your rendered output is a tree"
+section: "Concepts"
+notAI: true
+---
+
+# HTML is a tree
+
+Every web page is a tree. This isn't a metaphor — it's the literal structure of HTML:
+
+```html
+<html>
+  <body>
+    <header>
+      <nav>...</nav>
+    </header>
+    <main>
+      <article>
+        <h1>Hello</h1>
+        <p>World</p>
+      </article>
+    </main>
+  </body>
+</html>
+```
+
+Your browser parses this into a tree of nodes — the DOM. Every element is a node, every node has a parent, and the document flows from root to leaves.
+
+## React components are also a tree
+
+When you write React components, you're building a tree of function calls:
+
+```
+<RootLayout>
+  <Header>
+    <Nav />
+  </Header>
+  <Main>
+    <Article>
+      <h1>Hello</h1>
+      <p>World</p>
+    </Article>
+  </Main>
+</RootLayout>
+```
+
+React renders this tree top-down, calling each component function in order. The output of each function is more tree — more components or HTML elements — until you reach the leaves.
+
+The rendered result is a real HTML document. Not a blank `<div id="root">` waiting for JavaScript. A complete, readable page.
+
+## Why this matters in timber
+
+timber leans into this tree structure everywhere:
+
+- **Layouts nest.** A root layout wraps an auth layout, which wraps a dashboard layout. Each adds a layer to the tree.
+- **Segments compose.** Each route segment maps to a subtree of components. Navigate to a new page and only the changed subtree re-renders.
+- **Data flows down.** Server components at the top of the tree fetch data and pass it down as props. The tree determines what runs where.
+
+```
+app/
+  layout.tsx          ← root of the tree
+  (auth)/
+    layout.tsx        ← wraps everything below
+    dashboard/
+      layout.tsx      ← wraps the dashboard
+      page.tsx        ← leaf node
+```
+
+This directory structure *is* the component tree. The filesystem is the architecture.
+
+## The document you ship
+
+Because timber renders on the server, the HTML that reaches the browser is a complete document:
+
+```
+Request → Server renders component tree → Complete HTML document → Browser
+```
+
+The browser doesn't need to download JavaScript, execute it, and build the page. The page is already there — a real tree of real HTML nodes. JavaScript enhances it with interactivity, but the document stands on its own.
+
+This is the foundation everything else builds on. Routing is a tree. Rendering walks a tree. The output is a tree. Once you see it, the rest of timber's design follows naturally.

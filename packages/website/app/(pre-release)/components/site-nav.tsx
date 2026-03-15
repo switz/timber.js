@@ -5,7 +5,7 @@ export function SiteNav() {
     <header className="sticky top-0 z-10 bg-white dark:bg-stone-900 border-b border-grain dark:border-stone-700">
       <nav className="mx-auto px-4 h-14 flex items-center justify-between">
         <Link href="/" className="font-bold text-lg text-timber dark:text-stone-100">
-          timber.js
+          🪵 timber.js
         </Link>
         <div className="flex items-center gap-6 text-sm">
           <Link

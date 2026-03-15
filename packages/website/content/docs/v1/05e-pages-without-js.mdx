@@ -1,0 +1,70 @@
+---
+title: "Pages work without JavaScript"
+description: "timber ships real HTML with real status codes — JavaScript enhances, not enables"
+section: "Concepts"
+slug: "pages-without-js"
+notAI: true
+---
+
+# Pages work without JavaScript
+
+timber renders complete HTML on the server. When the browser receives a response, the page is already there — readable, navigable, and functional. JavaScript adds interactivity on top, but the page doesn't depend on it.
+
+## What works without JavaScript
+
+- **Content is visible.** The HTML includes all the text, images, and structure. No blank screen waiting for a bundle to load.
+- **Links work.** `<Link>` renders as a standard `<a>` tag. Clicking it triggers a normal browser navigation — a full page load — which works everywhere.
+- **Forms submit.** Server actions can be invoked via standard HTML form submission. The browser posts the form, the server processes it, and returns a new page.
+- **Status codes are correct.** A 404 is a real HTTP 404. A redirect is a real 302. Crawlers, CDNs, and monitoring tools see the truth.
+
+## What JavaScript adds
+
+When JavaScript loads and hydrates the page, you get enhancements:
+
+- **Client-side navigation.** `<Link>` clicks intercept and fetch just the changed segments, avoiding full page loads.
+- **Interactive components.** `'use client'` components activate — counters count, dropdowns drop, modals open.
+- **Streaming updates.** `<Suspense>` boundaries that were showing fallback content fill in as data arrives.
+- **Optimistic UI.** Forms can show immediate feedback before the server responds.
+
+These are genuine improvements. But they're layered on top of a working page, not required to make the page work at all.
+
+## Why this matters
+
+### Performance
+
+The browser renders HTML as it arrives — no waiting for JavaScript to download, parse, and execute. Users on slow connections or low-powered devices see content immediately.
+
+### Accessibility
+
+Screen readers and assistive technologies work with HTML. A page that depends on JavaScript to render content may be invisible to users who need it most.
+
+### Resilience
+
+JavaScript can fail to load. Corporate firewalls block scripts. Browser extensions interfere. Ad blockers get overzealous. A CDN edge has a stale bundle. In all these cases, the HTML page still works.
+
+### Search engines
+
+Crawlers get a complete HTML document with correct status codes. No need to execute JavaScript to discover content. No risk of indexing a loading spinner.
+
+## How timber achieves this
+
+The combination of server components and the [flush point](/docs/v1/the-flush-point) makes this work:
+
+1. Server components render on the server and produce real HTML
+2. The flush point holds the response until the shell is complete
+3. The browser receives a fully-formed document
+4. Client JavaScript loads and enhances the experience
+
+This isn't a special mode or opt-in feature. It's how timber works by default. Every page you build works without JavaScript unless you specifically write components that require it.
+
+## The progressive enhancement model
+
+Think of your app as layers:
+
+```
+Layer 3: Client interactivity    (useState, onClick, animations)
+Layer 2: Enhanced navigation     (client-side routing, prefetch)
+Layer 1: The HTML document       (content, links, forms, status codes)
+```
+
+Layer 1 always works. Layers 2 and 3 enhance when JavaScript is available. Your job is to ensure the critical path — reading content, following links, submitting forms — works at Layer 1.

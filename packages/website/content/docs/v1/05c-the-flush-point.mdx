@@ -1,0 +1,112 @@
+---
+title: "The flush point"
+description: "When timber commits the HTTP status code and why it matters"
+section: "Concepts"
+notAI: true
+---
+
+# The flush point
+
+The flush point is when timber sends the first byte of HTML to the browser — and with it, commits the HTTP status code. This is timber's most important design decision.
+
+## The problem
+
+Most streaming frameworks send a `200 OK` immediately and figure out the real outcome later:
+
+```
+Request → 200 OK → ... render ... → oh, it's a 404
+```
+
+By the time the server discovers the page doesn't exist, the status code is already sent. The client sees `200`. Search engines see `200`. CDNs cache it as `200`. The actual error is communicated through JavaScript in the response body, invisible to anything that reads HTTP.
+
+This breaks:
+- **Search engines** — a deleted page returns 200, so it never gets deindexed
+- **CDNs** — a 404 gets cached as a successful response
+- **Monitoring** — your APM shows zero errors while users see broken pages
+- **curl and scripts** — `curl -f` won't detect the failure
+
+## timber's solution
+
+timber holds the response until it knows the real outcome:
+
+```
+Request arrives
+  → Route matched
+  → proxy.ts runs
+  → middleware.ts runs
+  → access.ts runs
+  → React shell renders (onShellReady)
+  → ✓ Status code committed ← flush point
+  → Shell HTML sent to browser
+  → Suspense boundaries stream in
+```
+
+The status code commits when **all three** conditions are met:
+
+1. Middleware completed without returning a response
+2. All access checks passed (or denied with a real status code)
+3. React's `onShellReady` fired — the synchronous shell rendered without error
+
+This means a missing page returns a real `404`. A failed auth check returns a real `403`. A redirect returns a real `302`. The HTTP layer tells the truth.
+
+## What it costs
+
+Holding the flush adds roughly 20ms of server buffering compared to streaming immediately. In exchange:
+
+- Every HTTP client in existence can interpret your responses correctly
+- CDN caching works as designed
+- Search engine crawlers see real status codes
+- Pages work without JavaScript — the HTML is already correct
+
+For most apps, the primary content loads from a nearby database in under 50ms. The flush point captures that work and sends a correct, complete shell.
+
+## Before and after the flush
+
+**Before the flush** (blocking):
+- `proxy.ts` — global request processing
+- `middleware.ts` — route-level request processing
+- `access.ts` — authorization gates
+- Synchronous component rendering (the shell)
+
+**After the flush** (streaming):
+- `<Suspense>` boundaries resolve and stream in
+- Slow data loads complete
+- The page progressively fills in
+
+```
+         ┌─────── flush point
+         │
+         ▼
+├────────┤──────────────────────────┤
+ blocking    streaming
+ (shell)     (suspense boundaries)
+```
+
+Everything before the flush determines the status code. Everything after streams progressively. You control the boundary by choosing what goes inside `<Suspense>` and what doesn't.
+
+## Early Hints
+
+timber doesn't make you wait for assets while the shell renders. At route match time — before middleware even runs — timber sends `103 Early Hints` with CSS, JS, and font URLs:
+
+```
+103 Early Hints
+Link: </styles/main.css>; rel=preload; as=style
+Link: </chunks/page-abc.js>; rel=modulepreload
+
+... middleware runs, shell renders ...
+
+200 OK
+<html>...
+```
+
+The browser starts downloading assets immediately while the server is still working. You get the correctness of a held flush with the performance of early resource loading.
+
+## How to think about it
+
+The flush point is a contract: timber will not send a status code until it knows the truth. In return, you get an HTTP response that means what it says.
+
+Primary content — the data that defines whether a page exists, who can see it, and what it contains — should load before the flush. Put it in your components directly.
+
+Secondary content — recommendations, activity feeds, analytics widgets — can load after the flush. Wrap it in `<Suspense>`.
+
+The flush point is the dividing line between "what the page *is*" and "what the page *also shows*."

@@ -1,0 +1,155 @@
+---
+title: "Server components"
+description: "The three directives, data flow, and what crosses the network"
+section: "Concepts"
+slug: "server-components-concept"
+notAI: true
+---
+
+# Server components
+
+React Server Components split your code into three worlds: server, client, and the boundary between them. Understanding which world you're in — and what can cross between them — is the key mental model.
+
+## Three directives
+
+Every file in your app operates under one of three directives:
+
+### No directive — server component (default)
+
+```tsx
+// app/dashboard/page.tsx
+// No directive needed — this is a server component
+
+import { db } from '@/lib/db';
+
+export default async function Dashboard() {
+  const stats = await db.stats.get();
+  return <div>{stats.revenue}</div>;
+}
+```
+
+Server components run on the server only. Their code never reaches the client. You can:
+- Use `await` directly in the component
+- Access databases, filesystems, secrets
+- Import large libraries without affecting bundle size
+
+### `'use client'` — client boundary
+
+```tsx
+'use client';
+
+// app/components/counter.tsx
+import { useState } from 'react';
+
+export default function Counter() {
+  const [count, setCount] = useState(0);
+  return <button onClick={() => setCount(count + 1)}>{count}</button>;
+}
+```
+
+Client components run in the browser (and on the server for the initial HTML render). You need `'use client'` when you use:
+- `useState`, `useEffect`, `useRef`, or other hooks
+- Event handlers like `onClick`
+- Browser APIs like `window` or `localStorage`
+
+### `'use server'` — server action
+
+```tsx
+'use server';
+
+// app/actions/create-post.ts
+import { db } from '@/lib/db';
+
+export async function createPost(formData: FormData) {
+  const title = formData.get('title') as string;
+  await db.posts.create({ title });
+}
+```
+
+Server actions are functions that run on the server but can be called from the client. They're used for mutations — form submissions, data updates, anything that changes state.
+
+## How data flows
+
+Data flows in one direction through three phases:
+
+```
+Server renders → Client hydrates → Actions call back to server
+
+    Server                    Client                    Server
+  ┌─────────┐             ┌─────────┐             ┌─────────┐
+  │ Fetch    │  props/     │ Hydrate │  action     │ Mutate  │
+  │ data,    │──HTML──────→│ add     │──call──────→│ data,   │
+  │ render   │             │ interac │             │ rerender│
+  └─────────┘             └─────────┘             └─────────┘
+```
+
+1. **Server renders**: Server components fetch data, build the HTML tree, and send it to the browser
+2. **Client hydrates**: The browser receives HTML, loads JavaScript, and attaches event handlers to make client components interactive
+3. **Actions call back**: When a user submits a form or triggers a mutation, a server action runs on the server and the page can re-render
+
+## What crosses the boundary
+
+When a server component renders a client component, it passes props. Those props must serialize to JSON:
+
+```tsx
+// ✅ These cross the boundary
+<ClientComponent
+  name="Alice"              // string
+  count={42}                // number
+  items={['a', 'b']}       // array
+  config={{ theme: 'dark' }} // plain object
+/>
+
+// ❌ These do not
+<ClientComponent
+  date={new Date()}         // class instance
+  onClick={() => {}}        // function
+  db={databaseConnection}   // non-serializable
+/>
+```
+
+The boundary is a serialization wall. If it can't be JSON, it can't cross. (See [The network boundary](/docs/v1/the-network-boundary) for the full rules.)
+
+## Server components are the default
+
+In timber, every component is a server component unless you opt out with `'use client'`. This is intentional:
+
+- Most components just render data — they don't need interactivity
+- Server components have zero client-side JavaScript cost
+- Database access, secret keys, and heavy computation stay on the server
+
+You only add `'use client'` at the boundaries where interactivity begins. A typical page might be:
+
+```
+<ServerLayout>           ← server (no JS)
+  <ServerContent>        ← server (fetches data)
+    <ClientSearch />     ← client (needs useState)
+    <ServerResults>      ← server (renders data)
+      <ClientButton />   ← client (needs onClick)
+    </ServerResults>
+  </ServerContent>
+</ServerLayout>
+```
+
+The `'use client'` directive doesn't make everything below it a client component. It marks the *entry point* into client-side code. Server components can still appear as children — they render on the server and their output is passed through.
+
+## Async is natural
+
+Server components can be `async` functions. This is their superpower:
+
+```tsx
+export default async function ProductPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const product = await db.products.find(id);
+
+  if (!product) notFound();
+
+  return <h1>{product.name}</h1>;
+}
+```
+
+No `useEffect`. No loading state management. No data fetching library. The component awaits what it needs and renders the result. The server handles the async work before sending HTML to the client.

@@ -1,0 +1,163 @@
+---
+title: "Middleware and request context"
+description: "How middleware wraps the route tree and how context flows inward"
+section: "Concepts"
+slug: "middleware-and-context"
+notAI: true
+---
+
+# Middleware and request context
+
+timber has two layers of middleware that run before your page renders. They form a pipeline from the outermost request handling down to the innermost route.
+
+## Two layers
+
+### `proxy.ts` — global, runs on every request
+
+```
+Request → proxy.ts → route matching → ... → Response
+```
+
+`proxy.ts` lives at the root of your app and runs on every request before route matching. It handles infrastructure concerns:
+
+- CORS headers
+- Rate limiting
+- Security headers
+- Request logging
+- Authentication token validation
+
+```tsx
+// app/proxy.ts
+export default [
+  cors({ origins: ['https://example.com'] }),
+  rateLimit({ rpm: 100 }),
+  securityHeaders(),
+];
+```
+
+### `middleware.ts` — per-route, runs after matching
+
+```
+Request → proxy.ts → route match → middleware.ts → access.ts → render
+```
+
+`middleware.ts` lives next to a `page.tsx` and runs only when that route matches. It handles route-specific logic:
+
+- Redirects based on user state
+- Cache warming (prefetching data before render)
+- Request header injection
+
+```tsx
+// app/dashboard/middleware.ts
+export async function middleware(ctx: MiddlewareContext) {
+  const session = getSession(ctx.req);
+  if (!session) return Response.redirect('/login');
+
+  // Prefetch data while we're here
+  await prefetchDashboardData(session.userId);
+}
+```
+
+## One argument, not three
+
+timber middleware takes a single `MiddlewareContext` argument:
+
+```tsx
+async function middleware(ctx: MiddlewareContext): Promise<Response | void> {
+  ctx.req;              // the incoming Request
+  ctx.params;           // route parameters
+  ctx.headers;          // response headers (writable)
+  ctx.requestHeaders;   // request headers (injectable)
+}
+```
+
+This differs from the Express/Connect pattern of `(req, res, next)`. There's no `next()` — if middleware returns nothing, rendering proceeds. If it returns a `Response`, that response is sent directly.
+
+## Context flows inward
+
+Request context flows from the outermost layer inward toward the page:
+
+```
+proxy.ts
+  │  can set: response headers, short-circuit with Response
+  ▼
+middleware.ts
+  │  can set: response headers, request headers, short-circuit
+  ▼
+access.ts
+  │  can: redirect, deny, allow
+  ▼
+page.tsx
+    can read: cookies(), headers() (including injected ones)
+```
+
+Each layer can influence what the next layer sees. Middleware can inject request headers that components read later:
+
+```tsx
+// middleware.ts
+export async function middleware(ctx: MiddlewareContext) {
+  const locale = detectLocale(ctx.req);
+  ctx.requestHeaders.set('x-locale', locale);
+}
+
+// page.tsx — reads the injected header
+import { headers } from '@timber/app/server';
+
+export default async function Page() {
+  const locale = (await headers()).get('x-locale');
+  return <Content locale={locale} />;
+}
+```
+
+## The middleware-to-render boundary
+
+Middleware runs *before* React rendering starts. This is a clean separation:
+
+| | Middleware | Components |
+|---|---|---|
+| When | Before render | During render |
+| Has access to | Request, params | React.cache, cookies, headers |
+| Can do | Redirect, reject, set headers | Render UI, fetch data |
+| Shares cache with | Other middleware (via timber.cache) | Other components (via React.cache) |
+
+Middleware is for request-level decisions: should this request proceed? What context does it need? Components are for rendering: what should the user see?
+
+## Cache warming
+
+One powerful pattern is using middleware to fire off data fetches before rendering starts:
+
+```tsx
+// middleware.ts
+export async function middleware(ctx: MiddlewareContext) {
+  // Fire fetches at t=0 — they populate timber.cache
+  await Promise.all([
+    getUser(ctx.params.userId),
+    getUserPosts(ctx.params.userId),
+  ]);
+}
+```
+
+```tsx
+// page.tsx — hits warm cache, essentially free
+export default async function UserPage({ params }) {
+  const { userId } = await params;
+  const user = await getUser(userId);        // cache hit
+  const posts = await getUserPosts(userId);  // cache hit
+  return <Profile user={user} posts={posts} />;
+}
+```
+
+Without cache warming, these fetches would waterfall — the layout fetches user data, then the page fetches posts. With middleware, both fire in parallel before rendering even begins.
+
+## Only the leaf middleware runs
+
+Unlike some frameworks where middleware chains from root to leaf, timber runs only the middleware for the matched route. There's no middleware inheritance or cascading:
+
+```
+app/
+  middleware.ts           ← runs for / only
+  blog/
+    middleware.ts         ← runs for /blog/* only (NOT the root one)
+```
+
+If you need shared logic, put it in `proxy.ts` (runs on everything) or extract it into a shared function that each middleware calls.

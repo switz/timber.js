@@ -4,7 +4,14 @@ import { allDocs } from 'content-collections';
 import { LATEST_VERSION, groupBy } from '@/lib/docs';
 import { SidebarLink } from '@/app/(pre-release)/components/sidebar-link';
 
-const SECTION_ORDER = ['Getting Started', 'Core Docs', 'Guides', 'API Reference', 'Comparisons'];
+const SECTION_ORDER = [
+  'Getting Started',
+  'Concepts',
+  'Core Docs',
+  'Guides',
+  'API Reference',
+  'Comparisons',
+];
 
 const SECTION_LABELS: Record<string, string> = {
   'Core Docs': 'Core',
@@ -42,7 +49,7 @@ export default async function VersionedDocsLayout({
       <aside className="w-60 shrink-0 border-r border-grain dark:border-stone-700 bg-grain-light dark:bg-stone-900 overflow-y-auto">
         <nav className="p-5 flex flex-col gap-6">
           <Link
-            href="/"
+            href="/docs"
             className="text-sm font-bold text-timber dark:text-stone-100 tracking-tight"
           >
             timber.js

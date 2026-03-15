@@ -7,12 +7,21 @@
  * This is a thin wrapper over window.location.pathname, provided for
  * Next.js API compatibility (libraries like nuqs import usePathname
  * from next/navigation).
+ *
+ * During SSR, reads the request pathname from the SSR ALS context
+ * (populated by ssr-entry.ts) instead of window.location.
  */
 
 import { useSyncExternalStore } from 'react';
+import { getSsrData } from './ssr-data.js';
 
 function getPathname(): string {
-  return typeof window !== 'undefined' ? window.location.pathname : '/';
+  if (typeof window !== 'undefined') return window.location.pathname;
+  return getSsrData()?.pathname ?? '/';
+}
+
+function getServerPathname(): string {
+  return getSsrData()?.pathname ?? '/';
 }
 
 function subscribe(callback: () => void): () => void {
@@ -30,5 +39,5 @@ function subscribe(callback: () => void): () => void {
  * Compatible with Next.js's `usePathname()` from `next/navigation`.
  */
 export function usePathname(): string {
-  return useSyncExternalStore(subscribe, getPathname, () => '/');
+  return useSyncExternalStore(subscribe, getPathname, getServerPathname);
 }

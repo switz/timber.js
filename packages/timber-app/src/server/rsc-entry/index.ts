@@ -61,6 +61,7 @@ import {
   buildRedirectResponse,
   escapeHtml,
   isAbortError,
+  parseCookiesFromHeader,
   RSC_CONTENT_TYPE,
 } from './helpers.js';
 import { handleApiRoute } from './api-handler.js';
@@ -620,6 +621,7 @@ async function renderRoute(
     rscStream: clientJsDisabled ? undefined : inlineStream,
     deferSuspenseFor: deferSuspenseFor > 0 ? deferSuspenseFor : undefined,
     signal: _req.signal,
+    cookies: parseCookiesFromHeader(_req.headers.get('cookie') ?? ''),
   };
 
   try {

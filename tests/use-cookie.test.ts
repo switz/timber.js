@@ -1,42 +1,45 @@
 /**
- * Tests for the useCookie client hook.
+ * Tests for the useCookie client hook and SSR data integration.
  *
  * Since useCookie depends on React (useSyncExternalStore) and document.cookie,
  * we test the module-level helpers directly and verify the hook's contract
  * through the exported API surface.
  */
 
-import { describe, it, expect } from 'vitest';
-import { setServerCookieSnapshot } from '../packages/timber-app/src/client/use-cookie';
+import { describe, it, expect, afterEach } from 'vitest';
+import { setSsrData, clearSsrData, getSsrData } from '../packages/timber-app/src/client/ssr-data';
 
-// ─── setServerCookieSnapshot ────────────────────────────────────
+// ─── SSR Data for cookies ────────────────────────────────────────
 
-describe('setServerCookieSnapshot', () => {
-  it('accepts a Map of cookie values', () => {
+describe('SSR data for cookies', () => {
+  afterEach(() => {
+    clearSsrData();
+  });
+
+  it('provides cookie data via setSsrData', () => {
     const cookies = new Map([
       ['theme', 'dark'],
       ['locale', 'en'],
     ]);
 
-    // Should not throw
-    expect(() => setServerCookieSnapshot(cookies)).not.toThrow();
+    setSsrData({ pathname: '/', searchParams: {}, cookies });
+    const data = getSsrData();
+    expect(data).toBeDefined();
+    expect(data!.cookies.get('theme')).toBe('dark');
+    expect(data!.cookies.get('locale')).toBe('en');
+  });
+
+  it('returns undefined outside SSR scope', () => {
+    expect(getSsrData()).toBeUndefined();
   });
 });
 
 // ─── useCookie hook ─────────────────────────────────────────────
 
 describe('useCookie', () => {
-  // We test the hook contract via the exported types and API surface.
-  // Full integration tests with React rendering belong in e2e tests.
-
   it('exports useCookie function', async () => {
     const mod = await import('../packages/timber-app/src/client/use-cookie');
     expect(typeof mod.useCookie).toBe('function');
-  });
-
-  it('exports setServerCookieSnapshot function', async () => {
-    const mod = await import('../packages/timber-app/src/client/use-cookie');
-    expect(typeof mod.setServerCookieSnapshot).toBe('function');
   });
 });
 
@@ -55,6 +58,12 @@ describe('@timber/app/client cookie exports', () => {
   it('exports useCookie from client index', async () => {
     const mod = await import('../packages/timber-app/src/client/index');
     expect(typeof mod.useCookie).toBe('function');
-    expect(typeof mod.setServerCookieSnapshot).toBe('function');
+  });
+
+  it('exports SSR data functions from client index', async () => {
+    const mod = await import('../packages/timber-app/src/client/index');
+    expect(typeof mod.setSsrData).toBe('function');
+    expect(typeof mod.clearSsrData).toBe('function');
+    expect(typeof mod.getSsrData).toBe('function');
   });
 });

@@ -21,6 +21,7 @@ import { injectHead, injectRscPayload } from './html-injectors.js';
 import { withNuqsSsrAdapter } from './nuqs-ssr-provider.js';
 import { withSpan } from './tracing.js';
 import { setCurrentParams } from '#/client/use-params.js';
+import { setSsrData, clearSsrData } from '#/client/ssr-data.js';
 
 /**
  * Navigation context passed from the RSC environment to SSR.
@@ -54,6 +55,9 @@ export interface NavContext {
    *  navigation away), this signal fires. Passed to renderToReadableStream
    *  so React stops rendering and doesn't fire error boundaries for aborts. */
   signal?: AbortSignal;
+  /** Request cookies as name→value pairs. Used by useCookie() during SSR
+   *  to return correct cookie values before hydration. */
+  cookies?: Map<string, string>;
 }
 
 /**
@@ -84,46 +88,64 @@ export async function handleSsr(
   return withSpan('timber.ssr', { 'timber.environment': 'ssr' }, async () => {
     const _runtimeConfig = config;
 
+    // Populate per-request SSR data for client hooks (usePathname,
+    // useSearchParams, useCookie, etc.). These hooks read from
+    // getSsrData() during server-side rendering to return correct
+    // request data instead of client-only defaults.
+    //
+    // Module-level state is safe here because renderToReadableStream
+    // renders the shell synchronously — each request sets values,
+    // renders the shell, then the next request sets its own values.
+    setSsrData({
+      pathname: navContext.pathname,
+      searchParams: navContext.searchParams,
+      cookies: navContext.cookies ?? new Map(),
+    });
+
     // Populate useParams() for client components rendered during SSR.
     // The SSR environment has its own module instance of use-params.ts,
     // so the module-level currentParams must be set before React's
-    // synchronous shell render reads it. React's renderToReadableStream
-    // renders the shell synchronously before returning, so this is safe
-    // against concurrent requests — each request sets params, renders
-    // the shell, and the next request sets its own params before its render.
+    // synchronous shell render reads it.
     setCurrentParams(navContext.params);
 
-    // Decode the RSC stream into a React element tree.
-    // createFromReadableStream resolves client component references
-    // (from "use client" modules) using the SSR environment's module
-    // map, importing the actual components for server-side rendering.
-    const element = createFromReadableStream(rscStream) as React.ReactNode;
+    try {
+      // Decode the RSC stream into a React element tree.
+      // createFromReadableStream resolves client component references
+      // (from "use client" modules) using the SSR environment's module
+      // map, importing the actual components for server-side rendering.
+      const element = createFromReadableStream(rscStream) as React.ReactNode;
 
-    // Wrap with a server-safe nuqs adapter so that 'use client' components
-    // that call nuqs hooks (useQueryStates, useQueryState) can SSR correctly.
-    // The client-side TimberNuqsAdapter (injected by browser-entry.ts) takes
-    // over after hydration. This provider supplies the request's search params
-    // as a static snapshot so nuqs renders the right initial values on the server.
-    const wrappedElement = withNuqsSsrAdapter(navContext.searchParams, element);
+      // Wrap with a server-safe nuqs adapter so that 'use client' components
+      // that call nuqs hooks (useQueryStates, useQueryState) can SSR correctly.
+      // The client-side TimberNuqsAdapter (injected by browser-entry.ts) takes
+      // over after hydration. This provider supplies the request's search params
+      // as a static snapshot so nuqs renders the right initial values on the server.
+      const wrappedElement = withNuqsSsrAdapter(navContext.searchParams, element);
 
-    // Render to HTML stream (waits for onShellReady).
-    // Pass bootstrapScriptContent so React injects a non-deferred <script>
-    // in the shell HTML. This executes immediately during parsing — even
-    // while Suspense boundaries are still streaming — triggering module
-    // loading via dynamic import() so hydration can start early.
-    const htmlStream = await renderSsrStream(wrappedElement, {
-      bootstrapScriptContent: navContext.bootstrapScriptContent || undefined,
-      deferSuspenseFor: navContext.deferSuspenseFor,
-      signal: navContext.signal,
-    });
+      // Render to HTML stream (waits for onShellReady).
+      // Pass bootstrapScriptContent so React injects a non-deferred <script>
+      // in the shell HTML. This executes immediately during parsing — even
+      // while Suspense boundaries are still streaming — triggering module
+      // loading via dynamic import() so hydration can start early.
+      const htmlStream = await renderSsrStream(wrappedElement, {
+        bootstrapScriptContent: navContext.bootstrapScriptContent || undefined,
+        deferSuspenseFor: navContext.deferSuspenseFor,
+        signal: navContext.signal,
+      });
 
-    // Inject metadata into <head>, then interleave RSC payload chunks
-    // into the body as they arrive from the tee'd RSC stream.
-    let outputStream = injectHead(htmlStream, navContext.headHtml);
-    outputStream = injectRscPayload(outputStream, navContext.rscStream);
+      // Inject metadata into <head>, then interleave RSC payload chunks
+      // into the body as they arrive from the tee'd RSC stream.
+      let outputStream = injectHead(htmlStream, navContext.headHtml);
+      outputStream = injectRscPayload(outputStream, navContext.rscStream);
 
-    // Build and return the Response.
-    return buildSsrResponse(outputStream, navContext.statusCode, navContext.responseHeaders);
+      // Build and return the Response.
+      return buildSsrResponse(outputStream, navContext.statusCode, navContext.responseHeaders);
+    } finally {
+      // Clear SSR data to prevent stale values from leaking to
+      // subsequent requests (defensive — the next request will
+      // overwrite anyway, but explicit cleanup is safer).
+      clearSsrData();
+    }
   });
 }
 

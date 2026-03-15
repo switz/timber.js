@@ -9,6 +9,7 @@
  */
 
 import { useSyncExternalStore } from 'react';
+import { getSsrData } from './ssr-data.js';
 
 // ─── Types ────────────────────────────────────────────────────────────────
 
@@ -67,22 +68,6 @@ function notify(name: string): void {
   }
 }
 
-// ─── Server Snapshot Registry ─────────────────────────────────────────────
-
-/**
- * Server-side cookie values, populated during SSR via setServerCookieSnapshot.
- * Used as the server snapshot for useSyncExternalStore.
- */
-let serverCookies: Map<string, string> | undefined;
-
-/**
- * Set the server cookie snapshot. Called by the framework during SSR
- * to provide cookie values from the ALS-backed cookies() accessor.
- */
-export function setServerCookieSnapshot(cookies: Map<string, string>): void {
-  serverCookies = cookies;
-}
-
 // ─── Hook ─────────────────────────────────────────────────────────────────
 
 /**
@@ -114,7 +99,7 @@ export function useCookie(
   };
 
   const getSnapshot = (): string | undefined => getCookieValue(name);
-  const getServerSnapshot = (): string | undefined => serverCookies?.get(name);
+  const getServerSnapshot = (): string | undefined => getSsrData()?.cookies.get(name);
 
   const value = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 

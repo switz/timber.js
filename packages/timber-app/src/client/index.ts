@@ -47,6 +47,10 @@ export { useParams, setCurrentParams } from './use-params';
 // Query states (URL-synced search params)
 export { useQueryStates, bindUseQueryStates } from './use-query-states';
 
+// Cookies
+export { useCookie, setServerCookieSnapshot } from './use-cookie';
+export type { ClientCookieOptions, CookieSetter } from './use-cookie';
+
 // Error boundary (framework-internal, used by tree-builder and rsc-entry)
 export { TimberErrorBoundary } from './error-boundary';
 export type { TimberErrorBoundaryProps } from './error-boundary';

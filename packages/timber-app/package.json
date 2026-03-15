@@ -14,6 +14,7 @@
     "./client": "./src/client/index.ts",
     "./cache": "./src/cache/index.ts",
     "./content": "./src/content/index.ts",
+    "./cookies": "./src/cookies/index.ts",
     "./search-params": "./src/search-params/index.ts",
     "./routing": "./src/routing/index.ts",
     "./adapters/cloudflare": "./src/adapters/cloudflare.ts",
@@ -44,6 +45,10 @@
       "./content": {
         "types": "./dist/content/index.d.ts",
         "import": "./dist/content/index.js"
+      },
+      "./cookies": {
+        "types": "./dist/cookies/index.d.ts",
+        "import": "./dist/cookies/index.js"
       },
       "./search-params": {
         "types": "./dist/search-params/index.d.ts",

@@ -10,10 +10,4 @@
   },
   "rules": [{ "type": "ESModule", "globs": ["**/*.js"] }],
   "routes": [{ "pattern": "timberjs.com", "custom_domain": true }],
-  "observability": {
-    "logs": {
-      "enabled": true,
-      "invocation_logs": true
-    }
-  }
 }

@@ -2,6 +2,8 @@ import { defineConfig } from 'vite';
 import { resolve } from 'node:path';
 import { timber } from '../../packages/timber-app/src/index';
 import tailwindcss from '@tailwindcss/vite';
+import remarkGfm from 'remark-gfm';
+import rehypePrettyCode from 'rehype-pretty-code';
 
 // Workspace root — two levels up from packages/website/
 const root = resolve(import.meta.dirname, '../..');
@@ -11,6 +13,10 @@ export default defineConfig({
     timber({
       clientJavascript: { disabled: true, enableHMRInDev: true },
       pageExtensions: ['tsx', 'ts', 'mdx'],
+      mdx: {
+        remarkPlugins: [remarkGfm],
+        rehypePlugins: [[rehypePrettyCode, { theme: 'github-dark', keepBackground: false }]],
+      },
     }),
     tailwindcss(),
   ],

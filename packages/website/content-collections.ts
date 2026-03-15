@@ -1,7 +1,4 @@
 import { defineCollection, defineConfig } from '@content-collections/core';
-import { compileMDX } from '@content-collections/mdx';
-import rehypePrettyCode from 'rehype-pretty-code';
-import remarkGfm from 'remark-gfm';
 import { z } from 'zod/v4';
 
 /** Slugify a string: lowercase, replace non-alphanumeric with hyphens, collapse. */
@@ -29,22 +26,12 @@ const docs = defineCollection({
     section: z.string(),
     slug: z.string().optional(),
   }),
-  transform: async (document, context) => {
-    const mdx = await compileMDX(context, document, {
-      remarkPlugins: [remarkGfm],
-      rehypePlugins: [
-        [
-          rehypePrettyCode,
-          {
-            theme: 'github-dark',
-            keepBackground: false,
-          },
-        ],
-      ],
-    });
+  transform: async (document) => {
     const order = parseOrder(document._meta.fileName);
     const slug = document.slug ?? slugify(document.title);
-    return { ...document, mdx, version: document._meta.directory, order, slug };
+    // Exclude raw markdown `content` — MDX is loaded via dynamic import() instead.
+    const { content: _, ...metadata } = document;
+    return { ...metadata, version: document._meta.directory, order, slug };
   },
 });
 

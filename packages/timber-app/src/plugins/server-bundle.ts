@@ -61,6 +61,10 @@ export function timberServerBundle(): Plugin {
       };
 
       return {
+        // Target webworker so Rolldown doesn't emit createRequire(import.meta.url)
+        // shims that fail in Cloudflare Workers where import.meta.url is undefined
+        // for non-entry modules. See design/11-platform.md.
+        ssr: { target: 'webworker' },
         environments: {
           rsc: {
             resolve: { noExternal: true },

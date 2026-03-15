@@ -15,9 +15,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
 export const metadata = {
   title: {
     template: '%s | timber.js',
-    default: 'timber.js — Vite-native React framework',
+    default: 'timber.js',
   },
-  description:
-    'A web framework built on Vite and React Server Components. Correct HTTP semantics, real status codes, pages that work without JavaScript.',
+  // description:
+  //   'A web framework built on Vite and React Server Components. Correct HTTP semantics, real status codes, pages that work without JavaScript.',
   robots: 'noindex, nofollow',
 };

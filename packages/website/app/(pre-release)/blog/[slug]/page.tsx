@@ -26,7 +26,7 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
   const post = allBlogs.find((p) => p.slug === slug);
   if (!post) deny(404);
 
-  const key = `../../../content/blog/${post._meta.fileName}`;
+  const key = `../../../../content/blog/${post._meta.fileName}`;
   const loader = mdxModules[key];
   if (!loader) deny(404);
 

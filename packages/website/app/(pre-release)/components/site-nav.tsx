@@ -2,8 +2,8 @@ import { Link } from '@timber/app/client';
 
 export function SiteNav() {
   return (
-    <header className="border-b border-grain dark:border-stone-700">
-      <nav className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
+    <header className="sticky top-0 z-10 bg-white dark:bg-stone-900 border-b border-grain dark:border-stone-700">
+      <nav className="mx-auto px-4 h-14 flex items-center justify-between">
         <Link href="/" className="font-bold text-lg text-timber dark:text-stone-100">
           timber.js
         </Link>

@@ -37,8 +37,8 @@ export default async function VersionedDocsLayout({
   const navSections = buildNav(resolvedVersion, version);
 
   return (
-    <div className="flex min-h-screen bg-grain-light/30 dark:bg-stone-800">
-      <aside className="w-60 shrink-0 border-r border-grain dark:border-stone-700 bg-grain-light dark:bg-stone-900 overflow-y-auto sticky top-0 h-screen">
+    <div className="flex h-[calc(100vh-3.5rem)] bg-grain-light/30 dark:bg-stone-800">
+      <aside className="w-60 shrink-0 border-r border-grain dark:border-stone-700 bg-grain-light dark:bg-stone-900 overflow-y-auto">
         <nav className="p-5 flex flex-col gap-6">
           <Link
             href="/"
@@ -67,7 +67,9 @@ export default async function VersionedDocsLayout({
           ))}
         </nav>
       </aside>
-      <main className="flex-1 min-w-0 max-w-3xl px-8 py-10 mx-auto docs-content">{children}</main>
+      <main className="flex-1 min-w-0 overflow-y-auto">
+        <div className="max-w-3xl px-8 py-10 mx-auto docs-content">{children}</div>
+      </main>
     </div>
   );
 }

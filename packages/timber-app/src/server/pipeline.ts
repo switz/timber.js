@@ -40,6 +40,7 @@ import {
   logRenderError,
 } from './logger.js';
 import { callOnRequestError } from './instrumentation.js';
+import { RedirectSignal, DenySignal } from './primitives.js';
 import type { MiddlewareContext } from './types.js';
 import type { SegmentNode } from '#/routing/types.js';
 
@@ -300,6 +301,16 @@ export function createPipeline(config: PipelineConfig): (req: Request) => Promis
         applyRequestHeaderOverlay(requestHeaderOverlay);
       } catch (error) {
         setMutableCookieContext(false);
+        // RedirectSignal from middleware → HTTP redirect (not an error)
+        if (error instanceof RedirectSignal) {
+          responseHeaders.set('Location', error.location);
+          applyCookieJar(responseHeaders);
+          return new Response(null, { status: error.status, headers: responseHeaders });
+        }
+        // DenySignal from middleware → HTTP deny status
+        if (error instanceof DenySignal) {
+          return new Response(null, { status: error.status });
+        }
         // Middleware throw → HTTP 500 (middleware runs before rendering,
         // no error boundary to catch it)
         logMiddlewareError({ method, path, error });

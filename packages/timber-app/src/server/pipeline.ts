@@ -301,10 +301,19 @@ export function createPipeline(config: PipelineConfig): (req: Request) => Promis
         applyRequestHeaderOverlay(requestHeaderOverlay);
       } catch (error) {
         setMutableCookieContext(false);
-        // RedirectSignal from middleware → HTTP redirect (not an error)
+        // RedirectSignal from middleware → HTTP redirect (not an error).
+        // For RSC payload requests (client navigation), return 204 + X-Timber-Redirect
+        // so the client router can perform a soft SPA redirect. A raw 302 would be
+        // turned into an opaque redirect by fetch({redirect:'manual'}), crashing
+        // createFromFetch. See design/19-client-navigation.md.
         if (error instanceof RedirectSignal) {
-          responseHeaders.set('Location', error.location);
           applyCookieJar(responseHeaders);
+          const isRsc = (req.headers.get('Accept') ?? '').includes('text/x-component');
+          if (isRsc) {
+            responseHeaders.set('X-Timber-Redirect', error.location);
+            return new Response(null, { status: 204, headers: responseHeaders });
+          }
+          responseHeaders.set('Location', error.location);
           return new Response(null, { status: error.status, headers: responseHeaders });
         }
         // DenySignal from middleware → HTTP deny status

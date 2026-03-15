@@ -12,6 +12,7 @@
   "include": [
     "app/**/*.ts",
     "app/**/*.tsx",
+    "lib/**/*.ts",
     "content-collections.ts",
     "mdx-components.tsx",
     ".content-collections/generated/**/*.ts",

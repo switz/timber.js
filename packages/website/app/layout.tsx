@@ -5,7 +5,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <head />
-      <body className="bg-white text-stone-800 antialiased dark:bg-stone-800 dark:text-stone-200">
+      <body className="bg-white text-stone-800 antialiased dark:bg-stone-900 dark:text-stone-200">
         {children}
       </body>
     </html>
@@ -13,7 +13,11 @@ export default function RootLayout({ children }: { children: ReactNode }) {
 }
 
 export const metadata = {
-  title: 'timber.js',
-  description: 'A Vite-native React framework for Cloudflare Workers',
+  title: {
+    template: '%s | timber.js',
+    default: 'timber.js — Vite-native React framework',
+  },
+  description:
+    'A web framework built on Vite and React Server Components. Correct HTTP semantics, real status codes, pages that work without JavaScript.',
   robots: 'noindex, nofollow',
 };

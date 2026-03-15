@@ -45,6 +45,22 @@ export function assignChunk(id: string): string | undefined {
 }
 
 /**
+ * Group timber's internal 'use client' modules into the vendor-timber chunk.
+ *
+ * The RSC plugin creates separate entry points for each 'use client' module,
+ * which manualChunks can't merge. This function is passed as the RSC plugin's
+ * `clientChunks` callback to group timber internals into a single chunk.
+ * User and third-party client components are left to default per-route splitting.
+ */
+export function assignClientChunk(meta: {
+  id: string;
+  normalizedId: string;
+  serverChunk: string;
+}): string | undefined {
+  if (meta.id.includes('/timber-app/')) return 'vendor-timber';
+}
+
+/**
  * Create the timber-chunks Vite plugin.
  *
  * Uses Vite's per-environment config to apply manualChunks only to

@@ -13,7 +13,11 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { assignChunk, timberChunks } from '../packages/timber-app/src/plugins/chunks';
+import {
+  assignChunk,
+  assignClientChunk,
+  timberChunks,
+} from '../packages/timber-app/src/plugins/chunks';
 
 // ─── assignChunk ─────────────────────────────────────────────────────────
 
@@ -73,6 +77,77 @@ describe('assignChunk', () => {
 
   it('returns undefined for user client components', () => {
     expect(assignChunk('/project/src/components/Counter.tsx')).toBeUndefined();
+  });
+});
+
+// ─── assignClientChunk ───────────────────────────────────────────────────
+// The RSC plugin creates separate entry points for each 'use client' module.
+// manualChunks can't merge entry points, so assignClientChunk groups timber's
+// internal client components via the RSC plugin's clientChunks callback.
+
+describe('assignClientChunk', () => {
+  // Timber internal 'use client' modules → grouped into vendor-timber
+
+  it('groups segment-context into vendor-timber', () => {
+    expect(
+      assignClientChunk({
+        id: '/project/packages/timber-app/src/client/segment-context.ts',
+        normalizedId: 'packages/timber-app/src/client/segment-context.ts',
+        serverChunk: 'facade:app/layout.tsx',
+      })
+    ).toBe('vendor-timber');
+  });
+
+  it('groups error-boundary into vendor-timber', () => {
+    expect(
+      assignClientChunk({
+        id: '/project/packages/timber-app/src/client/error-boundary.tsx',
+        normalizedId: 'packages/timber-app/src/client/error-boundary.tsx',
+        serverChunk: 'facade:app/layout.tsx',
+      })
+    ).toBe('vendor-timber');
+  });
+
+  it('groups link-navigate-interceptor into vendor-timber', () => {
+    expect(
+      assignClientChunk({
+        id: '/project/packages/timber-app/src/client/link-navigate-interceptor.tsx',
+        normalizedId: 'packages/timber-app/src/client/link-navigate-interceptor.tsx',
+        serverChunk: 'facade:app/layout.tsx',
+      })
+    ).toBe('vendor-timber');
+  });
+
+  it('groups nuqs-adapter into vendor-timber', () => {
+    expect(
+      assignClientChunk({
+        id: '/project/packages/timber-app/src/client/nuqs-adapter.tsx',
+        normalizedId: 'packages/timber-app/src/client/nuqs-adapter.tsx',
+        serverChunk: 'facade:app/layout.tsx',
+      })
+    ).toBe('vendor-timber');
+  });
+
+  // User app client components → undefined (default per-route splitting)
+
+  it('returns undefined for user client components', () => {
+    expect(
+      assignClientChunk({
+        id: '/project/app/components/Counter.tsx',
+        normalizedId: 'app/components/Counter.tsx',
+        serverChunk: 'facade:app/page.tsx',
+      })
+    ).toBeUndefined();
+  });
+
+  it('returns undefined for third-party client components', () => {
+    expect(
+      assignClientChunk({
+        id: '/project/node_modules/some-lib/Button.tsx',
+        normalizedId: 'node_modules/some-lib/Button.tsx',
+        serverChunk: 'shared:node_modules/some-lib/Button.tsx',
+      })
+    ).toBeUndefined();
   });
 });
 

@@ -90,7 +90,10 @@ function useTimberAdapter(_watchKeys: string[]): AdapterInterface {
 
 // ─── Provider Component ───────────────────────────────────────────
 
-const TimberNuqsProvider = createAdapterProvider(useTimberAdapter);
+// Lazily created — createAdapterProvider calls React.createElement internally,
+// so it must NOT run at module scope. In Rolldown SSR bundles, React's
+// __esmMin lazy initializer may not have run yet at module-init time.
+let _TimberNuqsProvider: ReturnType<typeof createAdapterProvider> | undefined;
 
 /**
  * Wraps the React tree with nuqs's adapter context, configured with
@@ -99,8 +102,9 @@ const TimberNuqsProvider = createAdapterProvider(useTimberAdapter);
  * Auto-injected in browser-entry.ts — no user setup required.
  */
 export function TimberNuqsAdapter({ children }: { children: ReactNode }) {
+  const Provider = (_TimberNuqsProvider ??= createAdapterProvider(useTimberAdapter));
   return (
-    <TimberNuqsProvider
+    <Provider
       defaultOptions={{
         shallow: false,
         scroll: true,
@@ -108,6 +112,6 @@ export function TimberNuqsAdapter({ children }: { children: ReactNode }) {
       }}
     >
       {children}
-    </TimberNuqsProvider>
+    </Provider>
   );
 }

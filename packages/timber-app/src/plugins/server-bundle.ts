@@ -13,8 +13,8 @@
 
 import type { Plugin } from 'vite';
 
-export function timberServerBundle(): Plugin {
-  return {
+export function timberServerBundle(): Plugin[] {
+  const bundlePlugin: Plugin = {
     name: 'timber-server-bundle',
 
     config(_cfg, { command }) {
@@ -78,4 +78,36 @@ export function timberServerBundle(): Plugin {
       };
     },
   };
+
+  // Fix Rolldown's broken `__esmMin` lazy initializers in server bundles.
+  //
+  // Rolldown wraps ESM module initialization in `__esmMin` lazy functions.
+  // For packages with `sideEffects: false` (e.g. nuqs), Rolldown drops
+  // the variable assignment of the init function — so the module's React
+  // imports, context creation, etc. never execute.
+  //
+  // The fix: patch the `__esmMin` runtime definition to eagerly execute
+  // the init callback while still returning the lazy wrapper. This makes
+  // all ESM module inits run at load time (standard ESM behavior) instead
+  // of lazily, which is functionally correct and avoids the dropped-init bug.
+  const esmInitFixPlugin: Plugin = {
+    name: 'timber-esm-init-fix',
+    applyToEnvironment(environment) {
+      return environment.name === 'rsc' || environment.name === 'ssr';
+    },
+    renderChunk(code) {
+      const lazy = 'var __esmMin = (fn, res) => () => (fn && (res = fn(fn = 0)), res);';
+      if (!code.includes(lazy)) return null;
+
+      // Replace with eager-then-lazy: execute init immediately, then
+      // return the lazy wrapper for any subsequent calls (which are
+      // idempotent since fn is set to 0 after first execution).
+      const eager =
+        'var __esmMin = (fn, res) => { var l = () => (fn && (res = fn(fn = 0)), res); l(); return l; };';
+
+      return { code: code.replace(lazy, eager), map: null };
+    },
+  };
+
+  return [bundlePlugin, esmInitFixPlugin];
 }

@@ -47,7 +47,7 @@ export default async function DocPage({
 
   return (
     <div className="docs-content">
-      <AiDocsBanner />
+      {!doc.notAI && <AiDocsBanner />}
       <MdxComponent />
     </div>
   );

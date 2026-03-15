@@ -1,0 +1,47 @@
+---
+title: "The Web Has Become an Anxious Mess"
+description: "Rethinking web framework fundamentals to give users a calmer experience"
+publishedAt: 2026-03-16
+author: "Daniel Saewitz"
+# tags: ["announcement", "release"]
+draft: true
+---
+
+The web has become an anxious mess. Every page, every link clicked becomes a slot machine of loading spinners and content layout shift.
+
+It's hard to imagine how we fell so off the path. But it all comes from a simpler premise: that faster is better.
+
+But that speed is largely percieved performance. We've pushed the limits of milliseconds to get something on screen as soon as possible, trying to cheat the speed of light.
+
+But data takes time to load. So, in the meantime we show a placeholder, then a spinner, then several more – and content slowly rolls in as its ready.
+
+[video of twitter counting spinners and CLS]
+
+### The Past
+
+In the old days of web 1.0, a request came into a server, we generated html and returned it. The page rendered fully ready and complete. But then began the arc of web 2.0: highly dynamic apps.
+
+These apps are not a bad thing. The web is the most universal distribution platform: it's entirely cross-platform, decentralized, and free. Beginning with gmail and expanding out to platforms of all kinds, we now have rich, interactive applications built on top of the web.
+
+As websites became more interactive, we sprinkled in jQuery to add interactivity and fetch data on the client. But for anything beyond simple use-cases, this became bucatini: spaghetti filled with holes. <span>Problem #1</span>
+
+In a bid to unify the developer experience of writing web-apps, we began to write SPAs: a website that built HTML entirely with javascript. A huge leap in DX, we cost our users their calm, steadying web experience. And we cost ourselves something too: the rooted strength of the server. We solved #1, but we created three more problems.
+
+In an effort to bridge this gap, we created isomorphic SSR (or universal rendering). A javascript server would execute our client apps and *pre-render* them to unify the experience. Users saw the pages fully rendered, our client javascript integrated with the existing HTML, and all seemed good. But our websites grew beefy, large, and buggy. And we didn't *really* get the server back–instead we turned the server into another a dumbed down client.
+
+### Spanning The Network Boundary
+
+All websites sit across the network boundary. A request comes in, a server (or CDN) prepares the response which is sent back to the client. The 1.0 websites sat exclusively on the server. SPAs sat exclusively on the client. SSR attempted to bridge the gap, but gave both problems.
+
+What if there was an architecture that embraced both. Whose complexity exists because this complexity is _inherent_. Not invented, not created, but just the nature of a server-client relationship.
+
+### A calm, better experience
+
+I'm going to implore you to try and understand react server components. How they work, why they exist, and how their architecture is *inevitable*. There has been much misunderstood about them. How they exist to sell servers. How they exist to create complexity. No. Neither of these are honest readings of the situation.
+
+In Timber (and next.js), you can take advantage of server components without a server. They allow you to write components whose code is ran only at build-time, reducing your client-javascript bundle. If you run them with a server, you get full control of both sides of this network boundary.
+
+They are complex because the problem space, the domain is complex. Websites that want to sit across the network boundary need to have the optionality to control both sides. And work together through composition. If you are confused by them, that is okay. But the prior art here has perhaps clouded your judgement. They are graspable and once you do, I think you will see their power. I believe timber.js is a step in that direction.
+
+Please read the docs, please give it a try. Please help me save the web from anxiety and loading states.
+

@@ -25,6 +25,7 @@ const docs = defineCollection({
     description: z.string(),
     section: z.string(),
     slug: z.string().optional(),
+    notAI: z.boolean().optional(),
   }),
   transform: async (document) => {
     const order = parseOrder(document._meta.fileName);

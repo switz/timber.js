@@ -35,6 +35,12 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
   return (
     <article className="max-w-2xl mx-auto px-4 py-12">
       <header className="mb-8">
+        {post.draft && (
+          <div className="w-full bg-amber-300 text-amber-700 p-4 text-2xl mb-4 font-semibold rounded-sm">
+            THIS IS A DRAFT POST
+          </div>
+        )}
+
         <h1 className="text-3xl font-bold text-walnut dark:text-stone-100 mb-2">{post.title}</h1>
         <p className="text-sm text-sap dark:text-stone-500">
           {post.publishedAt.toLocaleDateString('en-US', {

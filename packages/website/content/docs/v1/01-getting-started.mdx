@@ -2,17 +2,36 @@
 title: "Getting Started"
 description: "Create a timber.js project and deploy your first page in under five minutes."
 section: "Getting Started"
+notAI: true
 ---
 
 # Getting Started
 
-timber.js is a React framework built on Vite. It runs on Cloudflare Workers, Node.js, Bun, or any platform Nitro supports. Pages render on the server, return real HTTP status codes, and work without JavaScript.
+timber.js is a React web framework built on Vite. It runs natively on Cloudflare Workers, Node.js, Bun, and many other platforms.
+
+It provides an emphasis on clarity, developer experience, and web standards. It's designed to be deployed on server and serverless platforms, but you can build for static even deploy websites with: *zero-client-javascript*.
+
+It takes inspiration from next.js and a long history of web frameworks, but redirects intentions towards a different set of values.
+
+With Timber you get:
+
+* Proper Status Code Handling
+* Graceful Degradation w/ Javascript Disabled
+* Real Middleware
+* Fully typed and integrated schemas that work across the server and the client, for:
+  * search params
+  * url params
+  * cookies
+
+Timber embraces the inherent complexity of building a website that sits comfortably across the server-and-client boundary, but we offer very little _magic_. You will understand how and why your website works with less confusion.
+
+It is an attempt to give developers the autonomy to write websites to perform how they want them to. It doesn't make those decisions for you and works much more how you would expect a web framework to.
 
 ## Create a Project
 
 ```bash
-pnpm create @timber/app my-app
-cd my-app
+pnpm create @timber/app fun-app
+cd fun-app
 pnpm dev
 ```
 
@@ -23,11 +42,12 @@ Open [http://localhost:3000](http://localhost:3000). You have a running app.
 A new timber.js project looks like this:
 
 ```
-my-app/
-  app/
-    layout.tsx        # Root layout — wraps every page
-    page.tsx          # Home page (/)
-    globals.css
+fun-app/
+  src/
+    app/
+      layout.tsx        # Root layout — wraps every page
+      page.tsx          # Home page (/)
+      globals.css
   timber.config.ts    # Framework configuration
   vite.config.ts      # Vite configuration
   package.json
@@ -50,7 +70,7 @@ export default async function HomePage() {
 }
 ```
 
-Pages are async server components by default. No `'use client'` directive needed — your code runs on the server unless you say otherwise.
+Pages are async server components by default.
 
 ## Adding a Second Route
 

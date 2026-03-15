@@ -1,0 +1,41 @@
+---
+title: "Understanding Server Components"
+description: "Understanding how Server Components work"
+section: "Getting Started"
+notAI: true
+---
+
+Server components are a unique form of React component that run exclusively on your server. The code for your components does not leave the server, only its resulting markup does.
+
+Consider this:
+
+```tsx
+export default function Page() {
+  return <div>Hello World</div>;
+}
+```
+
+Only the `div` reaches the client. Through this simple mechanism, you unlock a few key points:
+
+* You can reduce how much javascript reaches the client
+* You can write async components that `await` I/O
+* You can compose in client interactivity with ease
+* You can build a fully static website with zero client javascript
+
+By default, components are server components. This is important, but it starts with understanding a few key concepts:
+
+1. A request/response cycle begins on the server.
+2. HTML is a tree
+
+```html
+<html>
+  <head>...</head>
+  <body>...</body>
+</html>
+```
+
+Every request starts on a server. Sometimes that's a web server, sometimes that's a CDN. But even a static bundle uploaded to S3 is hitting a server first.
+
+As you move down through the tree of components, you tend to need things like: interactivity, click handlers, and client side state. This is where client composition happens.
+
+In a rails or PHP app, you might use a `<script>` tag to write jQuery and enrich your html. In a React SPA, you write the whole thing on the client.

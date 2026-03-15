@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { Link } from '@timber/app/client';
 import { allDocs } from 'content-collections';
 import { LATEST_VERSION, groupBy } from '@/lib/docs';
+import { SidebarLink } from '@/app/(pre-release)/components/sidebar-link';
 
 const SECTION_ORDER = ['Getting Started', 'Core Docs', 'Guides', 'API Reference', 'Comparisons'];
 
@@ -54,12 +55,7 @@ export default async function VersionedDocsLayout({
               <ul className="space-y-0.5">
                 {section.links.map((link) => (
                   <li key={link.href}>
-                    <Link
-                      href={link.href}
-                      className="block text-sm py-1 px-2 rounded text-bark dark:text-stone-400 hover:text-walnut dark:hover:text-stone-100 hover:bg-grain dark:hover:bg-stone-800 transition-colors"
-                    >
-                      {link.text}
-                    </Link>
+                    <SidebarLink href={link.href}>{link.text}</SidebarLink>
                   </li>
                 ))}
               </ul>

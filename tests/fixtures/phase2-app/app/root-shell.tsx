@@ -46,6 +46,9 @@ export function RootShell({ children }: { children: React.ReactNode }) {
         <Link href="/hmr-test" data-testid="link-hmr-test">
           HMR Test
         </Link>
+        <Link href="/page-redirect-test" data-testid="link-page-redirect">
+          Page Redirect
+        </Link>
 
         {/* Prefetch-enabled link */}
         <Link href="/dashboard" prefetch data-testid="link-prefetch-dashboard">

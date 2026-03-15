@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Link } from '@timber/app/client';
 import { allDocs } from 'content-collections';
-import { LATEST_VERSION, groupBy } from '../../../lib/docs';
+import { LATEST_VERSION, groupBy } from '@/lib/docs';
 
 const SECTION_ORDER = ['Getting Started', 'Core Docs', 'Guides', 'API Reference', 'Comparisons'];
 

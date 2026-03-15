@@ -1,8 +1,8 @@
 import { allDocs } from 'content-collections';
 import { deny } from '@timber/app/server';
 import type { Metadata } from '@timber/app/server';
-import { LATEST_VERSION } from '../../../../lib/docs';
-import { AiDocsBanner } from '../../../components/ai-docs-banner';
+import { LATEST_VERSION } from '@/lib/docs';
+import { AiDocsBanner } from '@/app/components/ai-docs-banner';
 
 export async function generateStaticParams() {
   return allDocs.map((d) => ({ version: d.version, slug: d.slug }));

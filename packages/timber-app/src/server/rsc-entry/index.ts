@@ -485,6 +485,64 @@ async function renderRoute(
   // stream directly — skip SSR HTML rendering entirely.
   // See design/19-client-navigation.md §"RSC Payload Handling"
   if (isRscPayloadRequest(_req)) {
+    // Read the first chunk from the RSC stream before committing headers.
+    // Async components (including page components wrapped in TracedPage)
+    // throw during stream consumption, not during renderToReadableStream.
+    // Reading one chunk triggers rendering of the initial component tree,
+    // allowing onError to capture DenySignal/RedirectSignal before we
+    // commit the response. Without this, the redirect digest is embedded
+    // in the RSC stream and surfaces as an unhandled error on the client.
+    // See TIM-344.
+    const reader = rscStream!.getReader();
+    const firstRead = await reader.read();
+
+    // Yield to the microtask queue so that async component rejections
+    // (e.g. an async-wrapped page component that throws redirect())
+    // propagate to the onError callback before we check the signals.
+    // The rejected Promise from an async component resolves in the next
+    // microtask after read(), so we need at least one tick.
+    await new Promise<void>((r) => setTimeout(r, 0));
+
+    // Check for redirect/deny signals detected during initial rendering
+    const trackedRedirect = redirectSignal as RedirectSignal | null;
+    if (trackedRedirect) {
+      reader.cancel();
+      return buildRedirectResponse(_req, trackedRedirect, responseHeaders);
+    }
+    if (denySignal) {
+      reader.cancel();
+      return renderDenyPageAsRsc(
+        denySignal,
+        segments,
+        layoutComponents as LayoutEntry[],
+        responseHeaders,
+        createDebugChannelSink
+      );
+    }
+
+    // Reconstruct the stream: prepend the buffered first chunk,
+    // then continue piping from the original reader.
+    const patchedStream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        if (firstRead.value) controller.enqueue(firstRead.value);
+        if (firstRead.done) {
+          controller.close();
+          return;
+        }
+      },
+      async pull(controller) {
+        const { value, done } = await reader.read();
+        if (done) {
+          controller.close();
+          return;
+        }
+        controller.enqueue(value);
+      },
+      cancel() {
+        reader.cancel();
+      },
+    });
+
     responseHeaders.set('content-type', `${RSC_CONTENT_TYPE}; charset=utf-8`);
     // Vary on Accept so CDNs cache HTML and RSC responses separately
     // for the same URL. The client appends ?_rsc=<id> as a cache-bust,
@@ -510,7 +568,7 @@ async function renderRoute(
       responseHeaders.set('X-Timber-Params', JSON.stringify(match.params));
     }
 
-    return new Response(rscStream!, {
+    return new Response(patchedStream, {
       status: 200,
       headers: responseHeaders,
     });

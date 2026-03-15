@@ -18,7 +18,7 @@ export async function metadata({
 }
 
 const mdxModules = import.meta.glob<{ default: React.ComponentType }>(
-  '../../../content/blog/*.mdx'
+  '../../../../content/blog/*.mdx'
 );
 
 export default async function BlogPost({ params }: { params: Promise<{ slug: string }> }) {

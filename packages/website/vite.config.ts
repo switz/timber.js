@@ -26,6 +26,7 @@ export default defineConfig({
         root,
         'packages/timber-app/src/adapters/cloudflare.ts'
       ),
+      '@': import.meta.dirname,
     },
   },
 });

@@ -1,7 +1,7 @@
 import { Link } from '@timber/app/client';
 import { allDocs } from 'content-collections';
-import { LATEST_VERSION } from '../../../lib/docs';
-import { AiDocsBanner } from '../../components/ai-docs-banner';
+import { LATEST_VERSION } from '@/lib/docs';
+import { AiDocsBanner } from '@/app/components/ai-docs-banner';
 
 export const metadata = {
   title: 'Documentation',

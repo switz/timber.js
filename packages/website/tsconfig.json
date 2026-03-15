@@ -6,7 +6,8 @@
     "paths": {
       "content-collections": ["./.content-collections/generated"],
       "@timber/app": ["../timber-app/src/index.ts"],
-      "@timber/app/*": ["../timber-app/src/*"]
+      "@timber/app/*": ["../timber-app/src/*"],
+      "@/*": ["./*"]
     }
   },
   "include": [

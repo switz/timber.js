@@ -9,10 +9,13 @@ function slugify(str: string): string {
     .replace(/(^-|-$)/g, '');
 }
 
-/** Parse order number from filename prefix (e.g. "01-getting-started.mdx" → 1). */
+/** Parse order number from filename prefix (e.g. "01-getting-started.mdx" → 1, "05a-foo.mdx" → 5.01). */
 function parseOrder(fileName: string): number {
-  const match = fileName.match(/^(\d+)-/);
-  return match ? parseInt(match[1], 10) : 999;
+  const match = fileName.match(/^(\d+)([a-z])?-/);
+  if (!match) return 999;
+  const base = parseInt(match[1], 10);
+  const suffix = match[2] ? (match[2].charCodeAt(0) - 96) / 100 : 0;
+  return base + suffix;
 }
 
 const docs = defineCollection({

@@ -1,0 +1,110 @@
+---
+title: "Streaming"
+description: "How React streams HTML, what Suspense does in SSR, and how timber uses streaming"
+section: "Concepts"
+slug: "streaming-concept"
+notAI: true
+---
+
+# Streaming
+
+Streaming lets the server send HTML to the browser in chunks as it becomes ready, rather than waiting for the entire page to finish rendering. timber uses streaming selectively — the shell is sent as a complete block, and only `<Suspense>` boundaries stream in afterward.
+
+## How it works
+
+React's `renderToReadableStream` produces a stream of HTML. The server writes it to the HTTP response as it generates. The browser starts rendering HTML as soon as the first bytes arrive.
+
+Here's the timeline:
+
+```
+Server                              Browser
+──────                              ───────
+render shell ──────────────────────→ display shell
+  │                                    │
+  ├─ slow data loads ─────────────→ fill in <Suspense> boundary
+  │                                    │
+  └─ more slow data ──────────────→ fill in another boundary
+```
+
+The shell — everything outside `<Suspense>` boundaries — arrives first. Then each Suspense boundary's content streams in as its data resolves, replacing the fallback.
+
+## The shell vs. Suspense boundaries
+
+timber divides your page into two phases:
+
+**The shell** (before the flush point):
+- Layouts, navigation, page structure
+- Primary content that defines the page
+- Renders synchronously — determines the HTTP status code
+
+**Suspense boundaries** (after the flush):
+- Secondary content wrapped in `<Suspense>`
+- Can load data asynchronously
+- Stream in progressively as they resolve
+
+```tsx
+export default async function ProductPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const product = await db.products.find(id);
+
+  if (!product) notFound(); // ← real 404, before flush
+
+  return (
+    <div>
+      <h1>{product.name}</h1>           {/* shell — sent at flush */}
+      <p>{product.description}</p>       {/* shell */}
+
+      <Suspense fallback={<p>Loading reviews...</p>}>
+        <Reviews productId={id} />       {/* streams in later */}
+      </Suspense>
+    </div>
+  );
+}
+```
+
+The product data loads before the flush — if it doesn't exist, you get a 404. The reviews load after, streaming in when ready.
+
+## Why not stream everything?
+
+Some frameworks stream as aggressively as possible, sending a `200 OK` immediately and filling in content as it arrives. This maximizes perceived speed but breaks HTTP semantics:
+
+- The status code is committed before the outcome is known
+- A page that should 404 returns 200
+- CDNs cache error responses as successes
+- The page is blank without JavaScript
+
+timber takes a different approach: stream only what you explicitly opt into with `<Suspense>`. Everything else renders in the shell, where it can influence the status code and produce complete HTML.
+
+## Choosing what to stream
+
+**Don't stream** (keep in the shell):
+- Content that defines the page — the product, the article, the user profile
+- Content that might produce a 404 or redirect
+- Content that should be visible without JavaScript
+
+**Do stream** (wrap in `<Suspense>`):
+- Recommendations, related items, activity feeds
+- Analytics widgets, personalization
+- Anything slow that isn't essential to the page's identity
+
+The rule: if missing content means the page shouldn't exist, don't stream it. If it's supplementary, stream it.
+
+## Suspense fallbacks
+
+The `fallback` prop on `<Suspense>` is the HTML sent in the shell while the async content loads:
+
+```tsx
+<Suspense fallback={<ReviewsSkeleton />}>
+  <Reviews productId={id} />
+</Suspense>
+```
+
+The fallback renders as real HTML in the initial response. When the reviews finish loading, React replaces the fallback with the real content using a small inline script. This swap happens even without client-side hydration — it's built into React's streaming protocol.
+
+## One stream, one render
+
+timber uses a single `renderToReadableStream` call for the entire page. There's no stitching of multiple streams or multiple render passes. The component tree is rendered once, top to bottom, with Suspense boundaries acting as async gaps in a single, continuous stream.

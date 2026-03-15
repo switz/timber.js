@@ -1,0 +1,27 @@
+---
+title: "Concepts"
+description: "Foundational mental models for understanding timber.js"
+section: "Concepts"
+notAI: true
+---
+
+# Concepts
+
+timber.js makes decisions that differ from other React frameworks. These pages build the mental models you need to understand *why* — and to reason about your app's behavior from first principles.
+
+Start anywhere, but if you're new to React Server Components, read them in order.
+
+## The fundamentals
+
+- [**HTML is a tree**](/docs/v1/html-is-a-tree) — The DOM is a tree, your components are a tree, and the HTML you ship is a real document. This mental model underpins everything.
+- [**Your routing is a tree**](/docs/v1/routing-is-a-tree) — File-system routing maps directly to the component tree. Understanding the tree is understanding routing.
+- [**The flush point**](/docs/v1/the-flush-point) — When timber commits the HTTP status code, and why this matters for correctness.
+- [**Understanding server components**](/docs/v1/understanding-server-components) — The three directives, how data flows, and what crosses the network.
+
+## Going deeper
+
+- [**Pages work without JavaScript**](/docs/v1/pages-without-js) — timber ships real HTML. Client JS enhances, but the page works without it.
+- [**Streaming**](/docs/v1/streaming-concept) — How React streams HTML, what Suspense does in SSR, and how timber uses it without sacrificing HTTP semantics.
+- [**The network boundary**](/docs/v1/the-network-boundary) — What serializes across server and client, and what doesn't.
+- [**Middleware and request context**](/docs/v1/middleware-and-context) — How middleware wraps the route tree and how context flows inward.
+- [**Composition**](/docs/v1/composition) — How layouts, slots, and error boundaries compose through `children`.

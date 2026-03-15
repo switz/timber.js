@@ -1,0 +1,182 @@
+---
+title: "Composition"
+description: "How layouts, slots, and boundaries compose through children"
+section: "Concepts"
+slug: "composition"
+notAI: true
+---
+
+# Composition
+
+timber apps are built through composition, not configuration. Instead of options, flags, and special config files, you compose behavior by nesting components. The core primitive is `children`.
+
+## Layouts receive children
+
+A layout is a component that wraps its children:
+
+```tsx
+// app/layout.tsx
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html>
+      <body>
+        <nav>...</nav>
+        <main>{children}</main>
+      </body>
+    </html>
+  );
+}
+```
+
+`children` is whatever the current route renders — a nested layout, a page, or both. The layout doesn't know or care what's inside. It just wraps.
+
+Layouts nest automatically based on the file system:
+
+```
+<RootLayout>              ← app/layout.tsx
+  <DashboardLayout>       ← app/dashboard/layout.tsx
+    <SettingsPage />      ← app/dashboard/settings/page.tsx
+  </DashboardLayout>
+</RootLayout>
+```
+
+Each layout adds structure. Each `children` prop is the next layer down. This is how you build complex page structures without a configuration file — you nest directories.
+
+## Slots are parallel children
+
+Parallel routes (slots) are directories prefixed with `@`. They become named props alongside `children`:
+
+```
+app/dashboard/
+  layout.tsx
+  page.tsx          → children
+  @sidebar/
+    page.tsx        → sidebar prop
+  @modal/
+    page.tsx        → modal prop
+```
+
+```tsx
+export default function DashboardLayout({
+  children,
+  sidebar,
+  modal,
+}: {
+  children: React.ReactNode;
+  sidebar: React.ReactNode;
+  modal: React.ReactNode;
+}) {
+  return (
+    <div className="flex">
+      <aside>{sidebar}</aside>
+      <main>{children}</main>
+      {modal}
+    </div>
+  );
+}
+```
+
+Slots are just more children. They render independently — each with its own loading states, error boundaries, and access controls. But they're composed by the parent layout, which decides where each piece goes.
+
+There's no "sidebar mode" or "modal configuration." You compose the layout you want by arranging children.
+
+## Error boundaries wrap children
+
+Error handling follows the same pattern. An `error.tsx` file creates a React error boundary that wraps the segment below:
+
+```
+app/
+  layout.tsx
+  error.tsx          ← catches errors from children
+  dashboard/
+    page.tsx         ← if this throws, error.tsx catches it
+```
+
+```tsx
+'use client';
+
+export default function Error({
+  error,
+  reset,
+}: {
+  error: Error;
+  reset: () => void;
+}) {
+  return (
+    <div>
+      <p>Something went wrong.</p>
+      <button onClick={reset}>Try again</button>
+    </div>
+  );
+}
+```
+
+The error boundary wraps the segment's `children`. If anything in the subtree throws, the boundary catches it. The layout above the boundary stays intact — your navigation and chrome don't disappear.
+
+## Access gates wrap subtrees
+
+`access.ts` files create authorization boundaries in the tree:
+
+```
+app/
+  (public)/
+    page.tsx                    ← no access check
+  (authenticated)/
+    access.ts                   ← must be logged in
+    layout.tsx
+    dashboard/
+      access.ts                 ← must have dashboard permission
+      page.tsx
+```
+
+Each `access.ts` wraps its subtree. If access is denied, the tree below doesn't render. This composes naturally — an authenticated layout can contain segments with additional permission requirements, each independently gated.
+
+## Composition over configuration
+
+The common thread: timber doesn't have configuration options for layout patterns. Instead, you compose them:
+
+**Want a sidebar?** Create a slot:
+```
+@sidebar/page.tsx
+```
+
+**Want auth on some pages?** Use a route group with `access.ts`:
+```
+(authenticated)/access.ts
+```
+
+**Want error recovery?** Add an error boundary:
+```
+dashboard/error.tsx
+```
+
+**Want shared chrome?** Nest layouts:
+```
+app/layout.tsx → app/dashboard/layout.tsx
+```
+
+Each of these is a composition of the same primitive: a component that receives `children` and wraps them with behavior. No special APIs, no configuration objects, no framework magic. Just components wrapping components, all the way down.
+
+## The full picture
+
+Here's how all the composition primitives stack at a single node in the route tree:
+
+```
+<AccessGate>                ← access.ts (authorization)
+  <ErrorBoundary>           ← error.tsx (error handling)
+    <Layout>                ← layout.tsx (structure)
+      <Suspense>            ← loading via <Suspense> (streaming)
+        {children}          ← page.tsx or nested segment
+        {sidebar}           ← @sidebar slot
+        {modal}             ← @modal slot
+      </Suspense>
+    </Layout>
+  </ErrorBoundary>
+</AccessGate>
+```
+
+Each layer does one thing. They compose by wrapping. The tree structure gives you full control over what wraps what — and it's all visible in your file system.

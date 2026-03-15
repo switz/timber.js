@@ -1,0 +1,129 @@
+---
+title: "The network boundary"
+description: "What serializes across server and client, and what doesn't"
+section: "Concepts"
+slug: "the-network-boundary"
+notAI: true
+---
+
+# The network boundary
+
+When a server component renders a client component, data must cross from the server to the browser. This crossing point is the **network boundary** — a serialization wall where only certain types of data can pass through.
+
+## What crosses the boundary
+
+Server components pass props to client components. Those props are serialized into the RSC (React Server Components) payload — a JSON-like format that React uses to transfer the component tree.
+
+**Can cross:**
+- Strings, numbers, booleans, null, undefined
+- Plain objects and arrays (with serializable values)
+- `BigInt`
+- Server component output (rendered JSX)
+- Server action references (`'use server'` functions)
+
+**Cannot cross:**
+- Functions (except server actions)
+- Class instances (`new Date()`, `new Map()`, custom classes)
+- Symbols
+- DOM nodes
+- Database connections, streams, or other server resources
+
+## The serialization wall
+
+Think of the boundary as a JSON.stringify/JSON.parse wall with some extra capabilities:
+
+```tsx
+// Server component
+export default async function Page() {
+  const user = await db.users.find('123');
+
+  return (
+    // ✅ Serializable props
+    <UserCard
+      name={user.name}           // string
+      age={user.age}             // number
+      roles={user.roles}         // string[]
+      settings={{ theme: 'dark' }} // plain object
+    />
+
+    // ❌ Would fail
+    // <UserCard
+    //   createdAt={user.createdAt}  // Date instance
+    //   getRole={() => user.role}    // function
+    // />
+  );
+}
+```
+
+If you need to pass a Date, convert it first:
+
+```tsx
+<UserCard
+  createdAt={user.createdAt.toISOString()} // string ✅
+/>
+```
+
+## Server actions cross back
+
+The `'use server'` directive creates callable references that cross from server to client. The client doesn't receive the function code — it receives a reference ID. When called, the reference triggers a server request:
+
+```tsx
+// Server: defines the action
+async function addToCart(productId: string) {
+  'use server';
+  await db.cart.add(productId);
+}
+
+// Server component passes the reference
+<AddToCartButton action={addToCart} productId={product.id} />
+```
+
+```tsx
+'use client';
+
+// Client: calls the reference, which makes a server request
+export function AddToCartButton({ action, productId }) {
+  return (
+    <form action={() => action(productId)}>
+      <button type="submit">Add to cart</button>
+    </form>
+  );
+}
+```
+
+The function body stays on the server. Only the reference crosses the boundary.
+
+## Children are pre-rendered
+
+When a server component passes JSX as `children` to a client component, the children are rendered on the server first. The client component receives the rendered output, not the component tree:
+
+```tsx
+// Server component
+export default function Page() {
+  return (
+    <ClientTabs>
+      <ServerContent />   {/* rendered on server, output sent to client */}
+    </ClientTabs>
+  );
+}
+```
+
+The client component doesn't "run" `<ServerContent />`. It receives the HTML output. This is how server components and client components compose — server renders first, client receives the result.
+
+## The RSC payload
+
+When you navigate client-side, timber sends an RSC payload instead of full HTML. This payload contains:
+
+- Serialized props for client components
+- Pre-rendered output of server components (as HTML-like tokens)
+- References to server actions
+- Module references for client component code
+
+The browser's React runtime reads this payload and reconciles it into the existing DOM. This is more efficient than a full page load because only changed segments are sent.
+
+## Practical rules
+
+1. **Keep transformations on the server.** Format dates, filter arrays, and compute derived values in server components before passing to client components.
+2. **Pass primitives when possible.** A string is always safer than an object that might contain non-serializable values.
+3. **Use server actions for mutations.** Don't try to pass callback functions — use `'use server'` to create callable references.
+4. **Compose with children.** If a client component needs to render server content, pass it as `children` rather than trying to pass the data.

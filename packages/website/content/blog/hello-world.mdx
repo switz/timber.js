@@ -1,0 +1,27 @@
+---
+title: "Introducing timber.js"
+description: "A Vite-native React framework for Cloudflare Workers that prioritizes correct HTTP semantics."
+publishedAt: 2026-03-15
+author: "timber.js team"
+tags: ["announcement", "release"]
+draft: false
+---
+
+# Introducing timber.js
+
+We're building timber.js — a Vite-native React framework for Cloudflare Workers.
+
+timber.js is built around a simple idea: your framework should respect HTTP. Real status codes, real headers, pages that work without JavaScript, and streaming only where you explicitly ask for it.
+
+## Why another React framework?
+
+Next.js is excellent. It's battle-tested, mature, and we wouldn't be here without it. But we think there's room for a framework that makes different trade-offs:
+
+- **Correct HTTP by default.** No more 200 responses for error pages.
+- **No loading spinners.** Primary content renders before the shell flushes.
+- **Vite-native.** Built on Vite, not webpack. ESM-first.
+- **Cloudflare-first.** Designed for the edge from day one.
+
+## What's next
+
+We're in active development. Follow along on [GitHub](https://github.com/AshMartian/timber-js).

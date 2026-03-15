@@ -1,49 +1,44 @@
 import type { ReactNode } from 'react';
 import { Link } from '@timber/app/client';
 import { allDocs } from 'content-collections';
-import { Metadata } from '@timber/app/server';
+import { LATEST_VERSION, groupBy } from '@/lib/docs';
 
-// Section display order
 const SECTION_ORDER = ['Getting Started', 'Core Docs', 'Guides', 'API Reference', 'Comparisons'];
 
-// Short labels for sidebar headers
 const SECTION_LABELS: Record<string, string> = {
   'Core Docs': 'Core',
 };
 
-function buildNav() {
-  const v1Docs = allDocs.filter((d) => d.version === 'v1').sort((a, b) => a.order - b.order);
+function buildNav(resolvedVersion: string, urlVersion: string) {
+  const versionDocs = allDocs
+    .filter((d) => d.version === resolvedVersion)
+    .sort((a, b) => a.order - b.order);
 
-  const sections: { label: string; links: { href: string; text: string }[] }[] = [];
-  const grouped = new Map<string, typeof v1Docs>();
+  const grouped = groupBy(versionDocs, 'section');
 
-  for (const doc of v1Docs) {
-    const existing = grouped.get(doc.section) ?? [];
-    existing.push(doc);
-    grouped.set(doc.section, existing);
-  }
-
-  for (const section of SECTION_ORDER) {
-    const docs = grouped.get(section);
-    if (!docs) continue;
-    sections.push({
-      label: SECTION_LABELS[section] ?? section,
-      links: docs.map((d) => ({
-        href: `/pre-release/docs/v1/${d.slug}`,
-        text: d.title,
-      })),
-    });
-  }
-
-  return sections;
+  return SECTION_ORDER.filter((s) => grouped[s]).map((section) => ({
+    label: SECTION_LABELS[section] ?? section,
+    links: grouped[section].map((d) => ({
+      href: `/docs/${urlVersion}/${d.slug}`,
+      text: d.title,
+    })),
+  }));
 }
 
-export default function DocsLayout({ children }: { children: ReactNode }) {
-  const navSections = buildNav();
+export default async function VersionedDocsLayout({
+  children,
+  params,
+}: {
+  children: ReactNode;
+  params: Promise<{ version: string }>;
+}) {
+  const { version } = await params;
+  const resolvedVersion = version === 'latest' ? LATEST_VERSION : version;
+  const navSections = buildNav(resolvedVersion, version);
 
   return (
-    <div className="flex min-h-screen bg-grain-light/30 dark:bg-stone-800">
-      <aside className="w-60 shrink-0 border-r border-grain dark:border-stone-700 bg-grain-light dark:bg-stone-900 overflow-y-auto sticky top-0 h-screen">
+    <div className="flex h-[calc(100vh-3.5rem)] bg-grain-light/30 dark:bg-stone-800">
+      <aside className="w-60 shrink-0 border-r border-grain dark:border-stone-700 bg-grain-light dark:bg-stone-900 overflow-y-auto">
         <nav className="p-5 flex flex-col gap-6">
           <Link
             href="/"
@@ -72,14 +67,9 @@ export default function DocsLayout({ children }: { children: ReactNode }) {
           ))}
         </nav>
       </aside>
-      <main className="flex-1 min-w-0 max-w-3xl px-8 py-10 mx-auto docs-content">{children}</main>
+      <main className="flex-1 min-w-0 overflow-y-auto">
+        <div className="max-w-3xl px-8 py-10 mx-auto docs-content">{children}</div>
+      </main>
     </div>
   );
 }
-
-export const metadata: Metadata = {
-  title: {
-    template: '%s | timber.js',
-    default: 'timber.js',
-  },
-};

@@ -35,6 +35,25 @@ const docs = defineCollection({
   },
 });
 
+const blog = defineCollection({
+  name: 'blog',
+  directory: 'content/blog',
+  include: '**/*.{mdx,md}',
+  schema: z.object({
+    content: z.string(),
+    title: z.string(),
+    description: z.string(),
+    publishedAt: z.coerce.date(),
+    author: z.string(),
+    tags: z.array(z.string()).default([]),
+    draft: z.boolean().default(false),
+  }),
+  transform: async (document) => {
+    const { content: _, ...metadata } = document;
+    return { ...metadata, slug: document._meta.path };
+  },
+});
+
 export default defineConfig({
-  content: [docs],
+  content: [docs, blog],
 });

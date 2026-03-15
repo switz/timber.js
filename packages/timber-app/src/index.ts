@@ -203,11 +203,43 @@ async function loadTimberConfigFile(root: string): Promise<TimberUserConfig | nu
 }
 
 /**
+ * Detect config keys set in both inline (vite.config.ts) and file (timber.config.ts)
+ * and warn the user. The `output` key is excluded because it defaults to 'server'
+ * in createPluginContext and would always appear as an inline key.
+ *
+ * Returns the list of conflicting key names (for testing).
+ */
+export function warnConfigConflicts(
+  inline: TimberUserConfig,
+  fileConfig: TimberUserConfig
+): string[] {
+  const conflicts: string[] = [];
+  for (const key of Object.keys(fileConfig) as (keyof TimberUserConfig)[]) {
+    if (key === 'output') continue;
+    if (key in inline && inline[key] !== undefined) {
+      conflicts.push(key);
+    }
+  }
+  if (conflicts.length > 0) {
+    console.warn(
+      `[timber] Config conflict: ${conflicts.map((k) => `"${k}"`).join(', ')} set in both ` +
+        `vite.config.ts (inline) and timber.config.ts. ` +
+        `Move all config to timber.config.ts to avoid confusion. ` +
+        `The inline value from vite.config.ts will be used.`
+    );
+  }
+  return conflicts;
+}
+
+/**
  * Merge file-based config into ctx.config. Inline config (already in ctx.config)
  * takes precedence — file config only fills in missing fields.
  */
 function mergeFileConfig(ctx: PluginContext, fileConfig: TimberUserConfig): void {
   const inline = ctx.config;
+
+  // Warn if the same key is set in both places
+  warnConfigConflicts(inline, fileConfig);
 
   // For each top-level key, use inline value if present, otherwise file value
   ctx.config = {

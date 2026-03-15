@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import type { TimberUserConfig } from '../packages/timber-app/src/index';
+import { warnConfigConflicts } from '../packages/timber-app/src/index';
 
 // Re-implement mergeFileConfig for testing — mirrors the logic in index.ts
 function mergeFileConfig(inline: TimberUserConfig, fileConfig: TimberUserConfig): TimberUserConfig {
@@ -124,5 +125,79 @@ describe('timber config merging', () => {
     // MDX plugin checks ctx.config.pageExtensions — this should now contain 'mdx'
     const hasMdx = merged.pageExtensions?.some((ext) => ['mdx', 'md'].includes(ext));
     expect(hasMdx).toBe(true);
+  });
+});
+
+describe('warnConfigConflicts', () => {
+  it('returns conflicting keys when both inline and file set the same key', () => {
+    const inline: TimberUserConfig = { clientJavascript: false };
+    const fileConfig: TimberUserConfig = {
+      clientJavascript: { disabled: true, enableHMRInDev: true },
+    };
+
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const conflicts = warnConfigConflicts(inline, fileConfig);
+    warnSpy.mockRestore();
+
+    expect(conflicts).toEqual(['clientJavascript']);
+  });
+
+  it('emits a warning message listing conflicting keys', () => {
+    const inline: TimberUserConfig = { clientJavascript: false, csrf: true };
+    const fileConfig: TimberUserConfig = {
+      clientJavascript: { disabled: true },
+      csrf: false,
+    };
+
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    warnConfigConflicts(inline, fileConfig);
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('"clientJavascript"')
+    );
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('"csrf"'));
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Move all config to timber.config.ts')
+    );
+    warnSpy.mockRestore();
+  });
+
+  it('returns empty array when no conflicts exist', () => {
+    const inline: TimberUserConfig = { output: 'server' };
+    const fileConfig: TimberUserConfig = {
+      pageExtensions: ['tsx', 'ts', 'mdx'],
+      csrf: true,
+    };
+
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const conflicts = warnConfigConflicts(inline, fileConfig);
+    warnSpy.mockRestore();
+
+    expect(conflicts).toEqual([]);
+    expect(warnSpy).not.toHaveBeenCalled();
+  });
+
+  it('excludes output from conflict detection (it always has a default)', () => {
+    const inline: TimberUserConfig = { output: 'server' };
+    const fileConfig: TimberUserConfig = { output: 'static' };
+
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const conflicts = warnConfigConflicts(inline, fileConfig);
+    warnSpy.mockRestore();
+
+    expect(conflicts).toEqual([]);
+  });
+
+  it('does not warn when file key is not in inline config', () => {
+    const inline: TimberUserConfig = {};
+    const fileConfig: TimberUserConfig = {
+      clientJavascript: { disabled: true },
+    };
+
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const conflicts = warnConfigConflicts(inline, fileConfig);
+    warnSpy.mockRestore();
+
+    expect(conflicts).toEqual([]);
   });
 });

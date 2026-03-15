@@ -21,7 +21,7 @@ export function SiteNav() {
             Blog
           </Link>
           <a
-            href="https://github.com/AshMartian/timber-js"
+            href="https://github.com/switz/timber.js"
             target="_blank"
             rel="noopener"
             className="text-bark dark:text-stone-400 hover:text-walnut dark:hover:text-stone-100 transition-colors"

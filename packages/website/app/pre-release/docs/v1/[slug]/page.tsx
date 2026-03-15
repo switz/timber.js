@@ -15,7 +15,7 @@ export async function metadata({
   const doc = allDocs.find((d) => d.version === 'v1' && d.slug === slug);
   if (!doc) return {};
   return {
-    title: `${doc.title} | timber.js docs`,
+    title: `${doc.title}`,
     description: doc.description,
     robots: 'noindex, nofollow',
   };

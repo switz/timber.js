@@ -1,15 +1,10 @@
 import type { ReactNode } from 'react';
 import { Link } from '@timber/app/client';
 import { allDocs } from 'content-collections';
+import { Metadata } from '@timber/app/server';
 
 // Section display order
-const SECTION_ORDER = [
-  'Getting Started',
-  'Core Docs',
-  'Guides',
-  'API Reference',
-  'Comparisons',
-];
+const SECTION_ORDER = ['Getting Started', 'Core Docs', 'Guides', 'API Reference', 'Comparisons'];
 
 // Short labels for sidebar headers
 const SECTION_LABELS: Record<string, string> = {
@@ -17,9 +12,7 @@ const SECTION_LABELS: Record<string, string> = {
 };
 
 function buildNav() {
-  const v1Docs = allDocs
-    .filter((d) => d.version === 'v1')
-    .sort((a, b) => a.order - b.order);
+  const v1Docs = allDocs.filter((d) => d.version === 'v1').sort((a, b) => a.order - b.order);
 
   const sections: { label: string; links: { href: string; text: string }[] }[] = [];
   const grouped = new Map<string, typeof v1Docs>();
@@ -52,7 +45,10 @@ export default function DocsLayout({ children }: { children: ReactNode }) {
     <div className="flex min-h-screen bg-grain-light/30 dark:bg-stone-800">
       <aside className="w-60 shrink-0 border-r border-grain dark:border-stone-700 bg-grain-light dark:bg-stone-900 overflow-y-auto sticky top-0 h-screen">
         <nav className="p-5 flex flex-col gap-6">
-          <Link href="/" className="text-sm font-bold text-timber dark:text-stone-100 tracking-tight">
+          <Link
+            href="/"
+            className="text-sm font-bold text-timber dark:text-stone-100 tracking-tight"
+          >
             timber.js
           </Link>
           {navSections.map((section) => (
@@ -76,9 +72,14 @@ export default function DocsLayout({ children }: { children: ReactNode }) {
           ))}
         </nav>
       </aside>
-      <main className="flex-1 min-w-0 max-w-3xl px-8 py-10 mx-auto docs-content">
-        {children}
-      </main>
+      <main className="flex-1 min-w-0 max-w-3xl px-8 py-10 mx-auto docs-content">{children}</main>
     </div>
   );
 }
+
+export const metadata: Metadata = {
+  title: {
+    template: '%s | timber.js',
+    default: 'timber.js',
+  },
+};

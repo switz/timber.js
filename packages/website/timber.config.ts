@@ -7,7 +7,7 @@ export default {
   pageExtensions: ['tsx', 'ts', 'mdx'],
   mdx: {
     remarkPlugins: [remarkGfm],
-    rehypePlugins: [[rehypeShiki, { theme: 'github-dark', keepBackground: true }]],
+    rehypePlugins: [[rehypeShiki, { theme: 'monokai', keepBackground: true }]],
   },
   // clientJavascript: { disabled: true, enableHMRInDev: true },
   adapter: cloudflare({

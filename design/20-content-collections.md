@@ -90,7 +90,7 @@ export default {
   pageExtensions: ['tsx', 'ts', 'jsx', 'js', 'mdx'],
   mdx: {
     remarkPlugins: [remarkGfm],
-    rehypePlugins: [[rehypeShiki, { theme: 'github-dark' }]],
+    rehypePlugins: [[rehypeShiki, { theme: 'monokai' }]],
   },
 };
 ```

@@ -46,7 +46,7 @@ export default async function VersionedDocsLayout({
 
   return (
     <div className="flex min-h-[calc(100vh-3.5rem)] bg-grain-light/30 dark:bg-stone-900">
-      <aside className="w-60 shrink-0 border-r border-grain dark:border-stone-700 bg-grain-light dark:bg-stone-900">
+      <aside className="w-72 shrink-0 border-r border-grain dark:border-stone-700 bg-grain-light dark:bg-stone-900">
         <nav className="sticky top-14 p-5 flex flex-col gap-6 max-h-[calc(100vh-3.5rem)] overflow-y-auto">
           <Link
             href="/docs"

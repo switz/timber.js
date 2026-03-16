@@ -587,6 +587,25 @@ Pages are always fresh. Every navigation re-renders the page on the server.
 
 ---
 
+## App Directory Location
+
+By default, timber looks for the app directory at `<root>/app`. If `app/` does not exist, it falls back to `<root>/src/app`. This matches the Next.js convention for projects using a `src/` layout.
+
+When both `app/` and `src/app/` exist, `app/` wins. If neither exists, the build fails with a clear error.
+
+To override auto-detection, set `appDir` in `timber.config.ts`:
+
+```typescript
+// timber.config.ts
+export default {
+  appDir: 'src/app', // relative to project root
+};
+```
+
+Only `app/` and `src/app/` are auto-detected. Arbitrary nesting beyond `src/app/` requires an explicit `appDir` config.
+
+---
+
 ## Page Extensions
 
 Route discovery recognizes files by extension. The default set is `tsx`, `ts`, `jsx`, `js`. This is configurable:

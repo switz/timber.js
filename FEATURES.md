@@ -16,6 +16,7 @@ Features tagged as **[novel]** (not in Next.js or Vinext), **[enhanced]** (impro
 - **[parity]** Intercepting routes — modal pattern with soft/hard navigation split ([07-routing.md](design/07-routing.md))
 - **[parity]** API routes (`route.ts`) — export `GET`, `POST`, etc. ([07-routing.md](design/07-routing.md))
 - **[enhanced]** Typed routes — build-time codegen; `<Link>` type-checks href, params, searchParams ([09-typescript.md](design/09-typescript.md))
+- **[parity]** `src/app` support — auto-detects `app/` or `src/app/`, configurable via `appDir` ([07-routing.md](design/07-routing.md))
 - **[parity]** Private folders — `_`-prefixed directories excluded from route and metadata discovery ([07-routing.md](design/07-routing.md))
 - **[enhanced]** Per-segment middleware — `middleware.ts` per route segment, not single global ([07-routing.md](design/07-routing.md))
 

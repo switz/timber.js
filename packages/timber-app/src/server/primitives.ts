@@ -226,6 +226,8 @@ export interface WaitUntilAdapter {
   waitUntil?(promise: Promise<unknown>): void;
 }
 
+// Intentional per-app singleton — warn-once flag that persists for the
+// lifetime of the process/isolate. Not per-request; do not migrate to ALS.
 let _waitUntilWarned = false;
 
 /**

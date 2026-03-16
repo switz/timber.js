@@ -15,13 +15,27 @@
 // @ts-expect-error — virtual module provided by timber-entries plugin
 import config from 'virtual:timber-config';
 import { createFromReadableStream } from '@vitejs/plugin-rsc/ssr';
+import { AsyncLocalStorage } from 'node:async_hooks';
 
 import { renderSsrStream, buildSsrResponse } from './ssr-render.js';
 import { injectHead, injectRscPayload } from './html-injectors.js';
 import { withNuqsSsrAdapter } from './nuqs-ssr-provider.js';
 import { withSpan } from './tracing.js';
 import { setCurrentParams } from '#/client/use-params.js';
-import { setSsrData, clearSsrData } from '#/client/ssr-data.js';
+import { registerSsrDataProvider, type SsrData } from '#/client/ssr-data.js';
+
+// ─── SSR Data ALS ─────────────────────────────────────────────────────────
+//
+// Per-request SSR data stored in AsyncLocalStorage, ensuring correct
+// isolation even when Suspense boundaries resolve asynchronously across
+// concurrent requests. The ALS is created here (server-only module) and
+// exposed to client hooks via the registration pattern — ssr-data.ts
+// never imports node:async_hooks directly.
+
+const ssrDataAls = new AsyncLocalStorage<SsrData>();
+
+// Register the ALS-backed provider so getSsrData() reads from ALS.
+registerSsrDataProvider(() => ssrDataAls.getStore());
 
 /**
  * Navigation context passed from the RSC environment to SSR.
@@ -88,27 +102,27 @@ export async function handleSsr(
   return withSpan('timber.ssr', { 'timber.environment': 'ssr' }, async () => {
     const _runtimeConfig = config;
 
-    // Populate per-request SSR data for client hooks (usePathname,
-    // useSearchParams, useCookie, etc.). These hooks read from
-    // getSsrData() during server-side rendering to return correct
-    // request data instead of client-only defaults.
-    //
-    // Module-level state is safe here because renderToReadableStream
-    // renders the shell synchronously — each request sets values,
-    // renders the shell, then the next request sets its own values.
-    setSsrData({
+    // Build per-request SSR data for client hooks (usePathname,
+    // useSearchParams, useCookie, useParams, etc.).
+    const ssrData: SsrData = {
       pathname: navContext.pathname,
       searchParams: navContext.searchParams,
       cookies: navContext.cookies ?? new Map(),
-    });
+      params: navContext.params,
+    };
 
-    // Populate useParams() for client components rendered during SSR.
-    // The SSR environment has its own module instance of use-params.ts,
-    // so the module-level currentParams must be set before React's
-    // synchronous shell render reads it.
-    setCurrentParams(navContext.params);
+    // Run the entire render inside the SSR data ALS scope.
+    // This ensures correct per-request isolation even when Suspense
+    // boundaries resolve asynchronously across concurrent requests.
+    // Client hooks read from getSsrData() which delegates to this
+    // ALS store via the registered provider.
+    return ssrDataAls.run(ssrData, async () => {
+      // Also set the module-level currentParams for useParams().
+      // useParams reads from getSsrData() during SSR (ALS-backed),
+      // but setCurrentParams is kept for the client-side path where
+      // the segment router updates params on navigation.
+      setCurrentParams(navContext.params);
 
-    try {
       // Decode the RSC stream into a React element tree.
       // createFromReadableStream resolves client component references
       // (from "use client" modules) using the SSR environment's module
@@ -140,12 +154,7 @@ export async function handleSsr(
 
       // Build and return the Response.
       return buildSsrResponse(outputStream, navContext.statusCode, navContext.responseHeaders);
-    } finally {
-      // Clear SSR data to prevent stale values from leaking to
-      // subsequent requests (defensive — the next request will
-      // overwrite anyway, but explicit cleanup is safer).
-      clearSsrData();
-    }
+    });
   });
 }
 

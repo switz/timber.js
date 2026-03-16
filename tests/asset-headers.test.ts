@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   isHashedAsset,
   getAssetCacheControl,
+  generateHeadersFile,
   IMMUTABLE_CACHE,
   STATIC_CACHE,
 } from '../packages/timber-app/src/server/asset-headers';
@@ -67,5 +68,28 @@ describe('getAssetCacheControl()', () => {
   it('STATIC_CACHE contains must-revalidate directive', () => {
     expect(STATIC_CACHE).toContain('must-revalidate');
     expect(STATIC_CACHE).toContain('public');
+  });
+});
+
+// ─── generateHeadersFile ─────────────────────────────────────────────────
+
+describe('generateHeadersFile()', () => {
+  it('contains immutable rule for /assets/*', () => {
+    const content = generateHeadersFile();
+    expect(content).toContain('/assets/*');
+    expect(content).toContain(IMMUTABLE_CACHE);
+  });
+
+  it('contains short-lived rule for /*', () => {
+    const content = generateHeadersFile();
+    expect(content).toContain('/*');
+    expect(content).toContain(STATIC_CACHE);
+  });
+
+  it('puts /assets/* rule before /* rule', () => {
+    const content = generateHeadersFile();
+    const assetsIndex = content.indexOf('/assets/*');
+    const catchAllIndex = content.indexOf('\n/*');
+    expect(assetsIndex).toBeLessThan(catchAllIndex);
   });
 });

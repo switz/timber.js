@@ -8,6 +8,7 @@ import { execFile } from 'node:child_process';
 import { join, relative } from 'node:path';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import type { TimberPlatformAdapter, TimberConfig } from './types';
+import { generateHeadersFile } from '../server/asset-headers.js';
 
 // ─── Bindings passthrough ─────────────────────────────────────────────────
 // ALS stores the env object per-request so server components and middleware
@@ -114,6 +115,11 @@ export function cloudflare(options: CloudflareAdapterOptions = {}): TimberPlatfo
       }).catch(() => {
         // Client dir may not exist when client JavaScript is disabled
       });
+
+      // Write _headers file for static asset cache control.
+      // Cloudflare Workers Static Assets reads this to set Cache-Control
+      // headers on responses. Hashed assets get immutable; others get 1h.
+      await writeFile(join(staticDir, '_headers'), generateHeadersFile());
 
       // Copy server bundles (rsc + ssr) into the output directory.
       // These are already fully bundled by Vite with resolve.noExternal: true.

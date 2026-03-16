@@ -92,6 +92,7 @@ The shortest version: **if Rails or PHP could do it, so can we.** Correct HTTP s
 | [Chunking Strategy](27-chunking-strategy.md)           | Client bundle splitting, vendor chunks, route-level code splitting, cache-tier optimization                                                                              |
 | [npm Packaging](28-npm-packaging.md)                   | Library build strategy, tsup config, conditional exports, CLI packaging, peer deps, versioning, publishing CI plan                                                       |
 | [Cookies](29-cookies.md)                               | `cookies()` read/write API, Set-Cookie merging, pipeline flow, signed cookies, secure defaults, streaming constraints                                                    |
+| [RSC Serialization Audit](30-rsc-serialization-audit.md)| Flight protocol type support matrix, boundary analysis, `dangerouslyPassData` serialization paths, promise streaming behavior                                            |
 
 ## Future Concerns
 

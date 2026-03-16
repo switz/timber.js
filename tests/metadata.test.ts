@@ -805,6 +805,218 @@ describe('renderMetadataToElements', () => {
   });
 });
 
+// ─── Auto-Linking Metadata Routes ─────────────────────────────────────────────
+
+describe('metadata route auto-linking', () => {
+  it('getMetadataRouteAutoLink returns link for icon', async () => {
+    const { getMetadataRouteAutoLink } =
+      await import('../packages/timber-app/src/server/metadata-routes');
+    expect(getMetadataRouteAutoLink('icon', '/icon')).toEqual({
+      rel: 'icon',
+      href: '/icon',
+    });
+  });
+
+  it('getMetadataRouteAutoLink returns link for apple-icon', async () => {
+    const { getMetadataRouteAutoLink } =
+      await import('../packages/timber-app/src/server/metadata-routes');
+    expect(getMetadataRouteAutoLink('apple-icon', '/apple-icon')).toEqual({
+      rel: 'apple-touch-icon',
+      href: '/apple-icon',
+    });
+  });
+
+  it('getMetadataRouteAutoLink returns link for manifest', async () => {
+    const { getMetadataRouteAutoLink } =
+      await import('../packages/timber-app/src/server/metadata-routes');
+    expect(getMetadataRouteAutoLink('manifest', '/manifest.webmanifest')).toEqual({
+      rel: 'manifest',
+      href: '/manifest.webmanifest',
+    });
+  });
+
+  it('getMetadataRouteAutoLink returns null for sitemap/robots/opengraph/twitter', async () => {
+    const { getMetadataRouteAutoLink } =
+      await import('../packages/timber-app/src/server/metadata-routes');
+    expect(getMetadataRouteAutoLink('sitemap', '/sitemap.xml')).toBeNull();
+    expect(getMetadataRouteAutoLink('robots', '/robots.txt')).toBeNull();
+    expect(getMetadataRouteAutoLink('opengraph-image', '/opengraph-image')).toBeNull();
+    expect(getMetadataRouteAutoLink('twitter-image', '/twitter-image')).toBeNull();
+  });
+
+  /** Create a minimal segment node for testing. */
+  function makeSegment(overrides: Partial<ManifestSegmentNode> = {}): ManifestSegmentNode {
+    return {
+      urlPath: '/',
+      children: [],
+      slots: {},
+      ...overrides,
+    } as ManifestSegmentNode;
+  }
+
+  it('auto-links icon.png from root segment', async () => {
+    const segment = makeSegment({
+      page: {
+        filePath: 'app/page.tsx',
+        load: async () => ({ default: () => 'Hello' }),
+      },
+      metadataRoutes: {
+        icon: {
+          filePath: 'app/icon.png',
+          load: async () => ({}),
+        },
+      },
+    });
+
+    const result = await buildRouteElement(new Request('http://localhost/'), {
+      segments: [segment] as never,
+      params: {},
+    });
+    expect(result.headElements).toContainEqual({
+      tag: 'link',
+      attrs: { rel: 'icon', href: '/icon' },
+    });
+  });
+
+  it('auto-links apple-icon from root segment', async () => {
+    const segment = makeSegment({
+      page: {
+        filePath: 'app/page.tsx',
+        load: async () => ({ default: () => 'Hello' }),
+      },
+      metadataRoutes: {
+        'apple-icon': {
+          filePath: 'app/apple-icon.png',
+          load: async () => ({}),
+        },
+      },
+    });
+
+    const result = await buildRouteElement(new Request('http://localhost/'), {
+      segments: [segment] as never,
+      params: {},
+    });
+    expect(result.headElements).toContainEqual({
+      tag: 'link',
+      attrs: { rel: 'apple-touch-icon', href: '/apple-icon' },
+    });
+  });
+
+  it('auto-links manifest from root segment', async () => {
+    const segment = makeSegment({
+      page: {
+        filePath: 'app/page.tsx',
+        load: async () => ({ default: () => 'Hello' }),
+      },
+      metadataRoutes: {
+        manifest: {
+          filePath: 'app/manifest.json',
+          load: async () => ({}),
+        },
+      },
+    });
+
+    const result = await buildRouteElement(new Request('http://localhost/'), {
+      segments: [segment] as never,
+      params: {},
+    });
+    expect(result.headElements).toContainEqual({
+      tag: 'link',
+      attrs: { rel: 'manifest', href: '/manifest.webmanifest' },
+    });
+  });
+
+  it('auto-links nestable icon from nested segment', async () => {
+    const root = makeSegment({
+      layout: {
+        filePath: 'app/layout.tsx',
+        load: async () => ({ default: ({ children }: { children: unknown }) => children }),
+      },
+    });
+    const nested = makeSegment({
+      segmentName: 'blog',
+      urlPath: '/blog',
+      page: {
+        filePath: 'app/blog/page.tsx',
+        load: async () => ({ default: () => 'Blog' }),
+      },
+      metadataRoutes: {
+        icon: {
+          filePath: 'app/blog/icon.png',
+          load: async () => ({}),
+        },
+      },
+    });
+
+    const result = await buildRouteElement(new Request('http://localhost/blog'), {
+      segments: [root, nested] as never,
+      params: {},
+    });
+    expect(result.headElements).toContainEqual({
+      tag: 'link',
+      attrs: { rel: 'icon', href: '/blog/icon' },
+    });
+  });
+
+  it('does NOT auto-link sitemap or robots', async () => {
+    const segment = makeSegment({
+      page: {
+        filePath: 'app/page.tsx',
+        load: async () => ({ default: () => 'Hello' }),
+      },
+      metadataRoutes: {
+        sitemap: {
+          filePath: 'app/sitemap.xml',
+          load: async () => ({}),
+        },
+        robots: {
+          filePath: 'app/robots.txt',
+          load: async () => ({}),
+        },
+      },
+    });
+
+    const result = await buildRouteElement(new Request('http://localhost/'), {
+      segments: [segment] as never,
+      params: {},
+    });
+    const linkElements = result.headElements.filter(
+      (el) => el.tag === 'link' && (el.attrs?.rel === 'sitemap' || el.attrs?.rel === 'robots')
+    );
+    expect(linkElements).toHaveLength(0);
+  });
+
+  it('does NOT auto-link opengraph-image or twitter-image', async () => {
+    const segment = makeSegment({
+      page: {
+        filePath: 'app/page.tsx',
+        load: async () => ({ default: () => 'Hello' }),
+      },
+      metadataRoutes: {
+        'opengraph-image': {
+          filePath: 'app/opengraph-image.tsx',
+          load: async () => ({}),
+        },
+        'twitter-image': {
+          filePath: 'app/twitter-image.tsx',
+          load: async () => ({}),
+        },
+      },
+    });
+
+    const result = await buildRouteElement(new Request('http://localhost/'), {
+      segments: [segment] as never,
+      params: {},
+    });
+    const linkElements = result.headElements.filter(
+      (el) =>
+        el.tag === 'link' &&
+        (el.attrs?.href === '/opengraph-image' || el.attrs?.href === '/twitter-image')
+    );
+    expect(linkElements).toHaveLength(0);
+  });
+});
+
 // ─── Unified metadata export validation ──────────────────────────────────────
 
 describe('unified metadata export', () => {

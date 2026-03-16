@@ -21,7 +21,12 @@ import { withSpan, setSpanAttribute } from './tracing.js';
 import type { RouteMatch } from './pipeline.js';
 import type { ManifestSegmentNode } from './route-matcher.js';
 import { resolveMetadata, renderMetadataToElements } from './metadata.js';
+import type { HeadElement as MetadataHeadElement } from './metadata.js';
 import type { Metadata } from './types.js';
+import {
+  METADATA_ROUTE_CONVENTIONS,
+  getMetadataRouteAutoLink,
+} from './metadata-routes.js';
 import { DenySignal, RedirectSignal } from './primitives.js';
 import { AccessGate } from './access-gate.js';
 import { resolveSlotElement } from './slot-resolver.js';
@@ -249,6 +254,27 @@ export async function buildRouteElement(
   // Resolve metadata
   const resolvedMetadata = resolveMetadata(metadataEntries);
   const headElements = renderMetadataToElements(resolvedMetadata);
+
+  // Auto-link metadata route files (icon, apple-icon, manifest) from segments.
+  // See design/16-metadata.md §"Auto-Linking"
+  for (const segment of segments) {
+    if (!segment.metadataRoutes) continue;
+    for (const baseName of Object.keys(segment.metadataRoutes)) {
+      const convention = METADATA_ROUTE_CONVENTIONS[baseName];
+      if (!convention) continue;
+      // Non-nestable routes only auto-link from root
+      if (!convention.nestable && segment.urlPath !== '/') continue;
+      // Build the href: segment urlPath + serve path
+      const prefix = segment.urlPath === '/' ? '' : segment.urlPath;
+      const href = `${prefix}/${convention.servePath}`;
+      const autoLink = getMetadataRouteAutoLink(convention.type, href);
+      if (autoLink) {
+        const attrs: Record<string, string> = { rel: autoLink.rel, href: autoLink.href };
+        if (autoLink.type) attrs.type = autoLink.type;
+        headElements.push({ tag: 'link', attrs } as MetadataHeadElement);
+      }
+    }
+  }
 
   // Build element tree: page wrapped in layouts (innermost to outermost)
   const h = createElement as (...args: unknown[]) => React.ReactElement;

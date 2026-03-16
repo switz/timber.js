@@ -8,8 +8,6 @@ import type { HeadElement } from './head';
 export interface HistoryEntry {
   /** The complete segment tree payload at the time of navigation */
   payload: unknown;
-  /** The scroll position when the user navigated away from this page */
-  scrollY: number;
   /** Resolved head elements for this page (title, meta tags). Null for SSR'd initial page. */
   headElements?: HeadElement[] | null;
   /** Route params for this page (for useParams). Null for SSR'd initial page. */
@@ -23,8 +21,10 @@ export interface HistoryEntry {
  * navigation without a server roundtrip.
  *
  * On forward navigation, the new page's payload is pushed onto the stack.
- * On popstate, the cached payload is replayed and the saved scrollY is
- * restored via afterPaint.
+ * On popstate, the cached payload is replayed instantly.
+ *
+ * Scroll positions are stored in history.state (browser History API),
+ * not in this stack — see design/19-client-navigation.md §Scroll Restoration.
  *
  * Entries persist for the session duration (no expiry) and are cleared
  * when the tab is closed — matching browser back-button behavior.
@@ -38,14 +38,6 @@ export class HistoryStack {
 
   get(url: string): HistoryEntry | undefined {
     return this.entries.get(url);
-  }
-
-  /** Update the scroll position for an existing entry */
-  updateScroll(url: string, scrollY: number): void {
-    const entry = this.entries.get(url);
-    if (entry) {
-      entry.scrollY = scrollY;
-    }
   }
 
   has(url: string): boolean {

@@ -70,8 +70,8 @@ export interface RouterInstance {
   navigate(url: string, options?: NavigationOptions): Promise<void>;
   /** Full re-render of the current URL — no state tree sent */
   refresh(): Promise<void>;
-  /** Handle a popstate event (back/forward button) */
-  handlePopState(url: string): Promise<void>;
+  /** Handle a popstate event (back/forward button). scrollY is read from history.state. */
+  handlePopState(url: string, scrollY?: number): Promise<void>;
   /** Whether a navigation is currently in flight */
   isPending(): boolean;
   /** The URL currently being navigated to, or null if idle */
@@ -298,12 +298,6 @@ export function createRouter(deps: RouterDeps): RouterInstance {
   let pendingUrl: string | null = null;
   const pendingListeners = new Set<(pending: boolean) => void>();
 
-  // Track the URL the user is currently viewing. Updated after navigate()
-  // and handlePopState(). By the time popstate fires, window.location.href
-  // has already changed to the target URL — we use lastKnownUrl to identify
-  // the page we're departing so we can save its scroll position.
-  let lastKnownUrl = deps.getCurrentUrl();
-
   function setPending(value: boolean, url?: string): void {
     const newPendingUrl = value && url ? url : null;
     if (pending === value && pendingUrl === newPendingUrl) return;
@@ -355,11 +349,13 @@ export function createRouter(deps: RouterDeps): RouterInstance {
     const scroll = options.scroll !== false;
     const replace = options.replace === true;
 
-    // Save the departing page's scroll position and capture it for scroll={false}.
+    // Capture the departing page's scroll position for scroll={false} preservation.
     const currentScrollY = deps.getScrollY();
-    if (historyStack.has(lastKnownUrl)) {
-      historyStack.updateScroll(lastKnownUrl, currentScrollY);
-    }
+
+    // Save the departing page's scroll position in history.state before
+    // pushing a new entry. This ensures back/forward navigation can restore
+    // the correct scroll position from the browser's per-entry state.
+    deps.replaceState({ timber: true, scrollY: currentScrollY }, '', deps.getCurrentUrl());
 
     setPending(true, url);
 
@@ -380,15 +376,14 @@ export function createRouter(deps: RouterDeps): RouterInstance {
 
       // Update the browser history — replace mode overwrites the current entry
       if (replace) {
-        deps.replaceState({ timber: true }, '', url);
+        deps.replaceState({ timber: true, scrollY: 0 }, '', url);
       } else {
-        deps.pushState({ timber: true }, '', url);
+        deps.pushState({ timber: true, scrollY: 0 }, '', url);
       }
 
       // Store the payload in the history stack
       historyStack.push(url, {
         payload: result.payload,
-        scrollY: 0,
         headElements: result.headElements,
         params: result.params,
       });
@@ -423,8 +418,6 @@ export function createRouter(deps: RouterDeps): RouterInstance {
         }
         window.dispatchEvent(new Event('timber:scroll-restored'));
       });
-
-      lastKnownUrl = url;
     } catch (error) {
       // Server-side redirect during RSC fetch → soft router navigation.
       // access.ts called redirect() — the server returns X-Timber-Redirect
@@ -457,7 +450,6 @@ export function createRouter(deps: RouterDeps): RouterInstance {
       // Update the history entry with the fresh payload
       historyStack.push(currentUrl, {
         payload: result.payload,
-        scrollY: deps.getScrollY(),
         headElements: result.headElements,
         params: result.params,
       });
@@ -476,15 +468,10 @@ export function createRouter(deps: RouterDeps): RouterInstance {
     }
   }
 
-  async function handlePopState(url: string): Promise<void> {
-    // Save the departing page's scroll position. By the time popstate fires,
-    // window.location.href has already changed to the target URL, so we use
-    // lastKnownUrl to identify the page we're leaving.
-    if (historyStack.has(lastKnownUrl)) {
-      historyStack.updateScroll(lastKnownUrl, deps.getScrollY());
-    }
-    lastKnownUrl = url;
-
+  async function handlePopState(url: string, scrollY: number = 0): Promise<void> {
+    // Scroll position is read from history.state by the caller (browser-entry.ts)
+    // and passed in. This is more reliable than tracking scroll per-URL in memory
+    // because the browser maintains per-entry state even with duplicate URLs.
     const entry = historyStack.get(url);
 
     if (entry && entry.payload !== null) {
@@ -493,7 +480,7 @@ export function createRouter(deps: RouterDeps): RouterInstance {
       renderPayload(entry.payload);
       applyHead(entry.headElements);
       afterPaint(() => {
-        deps.scrollTo(0, entry.scrollY);
+        deps.scrollTo(0, scrollY);
         window.dispatchEvent(new Event('timber:scroll-restored'));
       });
     } else {
@@ -501,7 +488,6 @@ export function createRouter(deps: RouterDeps): RouterInstance {
       // This happens when navigating back to the initial SSR'd page
       // (its payload is null since it was rendered via SSR, not RSC fetch)
       // or when the entry doesn't exist at all.
-      const savedScrollY = entry?.scrollY ?? 0;
       setPending(true, url);
       try {
         const stateTree = segmentCache.serializeStateTree();
@@ -510,14 +496,13 @@ export function createRouter(deps: RouterDeps): RouterInstance {
         updateParams(result.params);
         historyStack.push(url, {
           payload: result.payload,
-          scrollY: savedScrollY,
           headElements: result.headElements,
           params: result.params,
         });
         renderPayload(result.payload);
         applyHead(result.headElements);
         afterPaint(() => {
-          deps.scrollTo(0, savedScrollY);
+          deps.scrollTo(0, scrollY);
           window.dispatchEvent(new Event('timber:scroll-restored'));
         });
       } finally {
@@ -565,7 +550,6 @@ export function createRouter(deps: RouterDeps): RouterInstance {
       const currentUrl = deps.getCurrentUrl();
       historyStack.push(currentUrl, {
         payload: element,
-        scrollY: deps.getScrollY(),
         headElements,
       });
       renderPayload(element);

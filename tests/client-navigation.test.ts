@@ -173,26 +173,25 @@ describe('HistoryStack', () => {
   });
 
   it('stores and retrieves entries by URL', () => {
-    const entry: HistoryEntry = { payload: 'rsc-data', scrollY: 100 };
+    const entry: HistoryEntry = { payload: 'rsc-data' };
     stack.push('/dashboard', entry);
     expect(stack.get('/dashboard')).toEqual(entry);
   });
 
   it('history replay — back/forward uses cached payload', () => {
-    stack.push('/page-a', { payload: 'a', scrollY: 0 });
-    stack.push('/page-b', { payload: 'b', scrollY: 200 });
+    stack.push('/page-a', { payload: 'a' });
+    stack.push('/page-b', { payload: 'b' });
 
     // Simulating back navigation: look up /page-a
     const entry = stack.get('/page-a');
     expect(entry).toBeDefined();
     expect(entry!.payload).toBe('a');
-    expect(entry!.scrollY).toBe(0);
   });
 
-  it('overwrites entry for same URL with updated scroll', () => {
-    stack.push('/dashboard', { payload: 'v1', scrollY: 0 });
-    stack.push('/dashboard', { payload: 'v2', scrollY: 300 });
-    expect(stack.get('/dashboard')!.scrollY).toBe(300);
+  it('overwrites entry for same URL with updated payload', () => {
+    stack.push('/dashboard', { payload: 'v1' });
+    stack.push('/dashboard', { payload: 'v2' });
+    expect(stack.get('/dashboard')!.payload).toBe('v2');
   });
 
   it('returns undefined for unvisited URL', () => {
@@ -308,7 +307,12 @@ describe('Router', () => {
 
       await router.navigate('/projects', { replace: true });
 
-      expect(mockReplaceState).toHaveBeenCalledWith(expect.anything(), '', '/projects');
+      // First replaceState saves departing scroll, second replaces for navigation
+      expect(mockReplaceState).toHaveBeenCalledWith(
+        expect.objectContaining({ timber: true, scrollY: 0 }),
+        '',
+        '/projects'
+      );
       expect(mockPushState).not.toHaveBeenCalled();
     });
 
@@ -322,7 +326,13 @@ describe('Router', () => {
       await router.navigate('/projects');
 
       expect(mockPushState).toHaveBeenCalledWith(expect.anything(), '', '/projects');
-      expect(mockReplaceState).not.toHaveBeenCalled();
+      // replaceState is called once to save departing scroll position
+      expect(mockReplaceState).toHaveBeenCalledTimes(1);
+      expect(mockReplaceState).toHaveBeenCalledWith(
+        expect.objectContaining({ timber: true, scrollY: 0 }),
+        '',
+        '/dashboard'
+      );
     });
 
     it('uses prefetch cache if available', async () => {
@@ -366,22 +376,21 @@ describe('Router', () => {
   });
 
   describe('popstate (back/forward)', () => {
-    it('restores scroll position on back/forward', async () => {
+    it('restores scroll position on back/forward from history.state', async () => {
       router.historyStack.push('/projects', {
         payload: 'projects-payload',
-        scrollY: 250,
       });
 
-      await router.handlePopState('/projects');
+      // scrollY is passed from history.state by the caller (browser-entry.ts)
+      await router.handlePopState('/projects', 250);
 
-      // Should restore scroll position from history entry
+      // Should restore scroll position from the passed scrollY
       expect(mockScrollTo).toHaveBeenCalledWith(0, 250);
     });
 
     it('replays cached payload without server roundtrip', async () => {
       router.historyStack.push('/projects', {
         payload: 'cached-payload',
-        scrollY: 0,
       });
 
       await router.handlePopState('/projects');
@@ -407,7 +416,6 @@ describe('Router', () => {
       // Initial page has null payload (SSR'd, no RSC fetch)
       router.historyStack.push('/initial', {
         payload: null,
-        scrollY: 150,
       });
 
       mockFetch.mockResolvedValueOnce(
@@ -416,11 +424,12 @@ describe('Router', () => {
         })
       );
 
-      await router.handlePopState('/initial');
+      // scrollY from history.state
+      await router.handlePopState('/initial', 150);
 
       // Should fetch because payload is null
       expect(mockFetch).toHaveBeenCalled();
-      // Should restore the saved scroll position
+      // Should restore the scroll position passed from history.state
       expect(mockScrollTo).toHaveBeenCalledWith(0, 150);
     });
   });
@@ -523,7 +532,6 @@ describe('Router', () => {
     it('getPendingUrl is null during popstate with cached entry', async () => {
       router.historyStack.push('/projects', {
         payload: 'cached-payload',
-        scrollY: 0,
       });
 
       await router.handlePopState('/projects');
@@ -619,7 +627,6 @@ describe('Router', () => {
     it('calls renderRoot on popstate with cached entry', async () => {
       routerWithRenderer.historyStack.push('/projects', {
         payload: { decoded: 'cached' },
-        scrollY: 0,
       });
 
       await routerWithRenderer.handlePopState('/projects');
@@ -802,7 +809,7 @@ describe('Router', () => {
     });
 
     it('does not prefetch if already in history stack', () => {
-      router.historyStack.push('/projects', { payload: 'visited', scrollY: 0 });
+      router.historyStack.push('/projects', { payload: 'visited' });
 
       router.prefetch('/projects');
 
@@ -874,7 +881,6 @@ describe('Router', () => {
       const elements: HeadElement[] = [{ tag: 'title', content: 'Cached Page' }];
       routerWithHead.historyStack.push('/projects', {
         payload: 'cached',
-        scrollY: 0,
         headElements: elements,
       });
 
@@ -887,7 +893,6 @@ describe('Router', () => {
     it('does not call applyHead when headElements is null (initial SSR page)', async () => {
       routerWithHead.historyStack.push('/', {
         payload: 'initial',
-        scrollY: 0,
         headElements: null,
       });
 
@@ -978,7 +983,6 @@ describe('Router', () => {
       const entry = revalRouter.historyStack.get('/dashboard');
       expect(entry).toBeDefined();
       expect(entry!.payload).toBe(element);
-      expect(entry!.scrollY).toBe(75);
     });
 
     it('works with null headElements', () => {
@@ -1410,7 +1414,6 @@ describe('useParams populated via X-Timber-Params header', () => {
     // Push a history entry with params
     router.historyStack.push('/products/42', {
       payload: 'product-payload',
-      scrollY: 0,
       params: { id: '42' },
     });
 
@@ -1423,7 +1426,6 @@ describe('useParams populated via X-Timber-Params header', () => {
 
     router.historyStack.push('/about', {
       payload: 'about-payload',
-      scrollY: 0,
       params: null,
     });
 

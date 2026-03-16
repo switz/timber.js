@@ -128,7 +128,7 @@ The wire format is identical — partial payloads are just full payloads with so
 
 ## History Stack
 
-RSC payloads are stored by `(url, scrollY)` in a session-lived history stack. This enables instant back/forward navigation without a server roundtrip.
+RSC payloads are stored by URL in a session-lived history stack. This enables instant back/forward navigation without a server roundtrip. Scroll positions are stored separately in `history.state` (see §Scroll Restoration).
 
 ### Initial Page Entry
 
@@ -137,14 +137,20 @@ On bootstrap, the initial SSR'd page is stored in the history stack with the dec
 ### Storage
 
 ```
-History Stack:
-  /                   scrollY=0    → [Initial RSC element from hydration]
-  /dashboard          scrollY=0    → [RSC payload from navigation fetch]
-  /projects           scrollY=200  → [RSC payload from navigation fetch]
-  /projects/123       scrollY=0    → [RSC payload from navigation fetch]
+History Stack (in-memory, URL-keyed):
+  /                → [Initial RSC element from hydration]
+  /dashboard       → [RSC payload from navigation fetch]
+  /projects        → [RSC payload from navigation fetch]
+  /projects/123    → [RSC payload from navigation fetch]
+
+History State (browser per-entry):
+  entry 0: { timber: true, scrollY: 0 }
+  entry 1: { timber: true, scrollY: 0 }
+  entry 2: { timber: true, scrollY: 200 }
+  entry 3: { timber: true, scrollY: 0 }
 ```
 
-Each entry stores the complete segment tree payload at the time of navigation. When the user navigates forward, the current page's payload (with scroll position) is pushed onto the stack.
+Each history stack entry stores the complete segment tree payload at the time of navigation. Scroll positions are stored per history entry in `history.state.scrollY`, which the browser maintains independently for each entry — even when the same URL appears multiple times.
 
 ### Replay
 
@@ -152,7 +158,7 @@ On `popstate` (back/forward button):
 
 1. Look up the URL in the history stack
 2. If found: replay the cached payload instantly — no server request
-3. Restore `scrollY` from the stored position
+3. Read `scrollY` from `history.state` and restore via `afterPaint`
 4. React reconciles the cached tree (state may be stale, but navigation is instant)
 
 ### Lifetime
@@ -207,12 +213,14 @@ Scroll to top via `afterPaint(() => scrollTo(0, 0))` after React reconciliation.
 
 ### Back/Forward Navigation
 
-Restore saved `scrollY`. The framework sets `history.scrollRestoration = 'manual'` and manages scroll position explicitly:
+Restore saved `scrollY` from `history.state`. The framework sets `history.scrollRestoration = 'manual'` and manages scroll position via the browser's per-entry history state:
 
-1. On push (forward navigation): save `window.scrollY` with the current history entry via `lastKnownUrl`
-2. On popstate (back/forward): save the departing page's scroll using `lastKnownUrl`, replay cached payload, then `afterPaint(() => scrollTo(0, savedScrollY))`
+1. On bootstrap: `replaceState({ timber: true, scrollY: 0 })` initializes the first entry
+2. On forward navigation: `replaceState` the current entry with the current `scrollY` before `pushState`
+3. On scroll: a debounced scroll listener updates `history.state.scrollY` via `replaceState`
+4. On popstate: read `scrollY` from `history.state` and restore via `afterPaint`
 
-**Why `lastKnownUrl`:** By the time the `popstate` event fires, `window.location.href` has already changed to the target URL. The router tracks the URL the user is currently viewing in `lastKnownUrl` so it can save the correct page's scroll position before processing the navigation.
+**Why `history.state` instead of an in-memory map?** The browser maintains per-entry state even when the same URL appears multiple times in the history stack. An in-memory URL-keyed map would conflate scroll positions for duplicate URLs (e.g., navigating / → /about → / creates two entries for `/` with potentially different scroll positions). `history.state` is intrinsically tied to the history entry, not the URL.
 
 **URL normalization:** History stack keys use `pathname + search` (not full `href`) to match between `navigate()` (which receives relative URLs from links) and `handlePopState()` (which reads from `window.location`). This normalization happens at the browser-entry boundary.
 
@@ -234,9 +242,9 @@ Next.js App Router uses `history.scrollRestoration = 'auto'` and browser-native 
 
 The scroll reset is not caused by rendering to `document`. It's caused by replacing the entire element tree instead of updating state within a persistent tree.
 
-**Future improvement:** A persistent `<TimberRouter>` component that holds the current RSC payload in React state and renders it as children would let React reconcile in place, preserve scroll natively, and eliminate all the manual scroll machinery (`scrollRestoration = 'manual'`, `afterPaint`, `lastKnownUrl`, `timber:scroll-restored`).
+**Future improvement:** A persistent `<TimberRouter>` component that holds the current RSC payload in React state and renders it as children would let React reconcile in place, preserve scroll natively, and eliminate all the manual scroll machinery (`scrollRestoration = 'manual'`, `afterPaint`, `timber:scroll-restored`).
 
-For now, timber.js explicitly manages scroll via `history.scrollRestoration = 'manual'` + in-memory history stack.
+For now, timber.js explicitly manages scroll via `history.scrollRestoration = 'manual'` + `history.state.scrollY`.
 
 ### `timber:scroll-restored` Event
 

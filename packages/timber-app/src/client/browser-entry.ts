@@ -317,9 +317,12 @@ function bootstrap(runtimeConfig: typeof config): void {
   // back navigation can replay it instantly without a server fetch.
   router.historyStack.push(window.location.pathname + window.location.search, {
     payload: initialElement,
-    scrollY: 0,
     headElements: null, // SSR already set the correct head
   });
+
+  // Initialize history.state with scrollY for the initial entry.
+  // This ensures back navigation to the initial page restores scroll correctly.
+  window.history.replaceState({ timber: true, scrollY: 0 }, '');
 
   // Populate the segment cache from server-embedded segment metadata.
   // This enables state tree diffing from the very first client navigation.
@@ -341,9 +344,28 @@ function bootstrap(runtimeConfig: typeof config): void {
   // Register popstate handler for back/forward navigation.
   // Use pathname+search (not full href) to match the URL format used by
   // navigate() — Link hrefs are relative paths like "/scroll-test/page-a".
+  // Read scrollY from history.state — the browser maintains per-entry state
+  // so duplicate URLs in history each have their own scroll position.
   window.addEventListener('popstate', () => {
-    void router.handlePopState(window.location.pathname + window.location.search);
+    const state = window.history.state;
+    const scrollY = (state && typeof state.scrollY === 'number') ? state.scrollY : 0;
+    void router.handlePopState(window.location.pathname + window.location.search, scrollY);
   });
+
+  // Keep history.state.scrollY up to date as the user scrolls.
+  // This ensures that when the user presses back/forward, the departing
+  // page's scroll position is already saved in its history entry.
+  // Debounced to avoid excessive replaceState calls during smooth scrolling.
+  let scrollTimer: ReturnType<typeof setTimeout>;
+  window.addEventListener('scroll', () => {
+    clearTimeout(scrollTimer);
+    scrollTimer = setTimeout(() => {
+      const state = window.history.state;
+      if (state && typeof state === 'object') {
+        window.history.replaceState({ ...state, scrollY: window.scrollY }, '');
+      }
+    }, 100);
+  }, { passive: true });
 
   // Delegate click events on <a data-timber-link> for SPA navigation.
   // Uses event delegation on document for efficiency — no per-link listeners.

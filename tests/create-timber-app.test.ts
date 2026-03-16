@@ -153,7 +153,7 @@ describe('create-timber-app', () => {
     expect(templatePkg.dependencies['@timber-js/app']).toBeDefined();
     expect(templatePkg.dependencies['react']).toBeDefined();
     expect(templatePkg.dependencies['react-dom']).toBeDefined();
-    expect(templatePkg.devDependencies['vite']).toBeDefined();
+    expect(templatePkg.devDependencies['vite-plus']).toBeDefined();
     expect(templatePkg.devDependencies['typescript']).toBeDefined();
     expect(templatePkg.type).toBe('module');
   });

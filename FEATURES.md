@@ -105,6 +105,10 @@ Features tagged as **[novel]** (not in Next.js or Vinext), **[enhanced]** (impro
 - **[novel]** Startup timing instrumentation — per-phase `performance.now()` profiling with dev-mode summary ([18-build-system.md](design/18-build-system.md))
 - **[parity]** Build report — post-build route table showing per-route bundle size, route type (○ static/λ dynamic/ƒ function), and first-load JS ([18-build-system.md](design/18-build-system.md))
 
+## Scaffolding
+
+- **[novel]** `create-timber-app` — interactive project scaffolding with adapter selection (Cloudflare/Node/static) and optional MDX support; compatible with `vp create` and `npx create-timber-app`
+
 ## Configuration
 
 - **[enhanced]** `clientJavascript` config — disable client JS with `clientJavascript: false` or fine-tune with `{ disabled: true, enableHMRInDev: true }` to preserve HMR during development ([18-build-system.md](design/18-build-system.md))

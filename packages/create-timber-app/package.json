@@ -1,0 +1,21 @@
+{
+  "name": "create-timber-app",
+  "version": "0.0.1",
+  "type": "module",
+  "bin": {
+    "create-timber-app": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "template"
+  ],
+  "scripts": {
+    "build": "node scripts/build.js"
+  },
+  "dependencies": {
+    "prompts": "^2.4.2"
+  },
+  "devDependencies": {
+    "@types/prompts": "^2.4.9"
+  }
+}

@@ -9,7 +9,7 @@ import { writeFile, mkdir, cp } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
 import { join, relative } from 'node:path';
 import type { TimberPlatformAdapter, TimberConfig } from './types';
-import { IMMUTABLE_CACHE, generateHeadersFile } from '../server/asset-headers.js';
+import { IMMUTABLE_CACHE, generateHeadersFile } from '../server/asset-headers';
 
 // ─── Presets ─────────────────────────────────────────────────────────────────
 

@@ -8,7 +8,7 @@ import { execFile } from 'node:child_process';
 import { join, relative } from 'node:path';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import type { TimberPlatformAdapter, TimberConfig } from './types';
-import { generateHeadersFile } from '../server/asset-headers.js';
+import { generateHeadersFile } from '../server/asset-headers';
 
 // ─── Bindings passthrough ─────────────────────────────────────────────────
 // ALS stores the env object per-request so server components and middleware

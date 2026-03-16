@@ -19,6 +19,7 @@ import type {
   InterceptionMarker,
 } from './types.js';
 import { DEFAULT_PAGE_EXTENSIONS, INTERCEPTION_MARKERS } from './types.js';
+import { classifyMetadataRoute } from '#/server/metadata-routes.js';
 
 /**
  * Pattern matching encoded path delimiters that must be rejected during route discovery.
@@ -312,6 +313,17 @@ function scanSegmentFiles(dirPath: string, node: SegmentNode, extSet: Set<string
         node.legacyStatusFiles = new Map();
       }
       node.legacyStatusFiles.set(name, { filePath: fullPath, extension: ext });
+      continue;
+    }
+
+    // Metadata route files (sitemap.ts, robots.ts, icon.tsx, opengraph-image.tsx, etc.)
+    // See design/16-metadata.md §"Metadata Routes"
+    const metaInfo = classifyMetadataRoute(entry);
+    if (metaInfo) {
+      if (!node.metadataRoutes) {
+        node.metadataRoutes = new Map();
+      }
+      node.metadataRoutes.set(name, { filePath: fullPath, extension: ext });
     }
   }
 

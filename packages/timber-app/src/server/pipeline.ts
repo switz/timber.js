@@ -59,6 +59,11 @@ export interface RouteMatch {
 /** Function that matches a canonical pathname to a route. */
 export type RouteMatcher = (pathname: string) => RouteMatch | null;
 
+/** Function that matches a canonical pathname to a metadata route. */
+export type MetadataRouteMatcher = (
+  pathname: string
+) => import('./route-matcher.js').MetadataRouteMatch | null;
+
 /** Context for intercepting route resolution (modal pattern). */
 export interface InterceptionContext {
   /** The URL the user is navigating TO (the intercepted route). */
@@ -88,6 +93,8 @@ export interface PipelineConfig {
   proxy?: ProxyExport;
   /** Route matcher — resolves a canonical pathname to a RouteMatch. */
   matchRoute: RouteMatcher;
+  /** Metadata route matcher — resolves metadata route pathnames (sitemap.xml, robots.txt, etc.) */
+  matchMetadataRoute?: MetadataRouteMatcher;
   /** Renderer — produces the final Response for a matched route. */
   render: RouteRenderer;
   /** Renderer for no-match 404 — renders 404.tsx in root layout. */
@@ -211,6 +218,46 @@ export function createPipeline(config: PipelineConfig): (req: Request) => Promis
       return new Response(null, { status: result.status });
     }
     const canonicalPathname = result.pathname;
+
+    // Stage 1b: Metadata route matching — runs before regular route matching.
+    // Metadata routes skip middleware.ts and access.ts (public endpoints for crawlers).
+    // See design/16-metadata.md §"Pipeline Integration"
+    if (config.matchMetadataRoute) {
+      const metaMatch = config.matchMetadataRoute(canonicalPathname);
+      if (metaMatch) {
+        try {
+          const mod = (await metaMatch.file.load()) as { default?: Function };
+          if (typeof mod.default !== 'function') {
+            return new Response('Metadata route must export a default function', { status: 500 });
+          }
+          const handlerResult = await mod.default();
+          // If the handler returns a Response, use it directly
+          if (handlerResult instanceof Response) {
+            return handlerResult;
+          }
+          // Otherwise, serialize based on content type
+          const contentType = metaMatch.contentType;
+          let body: string;
+          if (typeof handlerResult === 'string') {
+            body = handlerResult;
+          } else if (contentType === 'application/xml') {
+            body = serializeSitemap(handlerResult);
+          } else if (contentType === 'application/manifest+json') {
+            body = JSON.stringify(handlerResult, null, 2);
+          } else {
+            body = typeof handlerResult === 'string' ? handlerResult : String(handlerResult);
+          }
+          return new Response(body, {
+            status: 200,
+            headers: { 'Content-Type': `${contentType}; charset=utf-8` },
+          });
+        } catch (error) {
+          logRenderError({ method, path, error });
+          if (onPipelineError && error instanceof Error) onPipelineError(error, 'metadata-route');
+          return new Response(null, { status: 500 });
+        }
+      }
+    }
 
     // Stage 2: Route matching
     let match = matchRoute(canonicalPathname);
@@ -449,4 +496,49 @@ function applyCookieJar(headers: Headers): void {
   for (const value of getSetCookieHeaders()) {
     headers.append('Set-Cookie', value);
   }
+}
+
+// ─── Metadata Route Helpers ──────────────────────────────────────────────
+
+/**
+ * Serialize a sitemap array to XML.
+ * Follows the sitemap.org protocol: https://www.sitemaps.org/protocol.html
+ */
+function serializeSitemap(
+  entries: Array<{
+    url: string;
+    lastModified?: string | Date;
+    changeFrequency?: string;
+    priority?: number;
+  }>
+): string {
+  const urls = entries
+    .map((e) => {
+      let xml = `  <url>\n    <loc>${escapeXml(e.url)}</loc>`;
+      if (e.lastModified) {
+        const date = e.lastModified instanceof Date ? e.lastModified.toISOString() : e.lastModified;
+        xml += `\n    <lastmod>${escapeXml(date)}</lastmod>`;
+      }
+      if (e.changeFrequency) {
+        xml += `\n    <changefreq>${escapeXml(e.changeFrequency)}</changefreq>`;
+      }
+      if (e.priority !== undefined) {
+        xml += `\n    <priority>${e.priority}</priority>`;
+      }
+      xml += '\n  </url>';
+      return xml;
+    })
+    .join('\n');
+
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>`;
+}
+
+/** Escape special XML characters. */
+function escapeXml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
 }

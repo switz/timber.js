@@ -89,6 +89,20 @@ describe('Cloudflare adapter implements interface', () => {
       { recursive: true }
     );
   });
+
+  it('buildOutput writes _headers file for static asset caching', async () => {
+    const adapter = cloudflare({ compatibilityDate: '2026-03-01' });
+    await adapter.buildOutput({ output: 'server' }, '/tmp/build');
+
+    const headersCall = mockWriteFile.mock.calls.find(
+      (call) => typeof call[0] === 'string' && (call[0] as string).includes('_headers')
+    );
+    expect(headersCall).toBeDefined();
+    expect(headersCall![0]).toContain('static/_headers');
+    expect(headersCall![1]).toContain('/assets/*');
+    expect(headersCall![1]).toContain('immutable');
+    expect(headersCall![1]).toContain('must-revalidate');
+  });
 });
 
 describe('generateWranglerConfig', () => {

@@ -9,6 +9,7 @@ import { writeFile, mkdir, cp } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
 import { join, relative } from 'node:path';
 import type { TimberPlatformAdapter, TimberConfig } from './types';
+import { IMMUTABLE_CACHE, generateHeadersFile } from '../server/asset-headers.js';
 
 // ─── Presets ─────────────────────────────────────────────────────────────────
 
@@ -172,6 +173,10 @@ export function nitro(options: NitroAdapterOptions = {}): TimberPlatformAdapter 
         // Client dir may not exist when client JavaScript is disabled
       });
 
+      // Write _headers file for platforms that support it (Netlify, etc.).
+      // See design/25-production-deployments.md §"CDN / Edge Cache"
+      await writeFile(join(publicDir, '_headers'), generateHeadersFile());
+
       // Write the build manifest init module (if manifest data was produced).
       if (config.manifestInit) {
         await writeFile(join(outDir, '_timber-manifest-init.js'), config.manifestInit);
@@ -182,7 +187,7 @@ export function nitro(options: NitroAdapterOptions = {}): TimberPlatformAdapter 
       const entry = generateNitroEntry(buildDir, outDir, preset, hasManifestInit);
       await writeFile(join(outDir, 'entry.ts'), entry);
 
-      // Generate the Nitro config
+      // Generate the Nitro config with static asset cache rules
       const nitroConfig = generateNitroConfig(preset, options.nitroConfig);
       await writeFile(join(outDir, 'nitro.config.ts'), nitroConfig);
     },
@@ -272,6 +277,11 @@ export function generateNitroConfig(
   const config: Record<string, unknown> = {
     preset: presetConfig.nitroPreset,
     output: { dir: presetConfig.outputDir },
+    // Static asset cache headers — hashed assets are immutable, others get 1h.
+    // See design/25-production-deployments.md §"CDN / Edge Cache"
+    routeRules: {
+      '/assets/**': { headers: { 'Cache-Control': IMMUTABLE_CACHE } },
+    },
     ...presetConfig.extraConfig,
     ...userConfig,
   };

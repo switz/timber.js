@@ -236,6 +236,19 @@ describe('buildOutput', () => {
       adapter.buildOutput({ output: 'static', clientJavascriptDisabled: true }, '/tmp/build')
     ).resolves.not.toThrow();
   });
+
+  it('writes _headers file in public directory for static asset caching', async () => {
+    const adapter = nitro({ preset: 'netlify' });
+    await adapter.buildOutput({ output: 'server' }, '/tmp/build');
+
+    const headersCall = mockWriteFile.mock.calls.find(
+      (call) => typeof call[0] === 'string' && (call[0] as string).includes('_headers')
+    );
+    expect(headersCall).toBeDefined();
+    expect(headersCall![0]).toContain('public/_headers');
+    expect(headersCall![1]).toContain('/assets/*');
+    expect(headersCall![1]).toContain('immutable');
+  });
 });
 
 // ─── Entry Generation ───────────────────────────────────────────────────────
@@ -389,6 +402,21 @@ describe('generateNitroConfig', () => {
   it('imports from nitropack/config', () => {
     const config = generateNitroConfig('node-server');
     expect(config).toContain("from 'nitropack/config'");
+  });
+
+  it('includes routeRules for hashed asset caching', () => {
+    const config = generateNitroConfig('node-server');
+    expect(config).toContain('routeRules');
+    expect(config).toContain('/assets/**');
+    expect(config).toContain('immutable');
+  });
+
+  it('user routeRules override default asset caching rules', () => {
+    const config = generateNitroConfig('vercel', {
+      routeRules: { '/api/**': { cors: true } },
+    });
+    // User override replaces the entire routeRules
+    expect(config).toContain('/api/**');
   });
 });
 

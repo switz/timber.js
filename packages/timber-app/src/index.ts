@@ -97,6 +97,14 @@ export interface TimberUserConfig {
     /** Array of signing secrets for key rotation. Index 0 signs; all verify. */
     secrets?: string[];
   };
+  /**
+   * Override the app directory location. By default, timber auto-detects
+   * `app/` at the project root, falling back to `src/app/`.
+   *
+   * Set this to a relative path from the project root (e.g. `'src/app'`)
+   * to use a custom location.
+   */
+  appDir?: string;
   /** MDX compilation options passed to @mdx-js/rollup. See design/20-content-collections.md. */
   mdx?: {
     remarkPlugins?: unknown[];
@@ -167,6 +175,37 @@ export interface PluginContext {
   buildManifest: BuildManifest | null;
   /** Startup timer for profiling cold start phases (active in dev, no-op in prod) */
   timer: StartupTimer;
+}
+
+/**
+ * Resolve the app directory. Checks (in order):
+ * 1. Explicit `configAppDir` from timber.config.ts
+ * 2. `<root>/app`
+ * 3. `<root>/src/app`
+ *
+ * Throws if none exist.
+ */
+export function resolveAppDir(root: string, configAppDir?: string): string {
+  if (configAppDir) {
+    const explicit = join(root, configAppDir);
+    if (!existsSync(explicit)) {
+      throw new Error(
+        `[timber] Configured appDir "${configAppDir}" does not exist at ${explicit}`
+      );
+    }
+    return explicit;
+  }
+
+  const rootApp = join(root, 'app');
+  if (existsSync(rootApp)) return rootApp;
+
+  const srcApp = join(root, 'src', 'app');
+  if (existsSync(srcApp)) return srcApp;
+
+  throw new Error(
+    `[timber] Could not find app directory. Expected "app/" or "src/app/" in ${root}. ` +
+      `You can set appDir in timber.config.ts to specify a custom location.`
+  );
 }
 
 function createPluginContext(config?: TimberUserConfig, root?: string): PluginContext {
@@ -280,7 +319,7 @@ export function timber(config?: TimberUserConfig): PluginOption[] {
     },
     configResolved(resolved) {
       ctx.root = resolved.root;
-      ctx.appDir = join(resolved.root, 'app');
+      ctx.appDir = resolveAppDir(resolved.root, ctx.config.appDir);
       ctx.dev = resolved.command === 'serve';
       // In production builds, swap to a no-op timer to avoid overhead
       if (!ctx.dev) {

@@ -22,7 +22,7 @@ describe('SSR data for cookies', () => {
       ['locale', 'en'],
     ]);
 
-    setSsrData({ pathname: '/', searchParams: {}, cookies });
+    setSsrData({ pathname: '/', searchParams: {}, cookies, params: {} });
     const data = getSsrData();
     expect(data).toBeDefined();
     expect(data!.cookies.get('theme')).toBe('dark');

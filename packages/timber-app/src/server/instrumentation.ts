@@ -48,6 +48,10 @@ interface InstrumentationModule {
 }
 
 // ─── State ────────────────────────────────────────────────────────────────
+//
+// Intentional per-app singletons (not per-request). Instrumentation loads
+// once at server startup and persists for the lifetime of the process/isolate.
+// These must NOT be migrated to ALS — they are correctly scoped to the app.
 
 let _initialized = false;
 let _onRequestError: InstrumentationOnRequestError | null = null;

@@ -275,9 +275,25 @@ function bootstrap(runtimeConfig: typeof config): void {
     fetch: (url, init) => window.fetch(url, init),
     pushState: (data, unused, url) => window.history.pushState(data, unused, url),
     replaceState: (data, unused, url) => window.history.replaceState(data, unused, url),
-    scrollTo: (x, y) => window.scrollTo(x, y),
+    scrollTo: (x, y) => {
+      window.scrollTo(x, y);
+      document.documentElement.scrollTop = y;
+      document.body.scrollTop = y;
+      // Also scroll any element explicitly marked as a scroll container.
+      for (const el of document.querySelectorAll('[data-timber-scroll-restoration]')) {
+        (el as HTMLElement).scrollTop = y;
+      }
+    },
     getCurrentUrl: () => window.location.pathname + window.location.search,
-    getScrollY: () => window.scrollY,
+    getScrollY: () => {
+      if (window.scrollY || document.documentElement.scrollTop || document.body.scrollTop) {
+        return window.scrollY || document.documentElement.scrollTop || document.body.scrollTop;
+      }
+      for (const el of document.querySelectorAll('[data-timber-scroll-restoration]')) {
+        if ((el as HTMLElement).scrollTop > 0) return (el as HTMLElement).scrollTop;
+      }
+      return 0;
+    },
 
     // Decode RSC Flight stream using createFromFetch.
     // createFromFetch takes a Promise<Response> and progressively
@@ -357,15 +373,17 @@ function bootstrap(runtimeConfig: typeof config): void {
   // page's scroll position is already saved in its history entry.
   // Debounced to avoid excessive replaceState calls during smooth scrolling.
   let scrollTimer: ReturnType<typeof setTimeout>;
-  window.addEventListener('scroll', () => {
+  function saveScrollPosition(): void {
     clearTimeout(scrollTimer);
     scrollTimer = setTimeout(() => {
       const state = window.history.state;
       if (state && typeof state === 'object') {
-        window.history.replaceState({ ...state, scrollY: window.scrollY }, '');
+        // Use getScrollY to capture scroll from overflow containers too.
+        window.history.replaceState({ ...state, scrollY: deps.getScrollY() }, '');
       }
     }, 100);
-  }, { passive: true });
+  }
+  window.addEventListener('scroll', saveScrollPosition, { passive: true });
 
   // Delegate click events on <a data-timber-link> for SPA navigation.
   // Uses event delegation on document for efficiency — no per-link listeners.

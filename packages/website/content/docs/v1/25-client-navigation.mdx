@@ -106,6 +106,46 @@ function NavItemInner({ children }) {
 }
 ```
 
+## Scroll Restoration
+
+timber.js takes manual control of scroll restoration during client-side navigation. The browser's native scroll restoration doesn't work with React's document-level rendering, so timber handles it explicitly.
+
+### Default behavior
+
+- **Forward navigation** scrolls to the top of the page.
+- **Back/forward** restores the saved scroll position.
+- Scroll positions are saved in `history.state` so each history entry remembers its own position, even if two entries share the same URL.
+
+### Disabling scroll-to-top
+
+Pass `scroll={false}` to `<Link>` to preserve the current scroll position after navigation — useful for tab-style UIs where the content changes but the page shouldn't jump:
+
+```tsx
+<Link href="/dashboard/settings" scroll={false}>
+  Settings
+</Link>
+```
+
+Or programmatically:
+
+```tsx
+router.push('/dashboard/settings', { scroll: false });
+```
+
+### Custom scroll containers
+
+By default, timber restores scroll on the window and the document root elements (`<html>` and `<body>`). If your layout uses a custom scrollable container (e.g. a `<main>` with `overflow-y: auto`), add the `data-timber-scroll-restoration` attribute so timber can manage its scroll position:
+
+```tsx
+<main className="overflow-y-auto h-screen" data-timber-scroll-restoration>
+  {children}
+</main>
+```
+
+This ensures scroll-to-top on forward navigation and scroll restoration on back/forward work correctly within that container.
+
+> **Tip:** Prefer window-level scrolling when possible. Use sticky positioning for fixed sidebars and navs instead of constraining the page height and scrolling a nested container.
+
 ## `Link.onNavigate`
 
 Intercept navigation for custom logic like view transitions:

@@ -128,3 +128,20 @@ export function escapeHtml(str: string): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
 }
+
+/**
+ * Parse a Cookie header string into a name→value Map.
+ * Used to populate NavContext.cookies for SSR hooks (useCookie).
+ */
+export function parseCookiesFromHeader(header: string): Map<string, string> {
+  const map = new Map<string, string>();
+  if (!header) return map;
+  for (const pair of header.split(';')) {
+    const eqIndex = pair.indexOf('=');
+    if (eqIndex === -1) continue;
+    const name = pair.slice(0, eqIndex).trim();
+    const value = pair.slice(eqIndex + 1).trim();
+    if (name) map.set(name, value);
+  }
+  return map;
+}

@@ -11,12 +11,29 @@
  * Unlike Next.js's ReadonlyURLSearchParams, this returns a standard
  * URLSearchParams. Mutation methods (set, delete, append) work on the
  * local copy but do NOT affect the URL — use the router or nuqs for that.
+ *
+ * During SSR, reads the request search params from the SSR ALS context
+ * (populated by ssr-entry.ts) instead of window.location.
  */
 
 import { useSyncExternalStore } from 'react';
+import { getSsrData } from './ssr-data.js';
 
 function getSearch(): string {
-  return typeof window !== 'undefined' ? window.location.search : '';
+  if (typeof window !== 'undefined') return window.location.search;
+  const data = getSsrData();
+  if (!data) return '';
+  const sp = new URLSearchParams(data.searchParams);
+  const str = sp.toString();
+  return str ? `?${str}` : '';
+}
+
+function getServerSearch(): string {
+  const data = getSsrData();
+  if (!data) return '';
+  const sp = new URLSearchParams(data.searchParams);
+  const str = sp.toString();
+  return str ? `?${str}` : '';
 }
 
 function subscribe(callback: () => void): () => void {
@@ -39,7 +56,8 @@ function getSearchParams(): URLSearchParams {
 }
 
 function getServerSearchParams(): URLSearchParams {
-  return new URLSearchParams();
+  const data = getSsrData();
+  return data ? new URLSearchParams(data.searchParams) : new URLSearchParams();
 }
 
 /**
@@ -51,6 +69,6 @@ export function useSearchParams(): URLSearchParams {
   // useSyncExternalStore needs a primitive snapshot for comparison.
   // We use the raw search string as the snapshot, then return the
   // parsed URLSearchParams.
-  useSyncExternalStore(subscribe, getSearch, () => '');
+  useSyncExternalStore(subscribe, getSearch, getServerSearch);
   return typeof window !== 'undefined' ? getSearchParams() : getServerSearchParams();
 }

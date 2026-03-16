@@ -48,8 +48,12 @@ export { useParams, setCurrentParams } from './use-params';
 export { useQueryStates, bindUseQueryStates } from './use-query-states';
 
 // Cookies
-export { useCookie, setServerCookieSnapshot } from './use-cookie';
+export { useCookie } from './use-cookie';
 export type { ClientCookieOptions, CookieSetter } from './use-cookie';
+
+// SSR data (framework-internal, used by ssr-entry to provide request data to hooks)
+export { setSsrData, clearSsrData, getSsrData } from './ssr-data';
+export type { SsrData } from './ssr-data';
 
 // Error boundary (framework-internal, used by tree-builder and rsc-entry)
 export { TimberErrorBoundary } from './error-boundary';

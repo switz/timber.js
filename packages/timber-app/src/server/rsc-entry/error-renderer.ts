@@ -15,7 +15,7 @@ import type { ClientBootstrapConfig } from '#/server/html-injectors.js';
 import { renderDenyPage } from '#/server/deny-renderer.js';
 import type { LayoutEntry } from '#/server/deny-renderer.js';
 import type { NavContext } from '#/server/ssr-entry.js';
-import { createDebugChannelSink } from './helpers.js';
+import { createDebugChannelSink, parseCookiesFromHeader } from './helpers.js';
 import { callSsr } from './ssr-bridge.js';
 
 /**
@@ -127,6 +127,7 @@ export async function renderErrorPage(
     headHtml: '',
     bootstrapScriptContent: clientBootstrap.bootstrapScriptContent,
     rscStream: inlineStream,
+    cookies: parseCookiesFromHeader(req.headers.get('cookie') ?? ''),
   };
 
   return callSsr(ssrStream, navContext);

@@ -25,7 +25,7 @@ const RESOLVED_VIRTUAL_ID = `\0${VIRTUAL_MODULE_ID}`;
  * File convention names we track for changes that require manifest regeneration.
  */
 const ROUTE_FILE_PATTERNS =
-  /\/(page|layout|middleware|access|route|error|default|denied|search-params|\d{3}|[45]xx|not-found|forbidden|unauthorized)\./;
+  /\/(page|layout|middleware|access|route|error|default|denied|search-params|\d{3}|[45]xx|not-found|forbidden|unauthorized|sitemap|robots|manifest|favicon|icon|opengraph-image|twitter-image|apple-icon)\./;
 
 /**
  * Create the timber-routing Vite plugin.
@@ -340,6 +340,20 @@ function generateManifestModule(tree: RouteTree): string {
       }
       parts.push(
         `${nextIndent}legacyStatusFiles: {\n${legacyEntries.join(',\n')}\n${nextIndent}},`
+      );
+    }
+
+    // Metadata route files (sitemap.ts, robots.ts, icon.tsx, etc.)
+    if (node.metadataRoutes && node.metadataRoutes.size > 0) {
+      const metaEntries: string[] = [];
+      for (const [name, file] of node.metadataRoutes) {
+        const v = addImport(file);
+        metaEntries.push(
+          `${nextIndent}    ${JSON.stringify(name)}: { load: ${v}, filePath: ${JSON.stringify(file.filePath)} }`
+        );
+      }
+      parts.push(
+        `${nextIndent}metadataRoutes: {\n${metaEntries.join(',\n')}\n${nextIndent}},`
       );
     }
 

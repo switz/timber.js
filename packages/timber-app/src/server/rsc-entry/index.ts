@@ -29,7 +29,7 @@ import { initDevTracing } from '#/server/tracing.js';
 import type { PipelineConfig, RouteMatch, InterceptionContext } from '#/server/pipeline.js';
 import { logRenderError } from '#/server/logger.js';
 import { resolveLogMode } from '#/server/dev-logger.js';
-import { createRouteMatcher } from '#/server/route-matcher.js';
+import { createRouteMatcher, createMetadataRouteMatcher } from '#/server/route-matcher.js';
 import type { ManifestSegmentNode } from '#/server/route-matcher.js';
 import { DenySignal, RedirectSignal, RenderError } from '#/server/primitives.js';
 import { buildClientScripts } from '#/server/html-injectors.js';
@@ -99,6 +99,7 @@ async function createRequestHandler(manifest: typeof routeManifest, runtimeConfi
   }
 
   const matchRoute = createRouteMatcher(manifest);
+  const matchMetadataRoute = createMetadataRouteMatcher(manifest);
 
   // Build the client bootstrap configuration.
   // When client JavaScript is disabled, no scripts are injected
@@ -132,6 +133,7 @@ async function createRequestHandler(manifest: typeof routeManifest, runtimeConfi
   const pipelineConfig: PipelineConfig = {
     proxy: manifest.proxy?.load,
     matchRoute,
+    matchMetadataRoute,
     // 103 Early Hints — fires after route match, before middleware.
     // Collects CSS, font, and JS chunk Link headers from the build manifest
     // so the browser starts fetching critical resources while the server renders.

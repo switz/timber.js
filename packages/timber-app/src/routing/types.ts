@@ -73,6 +73,8 @@ export interface SegmentNode {
   prerender?: RouteFile;
   /** search-params.ts — typed search params definition for this route */
   searchParams?: RouteFile;
+  /** Metadata route files (sitemap.ts, robots.ts, icon.tsx, etc.) keyed by base name */
+  metadataRoutes?: Map<string, RouteFile>;
 
   // --- Children ---
   children: SegmentNode[];

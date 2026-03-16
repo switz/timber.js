@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   createRouteMatcher,
+  createMetadataRouteMatcher,
   type ManifestSegmentNode,
   type ManifestRoot,
 } from '../packages/timber-app/src/server/route-matcher';
@@ -338,5 +339,155 @@ describe('route-matcher: dynamic params', () => {
     expect(result).not.toBeNull();
     expect(result!.params.id).toBe('42');
     expect(typeof result!.params.id).toBe('string');
+  });
+});
+
+// ─── Metadata route matching ────────────────────────────────────────────────
+
+describe('metadata route matcher', () => {
+  it('matches root sitemap.xml', () => {
+    const root = makeNode({
+      metadataRoutes: {
+        sitemap: { load: async () => ({}), filePath: 'app/sitemap.ts' },
+      },
+    });
+
+    const match = createMetadataRouteMatcher(makeManifest(root));
+    const result = match('/sitemap.xml');
+    expect(result).not.toBeNull();
+    expect(result!.type).toBe('sitemap');
+    expect(result!.contentType).toBe('application/xml');
+  });
+
+  it('matches root robots.txt', () => {
+    const root = makeNode({
+      metadataRoutes: {
+        robots: { load: async () => ({}), filePath: 'app/robots.ts' },
+      },
+    });
+
+    const match = createMetadataRouteMatcher(makeManifest(root));
+    const result = match('/robots.txt');
+    expect(result).not.toBeNull();
+    expect(result!.type).toBe('robots');
+    expect(result!.contentType).toBe('text/plain');
+  });
+
+  it('matches nested sitemap.xml', () => {
+    const root = makeNode({
+      children: [
+        makeNode({
+          segmentName: 'blog',
+          segmentType: 'static',
+          urlPath: '/blog',
+          metadataRoutes: {
+            sitemap: { load: async () => ({}), filePath: 'app/blog/sitemap.ts' },
+          },
+        }),
+      ],
+    });
+
+    const match = createMetadataRouteMatcher(makeManifest(root));
+    const result = match('/blog/sitemap.xml');
+    expect(result).not.toBeNull();
+    expect(result!.type).toBe('sitemap');
+  });
+
+  it('does not match non-nestable route in nested segment', () => {
+    const root = makeNode({
+      children: [
+        makeNode({
+          segmentName: 'blog',
+          segmentType: 'static',
+          urlPath: '/blog',
+          metadataRoutes: {
+            robots: { load: async () => ({}), filePath: 'app/blog/robots.ts' },
+          },
+        }),
+      ],
+    });
+
+    const match = createMetadataRouteMatcher(makeManifest(root));
+    // robots.txt is non-nestable — should not match from /blog
+    expect(match('/blog/robots.txt')).toBeNull();
+  });
+
+  it('returns null for unrecognized paths', () => {
+    const root = makeNode({
+      metadataRoutes: {
+        sitemap: { load: async () => ({}), filePath: 'app/sitemap.ts' },
+      },
+    });
+
+    const match = createMetadataRouteMatcher(makeManifest(root));
+    expect(match('/about')).toBeNull();
+    expect(match('/sitemap')).toBeNull();
+  });
+
+  it('matches opengraph-image', () => {
+    const root = makeNode({
+      metadataRoutes: {
+        'opengraph-image': { load: async () => ({}), filePath: 'app/opengraph-image.tsx' },
+      },
+    });
+
+    const match = createMetadataRouteMatcher(makeManifest(root));
+    const result = match('/opengraph-image');
+    expect(result).not.toBeNull();
+    expect(result!.type).toBe('opengraph-image');
+  });
+
+  it('matches manifest.webmanifest', () => {
+    const root = makeNode({
+      metadataRoutes: {
+        manifest: { load: async () => ({}), filePath: 'app/manifest.ts' },
+      },
+    });
+
+    const match = createMetadataRouteMatcher(makeManifest(root));
+    const result = match('/manifest.webmanifest');
+    expect(result).not.toBeNull();
+    expect(result!.type).toBe('manifest');
+    expect(result!.contentType).toBe('application/manifest+json');
+  });
+
+  it('matches icon in nested segment', () => {
+    const root = makeNode({
+      children: [
+        makeNode({
+          segmentName: 'blog',
+          segmentType: 'static',
+          urlPath: '/blog',
+          metadataRoutes: {
+            icon: { load: async () => ({}), filePath: 'app/blog/icon.tsx' },
+          },
+        }),
+      ],
+    });
+
+    const match = createMetadataRouteMatcher(makeManifest(root));
+    const result = match('/blog/icon');
+    expect(result).not.toBeNull();
+    expect(result!.type).toBe('icon');
+  });
+
+  it('matches metadata routes inside group segments', () => {
+    const root = makeNode({
+      children: [
+        makeNode({
+          segmentName: '(marketing)',
+          segmentType: 'group',
+          urlPath: '/',
+          metadataRoutes: {
+            sitemap: { load: async () => ({}), filePath: 'app/(marketing)/sitemap.ts' },
+          },
+        }),
+      ],
+    });
+
+    const match = createMetadataRouteMatcher(makeManifest(root));
+    const result = match('/sitemap.xml');
+    expect(result).not.toBeNull();
+    expect(result!.type).toBe('sitemap');
   });
 });

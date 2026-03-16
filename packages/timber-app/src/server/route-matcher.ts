@@ -10,6 +10,10 @@
 
 import type { RouteMatch } from './pipeline.js';
 import type { MiddlewareFn } from './middleware-runner.js';
+import {
+  METADATA_ROUTE_CONVENTIONS,
+  type MetadataRouteType,
+} from './metadata-routes.js';
 
 // ─── Manifest Types ───────────────────────────────────────────────────────
 // The virtual module manifest has a slightly different shape than SegmentNode:
@@ -52,6 +56,8 @@ export interface ManifestSegmentNode {
   jsonStatusFiles?: Record<string, ManifestFile>;
   legacyStatusFiles?: Record<string, ManifestFile>;
   prerender?: ManifestFile;
+  /** Metadata route files (sitemap.ts, robots.ts, icon.tsx, etc.) keyed by base name */
+  metadataRoutes?: Record<string, ManifestFile>;
 
   children: ManifestSegmentNode[];
   slots: Record<string, ManifestSegmentNode>;
@@ -237,4 +243,74 @@ function matchSegments(
 
   segments.pop();
   return false;
+}
+
+// ─── Metadata Route Matcher ─────────────────────────────────────────────
+
+/** Result of matching a metadata route. */
+export interface MetadataRouteMatch {
+  /** The metadata route type (sitemap, robots, icon, etc.) */
+  type: MetadataRouteType;
+  /** Content-Type header for the response. */
+  contentType: string;
+  /** The manifest file reference for the handler module. */
+  file: ManifestFile;
+  /** The matched segment (for context/params if needed). */
+  segment: ManifestSegmentNode;
+}
+
+/**
+ * Create a metadata route matcher from a manifest.
+ *
+ * Walks the segment tree and builds a map from serve paths to handler modules.
+ * Metadata routes are matched by exact pathname (e.g., /sitemap.xml, /blog/sitemap.xml).
+ *
+ * See design/16-metadata.md §"Metadata Routes"
+ */
+export function createMetadataRouteMatcher(
+  manifest: ManifestRoot
+): (pathname: string) => MetadataRouteMatch | null {
+  // Build a static lookup map: pathname → match info
+  const routeMap = new Map<string, MetadataRouteMatch>();
+  collectMetadataRoutes(manifest.root, routeMap);
+
+  return (pathname: string) => routeMap.get(pathname) ?? null;
+}
+
+/**
+ * Recursively collect metadata routes from the segment tree into a lookup map.
+ */
+function collectMetadataRoutes(
+  node: ManifestSegmentNode,
+  map: Map<string, MetadataRouteMatch>
+): void {
+  if (node.metadataRoutes) {
+    for (const [baseName, file] of Object.entries(node.metadataRoutes)) {
+      const convention = METADATA_ROUTE_CONVENTIONS[baseName];
+      if (!convention) continue;
+
+      // Non-nestable routes (robots, manifest, favicon) only serve from root
+      if (!convention.nestable && node.urlPath !== '/') continue;
+
+      // Build the serve pathname: segment urlPath + serve path
+      const prefix = node.urlPath === '/' ? '' : node.urlPath;
+      const pathname = `${prefix}/${convention.servePath}`;
+
+      map.set(pathname, {
+        type: convention.type,
+        contentType: convention.contentType,
+        file,
+        segment: node,
+      });
+    }
+  }
+
+  for (const child of node.children) {
+    collectMetadataRoutes(child, map);
+  }
+
+  // Also check inside group segments (they're transparent for URL paths)
+  for (const slotNode of Object.values(node.slots)) {
+    collectMetadataRoutes(slotNode, map);
+  }
 }

@@ -45,7 +45,7 @@ export default async function VersionedDocsLayout({
   const navSections = buildNav(resolvedVersion, version);
 
   return (
-    <div className="flex h-[calc(100vh-3.5rem)] bg-grain-light/30 dark:bg-stone-800">
+    <div className="flex h-[calc(100vh-3.5rem)] bg-grain-light/30 dark:bg-stone-900">
       <aside className="w-60 shrink-0 border-r border-grain dark:border-stone-700 bg-grain-light dark:bg-stone-900 overflow-y-auto">
         <nav className="p-5 flex flex-col gap-6">
           <Link

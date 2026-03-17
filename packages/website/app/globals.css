@@ -74,6 +74,58 @@
   @apply mt-0;
 }
 
+/* ── Twoslash type tooltips ─────────────────────────────── */
+
+.twoslash-hover {
+  position: relative;
+  border-bottom: 1px dotted var(--color-sap);
+  cursor: default;
+}
+
+.twoslash-popup {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 50;
+  max-width: 28rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  @apply bg-stone-900 text-stone-200 rounded-md border border-stone-600 shadow-lg px-3 py-2 mt-1 text-xs leading-relaxed font-mono;
+}
+
+.twoslash-hover:hover > .twoslash-popup {
+  display: block;
+}
+
+.twoslash-popup-code {
+  @apply bg-transparent text-emerald-300 p-0 rounded-none text-xs;
+}
+
+.twoslash-popup-docs {
+  @apply text-stone-400 mt-1.5 pt-1.5 border-t border-stone-700 font-sans text-xs leading-relaxed;
+}
+
+.twoslash-popup-query {
+  @apply border-emerald-600;
+}
+
+.twoslash-error {
+  @apply decoration-wavy decoration-red-400/60 underline;
+}
+
+/* CSS Anchor Positioning — progressive enhancement for supported browsers */
+@supports (anchor-name: --x) {
+  .twoslash-popup {
+    position: fixed;
+    inset: auto;
+    top: anchor(bottom);
+    left: anchor(left);
+    margin-top: 0.25rem;
+    position-try-fallbacks: flip-block;
+  }
+}
+
 /* Dark mode overrides */
 @media (prefers-color-scheme: dark) {
   .docs-content h1 {

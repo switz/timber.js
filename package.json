@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "pnpm --filter @timber/app run build",
+    "build": "pnpm --filter @timber-js/app run build",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",

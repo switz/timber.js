@@ -14,10 +14,17 @@
 import type { Plugin } from 'vite';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { existsSync } from 'node:fs';
 import type { PluginContext } from '#/index.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const SRC_DIR = resolve(__dirname, '..');
+
+// In workspace dev, __dirname is src/plugins/ and src/ is the parent.
+// In published package, entries.ts is bundled into dist/index.js so
+// __dirname is dist/ and src/ is a sibling directory.
+const SRC_DIR = existsSync(resolve(__dirname, '..', 'server', 'rsc-entry', 'index.ts'))
+  ? resolve(__dirname, '..')
+  : resolve(__dirname, '..', 'src');
 
 // ─── Virtual Module IDs ──────────────────────────────────────────────────
 

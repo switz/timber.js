@@ -75,6 +75,14 @@ describe('interpolateParams', () => {
   it('root route with no segments', () => {
     expect(interpolateParams('/', {})).toBe('/');
   });
+
+  it('interpolates numeric param values', () => {
+    expect(interpolateParams('/products/[id]', { id: 123 })).toBe('/products/123');
+  });
+
+  it('interpolates numeric param with encoding', () => {
+    expect(interpolateParams('/products/[id]', { id: 0 })).toBe('/products/0');
+  });
 });
 
 // ─── resolveHref ────────────────────────────────────────────────
@@ -255,6 +263,14 @@ describe('buildLinkProps', () => {
     expect(result['data-timber-link']).toBeUndefined();
   });
 
+  it('numeric params are stringified in href', () => {
+    const result = buildLinkProps({
+      href: '/products/[id]',
+      params: { id: 42 },
+    });
+    expect(result.href).toBe('/products/42');
+  });
+
   it('prefetch and scroll data attributes', () => {
     const result = buildLinkProps({
       href: '/dashboard',
@@ -306,12 +322,57 @@ describe('codegen typed Link overloads', () => {
       expect(output).toContain("href: '/about'");
       expect(output).toMatch(/params\?\s*:\s*never/);
 
-      // Dynamic route — params required
+      // Dynamic route — params required, accepts string | number
       expect(output).toContain("href: '/products/[id]'");
-      expect(output).toMatch(/params\s*:\s*\{\s*id\s*:\s*string\s*\}/);
+      expect(output).toMatch(/params\s*:\s*\{\s*id\s*:\s*string\s*\|\s*number\s*\}/);
 
       // Fallback overload
       expect(output).toContain('LinkProps');
+    } finally {
+      teardown();
+    }
+  });
+
+  it('Link params use string | number, server params use string', () => {
+    setup();
+    try {
+      const root = createApp({
+        'products/[id]/page.tsx': '',
+      });
+
+      const tree = scanRoutes(root);
+      const output = generateRouteMap(tree);
+
+      // Server-side Routes interface — params are string (raw URL segments)
+      expect(output).toMatch(
+        /interface Routes\s*\{[\s\S]*?\/products\/\[id\][\s\S]*?params\s*:\s*\{\s*id\s*:\s*string\s*\}/
+      );
+
+      // Link overloads — params accept string | number for convenience
+      expect(output).toMatch(
+        /function Link[\s\S]*?href:\s*'\/products\/\[id\]'[\s\S]*?params\s*:\s*\{\s*id\s*:\s*string\s*\|\s*number\s*\}/
+      );
+
+      // Catch-all stays string[] in Link overloads too
+    } finally {
+      teardown();
+    }
+  });
+
+  it('catch-all params remain string[] in Link overloads', () => {
+    setup();
+    try {
+      const root = createApp({
+        'docs/[...slug]/page.tsx': '',
+      });
+
+      const tree = scanRoutes(root);
+      const output = generateRouteMap(tree);
+
+      // Link overload — catch-all should stay string[], not string[] | number
+      expect(output).toMatch(
+        /function Link[\s\S]*?href:\s*'\/docs\/\[\.\.\.slug\]'[\s\S]*?params\s*:\s*\{\s*slug\s*:\s*string\[\]\s*\}/
+      );
     } finally {
       teardown();
     }

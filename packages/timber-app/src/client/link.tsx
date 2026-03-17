@@ -64,12 +64,17 @@ export interface LinkPropsWithHref extends LinkBaseProps {
 /**
  * Link with a route pattern + params for interpolation.
  * e.g. <Link href="/products/[id]" params={{ id: "123" }}>
+ *      <Link href="/products/[id]" params={{ id: 123 }}>
  */
 export interface LinkPropsWithParams extends LinkBaseProps {
   /** Route pattern with dynamic segments (e.g. "/products/[id]") */
   href: string;
-  /** Dynamic segment values to interpolate into the href */
-  params: Record<string, string | string[]>;
+  /**
+   * Dynamic segment values to interpolate into the href.
+   * Single dynamic segments accept string | number (numbers are stringified).
+   * Catch-all segments accept string[].
+   */
+  params: Record<string, string | number | string[]>;
   /**
    * Typed search params — serialized via the route's SearchParamsDefinition.
    */
@@ -127,7 +132,7 @@ function isInternalHref(href: string): boolean {
  */
 export function interpolateParams(
   pattern: string,
-  params: Record<string, string | string[]>
+  params: Record<string, string | number | string[]>
 ): string {
   return (
     pattern
@@ -169,7 +174,8 @@ export function interpolateParams(
               `<Link> param "${single}" expected a string but received an array for pattern "${pattern}".`
             );
           }
-          return encodeURIComponent(value);
+          // Accept numbers — coerce to string for URL interpolation
+          return encodeURIComponent(String(value));
         }
       )
       // Clean up trailing slash from empty optional catch-all
@@ -189,7 +195,7 @@ export function interpolateParams(
  */
 export function resolveHref(
   href: string,
-  params?: Record<string, string | string[]>,
+  params?: Record<string, string | number | string[]>,
   searchParams?: {
     definition: SearchParamsDefinition<Record<string, unknown>>;
     values: Record<string, unknown>;
@@ -236,7 +242,7 @@ interface LinkOutputProps {
  */
 export function buildLinkProps(
   props: Pick<LinkPropsWithHref, 'href' | 'prefetch' | 'scroll'> & {
-    params?: Record<string, string | string[]>;
+    params?: Record<string, string | number | string[]>;
     searchParams?: {
       definition: SearchParamsDefinition<Record<string, unknown>>;
       values: Record<string, unknown>;

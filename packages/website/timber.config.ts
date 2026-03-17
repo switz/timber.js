@@ -1,7 +1,7 @@
 import rehypeShiki from '@shikijs/rehype';
 import { cloudflare } from '@timber/app/adapters/cloudflare';
 import remarkGfm from 'remark-gfm';
-import { createTwoslashTransformer } from './lib/twoslash-config';
+import { createTwoslashTransformer } from './lib/twoslash-config.ts';
 
 export default {
   output: 'server' as const,

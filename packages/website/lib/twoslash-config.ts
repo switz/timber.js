@@ -11,7 +11,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { TwoslashTypesCache, TwoslashShikiReturn } from '@shikijs/twoslash';
-import { rendererCssAnchor } from './twoslash-renderer';
+import { rendererCssAnchor } from './twoslash-renderer.ts';
 
 const TIMBER_IMPORT_RE = /@timber\/app/;
 
@@ -101,8 +101,8 @@ export function createTwoslashTransformer(): ShikiTransformer {
     twoslashOptions: {
       compilerOptions: {
         // Match the website's tsconfig paths so @timber/app imports resolve
-        moduleResolution: 100, // NodeNext
-        module: 199, // NodeNext
+        module: 99, // ESNext
+        moduleResolution: 100, // Bundler
         target: 99, // ESNext
         jsx: 4, // react-jsx
         strict: true,

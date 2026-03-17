@@ -626,8 +626,44 @@ async function renderRoute(
     cookies: parseCookiesFromHeader(_req.headers.get('cookie') ?? ''),
   };
 
+  // Helper: check if render-phase signals were captured and return the
+  // appropriate HTTP response. Used after both successful SSR (signal
+  // promotion from Suspense) and failed SSR (signal outside Suspense).
+  function checkCapturedSignals(): Response | Promise<Response> | null {
+    const sig = redirectSignal as RedirectSignal | null;
+    if (sig) return buildRedirectResponse(_req, sig, responseHeaders);
+    if (denySignal) {
+      return renderDenyPage(
+        denySignal, segments, layoutComponents as LayoutEntry[],
+        _req, match, responseHeaders, clientBootstrap, createDebugChannelSink, callSsr
+      );
+    }
+    const err = renderError as { error: unknown; status: number } | null;
+    if (err) {
+      return renderErrorPage(
+        err.error, err.status, segments, layoutComponents as LayoutEntry[],
+        _req, match, responseHeaders, clientBootstrap
+      );
+    }
+    return null;
+  }
+
   try {
-    return await callSsr(ssrStream, navContext);
+    const ssrResponse = await callSsr(ssrStream, navContext);
+
+    // Signal promotion: yield one tick so async component rejections
+    // propagate to the RSC onError callback, then check if any signals
+    // were captured during rendering inside Suspense boundaries.
+    // The Response hasn't been sent yet — it's an unconsumed stream.
+    // See design/05-streaming.md §"deferSuspenseFor and the Hold Window"
+    await new Promise<void>((r) => setTimeout(r, 0));
+
+    const promoted = checkCapturedSignals();
+    if (promoted) {
+      ssrResponse.body?.cancel();
+      return promoted;
+    }
+    return ssrResponse;
   } catch (ssrError) {
     // Connection abort — the client disconnected (page refresh, navigation
     // away). No response needed; return empty 499 (client closed request).
@@ -635,49 +671,10 @@ async function renderRoute(
       return new Response(null, { status: 499 });
     }
 
-    // SSR shell rendering failed — the error was outside Suspense
-    // (inside Suspense errors stream after shell succeeds).
-
-    // RedirectSignal outside Suspense → HTTP redirect
-    // Note: redirectSignal is assigned inside onError callback — TS narrowing
-    // doesn't track mutations in callbacks, so we cast.
-    const trackedRedirect = redirectSignal as RedirectSignal | null;
-    if (trackedRedirect) {
-      return buildRedirectResponse(_req, trackedRedirect, responseHeaders);
-    }
-
-    // DenySignal outside Suspense → render deny page with correct 4xx status
-    if (denySignal) {
-      return renderDenyPage(
-        denySignal,
-        segments,
-        layoutComponents as LayoutEntry[],
-        _req,
-        match,
-        responseHeaders,
-        clientBootstrap,
-        createDebugChannelSink,
-        callSsr
-      );
-    }
-
-    // RenderError or unhandled throw outside Suspense → render error page
-    // with the correct status code (RenderError.status or 500).
-    // Note: renderError is assigned inside the onError callback — TS
-    // narrowing doesn't track mutations in callbacks, so we cast.
-    const trackedError = renderError as { error: unknown; status: number } | null;
-    if (trackedError) {
-      return renderErrorPage(
-        trackedError.error,
-        trackedError.status,
-        segments,
-        layoutComponents as LayoutEntry[],
-        _req,
-        match,
-        responseHeaders,
-        clientBootstrap
-      );
-    }
+    // SSR shell rendering failed — the error was outside Suspense.
+    // Check captured signals (redirect, deny, render error).
+    const signalResponse = checkCapturedSignals();
+    if (signalResponse) return signalResponse;
 
     // No tracked error — rethrow (infrastructure failure)
     throw ssrError;

@@ -140,4 +140,12 @@ Layouts can also export it — the framework uses the max value from all loaded 
 
 `deferSuspenseFor` extends the hold window. The hold window is defined by whether the HTTP status has committed, not by component structure. If the status has not committed yet and a signal (`deny()`, `redirect()`, etc.) is thrown inside a Suspense boundary during the hold, the signal is promoted to pre-flush semantics — the framework can still send the correct HTTP status code.
 
-The contract remains: **do not rely on Suspense-wrapped content to affect the status code.** If content must drive the status code, fetch it outside any boundary.
+**Signal promotion mechanism:** After `callSsr` returns, the RSC entry checks if `denySignal`, `redirectSignal`, or `renderError` were captured during rendering. If a signal was set (regardless of whether it fired inside or outside Suspense), the framework discards the SSR response (which hasn't been sent to the client yet — it's an unconsumed stream) and returns the correct HTTP response instead.
+
+This works because:
+1. The `deferSuspenseFor` hold in `renderSsrStream` delays reading the HTML stream, giving React time to resolve Suspense boundaries.
+2. The RSC `onError` callback fires when React renders the component that calls `deny()`/`redirect()`, setting the signal variable.
+3. By the time `callSsr` returns, signals from components that resolved during the hold are available for checking.
+4. Even without `deferSuspenseFor`, a microtask yield catches signals from fast-resolving async components.
+
+The contract remains: **do not rely on Suspense-wrapped content to affect the status code.** If content must drive the status code, fetch it outside any boundary. Signal promotion is a safety net, not a guarantee — signals that fire after the hold window expires cannot be promoted.

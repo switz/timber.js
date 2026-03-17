@@ -161,120 +161,136 @@ export function createInlinedRscStream(
 }
 
 /**
- * Merge an RSC script stream into the HTML stream.
+ * Merge RSC script stream into the HTML stream, injecting scripts
+ * only as direct children of `<body>`.
  *
- * This is a TransformStream that passes HTML chunks through and
- * interleaves RSC `<script>` tag chunks between them. The RSC stream
- * is pulled on demand — when an HTML chunk arrives, we yield it, then
- * give the RSC stream a chance to produce script tags that get appended.
+ * This single transform replaces the previous two-stage pipeline
+ * (createFlightInjectionTransform + createMoveSuffixStream). It:
  *
- * On flush (HTML stream ends), we drain remaining RSC script chunks
- * so nothing is lost when Suspense boundaries resolve after the shell.
+ * 1. Strips `</body></html>` from the shell chunk so all subsequent
+ *    content is at the `<body>` level.
+ * 2. Buffers RSC `<script>` tags and drains them after the suffix
+ *    has been stripped — guaranteeing body-level injection.
+ * 3. Re-emits `</body></html>` at the very end after all RSC scripts.
+ *
+ * Because the suffix is stripped before any scripts are injected,
+ * scripts are always direct children of `<body>` regardless of how
+ * React's renderToReadableStream chunks the HTML. No HTML structure
+ * scanning or depth tracking needed — the suffix removal is the
+ * structural guarantee.
  *
  * Inspired by Next.js createFlightDataInjectionTransformStream.
  */
 function createFlightInjectionTransform(
   rscScriptStream: ReadableStream<Uint8Array>
 ): TransformStream<Uint8Array, Uint8Array> {
-  let pull: Promise<void> | null = null;
+  const encoder = new TextEncoder();
+  const decoder = new TextDecoder();
+  const suffix = '</body></html>';
+  const suffixBytes = encoder.encode(suffix);
+
+  const rscReader = rscScriptStream.getReader();
+  let pullPromise: Promise<void> | null = null;
   let donePulling = false;
+  let pullError: unknown = null;
+  // Once the suffix is stripped, all content is body-level and
+  // scripts can safely be drained after any HTML chunk.
+  let foundSuffix = false;
 
-  function startOrContinuePulling(
-    controller: TransformStreamDefaultController<Uint8Array>
-  ): Promise<void> {
-    if (!pull) {
-      pull = pullLoop(controller);
-    }
-    return pull;
-  }
+  // RSC script chunks waiting to be injected at the body level.
+  const pending: Uint8Array[] = [];
 
-  async function pullLoop(controller: TransformStreamDefaultController<Uint8Array>): Promise<void> {
-    const reader = rscScriptStream.getReader();
-
-    // Wait one microtask before starting to read RSC data.
-    // This ensures the HTML shell chunk flushes first, so the browser
-    // can start parsing HTML and executing the bootstrap script before
+  async function pullLoop(): Promise<void> {
+    // Wait one macrotask so the HTML shell chunk flows through
+    // transform() first. The browser needs the shell HTML before
     // RSC data script tags arrive.
     await new Promise<void>((r) => setTimeout(r, 0));
 
     try {
       for (;;) {
-        const { done, value } = await reader.read();
+        const { done, value } = await rscReader.read();
         if (done) {
           donePulling = true;
           return;
         }
-        controller.enqueue(value);
+        pending.push(value);
+        // Yield between reads so HTML chunks get a chance to flow
+        // through transform() first. RSC and HTML are driven by the
+        // same source — each RSC chunk typically produces a
+        // corresponding HTML chunk from SSR.
+        await new Promise<void>((r) => setTimeout(r, 0));
       }
     } catch (err) {
+      pullError = err;
+      donePulling = true;
+    }
+  }
+
+  /** Drain all buffered RSC script chunks to the output. */
+  function drainPending(controller: TransformStreamDefaultController<Uint8Array>): void {
+    while (pending.length > 0) {
+      controller.enqueue(pending.shift()!);
+    }
+    if (pullError) {
+      const err = pullError;
+      pullError = null;
       controller.error(err);
     }
   }
 
   return new TransformStream<Uint8Array, Uint8Array>({
     transform(chunk, controller) {
-      // Pass HTML chunk through immediately
-      controller.enqueue(chunk);
-      // Start pulling RSC data if not already started
-      startOrContinuePulling(controller);
-    },
-    flush(controller) {
-      // HTML stream is done — drain remaining RSC chunks
-      if (donePulling) return;
-      return startOrContinuePulling(controller);
-    },
-  });
-}
+      // Start pulling RSC scripts into the buffer (if not started)
+      if (!pullPromise) {
+        pullPromise = pullLoop();
+      }
 
-/**
- * Move `</body></html>` suffix to the end of the stream.
- *
- * React's renderToReadableStream emits `</body></html>` as part of
- * the shell, but Suspense replacement scripts and RSC data arrive
- * after it. This transform captures the suffix and re-emits it at
- * the very end so the final HTML is well-formed:
- *
- *   <shell>...</shell>
- *   <script>...suspense replacements...</script>
- *   <script>...RSC data...</script>
- *   </body></html>
- *
- * Without this, RSC script tags would appear after </html> which,
- * while browsers handle it, is technically invalid HTML.
- */
-function createMoveSuffixStream(): TransformStream<Uint8Array, Uint8Array> {
-  const encoder = new TextEncoder();
-  const decoder = new TextDecoder();
-  const suffix = '</body></html>';
-  const suffixBytes = encoder.encode(suffix);
-  let foundSuffix = false;
-
-  return new TransformStream<Uint8Array, Uint8Array>({
-    transform(chunk, controller) {
       if (foundSuffix) {
+        // Post-suffix: everything is body-level (Suspense chunks).
+        // Emit HTML, then drain any buffered scripts.
         controller.enqueue(chunk);
+        if (pending.length > 0) drainPending(controller);
         return;
       }
 
+      // Look for </body></html> in the shell chunk.
       const text = decoder.decode(chunk, { stream: true });
       const idx = text.indexOf(suffix);
       if (idx !== -1) {
         foundSuffix = true;
-        // Emit everything before the suffix
+        // Emit everything before the suffix (still inside <body>'s
+        // child elements — don't inject scripts here).
         const before = text.slice(0, idx);
         const after = text.slice(idx + suffix.length);
         if (before) controller.enqueue(encoder.encode(before));
+        // Now we're at body level — drain buffered scripts
+        if (pending.length > 0) drainPending(controller);
         // Emit any content after the suffix (shouldn't normally exist)
         if (after) controller.enqueue(encoder.encode(after));
       } else {
+        // Pre-suffix: inside nested elements. Pass through, don't
+        // inject scripts (they'd become children of nested elements).
         controller.enqueue(chunk);
       }
     },
     flush(controller) {
-      // Re-emit the suffix at the very end
-      if (foundSuffix) {
-        controller.enqueue(suffixBytes);
+      // HTML stream is done — drain remaining RSC chunks at body level
+      const finish = () => {
+        drainPending(controller);
+        // Re-emit the suffix at the very end so HTML is well-formed
+        if (foundSuffix) {
+          controller.enqueue(suffixBytes);
+        }
+      };
+
+      if (donePulling) {
+        finish();
+        return;
       }
+      if (!pullPromise) {
+        pullPromise = pullLoop();
+      }
+      return pullPromise.then(finish);
     },
   });
 }
@@ -305,12 +321,10 @@ export function injectRscPayload(
   // Transform RSC binary stream → stream of <script> tags
   const rscScriptStream = createInlinedRscStream(rscStream);
 
-  // Pipeline: inject RSC scripts → move suffix to end
-  // Order matters: flightInjection must flush remaining RSC scripts
-  // before moveSuffix re-emits </body></html> at the very end.
+  // Single transform: strip </body></html>, inject RSC scripts at
+  // body level, re-emit suffix at the very end.
   return htmlStream
-    .pipeThrough(createFlightInjectionTransform(rscScriptStream))
-    .pipeThrough(createMoveSuffixStream());
+    .pipeThrough(createFlightInjectionTransform(rscScriptStream));
 }
 
 /**

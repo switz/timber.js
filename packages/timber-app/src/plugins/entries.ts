@@ -31,8 +31,11 @@ const VIRTUAL_IDS = {
 /**
  * Map from virtual module IDs to their resolved file paths.
  *
- * rsc-entry, ssr-entry, and browser-entry point to real TypeScript files.
- * config is handled specially in the load hook (generated code).
+ * These point to .ts source files that Vite transpiles at runtime.
+ * They import virtual modules (virtual:timber-config, etc.) so they
+ * cannot be pre-compiled — they must be processed by Vite's pipeline
+ * with timber's plugin active. The .ts files are included in the
+ * published package via the `files` field.
  */
 const ENTRY_FILE_MAP: Record<string, string> = {
   [VIRTUAL_IDS.rscEntry]: resolve(SRC_DIR, 'server', 'rsc-entry', 'index.ts'),

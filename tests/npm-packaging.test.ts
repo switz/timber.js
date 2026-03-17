@@ -32,7 +32,10 @@ describe('npm packaging', () => {
       expect(pkg.files).toBeDefined();
       expect(pkg.files).toContain('dist');
       expect(pkg.files).toContain('bin');
-      expect(pkg.files).not.toContain('src');
+      // src/ is included because runtime entries (rsc-entry, ssr-entry,
+      // browser-entry) import virtual modules and must be transpiled by
+      // Vite at runtime — they cannot be pre-compiled.
+      expect(pkg.files).toContain('src');
     });
 
     it('has bin pointing to the CLI wrapper', () => {

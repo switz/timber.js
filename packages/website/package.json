@@ -12,7 +12,8 @@
     "@shikijs/rehype": "^4.0.2",
     "@timber/app": "workspace:*",
     "react": "^19.2.4",
-    "react-dom": "^19.2.4"
+    "react-dom": "^19.2.4",
+    "turndown": "^7.2.2"
   },
   "devDependencies": {
     "@content-collections/core": "^0.14.2",

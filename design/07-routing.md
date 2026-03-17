@@ -822,3 +822,215 @@ Cached history payloads are not subject to the 30-second prefetch cache lifetime
 Prefetched RSC payloads are cached on the client for **30 seconds**. A hover-then-click within that window renders instantly. After 30 seconds the payload is discarded; a click after expiry triggers a fresh server fetch.
 
 The prefetch cache is separate from the history stack. Prefetched payloads that are consumed by a navigation move into the history stack (if the navigation was a pushState). Unconsumed prefetch entries expire and are dropped.
+
+---
+
+## Proposal: `ParamCodec` Protocol for URL Param Coercion
+
+**Status:** Proposal — not yet implemented.
+
+URL params (dynamic segments like `[id]`, `[...slug]`) are always raw strings. Search params have a full codec protocol (`SearchParamCodec<T>` with `parse`/`serialize`, `fromSchema` bridge, composition via `.extend()`/`.pick()`), but URL params have nothing equivalent. Users must manually `Number(params.id)` everywhere.
+
+This section proposes a `ParamCodec` protocol for URL param coercion and validation.
+
+### The `ParamCodec<T>` Interface
+
+A separate interface from `SearchParamCodec<T>`, tailored for URL path segments:
+
+```typescript
+interface ParamCodec<T> {
+  /** URL path segment string → typed value. Throw to signal invalid param. */
+  parse(value: string): T;
+  /** Typed value → URL path segment string. Used by <Link> for param interpolation. */
+  serialize(value: T): string;
+}
+```
+
+**Why not reuse `SearchParamCodec<T>`?**
+
+| Concern | `SearchParamCodec<T>` | `ParamCodec<T>` |
+|---|---|---|
+| `parse` input | `string \| string[] \| undefined` | `string` (always present — the route matched) |
+| `serialize` return | `string \| null` (null = omit from URL) | `string` (must produce a valid path segment) |
+| Absent values | Handled (undefined input) | Not possible — dynamic segment always captures |
+| Semantic | Query param (optional, additive) | Path segment (structural, required for the route to match) |
+
+A `SearchParamCodec` where `serialize` never returns null and `parse` ignores the array/undefined cases is structurally compatible, but the narrower `ParamCodec` interface makes the contract clearer and prevents misuse (e.g., a codec that returns null from serialize would break URL construction).
+
+**Catch-all segments** use a parallel interface:
+
+```typescript
+interface CatchAllParamCodec<T> {
+  parse(value: string[]): T;
+  serialize(value: T): string[];
+}
+```
+
+### File Convention: `params.ts`
+
+A `params.ts` file co-located with a dynamic segment directory declares the codec for that segment's param:
+
+```
+app/
+  products/
+    [id]/
+      params.ts        ← defines codec for `id`
+      page.tsx
+    [category]/
+      [subcategory]/
+        params.ts      ← defines codec for `subcategory`
+        page.tsx
+  blog/
+    [...slug]/
+      params.ts        ← defines catch-all codec for `slug`
+      page.tsx
+```
+
+The default export is a `ParamCodec<T>` (or `CatchAllParamCodec<T>` for catch-all/optional-catch-all segments):
+
+```typescript
+// app/products/[id]/params.ts
+import type { ParamCodec } from '@timber/app/server';
+
+const codec: ParamCodec<number> = {
+  parse(value) {
+    const n = Number(value);
+    if (!Number.isInteger(n) || n <= 0) throw new Error('Invalid product ID');
+    return n;
+  },
+  serialize(value) {
+    return String(value);
+  },
+};
+
+export default codec;
+```
+
+**No `params.ts` = raw strings.** The absence of a codec file preserves current behavior — params are `Record<string, string>` as today. This is fully backward compatible.
+
+### `fromParamSchema` Bridge
+
+Like `fromSchema` for search params, a bridge for Standard Schema-compatible validators:
+
+```typescript
+// app/products/[id]/params.ts
+import { fromParamSchema } from '@timber/app/server';
+import { z } from 'zod/v4';
+
+export default fromParamSchema(z.coerce.number().int().positive());
+// ParamCodec<number> — parse coerces string → number, serialize calls String()
+```
+
+`fromParamSchema` wraps a schema that accepts a string input and produces typed output. `serialize` is derived: `String(value)` for primitives, or the developer can provide a custom serialize alongside the schema.
+
+### Where Coercion Runs
+
+Coercion runs **after route matching, before middleware** — a new step in the request pipeline:
+
+```
+Request arrives
+  → URL canonicalization
+  → proxy.ts
+  → Route matching (raw string params extracted)
+  → Param coercion (params.ts codecs applied)     ← NEW
+  → middleware.ts (receives coerced params)
+  → access.ts (receives coerced params)
+  → Rendering (receives coerced params)
+```
+
+**Why after route matching, not during?** Running codecs during matching would mean a `[id]` with a number codec wouldn't match `/products/abc` — the route wouldn't be found, and matching would fall through to catch-all or 404. This changes routing semantics and introduces subtle priority conflicts (does a static route `/products/latest` match before or after a codec-constrained `[id]`?). Decoupling coercion from matching keeps the existing priority rules unchanged: static > dynamic > catch-all. The `[id]` segment matches any single path segment; the codec validates afterward.
+
+**Why before middleware?** Middleware receives `ctx.params` — if params are coerced before middleware, `ctx.params.id` is already a `number`. This is consistent with how `ctx.searchParams` works: search params are parsed before middleware when a `search-params.ts` exists.
+
+### Validation Failures → 404
+
+When a `params.ts` codec's `parse` throws, the framework responds with **404**. The rationale: the URL structurally matched a route, but the param value is invalid for that route — the resource at that URL doesn't exist. This is analogous to a database query returning no rows for a valid-looking but nonexistent ID.
+
+The error is caught by the framework. The codec's error message is logged (dev mode) but not exposed to the client. The 404 is handled by the same status file resolution as any other 404 (`404.tsx`, `not-found.tsx`).
+
+**Dev mode:** A console warning indicates which param failed coercion and why:
+
+```
+[timber] Param coercion failed for [id] at /products/abc:
+  Error: Invalid product ID — expected a positive integer
+  → Responding with 404
+```
+
+### Impact on Codegen
+
+`ParamEntry` in `routing/codegen.ts` currently emits `string`, `string[]`, or `string[] | undefined`. With `params.ts`, the codegen would extract the resolved `T` from the codec (using the same TypeScript type parameter extraction as `search-params.ts`):
+
+```typescript
+// Before (no params.ts)
+'/products/[id]': { params: { id: string }; ... }
+
+// After (with params.ts exporting ParamCodec<number>)
+'/products/[id]': { params: { id: number }; ... }
+```
+
+Routes without `params.ts` continue emitting `string` — no change.
+
+**`<Link>` impact:** The `params` prop on `<Link>` already accepts `string | number` for dynamic segments. With codegen-derived types, this becomes the codec's `T`:
+
+```tsx
+// With ParamCodec<number> on [id]:
+<Link href="/products/[id]" params={{ id: 42 }}>Product</Link>  // ✓ number
+<Link href="/products/[id]" params={{ id: "42" }}>Product</Link> // ✗ type error
+
+// Without params.ts (current behavior):
+<Link href="/products/[id]" params={{ id: "42" }}>Product</Link> // ✓ string
+<Link href="/products/[id]" params={{ id: 42 }}>Product</Link>   // ✓ string | number
+```
+
+### Multiple Segments, Multiple Codecs
+
+Each dynamic segment has its own `params.ts`. For nested dynamic routes like `/[orgId]/projects/[projectId]`, each segment independently declares its codec:
+
+```
+app/
+  [orgId]/
+    params.ts              ← codec for orgId (e.g., UUID validation)
+    projects/
+      [projectId]/
+        params.ts          ← codec for projectId (e.g., positive integer)
+        page.tsx
+```
+
+The framework applies codecs in segment order during the coercion step. If any codec throws, the pipeline short-circuits to 404 — earlier segment codecs that succeeded are not rolled back (there's nothing to roll back).
+
+The `params` object passed to middleware/access/components has per-field types derived from each segment's codec:
+
+```typescript
+// Generated route map:
+'/[orgId]/projects/[projectId]': {
+  params: { orgId: string; projectId: number }  // orgId has UUID ParamCodec<string>, projectId has ParamCodec<number>
+}
+```
+
+### Server/Client Parity
+
+- **Server:** `params` in page components, middleware, access checks, and route handlers receives coerced values. The `await params` promise resolves to the typed object.
+- **Client:** `useParams()` returns typed values derived from the route map. On client-side navigation, the client interpolates params from the URL using the same codecs (loaded as part of the route module). `<Link>` serializes typed values back to URL strings using `codec.serialize()`.
+
+### Comparison with Other Frameworks
+
+| Framework | Param coercion | Where it runs | Failure behavior |
+|---|---|---|---|
+| **timber.js (proposed)** | `params.ts` codec per segment | After matching, before middleware | 404 |
+| **TanStack Router** | Schema-based in route definition | During matching | Route doesn't match → fallback/404 |
+| **Remix** | Manual in loader | In component code | Developer decides (throw Response) |
+| **Next.js** | None | N/A | N/A — always strings |
+
+timber's approach is closest to Remix in spirit (explicit, opt-in) but moves coercion earlier in the pipeline (before middleware rather than in components) and standardizes the failure behavior (404) rather than leaving it to each page.
+
+### Open Questions
+
+1. **Should `params.ts` support multiple params?** A segment like `[id]` has one param, but future syntax like `[year]-[month]` (compound segments) could have multiple. Current proposal: one param per segment, one codec per `params.ts`. Revisit if compound segments are added.
+
+2. **Should catch-all codecs support structured parsing?** e.g., `/docs/[...slug]` where the codec parses `["v1", "getting-started"]` into `{ version: "v1", page: "getting-started" }`. The `CatchAllParamCodec<T>` protocol supports this — `parse(string[]): T` can return any shape. But this means `params.slug` is no longer a `string[]` — it's whatever `T` is. Type safety works, but it's a departure from the convention.
+
+3. **`generateStaticParams()` interaction:** When a route has `params.ts`, should `generateStaticParams()` return coerced types or raw strings? Proposal: raw strings (the build runs codecs on them to validate, but the return type is `string` for simplicity).
+
+4. **Static analyzability requirement:** Like `search-params.ts`, should `params.ts` be statically analyzable for type extraction? Proposal: yes — same approach, same tooling. The build step extracts `T` from `ParamCodec<T>` via TypeScript's type parameter.
+
+5. **Runtime cost:** Param coercion adds a function call per dynamic segment per request. For most codecs (parseInt, UUID regex) this is negligible. For expensive validation (database lookup), the codec should be kept cheap and validation deferred to the component. The design doc should clarify: **codecs are for format validation, not existence checks.**

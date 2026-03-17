@@ -262,6 +262,28 @@ function formatParamsType(params: ParamEntry[]): string {
 }
 
 /**
+ * Format the params type for Link props.
+ *
+ * Link params accept `string | number` for single dynamic segments
+ * (convenience — values are stringified at runtime). Catch-all and
+ * optional catch-all remain `string[]` / `string[] | undefined`.
+ *
+ * See design/07-routing.md §"Typed params and searchParams on <Link>"
+ */
+function formatLinkParamsType(params: ParamEntry[]): string {
+  if (params.length === 0) {
+    return '{}';
+  }
+
+  const fields = params.map((p) => {
+    // Single dynamic segments accept string | number for convenience
+    const type = p.type === 'string' ? 'string | number' : p.type;
+    return `${p.name}: ${type}`;
+  });
+  return `{ ${fields.join('; ')} }`;
+}
+
+/**
  * Format the searchParams type for a route entry.
  *
  * When a search-params.ts exists, we reference its inferred type via an import type.
@@ -331,7 +353,7 @@ function formatTypedLinkOverloads(routes: RouteEntry[], importBase?: string): st
 
   for (const route of routes) {
     const hasDynamicParams = route.params.length > 0;
-    const paramsType = formatParamsType(route.params);
+    const paramsType = formatLinkParamsType(route.params);
     const searchParamsType = route.hasSearchParams
       ? formatSearchParamsType(route, importBase)
       : null;

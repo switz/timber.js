@@ -1,6 +1,6 @@
 {
-  "name": "@timber/app",
-  "version": "0.1.0",
+  "name": "@timber-js/app",
+  "version": "0.1.1",
   "description": "Vite-native React framework for Cloudflare Workers — correct HTTP semantics, real status codes, pages that work without JavaScript",
   "type": "module",
   "license": "SEE LICENSE IN LICENSE",
@@ -30,66 +30,50 @@
     "#/*": "./src/*"
   },
   "exports": {
-    ".": "./src/index.ts",
-    "./server": "./src/server/index.ts",
-    "./client": "./src/client/index.ts",
-    "./cache": "./src/cache/index.ts",
-    "./content": "./src/content/index.ts",
-    "./cookies": "./src/cookies/index.ts",
-    "./search-params": "./src/search-params/index.ts",
-    "./routing": "./src/routing/index.ts",
-    "./adapters/cloudflare": "./src/adapters/cloudflare.ts",
-    "./adapters/nitro": "./src/adapters/nitro.ts",
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./server": {
+      "types": "./dist/server/index.d.ts",
+      "import": "./dist/server/index.js"
+    },
+    "./client": {
+      "types": "./dist/client/index.d.ts",
+      "import": "./dist/client/index.js"
+    },
+    "./cache": {
+      "types": "./dist/cache/index.d.ts",
+      "import": "./dist/cache/index.js"
+    },
+    "./content": {
+      "types": "./dist/content/index.d.ts",
+      "import": "./dist/content/index.js"
+    },
+    "./cookies": {
+      "types": "./dist/cookies/index.d.ts",
+      "import": "./dist/cookies/index.js"
+    },
+    "./search-params": {
+      "types": "./dist/search-params/index.d.ts",
+      "import": "./dist/search-params/index.js"
+    },
+    "./routing": {
+      "types": "./dist/routing/index.d.ts",
+      "import": "./dist/routing/index.js"
+    },
+    "./adapters/cloudflare": {
+      "types": "./dist/adapters/cloudflare.d.ts",
+      "import": "./dist/adapters/cloudflare.js"
+    },
+    "./adapters/nitro": {
+      "types": "./dist/adapters/nitro.d.ts",
+      "import": "./dist/adapters/nitro.js"
+    },
     "./package.json": "./package.json"
   },
   "publishConfig": {
-    "access": "public",
-    "bin": {
-      "timber": "./bin/timber.mjs"
-    },
-    "exports": {
-      ".": {
-        "types": "./dist/index.d.ts",
-        "import": "./dist/index.js"
-      },
-      "./server": {
-        "types": "./dist/server/index.d.ts",
-        "import": "./dist/server/index.js"
-      },
-      "./client": {
-        "types": "./dist/client/index.d.ts",
-        "import": "./dist/client/index.js"
-      },
-      "./cache": {
-        "types": "./dist/cache/index.d.ts",
-        "import": "./dist/cache/index.js"
-      },
-      "./content": {
-        "types": "./dist/content/index.d.ts",
-        "import": "./dist/content/index.js"
-      },
-      "./cookies": {
-        "types": "./dist/cookies/index.d.ts",
-        "import": "./dist/cookies/index.js"
-      },
-      "./search-params": {
-        "types": "./dist/search-params/index.d.ts",
-        "import": "./dist/search-params/index.js"
-      },
-      "./routing": {
-        "types": "./dist/routing/index.d.ts",
-        "import": "./dist/routing/index.js"
-      },
-      "./adapters/cloudflare": {
-        "types": "./dist/adapters/cloudflare.d.ts",
-        "import": "./dist/adapters/cloudflare.js"
-      },
-      "./adapters/nitro": {
-        "types": "./dist/adapters/nitro.d.ts",
-        "import": "./dist/adapters/nitro.js"
-      },
-      "./package.json": "./package.json"
-    }
+    "access": "public"
   },
   "files": [
     "dist",

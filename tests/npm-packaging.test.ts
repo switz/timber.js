@@ -52,12 +52,9 @@ describe('npm packaging', () => {
       expect(pkg.dependencies['@vitejs/plugin-rsc']).toMatch(/^~0\.5\./);
     });
 
-    it('has publishConfig with conditional exports', () => {
-      expect(pkg.publishConfig).toBeDefined();
-      expect(pkg.publishConfig.exports).toBeDefined();
-
+    it('has conditional exports with types + import', () => {
       // Every export should have types + import conditions
-      for (const [key, value] of Object.entries(pkg.publishConfig.exports)) {
+      for (const [key, value] of Object.entries(pkg.exports)) {
         if (key === './package.json') {
           expect(value).toBe('./package.json');
           continue;
@@ -65,13 +62,6 @@ describe('npm packaging', () => {
         const exp = value as { types: string; import: string };
         expect(exp.types).toMatch(/^\.\/dist\/.*\.d\.ts$/);
         expect(exp.import).toMatch(/^\.\/dist\/.*\.js$/);
-      }
-    });
-
-    it('dev exports point to .ts source for workspace resolution', () => {
-      for (const [key, value] of Object.entries(pkg.exports)) {
-        if (key === './package.json') continue;
-        expect(value).toMatch(/\.ts$/);
       }
     });
 

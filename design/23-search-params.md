@@ -363,3 +363,51 @@ setParams({ tab: 'settings' }, { shallow: true });
 ```
 
 This integrates with `useNavigationPending()` — the hook returns `true` while the RSC fetch is in flight, enabling loading indicators on param changes.
+
+---
+
+## API Surface Audit (2026-03-17)
+
+Audit of the search params API comparing timber's surface against nuqs and identifying gaps for future work.
+
+### Public Exports
+
+**`@timber/app/search-params`:**
+
+| Export | Kind | Purpose |
+| --- | --- | --- |
+| `createSearchParams` | factory | Build a `SearchParamsDefinition<T>` from codecs |
+| `fromSchema` | codec bridge | Standard Schema (Zod, Valibot, ArkType) → `SearchParamCodec` |
+| `fromArraySchema` | codec bridge | Standard Schema for array-valued params |
+| `registerSearchParams` | registry | Route-scoped registration (internal) |
+| `getSearchParams` | registry | Route-scoped lookup (internal) |
+| `analyzeSearchParams` | build-time | Static analysis of `search-params.ts` files |
+| `SearchParamCodec<T>` | type | Codec protocol: `parse` + `serialize` |
+| `InferCodec<C>` | type | Extract `T` from a codec |
+| `SearchParamsDefinition<T>` | type | Full definition with parse/serialize/compose/hook |
+| `SetParams<T>` | type | Setter function signature |
+| `SetParamsOptions` | type | Options for setter (shallow, scroll, history) |
+| `QueryStatesOptions` | type | Options for `useQueryStates` hook |
+| `SearchParamsOptions` | type | Options for `createSearchParams` (urlKeys) |
+
+**`@timber/app/client` (search-params related):**
+
+| Export | Kind | Purpose |
+| --- | --- | --- |
+| `useSearchParams` | hook | Raw `URLSearchParams` (Next.js compat) |
+| `useQueryStates` | hook | Typed, codec-backed URL params |
+| `bindUseQueryStates` | internal | Binding helper for `SearchParamsDefinition.useQueryStates()` |
+
+### Identified Gaps
+
+1. **No built-in codecs** — nuqs ships 13+ parsers (`parseAsString`, `parseAsInteger`, `parseAsFloat`, `parseAsBoolean`, `parseAsStringEnum`, etc.). timber has zero — users must use nuqs parsers, `fromSchema` + Zod, or write raw `{ parse, serialize }` objects. Common cases should have zero-dep timber-native equivalents.
+
+2. **No `defaultValue` on `SearchParamCodec`** — nuqs exposes `defaultValue` explicitly via `.withDefault()`. timber derives defaults implicitly via `parse(undefined)`. An optional `defaultValue` property on the codec protocol would enable introspection without calling `parse(undefined)`.
+
+3. **No `.defaults` accessor on `SearchParamsDefinition`** — `defaultSerialized` is computed internally for URL omission but parsed defaults are never exposed. A `.defaults` accessor returning `T` would be useful for SSR fallbacks, placeholder UI, and reset-to-defaults.
+
+4. **No `useQueryState` (singular)** — nuqs exports both `useQueryState` (single param) and `useQueryStates` (multi-param). timber only has `useQueryStates`. The singular form is more natural for single-param use cases.
+
+5. **Codec error handling undocumented** — `fromSchema` silently falls back to default on parse failure. The "return default, don't throw" convention exists but is buried in prose. No validation mode for surfacing parse errors in dev.
+
+6. **`CodecMap<T>` not exported** — Defined but not in the public API. Useful for library authors building reusable codec maps.

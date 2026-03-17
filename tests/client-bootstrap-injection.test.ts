@@ -334,6 +334,118 @@ describe('injectRscPayload', () => {
   });
 });
 
+describe('flight injection never lands inside open HTML elements', () => {
+  /**
+   * Helper: pipe HTML chunks and RSC chunks through injectRscPayload
+   * with controlled timing, returning the full concatenated output.
+   */
+  async function runInjection(
+    htmlChunks: { text: string; delayMs: number }[],
+    rscChunks: { text: string; delayMs: number }[]
+  ): Promise<string> {
+    const { injectRscPayload } = await import(resolve(SRC_DIR, 'server/html-injectors.ts'));
+    const encoder = new TextEncoder();
+    const decoder = new TextDecoder();
+
+    const htmlStream = new ReadableStream<Uint8Array>({
+      async start(controller) {
+        for (const chunk of htmlChunks) {
+          if (chunk.delayMs > 0) await new Promise((r) => setTimeout(r, chunk.delayMs));
+          controller.enqueue(encoder.encode(chunk.text));
+        }
+        controller.close();
+      },
+    });
+
+    const rscStream = new ReadableStream<Uint8Array>({
+      async start(controller) {
+        for (const chunk of rscChunks) {
+          if (chunk.delayMs > 0) await new Promise((r) => setTimeout(r, chunk.delayMs));
+          controller.enqueue(encoder.encode(chunk.text));
+        }
+        controller.close();
+      },
+    });
+
+    const outputStream = injectRscPayload(htmlStream, rscStream);
+    const reader = outputStream.getReader();
+    let result = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      result += decoder.decode(value);
+    }
+    return result;
+  }
+
+  it('does not inject scripts inside an open <a> element split across chunks', async () => {
+    // Simulate React splitting an HTML chunk mid-element:
+    // Chunk 1 ends inside an open <a> tag, chunk 2 completes it.
+    // RSC data arrives between the chunks.
+    const result = await runInjection(
+      [
+        { text: '<html><body><a class="sidebar-link" href="/docs/components', delayMs: 0 },
+        { text: '">Components</a></body></html>', delayMs: 30 },
+      ],
+      [
+        { text: '0:D"$1"\n', delayMs: 0 },
+        { text: '0:["$","div",null,{"children":"Hello"}]\n', delayMs: 5 },
+      ]
+    );
+
+    // The <a> tag should be intact — no script injected in the middle
+    expect(result).toContain('href="/docs/components">Components</a>');
+    // Scripts should still be present, just not inside the <a>
+    expect(result).toContain('self.__timber_f');
+  });
+
+  it('does not inject scripts inside an open <div> with attributes split across chunks', async () => {
+    const result = await runInjection(
+      [
+        { text: '<html><body><div class="card" data-id="12', delayMs: 0 },
+        { text: '3">Card content</div></body></html>', delayMs: 30 },
+      ],
+      [
+        { text: '0:D"$1"\n', delayMs: 0 },
+      ]
+    );
+
+    // The <div> tag should be intact
+    expect(result).toContain('data-id="123">Card content</div>');
+    expect(result).toContain('self.__timber_f');
+  });
+
+  it('scripts appear between complete HTML chunks, not mid-element', async () => {
+    const result = await runInjection(
+      [
+        { text: '<html><body><div>Shell</div>', delayMs: 0 },
+        { text: '<p>Resolved</p>', delayMs: 30 },
+        { text: '</body></html>', delayMs: 10 },
+      ],
+      [
+        { text: '0:D"$1"\n', delayMs: 0 },
+        { text: '0:["$","div",null,{"children":"Data"}]\n', delayMs: 10 },
+      ]
+    );
+
+    // No <script> tags should appear inside any open HTML element.
+    // Verify by checking that every <script> tag in the output is preceded
+    // by either > or the start of the string (i.e., not inside a tag).
+    const scriptPositions = [...result.matchAll(/<script>/g)].map((m) => m.index!);
+    for (const pos of scriptPositions) {
+      if (pos === 0) continue;
+      // Walk backward to find the nearest < that isn't part of a <script> or </script>
+      const before = result.slice(0, pos);
+      const lastOpenAngle = before.lastIndexOf('<');
+      if (lastOpenAngle === -1) continue;
+      const tagFragment = before.slice(lastOpenAngle);
+      // The preceding < should be a complete tag (ends with >) or another script tag
+      const isCompleteTag = tagFragment.includes('>');
+      expect(isCompleteTag).toBe(true);
+    }
+  });
+});
+
 describe('progressive RSC payload chunking', () => {
   /**
    * Helper: run HTML and RSC streams through injectRscPayload with

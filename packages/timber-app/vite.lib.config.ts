@@ -13,6 +13,7 @@ export default defineConfig({
         'client/index': 'src/client/index.ts',
         'cache/index': 'src/cache/index.ts',
         'content/index': 'src/content/index.ts',
+        'cookies/index': 'src/cookies/index.ts',
         'search-params/index': 'src/search-params/index.ts',
         'routing/index': 'src/routing/index.ts',
         'adapters/cloudflare': 'src/adapters/cloudflare.ts',

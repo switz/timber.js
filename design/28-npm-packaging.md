@@ -15,6 +15,7 @@ Current `exports`:
   "./client": "./src/client/index.ts",
   "./cache": "./src/cache/index.ts",
   "./content": "./src/content/index.ts",
+  "./cookies": "./src/cookies/index.ts",
   "./search-params": "./src/search-params/index.ts",
   "./routing": "./src/routing/index.ts",
   "./adapters/*": "./src/adapters/*.ts"
@@ -107,6 +108,7 @@ export default defineConfig({
         'client/index': 'src/client/index.ts',
         'cache/index': 'src/cache/index.ts',
         'content/index': 'src/content/index.ts',
+        'cookies/index': 'src/cookies/index.ts',
         'search-params/index': 'src/search-params/index.ts',
         'routing/index': 'src/routing/index.ts',
         'adapters/cloudflare': 'src/adapters/cloudflare.ts',
@@ -176,6 +178,10 @@ Use conditional exports with `types` + `import` conditions. The `types` conditio
     "./content": {
       "types": "./dist/content/index.d.ts",
       "import": "./dist/content/index.js"
+    },
+    "./cookies": {
+      "types": "./dist/cookies/index.d.ts",
+      "import": "./dist/cookies/index.js"
     },
     "./search-params": {
       "types": "./dist/search-params/index.d.ts",

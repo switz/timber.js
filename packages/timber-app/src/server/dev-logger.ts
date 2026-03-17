@@ -159,7 +159,58 @@ function buildSpanTree(spans: ReadableSpan[]): {
     node.children.sort(sortByStart);
   }
 
+  // Post-process: re-parent layout/page spans into a nested chain.
+  // React's concurrent rendering breaks OTEL parent chains — all layout/page
+  // spans end up as direct children of timber.render. Re-nest them based on
+  // start-time order to reflect the segment hierarchy.
+  for (const node of bySpanId.values()) {
+    if (node.span.name !== 'timber.render') continue;
+    reNestLayoutPageSpans(node);
+  }
+
   return { root, children: rootChildren };
+}
+
+/**
+ * Re-parent layout and page spans under a render node to form a nested chain.
+ *
+ * Layout/page spans all appear as flat children of timber.render because OTEL
+ * context doesn't propagate through React's concurrent rendering. We
+ * reconstruct the hierarchy: each layout becomes the parent of the next
+ * layout/page span, forming a chain that matches the segment tree.
+ *
+ * Non-layout/page children (e.g. access gates, metadata) stay at their
+ * current depth.
+ */
+function reNestLayoutPageSpans(renderNode: SpanTreeNode): void {
+  const layoutPageNames = new Set(['timber.layout', 'timber.page']);
+  const layoutPageChildren: SpanTreeNode[] = [];
+  const otherChildren: SpanTreeNode[] = [];
+
+  for (const child of renderNode.children) {
+    if (layoutPageNames.has(child.span.name)) {
+      layoutPageChildren.push(child);
+    } else {
+      otherChildren.push(child);
+    }
+  }
+
+  // Nothing to re-nest if 0 or 1 layout/page spans
+  if (layoutPageChildren.length <= 1) return;
+
+  // Chain them: first layout/page is direct child of render, second is
+  // child of first, etc. They're already sorted by start time.
+  for (let i = layoutPageChildren.length - 1; i > 0; i--) {
+    layoutPageChildren[i - 1]!.children.push(layoutPageChildren[i]!);
+  }
+
+  // Rebuild render's children: other children + only the first layout/page
+  renderNode.children = [...otherChildren, layoutPageChildren[0]!];
+
+  // Re-sort by start time
+  const sortByStart = (a: SpanTreeNode, b: SpanTreeNode) =>
+    hrTimeToMs(a.span.startTime) - hrTimeToMs(b.span.startTime);
+  renderNode.children.sort(sortByStart);
 }
 
 // ─── Log Mode Resolution ────────────────────────────────────────────────────

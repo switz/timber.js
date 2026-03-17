@@ -131,7 +131,7 @@ async function createRequestHandler(manifest: typeof routeManifest, runtimeConfi
   const typedBuildManifest = buildManifest as BuildManifest;
 
   const pipelineConfig: PipelineConfig = {
-    proxy: manifest.proxy?.load,
+    proxyLoader: manifest.proxy?.load,
     matchRoute,
     matchMetadataRoute,
     // 103 Early Hints — fires after route match, before middleware.

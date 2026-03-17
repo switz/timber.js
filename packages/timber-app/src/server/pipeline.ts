@@ -91,6 +91,8 @@ export type EarlyHintsEmitter = (
 export interface PipelineConfig {
   /** The proxy.ts default export (function or array). Undefined if no proxy.ts. */
   proxy?: ProxyExport;
+  /** Lazy loader for proxy.ts — called per-request so HMR updates take effect. */
+  proxyLoader?: () => Promise<{ default: ProxyExport }>;
   /** Route matcher — resolves a canonical pathname to a RouteMatch. */
   matchRoute: RouteMatcher;
   /** Metadata route matcher — resolves metadata route pathnames (sitemap.xml, robots.txt, etc.) */
@@ -169,7 +171,7 @@ export function createPipeline(config: PipelineConfig): (req: Request) => Promis
             }
 
             let result: Response;
-            if (proxy) {
+            if (proxy || config.proxyLoader) {
               result = await runProxyPhase(req, method, path);
             } else {
               result = await handleRequest(req, method, path);
@@ -198,8 +200,17 @@ export function createPipeline(config: PipelineConfig): (req: Request) => Promis
 
   async function runProxyPhase(req: Request, method: string, path: string): Promise<Response> {
     try {
+      // Resolve the proxy export. When a proxyLoader is provided (lazy import),
+      // it is called per-request so HMR updates in dev take effect immediately.
+      let proxyExport: ProxyExport;
+      if (config.proxyLoader) {
+        const mod = await config.proxyLoader();
+        proxyExport = mod.default;
+      } else {
+        proxyExport = config.proxy!;
+      }
       return await withSpan('timber.proxy', {}, () =>
-        runProxy(config.proxy!, req, () => handleRequest(req, method, path))
+        runProxy(proxyExport, req, () => handleRequest(req, method, path))
       );
     } catch (error) {
       // Uncaught proxy.ts error → bare HTTP 500

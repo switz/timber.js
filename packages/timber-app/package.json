@@ -90,15 +90,15 @@
   "dependencies": {
     "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/context-async-hooks": "^2.6.0",
-    "@opentelemetry/sdk-trace-base": "^2.6.0",
-    "@vitejs/plugin-react": "^6.0.0",
-    "@vitejs/plugin-rsc": "~0.5.21"
+    "@opentelemetry/sdk-trace-base": "^2.6.0"
   },
   "peerDependencies": {
     "@content-collections/core": "^0.14.0",
     "@content-collections/mdx": "^0.2.0",
     "@content-collections/vite": "^0.2.0",
     "@mdx-js/rollup": "^3.0.0",
+    "@vitejs/plugin-react": "^6.0.0",
+    "@vitejs/plugin-rsc": ">=0.5.21",
     "nuqs": "^2.0.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",

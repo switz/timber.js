@@ -51,8 +51,8 @@ describe('npm packaging', () => {
       expect(pkg.scripts.prepublishOnly).toBeDefined();
     });
 
-    it('pins @vitejs/plugin-rsc to patch range', () => {
-      expect(pkg.dependencies['@vitejs/plugin-rsc']).toMatch(/^~0\.5\./);
+    it('has @vitejs/plugin-rsc as peer dependency', () => {
+      expect(pkg.peerDependencies['@vitejs/plugin-rsc']).toBeDefined();
     });
 
     it('has conditional exports with types + import', () => {

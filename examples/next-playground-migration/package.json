@@ -9,7 +9,7 @@
   "dependencies": {
     "@heroicons/react": "2.2.0",
     "@mdx-js/rollup": "^3.1.1",
-    "@timber/app": "workspace:*",
+    "@timber-js/app": "workspace:*",
     "clsx": "2.1.1",
     "codehike": "1.0.7",
     "react": "^19.2.4",

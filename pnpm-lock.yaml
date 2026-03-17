@@ -121,7 +121,7 @@ importers:
 
   benchmarks/fixture:
     dependencies:
-      '@timber/app':
+      '@timber-js/app':
         specifier: workspace:*
         version: link:../../packages/timber-app
       react:
@@ -137,7 +137,7 @@ importers:
 
   examples/blog:
     dependencies:
-      '@timber/app':
+      '@timber-js/app':
         specifier: workspace:*
         version: link:../../packages/timber-app
       react:
@@ -171,7 +171,7 @@ importers:
 
   examples/cloudflare-deploy:
     dependencies:
-      '@timber/app':
+      '@timber-js/app':
         specifier: workspace:*
         version: link:../../packages/timber-app
       react:
@@ -190,7 +190,7 @@ importers:
 
   examples/docker-deploy:
     dependencies:
-      '@timber/app':
+      '@timber-js/app':
         specifier: workspace:*
         version: link:../../packages/timber-app
       react:
@@ -206,7 +206,7 @@ importers:
 
   examples/kitchen-sink:
     dependencies:
-      '@timber/app':
+      '@timber-js/app':
         specifier: workspace:*
         version: link:../../packages/timber-app
       nuqs:
@@ -243,7 +243,7 @@ importers:
       '@mdx-js/rollup':
         specifier: ^3.1.1
         version: 3.1.1(rollup@4.59.0)
-      '@timber/app':
+      '@timber-js/app':
         specifier: workspace:*
         version: link:../../packages/timber-app
       clsx:
@@ -307,7 +307,7 @@ importers:
 
   examples/tailwind:
     dependencies:
-      '@timber/app':
+      '@timber-js/app':
         specifier: workspace:*
         version: link:../../packages/timber-app
       react:
@@ -364,7 +364,7 @@ importers:
         specifier: ^6.0.0
         version: 6.0.1(vite@8.0.0(@types/node@25.4.0)(esbuild@0.27.3)(jiti@2.6.1)(yaml@2.8.2))
       '@vitejs/plugin-rsc':
-        specifier: ~0.5.21
+        specifier: '>=0.5.21'
         version: 0.5.21(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(vite@8.0.0(@types/node@25.4.0)(esbuild@0.27.3)(jiti@2.6.1)(yaml@2.8.2))
       nuqs:
         specifier: ^2.0.0
@@ -387,7 +387,7 @@ importers:
       '@shikijs/rehype':
         specifier: ^4.0.2
         version: 4.0.2
-      '@timber/app':
+      '@timber-js/app':
         specifier: workspace:*
         version: link:../timber-app
       react:

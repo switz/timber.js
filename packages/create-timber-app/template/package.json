@@ -12,6 +12,8 @@
   },
   "dependencies": {
     "@timber-js/app": "latest",
+    "@vitejs/plugin-react": "^6.0.0",
+    "@vitejs/plugin-rsc": "^0.5.21",
     "react": "^19.2.4",
     "react-dom": "^19.2.4"
   },

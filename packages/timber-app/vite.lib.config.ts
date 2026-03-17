@@ -38,9 +38,10 @@ export default defineConfig({
         'vite',
         'nuqs',
         'zod',
-        // Direct dependencies (should remain external — consumers install them via timber)
+        // Peer dependencies (Vite ecosystem — must resolve from consumer for pnpm link)
         '@vitejs/plugin-rsc',
         '@vitejs/plugin-react',
+        // Direct dependencies
         '@opentelemetry/api',
         '@opentelemetry/context-async-hooks',
         '@opentelemetry/sdk-trace-base',

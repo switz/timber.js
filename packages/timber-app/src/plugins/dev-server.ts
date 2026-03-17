@@ -12,8 +12,7 @@
  * Design docs: 18-build-system.md §"Dev Server", 02-rendering-pipeline.md
  */
 
-import type { Plugin, ViteDevServer } from 'vite';
-import { isRunnableDevEnvironment } from 'vite';
+import type { Plugin, ViteDevServer, DevEnvironment } from 'vite';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { join } from 'node:path';
 import type { PluginContext } from '#/index.js';
@@ -147,8 +146,11 @@ function createTimberMiddleware(server: ViteDevServer, projectRoot: string) {
     // environment's module runner for HMR-aware loading.
     let handler: (req: Request) => Promise<Response>;
     try {
-      const rscEnv = server.environments.rsc;
-      if (!isRunnableDevEnvironment(rscEnv)) {
+      const rscEnv = server.environments.rsc as DevEnvironment & { runner?: { import: (id: string) => Promise<any> } };
+      // Duck-type check instead of isRunnableDevEnvironment() — the vite
+      // import-based check fails across pnpm link boundaries where the
+      // linked package resolves a different vite module instance.
+      if (!rscEnv?.runner?.import) {
         throw new Error('[timber] RSC environment is not runnable');
       }
       const rscModule = await rscEnv.runner.import(RSC_ENTRY_ID);

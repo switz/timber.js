@@ -2,6 +2,7 @@ import type { Plugin, PluginOption } from 'vite';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { createRequire } from 'node:module';
 import react from '@vitejs/plugin-react';
 import { cacheTransformPlugin } from './plugins/cache-transform';
 import { timberContent } from './plugins/content';
@@ -353,8 +354,14 @@ export function timber(config?: TimberUserConfig): PluginOption[] {
   // We do NOT set customBuildApp — the RSC plugin's orchestration is correct
   // and handles bundle ordering, asset manifest generation, and environment
   // imports manifest. See @vitejs/plugin-rsc's buildApp implementation.
+  // Resolve @vitejs/plugin-rsc from the consumer's project (process.cwd()),
+  // not from timber's own node_modules. This is critical for pnpm link:
+  // when linked, timber's node_modules has a separate vite instance, and
+  // the RSC plugin must use the same vite instance as the dev server.
+  const consumerRequire = createRequire(join(process.cwd(), 'package.json'));
+  const rscPluginPath = consumerRequire.resolve('@vitejs/plugin-rsc');
   ctx.timer.start('rsc-plugin-import');
-  const rscPluginsPromise = import('@vitejs/plugin-rsc').then(({ default: vitePluginRsc }) => {
+  const rscPluginsPromise = import(pathToFileURL(rscPluginPath).href).then(({ default: vitePluginRsc }) => {
     ctx.timer.end('rsc-plugin-import');
     return vitePluginRsc({
       serverHandler: false,

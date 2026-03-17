@@ -61,7 +61,11 @@ export interface TreeBuilderConfig {
 
 /**
  * Framework-injected access gate component.
- * Async server component that calls access.ts before rendering children.
+ *
+ * When `verdict` is provided (from the pre-render pass), AccessGate replays
+ * the stored result synchronously — no re-execution, no async, immune to
+ * Suspense timing. When `verdict` is absent, falls back to calling `accessFn`
+ * (backward compat for tree-builder.ts which doesn't run a pre-render pass).
  */
 export interface AccessGateProps {
   accessFn: (ctx: { params: Record<string, string | string[]>; searchParams: unknown }) => unknown;
@@ -69,6 +73,13 @@ export interface AccessGateProps {
   searchParams: unknown;
   /** Segment name for dev logging (e.g. "authenticated", "dashboard"). */
   segmentName?: string;
+  /**
+   * Pre-computed verdict from the pre-render pass. When set, AccessGate
+   * replays this verdict synchronously instead of calling accessFn.
+   * - 'pass': render children
+   * - DenySignal/RedirectSignal: throw synchronously
+   */
+  verdict?: 'pass' | import('./primitives.js').DenySignal | import('./primitives.js').RedirectSignal;
   children: ReactElement;
 }
 

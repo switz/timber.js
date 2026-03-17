@@ -1,7 +1,28 @@
 {
   "name": "@timber/app",
-  "version": "0.0.1",
+  "version": "0.1.0",
+  "description": "Vite-native React framework for Cloudflare Workers — correct HTTP semantics, real status codes, pages that work without JavaScript",
   "type": "module",
+  "license": "SEE LICENSE IN LICENSE",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/switz/timber.js.git",
+    "directory": "packages/timber-app"
+  },
+  "homepage": "https://github.com/switz/timber.js",
+  "keywords": [
+    "react",
+    "vite",
+    "rsc",
+    "react-server-components",
+    "cloudflare-workers",
+    "framework",
+    "ssr",
+    "streaming"
+  ],
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "bin": {
     "timber": "./bin/timber.mjs"
   },
@@ -22,6 +43,7 @@
     "./package.json": "./package.json"
   },
   "publishConfig": {
+    "access": "public",
     "bin": {
       "timber": "./bin/timber.mjs"
     },

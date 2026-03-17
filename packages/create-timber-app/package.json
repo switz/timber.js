@@ -1,6 +1,6 @@
 {
   "name": "create-timber-app",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Scaffold a new timber.js project",
   "type": "module",
   "license": "MIT",

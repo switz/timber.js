@@ -581,6 +581,196 @@ describe('nested spans', () => {
   });
 });
 
+// ─── Layout Nesting (re-parenting) ──────────────────────────────────────
+
+describe('layout nesting', () => {
+  it('re-parents flat layout/page spans into nested hierarchy', () => {
+    // Simulates what OTEL produces: all layout/page spans are direct children
+    // of timber.render because React concurrent rendering breaks parent chains.
+    const RENDER_ID = 'bbbb000000000003';
+    const spans = [
+      mockSpan({
+        name: 'timber.layout',
+        spanId: 'cccc000000000001',
+        parentSpanId: RENDER_ID,
+        startMs: 2,
+        endMs: 3,
+        attributes: { 'timber.segment': '/' },
+      }),
+      mockSpan({
+        name: 'timber.layout',
+        spanId: 'cccc000000000002',
+        parentSpanId: RENDER_ID,
+        startMs: 5,
+        endMs: 6,
+        attributes: { 'timber.segment': '/docs' },
+      }),
+      mockSpan({
+        name: 'timber.page',
+        spanId: 'cccc000000000003',
+        parentSpanId: RENDER_ID,
+        startMs: 7,
+        endMs: 8,
+        attributes: { 'timber.route': '/docs/[slug]' },
+      }),
+      mockSpan({
+        name: 'timber.render',
+        spanId: RENDER_ID,
+        parentSpanId: ROOT_SPAN_ID,
+        startMs: 0,
+        endMs: 10,
+      }),
+      mockSpan({
+        name: 'http.server.request',
+        spanId: ROOT_SPAN_ID,
+        startMs: 0,
+        endMs: 10,
+        attributes: {
+          'http.request.method': 'GET',
+          'url.path': '/docs/intro',
+          'http.response.status_code': 200,
+        },
+      }),
+    ];
+
+    const output = stripAnsi(formatSpanTree(spans));
+    const lines = output.split('\n').filter((l: string) => l.trim().length > 0);
+
+    // layout / should be child of render
+    const rootLayoutLine = lines.findIndex((l: string) => l.includes('layout /') && !l.includes('/docs'));
+    // layout /docs should be nested deeper than layout /
+    const docsLayoutLine = lines.findIndex((l: string) => l.includes('layout /docs'));
+    // page should be nested deepest
+    const pageLine = lines.findIndex((l: string) => l.includes('page /docs/[slug]'));
+
+    expect(rootLayoutLine).toBeGreaterThan(-1);
+    expect(docsLayoutLine).toBeGreaterThan(rootLayoutLine);
+    expect(pageLine).toBeGreaterThan(docsLayoutLine);
+
+    // Verify nesting via indentation — each level should be more indented
+    const indent = (line: string) => line.length - line.trimStart().length;
+    expect(indent(lines[docsLayoutLine]!)).toBeGreaterThan(indent(lines[rootLayoutLine]!));
+    expect(indent(lines[pageLine]!)).toBeGreaterThan(indent(lines[docsLayoutLine]!));
+  });
+
+  it('preserves non-layout children at render level', () => {
+    const RENDER_ID = 'bbbb000000000003';
+    const spans = [
+      mockSpan({
+        name: 'timber.access',
+        spanId: 'cccc000000000000',
+        parentSpanId: RENDER_ID,
+        startMs: 1,
+        endMs: 2,
+        attributes: { 'timber.segment': 'auth', 'timber.result': 'pass' },
+      }),
+      mockSpan({
+        name: 'timber.layout',
+        spanId: 'cccc000000000001',
+        parentSpanId: RENDER_ID,
+        startMs: 2,
+        endMs: 3,
+        attributes: { 'timber.segment': '/' },
+      }),
+      mockSpan({
+        name: 'timber.page',
+        spanId: 'cccc000000000002',
+        parentSpanId: RENDER_ID,
+        startMs: 4,
+        endMs: 5,
+        attributes: { 'timber.route': '/' },
+      }),
+      mockSpan({
+        name: 'timber.render',
+        spanId: RENDER_ID,
+        parentSpanId: ROOT_SPAN_ID,
+        startMs: 0,
+        endMs: 6,
+      }),
+      mockSpan({
+        name: 'http.server.request',
+        spanId: ROOT_SPAN_ID,
+        startMs: 0,
+        endMs: 6,
+        attributes: {
+          'http.request.method': 'GET',
+          'url.path': '/',
+          'http.response.status_code': 200,
+        },
+      }),
+    ];
+
+    const output = stripAnsi(formatSpanTree(spans));
+    // AccessGate should still be a direct child of render, not nested under layout
+    expect(output).toContain('AccessGate');
+    const lines = output.split('\n').filter((l: string) => l.trim().length > 0);
+    const accessLine = lines.findIndex((l: string) => l.includes('AccessGate'));
+    const layoutLine = lines.findIndex((l: string) => l.includes('layout /'));
+
+    const indent = (line: string) => line.length - line.trimStart().length;
+    // Access and layout should be at the same indent level (both children of render)
+    expect(indent(lines[accessLine]!)).toBe(indent(lines[layoutLine]!));
+  });
+});
+
+// ─── Route Group Labels ─────────────────────────────────────────────────
+
+describe('route group labels', () => {
+  it('shows group directory name instead of duplicate urlPath', () => {
+    const RENDER_ID = 'bbbb000000000003';
+    const spans = [
+      mockSpan({
+        name: 'timber.layout',
+        spanId: 'cccc000000000001',
+        parentSpanId: RENDER_ID,
+        startMs: 2,
+        endMs: 3,
+        attributes: { 'timber.segment': '/' },
+      }),
+      mockSpan({
+        name: 'timber.layout',
+        spanId: 'cccc000000000002',
+        parentSpanId: RENDER_ID,
+        startMs: 5,
+        endMs: 6,
+        // Route group label includes directory name
+        attributes: { 'timber.segment': '/(pre-release)' },
+      }),
+      mockSpan({
+        name: 'timber.page',
+        spanId: 'cccc000000000003',
+        parentSpanId: RENDER_ID,
+        startMs: 7,
+        endMs: 8,
+        attributes: { 'timber.route': '/docs' },
+      }),
+      mockSpan({
+        name: 'timber.render',
+        spanId: RENDER_ID,
+        parentSpanId: ROOT_SPAN_ID,
+        startMs: 0,
+        endMs: 10,
+      }),
+      mockSpan({
+        name: 'http.server.request',
+        spanId: ROOT_SPAN_ID,
+        startMs: 0,
+        endMs: 10,
+        attributes: {
+          'http.request.method': 'GET',
+          'url.path': '/docs',
+          'http.response.status_code': 200,
+        },
+      }),
+    ];
+
+    const output = stripAnsi(formatSpanTree(spans));
+    // Should show "layout /" AND "layout /(pre-release)" — distinguishable
+    expect(output).toContain('layout /');
+    expect(output).toContain('layout /(pre-release)');
+  });
+});
+
 // ─── Production Logger Independence ─────────────────────────────────────
 
 describe('production logger isolation', () => {

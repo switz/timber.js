@@ -356,11 +356,18 @@ export async function buildRouteElement(
       const segmentPath = segment.urlPath.split('/');
       const parallelRouteKeys = Object.keys(segment.slots ?? {});
 
-      // Wrap the layout component in an OTEL span
+      // Wrap the layout component in an OTEL span.
+      // For route groups, urlPath is "/" (groups don't add URL segments), so
+      // include the directory name to distinguish e.g. "layout /(pre-release)"
+      // from the root "layout /".
       const segmentForSpan = segment;
       const layoutComponentForSpan = layoutComponent;
+      const segmentLabel =
+        segmentForSpan.segmentType === 'group'
+          ? `${segmentForSpan.urlPath === '/' ? '' : segmentForSpan.urlPath}/${segmentForSpan.segmentName}`
+          : segmentForSpan.urlPath;
       const TracedLayout = async (props: Record<string, unknown>) => {
-        return withSpan('timber.layout', { 'timber.segment': segmentForSpan.urlPath }, () =>
+        return withSpan('timber.layout', { 'timber.segment': segmentLabel }, () =>
           (layoutComponentForSpan as (props: Record<string, unknown>) => unknown)(props)
         );
       };

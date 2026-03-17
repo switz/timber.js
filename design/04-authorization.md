@@ -52,6 +52,22 @@ export default async function access(ctx: AccessContext) {
 }
 ```
 
+## Pre-Render Pass and Verdict Replay
+
+Access checks run in two phases:
+
+1. **Pre-render pass** (route-element-builder.ts) — runs every `access.ts` eagerly, top-down, before building the React element tree. Verdicts (`'pass'` or a `DenySignal`/`RedirectSignal`) are stored in a local map keyed by segment index. OTEL spans are emitted here. If any check denies or redirects, the framework can render deny pages inside the layout shell with the correct HTTP status code.
+
+2. **In-tree AccessGate** — receives the stored verdict as a prop and replays it synchronously. On `'pass'`, it renders children. On `DenySignal`/`RedirectSignal`, it throws synchronously — no async, no re-execution.
+
+This deduplication ensures:
+- `access.ts` executes exactly once per segment per request
+- Verdicts are immune to Suspense timing — they throw synchronously during render, before `onShellReady`
+- `React.cache` populated during the pre-render pass is available during render (same ALS scope)
+- Slot access (`SlotAccessGate`) is unaffected — slots aren't in the pre-render pass and continue to call `accessFn` directly
+
+When no verdict is provided (backward compat with `tree-builder.ts`), AccessGate falls back to calling `accessFn` with OTEL instrumentation.
+
 ## Why Auth Lives in `AccessGate`
 
 Two reasons:

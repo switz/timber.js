@@ -209,10 +209,15 @@ export async function buildRouteElement(
   }
 
   // Run access.ts checks before rendering — top-down through the segment chain.
+  // Verdicts are stored so AccessGate can replay them synchronously during
+  // render, avoiding duplicate execution and Suspense timing issues.
   // DenySignal and RedirectSignal are wrapped with layout context so the caller
   // can render deny pages inside the layout shell.
   // See design/04-authorization.md §"access.ts Runs on Every Navigation".
-  for (const segment of segments) {
+  const accessVerdicts = new Map<number, 'pass' | DenySignal | RedirectSignal>();
+
+  for (let si = 0; si < segments.length; si++) {
+    const segment = segments[si];
     if (segment.access) {
       const accessMod = (await segment.access.load()) as Record<string, unknown>;
       const accessFn = accessMod.default as
@@ -227,6 +232,7 @@ export async function buildRouteElement(
               try {
                 await accessFn({ params: match.params, searchParams: {} });
                 await setSpanAttribute('timber.result', 'pass');
+                accessVerdicts.set(si, 'pass');
               } catch (error) {
                 if (error instanceof DenySignal) {
                   await setSpanAttribute('timber.result', 'deny');
@@ -234,8 +240,10 @@ export async function buildRouteElement(
                   if (error.sourceFile) {
                     await setSpanAttribute('timber.deny_file', error.sourceFile);
                   }
+                  accessVerdicts.set(si, error);
                 } else if (error instanceof RedirectSignal) {
                   await setSpanAttribute('timber.result', 'redirect');
+                  accessVerdicts.set(si, error);
                 }
                 throw error;
               }
@@ -310,6 +318,8 @@ export async function buildRouteElement(
     element = await wrapSegmentWithErrorBoundaries(segment, element, h);
 
     // Wrap in AccessGate if segment has access.ts.
+    // Pass the pre-computed verdict so AccessGate replays it synchronously
+    // instead of re-calling accessFn (dedup + Suspense immunity).
     if (segment.access) {
       const accessMod = (await segment.access.load()) as Record<string, unknown>;
       const accessFn = accessMod.default as
@@ -321,6 +331,7 @@ export async function buildRouteElement(
           params: match.params,
           searchParams: {},
           segmentName: segment.segmentName,
+          verdict: accessVerdicts.get(i),
           children: element,
         });
       }

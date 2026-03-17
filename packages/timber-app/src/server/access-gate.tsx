@@ -22,25 +22,49 @@ import { withSpan, setSpanAttribute } from './tracing.js';
 /**
  * Framework-injected access gate for segments.
  *
- * Async server component that calls the segment's access.ts before rendering
- * children. If access.ts calls deny() or redirect(), the signal propagates
- * up as a render-phase throw. Because timber.js holds the flush until
- * onShellReady, the HTTP status code is correct.
+ * When a pre-computed `verdict` prop is provided (from the pre-render pass
+ * in route-element-builder.ts), AccessGate replays it synchronously — no
+ * async, no re-execution of access.ts, immune to Suspense timing. The OTEL
+ * span was already emitted during the pre-render pass.
+ *
+ * When no verdict is provided (backward compat with tree-builder.ts),
+ * AccessGate calls accessFn directly with OTEL instrumentation.
  *
  * access.ts is a pure gate — return values are discarded. The layout below
  * gets the same data by calling the same cached functions (React.cache dedup).
- *
- * OTEL span (timber.access) captures the result via setSpanAttribute —
- * the DevSpanProcessor reads this for the dev log tree output.
  */
-export async function AccessGate(props: AccessGateProps): Promise<ReactElement> {
-  const { accessFn, params, searchParams, segmentName, children } = props;
+export function AccessGate(props: AccessGateProps): ReactElement | Promise<ReactElement> {
+  const { accessFn, params, searchParams, segmentName, verdict, children } = props;
 
-  // Call access.ts wrapped in an OTEL span. If it calls deny() or redirect(),
-  // a DenySignal or RedirectSignal is thrown — React catches it and the flush
-  // controller produces the correct HTTP response.
-  // The timber.result attribute is set after execution via setSpanAttribute
-  // since the outcome is not known at span creation time.
+  // Fast path: replay pre-computed verdict from the pre-render pass.
+  // This is synchronous — Suspense boundaries cannot interfere with the
+  // status code because the signal throws before any async work.
+  if (verdict !== undefined) {
+    if (verdict === 'pass') {
+      return children;
+    }
+    // Throw the stored DenySignal or RedirectSignal synchronously.
+    // React catches this as a render-phase throw — the flush controller
+    // produces the correct HTTP status code.
+    throw verdict;
+  }
+
+  // Fallback: call accessFn directly (used by tree-builder.ts which
+  // doesn't run a pre-render pass, and for backward compat).
+  return accessGateFallback(accessFn, params, searchParams, segmentName, children);
+}
+
+/**
+ * Async fallback for AccessGate when no pre-computed verdict is available.
+ * Calls accessFn with OTEL instrumentation.
+ */
+async function accessGateFallback(
+  accessFn: AccessGateProps['accessFn'],
+  params: AccessGateProps['params'],
+  searchParams: AccessGateProps['searchParams'],
+  segmentName: AccessGateProps['segmentName'],
+  children: ReactElement
+): Promise<ReactElement> {
   await withSpan('timber.access', { 'timber.segment': segmentName ?? 'unknown' }, async () => {
     try {
       await accessFn({ params, searchParams });
@@ -59,7 +83,6 @@ export async function AccessGate(props: AccessGateProps): Promise<ReactElement> 
     }
   });
 
-  // Access passed — render children (the layout and everything below).
   return children;
 }
 

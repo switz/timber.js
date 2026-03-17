@@ -187,6 +187,83 @@ describe('AccessGate', () => {
   });
 });
 
+// ─── AccessGate with pre-computed verdict ─────────────────────────────────────
+
+describe('AccessGate with pre-computed verdict', () => {
+  it('verdict pass — renders children without calling accessFn', () => {
+    const accessFn = vi.fn();
+
+    // verdict='pass' makes AccessGate synchronous — no await needed
+    const result = AccessGate(
+      makeAccessGateProps({ accessFn, verdict: 'pass' })
+    );
+
+    // accessFn should NOT be called — verdict replays stored result
+    expect(accessFn).not.toHaveBeenCalled();
+    expect(result).toBeDefined();
+    expect((result as { props: { children: string } }).props.children).toBe('page content');
+  });
+
+  it('verdict DenySignal — throws synchronously without calling accessFn', () => {
+    const accessFn = vi.fn();
+    const denySignal = new DenySignal(403);
+
+    expect(() =>
+      AccessGate(makeAccessGateProps({ accessFn, verdict: denySignal }))
+    ).toThrow(DenySignal);
+
+    expect(accessFn).not.toHaveBeenCalled();
+  });
+
+  it('verdict DenySignal preserves status code', () => {
+    const denySignal = new DenySignal(401);
+
+    try {
+      AccessGate(makeAccessGateProps({ verdict: denySignal }));
+      expect.fail('Should have thrown');
+    } catch (error) {
+      expect(error).toBeInstanceOf(DenySignal);
+      expect((error as DenySignal).status).toBe(401);
+      // The thrown signal is the exact same object stored as verdict
+      expect(error).toBe(denySignal);
+    }
+  });
+
+  it('verdict RedirectSignal — throws synchronously without calling accessFn', () => {
+    const accessFn = vi.fn();
+    const redirectSignal = new RedirectSignal('/login', 302);
+
+    expect(() =>
+      AccessGate(makeAccessGateProps({ accessFn, verdict: redirectSignal }))
+    ).toThrow(RedirectSignal);
+
+    expect(accessFn).not.toHaveBeenCalled();
+  });
+
+  it('verdict RedirectSignal preserves location and status', () => {
+    const redirectSignal = new RedirectSignal('/new-page', 301);
+
+    try {
+      AccessGate(makeAccessGateProps({ verdict: redirectSignal }));
+      expect.fail('Should have thrown');
+    } catch (error) {
+      expect(error).toBeInstanceOf(RedirectSignal);
+      expect((error as RedirectSignal).location).toBe('/new-page');
+      expect((error as RedirectSignal).status).toBe(301);
+    }
+  });
+
+  it('no verdict — falls back to calling accessFn (backward compat)', async () => {
+    const accessFn = vi.fn();
+
+    // No verdict prop — AccessGate calls accessFn asynchronously
+    const result = await AccessGate(makeAccessGateProps({ accessFn }));
+
+    expect(accessFn).toHaveBeenCalledOnce();
+    expect(result.props.children).toBe('page content');
+  });
+});
+
 // ─── SlotAccessGate ──────────────────────────────────────────────────────────
 
 describe('SlotAccessGate', () => {

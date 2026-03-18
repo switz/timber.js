@@ -469,4 +469,59 @@ describe('resolveSlotElement', () => {
     ).default;
     expect(catchAll.props.children.type).toBe(projectsLayout);
   });
+
+  it('resolves slot under route group with same urlPath as root', async () => {
+    // Regression test: when a route group has the same urlPath as the root
+    // segment, findSlotMatch must find the group (deepest match), not the root.
+    // Without searching backwards, remainingSegments is too long and slots fail.
+    const slotNode = makeSegment({
+      segmentName: '@sidebar',
+      segmentType: 'slot',
+      urlPath: '/', // same as root — this is the key to the bug
+      page: makeFile('SidebarHome'),
+      children: [
+        makeSegment({
+          segmentName: '[artistSlug]',
+          segmentType: 'dynamic',
+          urlPath: '/[artistSlug]',
+          paramName: 'artistSlug',
+          page: makeFile('SidebarArtist'),
+        }),
+      ],
+    });
+
+    // URL: /phish — segments include root, (browse) group, and [artistSlug]
+    const match: TestRouteMatch = {
+      segments: [
+        makeSegment({ segmentName: '', urlPath: '/' }), // root
+        makeSegment({ segmentName: '(browse)', segmentType: 'group', urlPath: '/' }), // group
+        makeSegment({
+          segmentName: '[artistSlug]',
+          segmentType: 'dynamic',
+          urlPath: '/[artistSlug]',
+          paramName: 'artistSlug',
+          page: makeFile('ArtistPage'),
+        }),
+      ],
+      params: { artistSlug: 'phish' },
+    };
+
+    const result = await resolveSlotElement(
+      slotNode as never,
+      match as never,
+      Promise.resolve({ artistSlug: 'phish' }),
+      h
+    );
+    expect(result).not.toBeNull();
+
+    // Should match the slot's [artistSlug] child, not fail
+    const slotArtistPage = (
+      await (
+        slotNode.children as Array<{ page: { load: () => Promise<Record<string, unknown>> } }>
+      )[0].page.load()
+    ).default;
+    const outer = result as { type: unknown; props: { children: { type: unknown } } };
+    expect(outer.type).toBe(TimberErrorBoundary);
+    expect(outer.props.children.type).toBe(slotArtistPage);
+  });
 });

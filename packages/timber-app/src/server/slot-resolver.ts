@@ -201,9 +201,14 @@ function findSlotMatch(slotNode: ManifestSegmentNode, match: RouteMatch): SlotMa
 
   // Find the parent segment that owns this slot by comparing urlPaths.
   // The slot's urlPath matches its parent's urlPath (slots don't add URL depth).
+  // Search BACKWARDS to find the deepest (last) matching segment. Multiple
+  // segments can share the same urlPath when route groups are involved (e.g.,
+  // Root urlPath='/' and (browse) urlPath='/'). The slot's parent is always
+  // the deepest one — searching forward would incorrectly pick the root,
+  // making remainingSegments too long and breaking slot matching.
   const slotUrlPath = slotNode.urlPath;
   let parentIndex = -1;
-  for (let i = 0; i < segments.length; i++) {
+  for (let i = segments.length - 1; i >= 0; i--) {
     if (segments[i].urlPath === slotUrlPath) {
       parentIndex = i;
       break;

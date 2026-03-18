@@ -646,12 +646,16 @@ describe('non-analyzable error', () => {
 // ---------------------------------------------------------------------------
 
 describe('useQueryStates server-side', () => {
-  it('throws when called outside a client component', () => {
+  it('throws when called outside a React rendering context', () => {
     const def = createSearchParams({
       page: fromSchema(mockNumberSchema(1)),
     });
 
-    expect(() => def.useQueryStates()).toThrow('client component');
+    // Outside of React's rendering context (SSR renderToReadableStream or
+    // client hydration), calling useQueryStates throws because React hooks
+    // require an active fiber. In the RSC environment, the import is a
+    // client reference proxy that also throws.
+    expect(() => def.useQueryStates()).toThrow();
   });
 });
 

@@ -8,6 +8,8 @@
  * Design doc: design/09-typescript.md §"Typed searchParams — search-params.ts"
  */
 
+import { useQueryStates as clientUseQueryStates } from '#/client/use-query-states.js';
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -288,14 +290,16 @@ function buildDefinition<T extends Record<string, unknown>>(
   }
 
   // ---- useQueryStates ----
-  // This is a placeholder that will be replaced by the client runtime.
-  // At import time in a server context, calling this throws.
-  // The actual implementation wraps nuqs and lives in @timber-js/app/client.
-  function useQueryStates(_options?: QueryStatesOptions): [T, SetParams<T>] {
-    throw new Error(
-      'useQueryStates() can only be called in a client component. ' +
-        'Import from @timber-js/app/client instead.'
-    );
+  // Delegates to the 'use client' implementation from use-query-states.ts.
+  //
+  // In the RSC environment: use-query-states.ts is transformed by the RSC
+  //   plugin into a client reference proxy. Calling it throws — correct,
+  //   because hooks can't run during server component rendering.
+  // In SSR: use-query-states.ts is the real nuqs-backed function. Hooks
+  //   work during SSR's renderToReadableStream, so this works correctly.
+  // On the client: same as SSR — the real function is available.
+  function useQueryStates(options?: QueryStatesOptions): [T, SetParams<T>] {
+    return clientUseQueryStates(codecMap, options, Object.freeze({ ...urlKeys })) as [T, SetParams<T>];
   }
 
   const definition: SearchParamsDefinition<T> = {

@@ -24,6 +24,7 @@ import buildManifest from 'virtual:timber-build-manifest';
 
 import { renderToReadableStream } from '@vitejs/plugin-rsc/rsc';
 
+import React, { createElement } from 'react';
 import { createPipeline } from '#/server/pipeline.js';
 import { initDevTracing } from '#/server/tracing.js';
 import type { PipelineConfig, RouteMatch, InterceptionContext } from '#/server/pipeline.js';
@@ -31,7 +32,7 @@ import { logRenderError } from '#/server/logger.js';
 import { resolveLogMode } from '#/server/dev-logger.js';
 import { createRouteMatcher, createMetadataRouteMatcher } from '#/server/route-matcher.js';
 import type { ManifestSegmentNode } from '#/server/route-matcher.js';
-import { DenySignal, RedirectSignal, RenderError } from '#/server/primitives.js';
+import { DenySignal, RedirectSignal, RenderError, SsrStreamError } from '#/server/primitives.js';
 import { buildClientScripts } from '#/server/html-injectors.js';
 import type { ClientBootstrapConfig } from '#/server/html-injectors.js';
 import { renderDenyPage, renderDenyPageAsRsc } from '#/server/deny-renderer.js';
@@ -372,6 +373,7 @@ async function renderRoute(
   let redirectSignal: RedirectSignal | null = null;
   let renderError: { error: unknown; status: number } | null = null;
   let rscStream: ReadableStream<Uint8Array> | undefined;
+
   try {
     rscStream = renderToReadableStream(
       element,
@@ -673,6 +675,32 @@ async function renderRoute(
     // away). No response needed; return empty 499 (client closed request).
     if (isAbortError(ssrError) || _req.signal?.aborted) {
       return new Response(null, { status: 499 });
+    }
+
+    // SsrStreamError: SSR's renderToReadableStream failed because the RSC
+    // stream contained an uncontained error (e.g., slot without error boundary).
+    // Render the deny/error page WITHOUT layout wrapping to avoid re-executing
+    // server components (which call headers()/cookies() and fail in SSR's
+    // separate ALS scope). See LOCAL-293.
+    if (ssrError instanceof SsrStreamError) {
+      const sig = redirectSignal as RedirectSignal | null;
+      if (sig) return buildRedirectResponse(_req, sig, responseHeaders);
+      if (denySignal) {
+        // Render deny page without layouts — pass empty layout list
+        return renderDenyPage(
+          denySignal, segments, [] as LayoutEntry[],
+          _req, match, responseHeaders, clientBootstrap, createDebugChannelSink, callSsr
+        );
+      }
+      const err = renderError as { error: unknown; status: number } | null;
+      if (err) {
+        return renderErrorPage(
+          err.error, err.status, segments, [] as LayoutEntry[],
+          _req, match, responseHeaders, clientBootstrap
+        );
+      }
+      // No captured signal — return bare 500
+      return new Response(null, { status: 500, headers: responseHeaders });
     }
 
     // SSR shell rendering failed — the error was outside Suspense.

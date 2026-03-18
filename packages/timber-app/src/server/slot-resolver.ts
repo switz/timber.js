@@ -20,6 +20,8 @@ import type { ManifestSegmentNode } from './route-matcher.js';
 import type { RouteMatch, InterceptionContext } from './pipeline.js';
 import { SlotAccessGate } from './access-gate.js';
 import { wrapSegmentWithErrorBoundaries } from './error-boundary-wrapper.js';
+import { TimberErrorBoundary } from '#/client/error-boundary.js';
+import SlotErrorFallback from '#/client/slot-error-fallback.js';
 
 type CreateElementFn = (...args: unknown[]) => React.ReactElement;
 
@@ -142,6 +144,18 @@ export async function resolveSlotElement(
       // Wrap with slot root's error boundaries (outermost)
       element = await wrapSegmentWithErrorBoundaries(slotNode, element, h);
 
+      // Catch-all error boundary: ensures slot errors NEVER propagate to the
+      // parent layout. Without this, a slot without error.tsx that throws
+      // causes SSR's renderToReadableStream to reject, triggering renderDenyPage
+      // which re-executes all layout server components (including headers() calls
+      // that fail in the SSR environment). The null fallback means the slot
+      // degrades to nothing — consistent with the slot access denial behavior.
+      // See design/02-rendering-pipeline.md §"Slot Access Failure = Graceful Degradation"
+      element = h(TimberErrorBoundary, {
+        fallbackComponent: SlotErrorFallback,
+        children: element,
+      });
+
       return element;
     }
   }
@@ -187,9 +201,14 @@ function findSlotMatch(slotNode: ManifestSegmentNode, match: RouteMatch): SlotMa
 
   // Find the parent segment that owns this slot by comparing urlPaths.
   // The slot's urlPath matches its parent's urlPath (slots don't add URL depth).
+  // Search BACKWARDS to find the deepest (last) matching segment. Multiple
+  // segments can share the same urlPath when route groups are involved (e.g.,
+  // Root urlPath='/' and (browse) urlPath='/'). The slot's parent is always
+  // the deepest one — searching forward would incorrectly pick the root,
+  // making remainingSegments too long and breaking slot matching.
   const slotUrlPath = slotNode.urlPath;
   let parentIndex = -1;
-  for (let i = 0; i < segments.length; i++) {
+  for (let i = segments.length - 1; i >= 0; i--) {
     if (segments[i].urlPath === slotUrlPath) {
       parentIndex = i;
       break;

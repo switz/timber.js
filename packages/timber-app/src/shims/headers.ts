@@ -1,11 +1,9 @@
 /**
- * Shim: next/headers → timber request context
+ * Shim: next/headers → timber server
  *
- * Re-exports timber's ALS-backed headers() and cookies() for libraries
- * that import from next/headers. These are real implementations backed
- * by AsyncLocalStorage, not stubs.
- *
- * See design/14-ecosystem.md §"next/headers" for the full shim audit.
+ * Imports from @timber-js/app/server which Vite resolves to dist/server/index.js
+ * via native package.json exports. This ensures the same ALS singleton as the
+ * pipeline (both import from the same shared request-context chunk in dist/).
  */
 
-export { headers, cookies } from '#/server/request-context.js';
+export { headers, cookies } from '@timber-js/app/server';

@@ -158,14 +158,11 @@ describe('client bundle audit', () => {
     expect(serverImports).toEqual([]);
   });
 
-  it('navigation (full) shim imports from server/primitives', () => {
+  it('navigation (full) shim imports server functions via @timber-js/app/server', () => {
     const navFull = resolve(SRC_DIR, 'shims/navigation.ts');
-    const navImports = traceImports(navFull);
-    const navRelative = [...navImports].map((f) =>
-      f.startsWith(SRC_DIR) ? f.slice(SRC_DIR.length + 1) : f
-    );
-    const serverImports = navRelative.filter((p) => p.startsWith('server/'));
-    // The full shim SHOULD import from server — that's expected for RSC/SSR
-    expect(serverImports.length).toBeGreaterThan(0);
+    const content = readFileSync(navFull, 'utf-8');
+    // The full shim imports server functions from @timber-js/app/server
+    // (resolved by Vite's native package.json exports, not the shims plugin).
+    expect(content).toContain('@timber-js/app/server');
   });
 });

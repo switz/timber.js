@@ -1,3 +1,5 @@
+'use client';
+
 // Link component — client-side navigation with progressive enhancement
 // See design/19-client-navigation.md § Progressive Enhancement
 //

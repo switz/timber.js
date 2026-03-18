@@ -518,3 +518,94 @@ describe('full pipeline', () => {
     expect(res.status).toBe(200);
   });
 });
+
+// ─── renderFallbackError ──────────────────────────────────────────────────
+
+describe('renderFallbackError', () => {
+  it('renders fallback error page when render throws', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const handler = createPipeline(
+      makeConfig({
+        render: () => {
+          throw new Error('catastrophic render failure');
+        },
+        renderFallbackError: (error) => {
+          const msg = error instanceof Error ? error.message : 'Unknown';
+          return new Response(`<h1>${msg}</h1>`, {
+            status: 500,
+            headers: { 'Content-Type': 'text/html' },
+          });
+        },
+      })
+    );
+
+    const res = await handler(makeRequest('/test'));
+    expect(res.status).toBe(500);
+    expect(res.headers.get('Content-Type')).toBe('text/html');
+    const body = await res.text();
+    expect(body).toContain('catastrophic render failure');
+
+    errorSpy.mockRestore();
+  });
+
+  it('falls back to bare 500 when renderFallbackError itself throws', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const handler = createPipeline(
+      makeConfig({
+        render: () => {
+          throw new Error('render crash');
+        },
+        renderFallbackError: () => {
+          throw new Error('fallback also crashed');
+        },
+      })
+    );
+
+    const res = await handler(makeRequest('/test'));
+    expect(res.status).toBe(500);
+    expect(res.body).toBeNull();
+
+    errorSpy.mockRestore();
+  });
+
+  it('still calls onPipelineError before renderFallbackError', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const order: string[] = [];
+
+    const handler = createPipeline(
+      makeConfig({
+        render: () => {
+          throw new Error('boom');
+        },
+        onPipelineError: () => {
+          order.push('onPipelineError');
+        },
+        renderFallbackError: () => {
+          order.push('renderFallbackError');
+          return new Response('error page', { status: 500 });
+        },
+      })
+    );
+
+    await handler(makeRequest('/test'));
+    expect(order).toEqual(['onPipelineError', 'renderFallbackError']);
+
+    errorSpy.mockRestore();
+  });
+
+  it('does not use renderFallbackError when render succeeds', async () => {
+    const fallbackSpy = vi.fn(() => new Response('error', { status: 500 }));
+
+    const handler = createPipeline(
+      makeConfig({
+        renderFallbackError: fallbackSpy,
+      })
+    );
+
+    const res = await handler(makeRequest('/test'));
+    expect(res.status).toBe(200);
+    expect(fallbackSpy).not.toHaveBeenCalled();
+  });
+});

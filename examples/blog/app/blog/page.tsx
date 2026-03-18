@@ -1,5 +1,5 @@
 import { allBlogs } from 'content-collections';
-import { Link } from '@timber/app/client';
+import { Link } from '@timber-js/app/client';
 
 export const metadata = { title: 'Blog' };
 

@@ -1,4 +1,4 @@
-import type { Metadata } from '@timber/app/server';
+import type { Metadata } from '@timber-js/app/server';
 
 export const metadata: Metadata = {
   title: { absolute: 'Absolute Title' },

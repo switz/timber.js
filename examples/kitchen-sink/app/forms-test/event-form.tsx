@@ -1,8 +1,8 @@
 'use client';
 
-import { useActionState, useFormErrors } from '@timber/app/client';
+import { useActionState, useFormErrors } from '@timber-js/app/client';
 import { createEvent } from './actions';
-import type { FormFlashData } from '@timber/app/server';
+import type { FormFlashData } from '@timber-js/app/server';
 
 const categories = [
   { value: '', label: 'Select a category…' },

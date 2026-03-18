@@ -1,4 +1,4 @@
-import type { RouteContext } from '@timber/app/server';
+import type { RouteContext } from '@timber-js/app/server';
 
 export async function GET(ctx: RouteContext) {
   const id = ctx.params.id;

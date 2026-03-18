@@ -7,9 +7,9 @@
  * Works both with JS (inline errors) and without JS (flash-based errors).
  */
 
-import { useActionState, useFormErrors } from '@timber/app/client';
+import { useActionState, useFormErrors } from '@timber-js/app/client';
 import { submitContact } from './actions';
-import type { FormFlashData } from '@timber/app/server';
+import type { FormFlashData } from '@timber-js/app/server';
 
 interface ContactFormProps {
   flash: FormFlashData | null;

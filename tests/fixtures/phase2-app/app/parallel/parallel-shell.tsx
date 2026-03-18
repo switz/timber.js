@@ -4,7 +4,7 @@
  * Client component shell for the parallel routes layout.
  * Provides navigation links and test IDs for E2E assertions.
  */
-import { Link } from '@timber/app/client';
+import { Link } from '@timber-js/app/client';
 
 export function ParallelShell({
   children,

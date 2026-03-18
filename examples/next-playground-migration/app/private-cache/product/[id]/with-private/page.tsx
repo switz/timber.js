@@ -29,7 +29,7 @@ import { Suspense } from 'react';
 import db from '#/lib/db';
 import { Boundary } from '#/ui/boundary';
 import { ProductCard } from '#/ui/product-card';
-import { createCache } from '@timber/app/cache';
+import { createCache } from '@timber-js/app/cache';
 import { cookies } from 'next/headers';
 import { getPersonalizedRecommendations } from '../../../_components/recommendations';
 import { notFound } from 'next/navigation';

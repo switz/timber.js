@@ -8,7 +8,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import clsx from 'clsx';
 import { Suspense } from 'react';
-import { useNavigationPending } from '@timber/app/client';
+import { useNavigationPending } from '@timber-js/app/client';
 
 export type Item = { text: string; slug?: string; segment?: string };
 

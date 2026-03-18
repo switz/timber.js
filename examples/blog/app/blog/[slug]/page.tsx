@@ -1,6 +1,6 @@
 import { allBlogs } from 'content-collections';
-import { deny } from '@timber/app/server';
-import type { Metadata } from '@timber/app/server';
+import { deny } from '@timber-js/app/server';
+import type { Metadata } from '@timber-js/app/server';
 
 export async function generateStaticParams() {
   return allBlogs.filter((p) => !p.draft).map((post) => ({ slug: post._meta.path }));

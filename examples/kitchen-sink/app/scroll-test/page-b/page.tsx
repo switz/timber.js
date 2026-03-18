@@ -1,4 +1,4 @@
-import { Link } from '@timber/app/client';
+import { Link } from '@timber-js/app/client';
 import TallContent from '../TallContent';
 
 export default function PageB() {

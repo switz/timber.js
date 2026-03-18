@@ -1,4 +1,4 @@
-import type { AccessContext } from '@timber/app/server';
+import type { AccessContext } from '@timber-js/app/server';
 
 // Parent access gate — always passes.
 // Tests that parent access runs first (top-down) and child still executes.

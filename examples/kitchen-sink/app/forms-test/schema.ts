@@ -1,5 +1,5 @@
 import * as v from 'valibot';
-import { coerce } from '@timber/app/server';
+import { coerce } from '@timber-js/app/server';
 
 export const eventSchema = v.object({
   title: v.pipe(v.string(), v.trim(), v.minLength(1, 'Event title is required')),

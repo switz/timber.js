@@ -1,5 +1,5 @@
-import type { AccessContext } from '@timber/app/server';
-import { deny } from '@timber/app/server';
+import type { AccessContext } from '@timber-js/app/server';
+import { deny } from '@timber-js/app/server';
 
 // Child access gate — always denies.
 // Tests nested gates: parent passes, child denies → HTTP 403.

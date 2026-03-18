@@ -19,7 +19,7 @@
 import { Suspense } from 'react';
 import db from '#/lib/db';
 import { Boundary } from '#/ui/boundary';
-import { createCache } from '@timber/app/cache';
+import { createCache } from '@timber-js/app/cache';
 
 const DEMO_PRODUCT_ID = '1';
 

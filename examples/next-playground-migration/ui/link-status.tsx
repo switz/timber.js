@@ -10,7 +10,7 @@
 // the same — a spinner appears while navigating.
 //
 // Gap filed: see bd issue for adding per-link pending state to timber's Link.
-import { useNavigationPending } from '@timber/app/client';
+import { useNavigationPending } from '@timber-js/app/client';
 
 export function LinkStatus() {
   const pending = useNavigationPending();

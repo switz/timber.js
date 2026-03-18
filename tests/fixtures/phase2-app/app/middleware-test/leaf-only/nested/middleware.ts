@@ -1,4 +1,4 @@
-import type { MiddlewareContext } from '@timber/app/server';
+import type { MiddlewareContext } from '@timber-js/app/server';
 
 /**
  * Nested (leaf) middleware — this IS the leaf and should run.

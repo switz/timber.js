@@ -9,8 +9,8 @@
  * Design doc: design/08-forms-and-actions.md
  */
 
-import { validated, createActionClient } from '@timber/app/server';
-import { coerce } from '@timber/app/server';
+import { validated, createActionClient } from '@timber-js/app/server';
+import { coerce } from '@timber-js/app/server';
 
 // ─── Schema (Standard Schema interface, no external dep) ────────────────
 

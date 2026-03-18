@@ -1,4 +1,4 @@
-import { nitro } from '@timber/app/adapters/nitro';
+import { nitro } from '@timber-js/app/adapters/nitro';
 
 export default {
   output: 'server' as const,

@@ -1,4 +1,4 @@
-import type { Metadata } from '@timber/app/server';
+import type { Metadata } from '@timber-js/app/server';
 
 export async function metadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;

@@ -1,4 +1,4 @@
-import { Link } from '@timber/app/client';
+import { Link } from '@timber-js/app/client';
 
 export const metadata = { title: 'Intercepting Routes: Gallery' };
 

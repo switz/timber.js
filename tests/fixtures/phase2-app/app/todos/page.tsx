@@ -11,7 +11,7 @@
  * Design doc: design/08-forms-and-actions.md
  */
 import { getTodos } from './store';
-import { headers } from '@timber/app/server';
+import { headers } from '@timber-js/app/server';
 import { TodoForm } from './todo-form';
 import { TodoList } from './todo-list';
 import { ResetButton } from './reset-button';

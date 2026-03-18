@@ -1,4 +1,4 @@
-import { getFormFlash } from '@timber/app/server';
+import { getFormFlash } from '@timber-js/app/server';
 import { EventForm } from './event-form';
 
 export const metadata = { title: 'Forms' };

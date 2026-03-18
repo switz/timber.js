@@ -2,7 +2,7 @@
  * Server component page for the file-upload E2E fixture.
  */
 
-import { getFormFlash } from '@timber/app/server';
+import { getFormFlash } from '@timber-js/app/server';
 import { UploadForm } from './form';
 
 export default function FileUploadPage() {

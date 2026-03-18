@@ -8,7 +8,7 @@
  * - Scroll={false} link
  * - router.refresh() trigger button
  */
-import { Link, getRouter } from '@timber/app/client';
+import { Link, getRouter } from '@timber-js/app/client';
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   function handleRefresh() {

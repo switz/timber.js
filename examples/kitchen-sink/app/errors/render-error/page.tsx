@@ -1,4 +1,4 @@
-import { RenderError } from '@timber/app/server';
+import { RenderError } from '@timber-js/app/server';
 
 // Throws a RenderError with typed digest — caught by root error.tsx.
 // Per design/10-error-handling.md, RenderError carries a plain-data digest

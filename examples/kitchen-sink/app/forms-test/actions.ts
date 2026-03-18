@@ -1,6 +1,6 @@
 'use server';
 
-import { createActionClient, deny } from '@timber/app/server';
+import { createActionClient, deny } from '@timber-js/app/server';
 import { eventSchema } from './schema';
 
 const action = createActionClient();

@@ -1,4 +1,4 @@
-import { headers, cookies } from '@timber/app/server';
+import { headers, cookies } from '@timber-js/app/server';
 
 export default async function CookiesPage() {
   const readCookie = headers().get('X-Read-Cookie');

@@ -328,7 +328,7 @@ describe('hashed assets', () => {
 describe('combined static validation', () => {
   it('dynamic APIs rejected in static mode', () => {
     const code = `
-import { cookies } from '@timber/app/server'
+import { cookies } from '@timber-js/app/server'
 export default async function Page() {
   const session = cookies().get('session')
   return <div>{session?.value}</div>
@@ -343,7 +343,7 @@ export default async function Page() {
 
   it('headers() rejected in static mode', () => {
     const code = `
-import { headers } from '@timber/app/server'
+import { headers } from '@timber-js/app/server'
 export default async function Page() {
   const host = headers().get('host')
   return <div>{host}</div>
@@ -357,7 +357,7 @@ export default async function Page() {
 
   it('clientJavascript disabled mode catches both directive and dynamic API errors', () => {
     const code = `'use client'
-import { cookies } from '@timber/app/server'
+import { cookies } from '@timber-js/app/server'
 export default function Page() {
   const session = cookies().get('session')
   return <div>{session}</div>
@@ -372,7 +372,7 @@ export default function Page() {
 
   it('line numbers are provided for errors', () => {
     const code = `
-import { cookies } from '@timber/app/server'
+import { cookies } from '@timber-js/app/server'
 
 export default async function Page() {
   const session = cookies().get('session')

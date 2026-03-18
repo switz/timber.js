@@ -43,18 +43,18 @@ describe('useCookie', () => {
   });
 });
 
-// ─── @timber/app/cookies exports ────────────────────────────────
+// ─── @timber-js/app/cookies exports ────────────────────────────────
 
-describe('@timber/app/cookies exports', () => {
+describe('@timber-js/app/cookies exports', () => {
   it('exports defineCookie', async () => {
     const mod = await import('../packages/timber-app/src/cookies/index');
     expect(typeof mod.defineCookie).toBe('function');
   });
 });
 
-// ─── @timber/app/client cookie exports ──────────────────────────
+// ─── @timber-js/app/client cookie exports ──────────────────────────
 
-describe('@timber/app/client cookie exports', () => {
+describe('@timber-js/app/client cookie exports', () => {
   it('exports useCookie from client index', async () => {
     const mod = await import('../packages/timber-app/src/client/index');
     expect(typeof mod.useCookie).toBe('function');

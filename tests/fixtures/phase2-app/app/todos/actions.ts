@@ -10,8 +10,8 @@
  */
 
 import { addTodo, deleteTodo, resetTodos } from './store';
-import { revalidatePath, headers } from '@timber/app/server';
-import { redirect } from '@timber/app/server';
+import { revalidatePath, headers } from '@timber-js/app/server';
+import { redirect } from '@timber-js/app/server';
 
 function getSessionId(): string | undefined {
   return headers().get('x-test-session') ?? undefined;

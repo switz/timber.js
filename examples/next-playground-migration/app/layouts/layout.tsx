@@ -5,7 +5,7 @@ import db from '#/lib/db';
 import { Boundary } from '#/ui/boundary';
 import { ClickCounter } from '#/ui/click-counter';
 import { Tabs } from '#/ui/tabs';
-import type { Metadata } from '@timber/app/server';
+import type { Metadata } from '@timber-js/app/server';
 import { Mdx } from '#/ui/codehike';
 import readme from './readme.mdx';
 

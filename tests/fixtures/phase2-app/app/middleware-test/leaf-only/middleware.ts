@@ -1,4 +1,4 @@
-import type { MiddlewareContext } from '@timber/app/server';
+import type { MiddlewareContext } from '@timber-js/app/server';
 
 /**
  * Parent middleware — per design, this should NOT run when the nested page is requested.

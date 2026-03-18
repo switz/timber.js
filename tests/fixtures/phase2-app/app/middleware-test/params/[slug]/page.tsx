@@ -1,4 +1,4 @@
-import { headers } from '@timber/app/server';
+import { headers } from '@timber-js/app/server';
 
 export default async function ParamsPage() {
   const slug = headers().get('X-Slug-Param');

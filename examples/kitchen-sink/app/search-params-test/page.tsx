@@ -1,5 +1,5 @@
-import { searchParams } from '@timber/app/server';
-import { Link } from '@timber/app/client';
+import { searchParams } from '@timber-js/app/server';
+import { Link } from '@timber-js/app/client';
 import FilterBar from './FilterBar';
 
 export const metadata = { title: 'Search Params Test' };

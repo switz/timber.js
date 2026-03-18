@@ -14,7 +14,7 @@
 import db from '#/lib/db';
 import { Boundary } from '#/ui/boundary';
 import { ProductCard } from '#/ui/product-card';
-import { createCache } from '@timber/app/cache';
+import { createCache } from '@timber-js/app/cache';
 import SessionButton from './session-button';
 import ProductLink from './product-link';
 

@@ -7,7 +7,7 @@ import db from '#/lib/db';
 import { Boundary } from '#/ui/boundary';
 import { Mdx } from '#/ui/codehike';
 import { Tabs } from '#/ui/tabs';
-import type { Metadata } from '@timber/app/server';
+import type { Metadata } from '@timber-js/app/server';
 import Readme from './readme.mdx';
 import Loading from './loading';
 

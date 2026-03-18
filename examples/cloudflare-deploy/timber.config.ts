@@ -1,4 +1,4 @@
-import { cloudflare } from '@timber/app/adapters/cloudflare';
+import { cloudflare } from '@timber-js/app/adapters/cloudflare';
 
 export default {
   output: 'server' as const,

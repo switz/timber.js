@@ -7,7 +7,7 @@
  * Design doc: design/08-forms-and-actions.md
  */
 
-import { createActionClient } from '@timber/app/server';
+import { createActionClient } from '@timber-js/app/server';
 
 // ─── Schema (Standard Schema interface) ──────────────────────────────
 

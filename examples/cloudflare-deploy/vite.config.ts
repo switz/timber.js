@@ -9,14 +9,14 @@ export default defineConfig({
   root: import.meta.dirname,
   resolve: {
     alias: {
-      '@timber/app/cache': resolve(root, 'packages/timber-app/src/cache/index.ts'),
-      '@timber/app/server': resolve(root, 'packages/timber-app/src/server/index.ts'),
-      '@timber/app/client': resolve(root, 'packages/timber-app/src/client/index.ts'),
-      '@timber/app/adapters/cloudflare': resolve(
+      '@timber-js/app/cache': resolve(root, 'packages/timber-app/src/cache/index.ts'),
+      '@timber-js/app/server': resolve(root, 'packages/timber-app/src/server/index.ts'),
+      '@timber-js/app/client': resolve(root, 'packages/timber-app/src/client/index.ts'),
+      '@timber-js/app/adapters/cloudflare': resolve(
         root,
         'packages/timber-app/src/adapters/cloudflare.ts'
       ),
-      '@timber/app': resolve(root, 'packages/timber-app/src/index.ts'),
+      '@timber-js/app': resolve(root, 'packages/timber-app/src/index.ts'),
     },
   },
 });

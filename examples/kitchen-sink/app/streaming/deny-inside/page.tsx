@@ -1,5 +1,5 @@
 import { Suspense } from 'react';
-import { deny } from '@timber/app/server';
+import { deny } from '@timber-js/app/server';
 
 export const metadata = { title: 'Streaming: Deny Inside Suspense' };
 

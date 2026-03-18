@@ -11,8 +11,8 @@
  * - Navigation links with various test IDs
  */
 import { useState, useRef, useEffect } from 'react';
-import { Link, type OnNavigateEvent } from '@timber/app/client';
-import { useNavigationPending } from '@timber/app/client';
+import { Link, type OnNavigateEvent } from '@timber-js/app/client';
+import { useNavigationPending } from '@timber-js/app/client';
 
 export function RootShell({ children }: { children: React.ReactNode }) {
   const pending = useNavigationPending();

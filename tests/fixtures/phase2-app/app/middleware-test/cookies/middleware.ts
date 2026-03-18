@@ -1,5 +1,5 @@
-import { cookies } from '@timber/app/server';
-import type { MiddlewareContext } from '@timber/app/server';
+import { cookies } from '@timber-js/app/server';
+import type { MiddlewareContext } from '@timber-js/app/server';
 
 export default async function middleware(ctx: MiddlewareContext): Promise<Response | void> {
   // Read a cookie from the request using the cookies() API

@@ -1,5 +1,5 @@
-import type { Metadata } from '@timber/app/server';
-import { Link } from '@timber/app/client';
+import type { Metadata } from '@timber-js/app/server';
+import { Link } from '@timber-js/app/client';
 
 export const metadata: Metadata = {
   title: 'Meta Test Page',

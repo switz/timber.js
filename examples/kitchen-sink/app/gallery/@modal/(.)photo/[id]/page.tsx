@@ -1,4 +1,4 @@
-import { Link } from '@timber/app/client';
+import { Link } from '@timber-js/app/client';
 
 const photoData: Record<string, { label: string; color: string }> = {
   '1': { label: 'Sunset', color: '#f59e0b' },

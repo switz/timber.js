@@ -4,7 +4,7 @@ import db from '#/lib/db';
 import Byline from '#/ui/byline';
 import { GlobalNav } from '#/ui/global-nav';
 // MIGRATION: Replaced 'next' Metadata type with timber's Metadata type
-import type { Metadata } from '@timber/app/server';
+import type { Metadata } from '@timber-js/app/server';
 // MIGRATION: next/font/google shim currently only exports a default function,
 // not named exports (timber-rlm). Stub out the font objects directly until fixed.
 const geistSans = { variable: '' };

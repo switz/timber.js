@@ -1,4 +1,4 @@
-import { headers } from '@timber/app/server';
+import { headers } from '@timber-js/app/server';
 
 export default async function NestedPage() {
   const parentMiddleware = headers().get('X-Parent-Middleware');

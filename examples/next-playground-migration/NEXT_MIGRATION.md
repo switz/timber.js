@@ -60,14 +60,14 @@ export default {
 ### Update `package.json`
 
 - Remove: `next`, `@next/mdx`
-- Add: `@timber/app: workspace:*`
+- Add: `@timber-js/app: workspace:*`
 - Keep: `react`, `react-dom`, codehike, mdx packages
 
 ---
 
 ## 2. `Metadata` Type Import
 
-**Rule:** `Metadata` is exported from `@timber/app/server`, not `next`.
+**Rule:** `Metadata` is exported from `@timber-js/app/server`, not `next`.
 
 **Before**
 
@@ -78,7 +78,7 @@ import type { Metadata } from 'next';
 **After**
 
 ```ts
-import type { Metadata } from '@timber/app/server';
+import type { Metadata } from '@timber-js/app/server';
 ```
 
 **Apply to:** Every layout or page that exports a `metadata` const.
@@ -230,7 +230,7 @@ async function getProducts() {
 **After**
 
 ```ts
-import { createCache } from '@timber/app/cache';
+import { createCache } from '@timber-js/app/cache';
 
 const getProducts = createCache(async () => db.product.findMany(), { tags: ['products'] });
 ```
@@ -255,7 +255,7 @@ async function getRecommendations(productId: string) {
 **After**
 
 ```ts
-import { createCache } from '@timber/app/cache';
+import { createCache } from '@timber-js/app/cache';
 import { cookies } from 'next/headers';
 
 // cookies() called OUTSIDE the cached function (inside render)
@@ -284,7 +284,7 @@ Same as regular `timber.cache()` — timber's cache is always "remote" (KV-backe
 
 ## 9. `useLinkStatus` → `useNavigationPending`
 
-**Rule:** timber has no per-link navigation status hook. Use `useNavigationPending()` from `@timber/app/client` as the closest equivalent. This is a **global** hook — it returns `true` when any navigation is pending, not just the specific link being clicked.
+**Rule:** timber has no per-link navigation status hook. Use `useNavigationPending()` from `@timber-js/app/client` as the closest equivalent. This is a **global** hook — it returns `true` when any navigation is pending, not just the specific link being clicked.
 
 **Before**
 
@@ -300,7 +300,7 @@ function MyLink({ href, children }) {
 **After**
 
 ```ts
-import { useNavigationPending } from '@timber/app/client';
+import { useNavigationPending } from '@timber-js/app/client';
 
 function MyLink({ href, children }) {
   const isPending = useNavigationPending();
@@ -373,7 +373,7 @@ export async function GET(request: NextRequest) {
 **After** (SVG stub — use Takumi RS for production OG images)
 
 ```ts
-import type { RouteContext } from '@timber/app/server';
+import type { RouteContext } from '@timber-js/app/server';
 
 export async function GET(ctx: RouteContext): Promise<Response> {
   const title = ctx.searchParams.get('title') ?? 'My App';
@@ -417,7 +417,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 **After**
 
 ```ts
-import type { RouteContext } from '@timber/app/server';
+import type { RouteContext } from '@timber-js/app/server';
 export async function GET(ctx: RouteContext): Promise<Response> {
   const id = ctx.params.id;
 }

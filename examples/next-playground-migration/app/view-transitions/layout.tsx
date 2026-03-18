@@ -2,7 +2,7 @@
 
 import { Boundary } from '#/ui/boundary';
 import { Mdx } from '#/ui/codehike';
-import type { Metadata } from '@timber/app/server';
+import type { Metadata } from '@timber-js/app/server';
 import React from 'react';
 import readme from './readme.mdx';
 import db from '#/lib/db';

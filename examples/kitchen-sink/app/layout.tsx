@@ -1,6 +1,6 @@
 import { type ReactNode } from 'react';
-import type { Metadata } from '@timber/app/server';
-import { Link } from '@timber/app/client';
+import type { Metadata } from '@timber-js/app/server';
+import { Link } from '@timber-js/app/client';
 import Counter from './Counter';
 import './globals.css';
 

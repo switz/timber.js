@@ -14,7 +14,7 @@
 //
 // For now, this route returns a placeholder SVG response.
 
-import type { RouteContext } from '@timber/app/server';
+import type { RouteContext } from '@timber-js/app/server';
 
 export async function GET(ctx: RouteContext): Promise<Response> {
   const title = ctx.searchParams.get('title') ?? 'timber.js Playground';

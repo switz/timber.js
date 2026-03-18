@@ -7,9 +7,9 @@
  * Works both with JS (inline RSC update) and without JS (flash-based).
  */
 
-import { useActionState, useFormErrors } from '@timber/app/client';
+import { useActionState, useFormErrors } from '@timber-js/app/client';
 import { uploadAction } from './actions';
-import type { FormFlashData } from '@timber/app/server';
+import type { FormFlashData } from '@timber-js/app/server';
 
 interface UploadFormProps {
   flash: FormFlashData | null;

@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 import db from '#/lib/db';
 import { Boundary } from '#/ui/boundary';
 import { Tabs } from '#/ui/tabs';
-import type { Metadata } from '@timber/app/server';
+import type { Metadata } from '@timber-js/app/server';
 
 export async function metadata(): Promise<Metadata> {
   const demo = db.demo.find({ where: { slug: 'error' } });

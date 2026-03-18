@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Link } from '@timber/app/client';
+import { Link } from '@timber-js/app/client';
 
 export default function NestedOuterLayout({ children }: { children: ReactNode }) {
   return (

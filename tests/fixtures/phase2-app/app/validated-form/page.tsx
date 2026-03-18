@@ -5,7 +5,7 @@
  * and passes it to the client form component.
  */
 
-import { getFormFlash } from '@timber/app/server';
+import { getFormFlash } from '@timber-js/app/server';
 import { ContactForm } from './form';
 
 export default function ValidatedFormPage() {

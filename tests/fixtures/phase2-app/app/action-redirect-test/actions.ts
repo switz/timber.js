@@ -1,6 +1,6 @@
 'use server';
 
-import { redirect } from '@timber/app/server';
+import { redirect } from '@timber-js/app/server';
 
 /**
  * Action that redirects to /todos. Tests that with-JS path performs

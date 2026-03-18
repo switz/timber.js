@@ -1,4 +1,4 @@
-import { createSearchParams, fromSchema } from '@timber/app/search-params';
+import { createSearchParams, fromSchema } from '@timber-js/app/search-params';
 import * as v from 'valibot';
 
 export default createSearchParams(

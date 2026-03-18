@@ -1,4 +1,4 @@
-import type { MiddlewareContext } from '@timber/app/server';
+import type { MiddlewareContext } from '@timber-js/app/server';
 
 export default async function middleware(ctx: MiddlewareContext): Promise<Response | void> {
   // Set response headers

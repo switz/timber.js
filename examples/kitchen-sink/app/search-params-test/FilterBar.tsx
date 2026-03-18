@@ -1,6 +1,6 @@
 'use client';
 
-import { bindUseQueryStates } from '@timber/app/client';
+import { bindUseQueryStates } from '@timber-js/app/client';
 import searchParamsDef from './search-params';
 
 // Bind hooks at module scope — safe because bindUseQueryStates returns a hook

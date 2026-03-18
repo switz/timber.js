@@ -4,7 +4,7 @@ import { Boundary } from '#/ui/boundary';
 import { Mdx } from '#/ui/codehike';
 import React from 'react';
 import readme from './readme.mdx';
-import type { Metadata } from '@timber/app/server';
+import type { Metadata } from '@timber-js/app/server';
 import db from '#/lib/db';
 
 export async function metadata(): Promise<Metadata> {

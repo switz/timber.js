@@ -68,6 +68,7 @@ import {
 import { handleApiRoute } from './api-handler.js';
 import { renderErrorPage, renderNoMatchPage } from './error-renderer.js';
 import { callSsr } from './ssr-bridge.js';
+import { renderFallbackError as renderFallback } from '#/server/fallback-error.js';
 
 // Dev-only pipeline error handler, set by the dev server after import.
 // In production this is always undefined — no overhead.
@@ -183,6 +184,8 @@ async function createRequestHandler(manifest: typeof routeManifest, runtimeConfi
           if (_devPipelineErrorHandler) _devPipelineErrorHandler(error, phase);
         }
       : undefined,
+    renderFallbackError: (error, req, responseHeaders) =>
+      renderFallback(error, req, responseHeaders, isDev, manifest.root, clientBootstrap),
   };
 
   const pipeline = createPipeline(pipelineConfig);

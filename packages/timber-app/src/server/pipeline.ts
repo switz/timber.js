@@ -121,6 +121,22 @@ export interface PipelineConfig {
    * Undefined in production — zero overhead.
    */
   onPipelineError?: (error: Error, phase: string) => void;
+  /**
+   * Fallback error renderer — called when a catastrophic error escapes the
+   * render phase. Produces an HTML Response instead of a bare empty 500.
+   *
+   * In dev mode, this renders a styled error page with the error message
+   * and stack trace. In production, this attempts to render the app's
+   * error.tsx / 5xx.tsx / 500.tsx from the root segment.
+   *
+   * If this function throws, the pipeline falls back to a bare
+   * `new Response(null, { status: 500 })`.
+   */
+  renderFallbackError?: (
+    error: unknown,
+    req: Request,
+    responseHeaders: Headers
+  ) => Response | Promise<Response>;
 }
 
 // ─── Pipeline ──────────────────────────────────────────────────────────────
@@ -403,6 +419,14 @@ export function createPipeline(config: PipelineConfig): (req: Request) => Promis
       logRenderError({ method, path, error });
       await fireOnRequestError(error, req, 'render');
       if (onPipelineError && error instanceof Error) onPipelineError(error, 'render');
+      // Try fallback error page before bare 500
+      if (config.renderFallbackError) {
+        try {
+          return await config.renderFallbackError(error, req, responseHeaders);
+        } catch {
+          // Fallback rendering itself failed — fall through to bare 500
+        }
+      }
       return new Response(null, { status: 500 });
     }
   }

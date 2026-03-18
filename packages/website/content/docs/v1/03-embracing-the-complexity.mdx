@@ -1,0 +1,31 @@
+---
+title: "Embracing The Complexity of Frontend"
+description: "The premise of this framework..."
+section: "Getting Started"
+---
+
+# Embracing The Complexity
+
+Many say that frontend engineers love complexity. That we elect complexity to keep our jobs or to massage our egos. But frontend is inherently complex.
+
+When building a website, you are running code in two execution environments. The server and the client.
+
+Your code ends up running on millions of untrusted clients.
+
+Many have tried to reduce this complexity through abstraction, but often what ends up happening is a papering over of that complexity. You stunt the ability of the server or the client and lean heavily on one or the other.
+
+An SPA is a limiting of the server. Rails or htmx is a limiting of the client.
+
+React Server Components embraces the inherent complexity here.
+
+### Crossing the network boundary
+
+
+
+### Static is just a 'server' at build-time
+
+A static site generator is not much more than running your webserver at build-time. You pre-render to HTML and save the output to serve up. That HTML gets placed onto a file server or CDN and served.
+
+```
+curl https://example.com/blog/post > post.html
+```

@@ -11,7 +11,8 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { ShikiTransformer } from 'shiki';
-import { rendererCssAnchor } from './twoslash-renderer.js';
+// @ts-expect-error hmm
+import { rendererCssAnchor } from './twoslash-renderer.ts';
 
 const TIMBER_IMPORT_RE = /@timber\/app/;
 

@@ -2,9 +2,9 @@
 
 ## Current State
 
-`@timber/app` has no build step — `package.json` build script is `echo 'TODO: build step'`. All 8 exports point directly to `.ts` source files, the CLI bin entry points to raw TypeScript, and there is no `dist/` output, `publishConfig`, `files` field, or publishing CI. This works for local workspace consumption via pnpm and Vite path aliases, but is not viable for npm distribution.
+`@timber-js/app` has no build step — `package.json` build script is `echo 'TODO: build step'`. All 8 exports point directly to `.ts` source files, the CLI bin entry points to raw TypeScript, and there is no `dist/` output, `publishConfig`, `files` field, or publishing CI. This works for local workspace consumption via pnpm and Vite path aliases, but is not viable for npm distribution.
 
-> **Note on package name:** The `@timber` npm scope is taken. The published package will likely be `@timber-js/app` (or another available scope). This doc uses `@timber/app` to match the current workspace name — the rename is a separate concern addressed during the actual publish step.
+> **Note on package name:** The `@timber` npm scope is taken. The published package will likely be `@timber-js/app` (or another available scope). This doc uses `@timber-js/app` to match the current workspace name — the rename is a separate concern addressed during the actual publish step.
 
 Current `exports`:
 
@@ -48,7 +48,7 @@ timber.js is TypeScript, and shipping `.ts` source would require every consumer'
 
 **Why ESM-only (no CJS)?**
 
-- `@timber/app` is `"type": "module"` — already ESM
+- `@timber-js/app` is `"type": "module"` — already ESM
 - All peer dependencies (Vite 7, React 19, `@vitejs/plugin-rsc`) are ESM
 - The target runtime (Cloudflare Workers) is ESM
 - Shipping dual CJS/ESM adds complexity and bundle size for zero benefit
@@ -234,7 +234,7 @@ pnpm applies `publishConfig` fields when packing/publishing, so workspace consum
 
 **Option B — Vite path aliases only:**
 
-Keep the path aliases in the root `tsconfig.json` (`@timber/app` → `./packages/timber-app/src/index.ts`) and point `exports` directly to `dist/`. The workspace never resolves via `exports` — Vite and tsgo use the path aliases.
+Keep the path aliases in the root `tsconfig.json` (`@timber-js/app` → `./packages/timber-app/src/index.ts`) and point `exports` directly to `dist/`. The workspace never resolves via `exports` — Vite and tsgo use the path aliases.
 
 Option A is recommended because it's explicit and self-documenting. Option B relies on implicit alias behavior that may break with different toolchains.
 
@@ -315,7 +315,7 @@ The compiled output should be significantly smaller than shipping the full `src/
 
 **Vite 7:** Not yet widely adopted. The `^7.0.0` range is correct — Vite follows semver. Once Vite 7 is stable, this is a non-issue.
 
-**`@vitejs/plugin-rsc`:** Currently a direct dependency (not peer). This is correct — `@timber/app` depends on a specific version of the RSC plugin and consumers should not need to install it separately. However, if the RSC plugin's API stabilizes and consumers may want to configure it directly, it could move to a peer dependency in the future.
+**`@vitejs/plugin-rsc`:** Currently a direct dependency (not peer). This is correct — `@timber-js/app` depends on a specific version of the RSC plugin and consumers should not need to install it separately. However, if the RSC plugin's API stabilizes and consumers may want to configure it directly, it could move to a peer dependency in the future.
 
 ---
 
@@ -355,12 +355,12 @@ Use `0.x` semver with a `canary` dist-tag for pre-release builds.
 
 - `0.x` communicates that the API is not yet stable — expected for a framework depending on Vite 7 and `@vitejs/plugin-rsc` pre-release
 - Follow semver strictly: in `0.x`, minor bumps signal breaking changes, patch bumps signal fixes
-- `canary` dist-tag for CI-published pre-release builds: `npm install @timber/app@canary`
+- `canary` dist-tag for CI-published pre-release builds: `npm install @timber-js/app@canary`
 - Move to `1.0.0` only when: Vite 7 is stable, `@vitejs/plugin-rsc` is `>=1.0.0`, and timber's public API surface is settled
 
 ### Monorepo Publishing (Out of Scope)
 
-Changesets (`@changesets/cli`) or similar tooling for monorepo version management is a follow-up task. The current workspace has only one publishable package (`@timber/app`), so manual versioning suffices initially.
+Changesets (`@changesets/cli`) or similar tooling for monorepo version management is a follow-up task. The current workspace has only one publishable package (`@timber-js/app`), so manual versioning suffices initially.
 
 ---
 

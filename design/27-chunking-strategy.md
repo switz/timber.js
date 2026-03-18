@@ -86,7 +86,7 @@ Use Rollup `manualChunks` to create three cache tiers based on update frequency:
 
 ```
 Tier 1: vendor-react-*.js   — react, react-dom, scheduler
-Tier 2: vendor-timber-*.js  — @timber/app runtime, react-server-dom-*, @vitejs/plugin-rsc runtime
+Tier 2: vendor-timber-*.js  — @timber-js/app runtime, react-server-dom-*, @vitejs/plugin-rsc runtime
 Tier 3: [route]-*.js        — per-route page/layout chunks (already happening)
         [shared]-*.js       — shared app components (already happening)
 ```

@@ -1,7 +1,7 @@
 /**
  * Twoslash transformer configuration for the docs site.
  *
- * Auto-enables twoslash on code blocks that import from `@timber/app/*`.
+ * Auto-enables twoslash on code blocks that import from `@timber-js/app/*`.
  * Uses CSS Anchor Positioning for tooltip placement.
  */
 
@@ -39,7 +39,7 @@ const EXTRA_FILES: Record<string, string> = {
   ].join('\n'),
 
   'lib/action.ts': [
-    'import { createActionClient } from "@timber/app/server";',
+    'import { createActionClient } from "@timber-js/app/server";',
     'export declare const action: ReturnType<typeof createActionClient>;',
   ].join('\n'),
 };
@@ -91,7 +91,7 @@ function cacheKey(code: string, lang?: string): string {
 /**
  * Creates the twoslash shiki transformer configured for the docs site.
  *
- * - Auto-detects `@timber/app` imports in ts/tsx blocks
+ * - Auto-detects `@timber-js/app` imports in ts/tsx blocks
  * - Also processes blocks with explicit `twoslash` meta tag
  * - Provides real type stubs for common non-timber imports
  * - Caches type resolution to disk
@@ -101,7 +101,7 @@ export function createTwoslashTransformer(): ShikiTransformer {
     renderer: rendererCssAnchor(),
     typesCache: createFsCache(),
 
-    // Custom filter: auto-enable for @timber/app imports, or explicit twoslash meta
+    // Custom filter: auto-enable for @timber-js/app imports, or explicit twoslash meta
     filter(lang, code, options) {
       // Check for explicit twoslash meta
       const meta = (options.meta as Record<string, unknown>)?.__raw;
@@ -109,7 +109,7 @@ export function createTwoslashTransformer(): ShikiTransformer {
         return true;
       }
 
-      // Auto-detect @timber/app imports in TypeScript blocks
+      // Auto-detect @timber-js/app imports in TypeScript blocks
       if (['ts', 'tsx', 'typescript', 'typescriptreact'].includes(lang)) {
         return TIMBER_IMPORT_RE.test(code);
       }
@@ -133,7 +133,7 @@ export function createTwoslashTransformer(): ShikiTransformer {
       // Virtual files for @/lib/* stubs — resolved via paths alias
       extraFiles: EXTRA_FILES,
       compilerOptions: {
-        // Match the website's tsconfig paths so @timber/app imports resolve
+        // Match the website's tsconfig paths so @timber-js/app imports resolve
         module: 99, // ESNext
         moduleResolution: 100, // Bundler
         target: 99, // ESNext
@@ -145,8 +145,8 @@ export function createTwoslashTransformer(): ShikiTransformer {
         // Paths are resolved relative to the website package
         baseUrl: resolve(import.meta.dirname, '..'),
         paths: {
-          '@timber/app': ['../timber-app/src/index.ts'],
-          '@timber/app/*': ['../timber-app/src/*'],
+          '@timber-js/app': ['../timber-app/src/index.ts'],
+          '@timber-js/app/*': ['../timber-app/src/*'],
           '@/*': ['./*'],
         },
       },

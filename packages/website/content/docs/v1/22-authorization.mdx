@@ -12,8 +12,8 @@ Authorization in timber.js lives in `access.ts` files co-located with route segm
 
 ```ts
 // app/(authenticated)/access.ts
-import type { AccessContext } from '@timber/app/server';
-import { cookies, redirect } from '@timber/app/server';
+import type { AccessContext } from '@timber-js/app/server';
+import { cookies, redirect } from '@timber-js/app/server';
 
 export default async function access(ctx: AccessContext) {
   const session = getSessionFromCookie(cookies());
@@ -96,7 +96,7 @@ interface AccessContext {
 }
 ```
 
-`cookies()` and `headers()` are imported from `@timber/app/server` — they work the same in `access.ts` as everywhere else.
+`cookies()` and `headers()` are imported from `@timber-js/app/server` — they work the same in `access.ts` as everywhere else.
 
 ## Middleware vs Access
 

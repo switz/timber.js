@@ -224,7 +224,7 @@ The recommended deployment for applications where you control your infrastructur
 
 ```typescript
 // timber.config.ts
-import { nitro } from '@timber/app/adapters/nitro';
+import { nitro } from '@timber-js/app/adapters/nitro';
 
 export default {
   output: 'server',
@@ -356,7 +356,7 @@ services:
 
 ```typescript
 // timber.config.ts
-import { cloudflare } from '@timber/app/adapters/cloudflare';
+import { cloudflare } from '@timber-js/app/adapters/cloudflare';
 
 export default {
   output: 'server',
@@ -381,7 +381,7 @@ Deploy with `wrangler deploy`. The adapter generates `wrangler.jsonc` with sensi
 
 ```typescript
 // In a server component or middleware
-import { getCloudflareBindings } from '@timber/app/adapters/cloudflare';
+import { getCloudflareBindings } from '@timber-js/app/adapters/cloudflare';
 
 export default async function Page() {
   const { MY_KV, MY_DB } = getCloudflareBindings();
@@ -394,7 +394,7 @@ export default async function Page() {
 
 ```typescript
 // timber.config.ts
-import { nitro } from '@timber/app/adapters/nitro';
+import { nitro } from '@timber-js/app/adapters/nitro';
 
 export default {
   output: 'server',

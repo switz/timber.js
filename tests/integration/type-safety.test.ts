@@ -24,10 +24,10 @@ import {
   fromArraySchema,
   analyzeSearchParams,
   formatAnalyzeError,
-} from '@timber/app/search-params';
-import { resolveHref, buildLinkProps, setCurrentParams, useParams } from '@timber/app/client';
+} from '@timber-js/app/search-params';
+import { resolveHref, buildLinkProps, setCurrentParams, useParams } from '@timber-js/app/client';
 import { generateRouteMap } from '../../packages/timber-app/src/routing/codegen.js';
-import { scanRoutes } from '@timber/app/routing';
+import { scanRoutes } from '@timber-js/app/routing';
 
 // ─── Shared helpers ──────────────────────────────────────────────
 
@@ -226,7 +226,7 @@ describe('non-analyzable', () => {
       const root = createApp({
         'products/page.tsx': '',
         'products/search-params.ts': `
-import { createSearchParams, fromSchema } from '@timber/app/search-params'
+import { createSearchParams, fromSchema } from '@timber-js/app/search-params'
 export default createSearchParams({
   page: fromSchema(z.coerce.number().default(1)),
 })
@@ -242,7 +242,7 @@ export default createSearchParams({
 
       // Static analysis passes
       const source = `
-import { createSearchParams, fromSchema } from '@timber/app/search-params'
+import { createSearchParams, fromSchema } from '@timber-js/app/search-params'
 export default createSearchParams({
   page: fromSchema(z.coerce.number().default(1)),
 })
@@ -386,7 +386,7 @@ describe('typed link', () => {
         'products/[id]/page.tsx': '',
         'products/page.tsx': '',
         'products/search-params.ts': `
-import { createSearchParams } from '@timber/app/search-params'
+import { createSearchParams } from '@timber-js/app/search-params'
 export default createSearchParams({
   page: { parse: (v) => Number(v) || 1, serialize: (v) => String(v) },
 })
@@ -513,7 +513,7 @@ describe('cross-feature integration', () => {
         'products/[id]/page.tsx': '',
         'products/page.tsx': '',
         'products/search-params.ts': `
-import { createSearchParams } from '@timber/app/search-params'
+import { createSearchParams } from '@timber-js/app/search-params'
 export default createSearchParams({
   page: { parse: (v) => Number(v) || 1, serialize: (v) => String(v) },
   q: { parse: (v) => v ?? null, serialize: (v) => v },

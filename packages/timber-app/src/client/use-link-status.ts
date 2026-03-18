@@ -25,7 +25,7 @@ export const LinkStatusContext = createContext<LinkStatus>({ pending: false });
  *
  * ```tsx
  * 'use client'
- * import { Link, useLinkStatus } from '@timber/app/client'
+ * import { Link, useLinkStatus } from '@timber-js/app/client'
  *
  * function Hint() {
  *   const { pending } = useLinkStatus()

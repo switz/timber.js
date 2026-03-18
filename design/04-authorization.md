@@ -6,8 +6,8 @@ Authentication and authorization live in `access.ts` files co-located with route
 
 ```typescript
 // app/(authenticated)/access.ts
-import type { AccessContext } from '@timber/app/server';
-import { cookies, redirect } from '@timber/app/server';
+import type { AccessContext } from '@timber-js/app/server';
+import { cookies, redirect } from '@timber-js/app/server';
 
 export default async function access(ctx: AccessContext) {
   const session = getSessionFromCookie(cookies());
@@ -61,6 +61,7 @@ Access checks run in two phases:
 2. **In-tree AccessGate** — receives the stored verdict as a prop and replays it synchronously. On `'pass'`, it renders children. On `DenySignal`/`RedirectSignal`, it throws synchronously — no async, no re-execution.
 
 This deduplication ensures:
+
 - `access.ts` executes exactly once per segment per request
 - Verdicts are immune to Suspense timing — they throw synchronously during render, before `onShellReady`
 - `React.cache` populated during the pre-render pass is available during render (same ALS scope)
@@ -87,10 +88,10 @@ interface AccessContext {
 }
 ```
 
-`AccessContext` does **not** include `cookies` or `headers`. Those are imported directly from `@timber/app/server` — they are ALS-backed and work the same way in `access.ts` as everywhere else in server code:
+`AccessContext` does **not** include `cookies` or `headers`. Those are imported directly from `@timber-js/app/server` — they are ALS-backed and work the same way in `access.ts` as everywhere else in server code:
 
 ```typescript
-import { cookies, headers } from '@timber/app/server';
+import { cookies, headers } from '@timber-js/app/server';
 
 export default async function access(ctx: AccessContext) {
   const session = getSessionFromCookie(cookies()); // imported, not ctx.cookies

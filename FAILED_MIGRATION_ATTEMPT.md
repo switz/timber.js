@@ -204,7 +204,7 @@ Why a New GitHub Repo (switz/timber-js)?
 - Clean git history — No 50 commits of false starts to confuse agents
 - No revert complexity — Fresh repo is cleaner than reverting 50 commits
 - Reference access — The old vinext fork stays archived; timber branch accessible if needed
-- Own identity — @timber/app gets its own npm scope, CI, deployment, issues
+- Own identity — @timber-js/app gets its own npm scope, CI, deployment, issues
 - No upstream baggage — No vinext scaffolding, no sync machinery, no read-only constraints
 
 Post-Extraction: Archive vinext fork

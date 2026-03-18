@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { interpolateParams, resolveHref, buildLinkProps } from '@timber/app/client';
-import { createSearchParams } from '@timber/app/search-params';
+import { interpolateParams, resolveHref, buildLinkProps } from '@timber-js/app/client';
+import { createSearchParams } from '@timber-js/app/search-params';
 import { generateRouteMap } from '../packages/timber-app/src/routing/codegen.js';
-import { scanRoutes } from '@timber/app/routing';
+import { scanRoutes } from '@timber-js/app/routing';
 
 // ─── interpolateParams ──────────────────────────────────────────
 
@@ -384,7 +384,7 @@ describe('codegen typed Link overloads', () => {
       const root = createApp({
         'products/page.tsx': '',
         'products/search-params.ts': `
-import { createSearchParams } from '@timber/app/search-params'
+import { createSearchParams } from '@timber-js/app/search-params'
 export default createSearchParams({
   page: { parse: (v) => Number(v) || 1, serialize: (v) => String(v) },
 })

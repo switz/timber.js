@@ -1,4 +1,4 @@
-// @timber/app/server — Server-side primitives
+// @timber-js/app/server — Server-side primitives
 // These are the primary imports for server components, middleware, and access files.
 
 export type { AccessContext } from './types';

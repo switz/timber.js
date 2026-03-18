@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { generateRouteMap } from '../packages/timber-app/src/routing/codegen.js';
-import { scanRoutes } from '@timber/app/routing';
-import { useParams, setCurrentParams } from '@timber/app/client';
+import { scanRoutes } from '@timber-js/app/routing';
+import { useParams, setCurrentParams } from '@timber-js/app/client';
 
 const TMP_DIR = join(import.meta.dirname, '.tmp-typed-params-test');
 
@@ -192,7 +192,7 @@ describe('useParams generic overload and codegen alignment', () => {
     const tree = scanRoutes(root);
     const output = generateRouteMap(tree);
 
-    // Codegen generates per-route overloads in @timber/app/client
+    // Codegen generates per-route overloads in @timber-js/app/client
     // These work alongside the base generic overload in use-params.ts
 
     // Single param

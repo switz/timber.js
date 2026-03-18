@@ -102,9 +102,9 @@ export default async function Page() {
     expect(errors[0].message).toContain('headers()');
   });
 
-  it('reports cookies imported from @timber/app as an error', () => {
+  it('reports cookies imported from @timber-js/app as an error', () => {
     const code = `
-import { cookies } from '@timber/app/headers'
+import { cookies } from '@timber-js/app/headers'
 
 export default async function Page() {
   const token = cookies().get('session')

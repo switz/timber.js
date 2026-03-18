@@ -1,20 +1,20 @@
 ---
-title: "API: @timber/app/search-params"
+title: "API: @timber-js/app/search-params"
 description: "Search params exports — createSearchParams, codecs, fromSchema, and useQueryStates."
 section: "API Reference"
 slug: "api-search-params"
 ---
 
-# @timber/app/search-params
+# @timber-js/app/search-params
 
-Typed search parameter definitions and URL synchronization. Import from `@timber/app/search-params`.
+Typed search parameter definitions and URL synchronization. Import from `@timber-js/app/search-params`.
 
 ## `createSearchParams(definition)`
 
 Create a typed search params definition for a route.
 
 ```ts
-import { createSearchParams } from '@timber/app/search-params';
+import { createSearchParams } from '@timber-js/app/search-params';
 import { z } from 'zod/v4';
 
 export const searchParams = createSearchParams({
@@ -56,7 +56,7 @@ Compatible codecs:
 Bridge a Zod or Standard Schema to `SearchParamCodec`:
 
 ```ts
-import { fromSchema } from '@timber/app/search-params';
+import { fromSchema } from '@timber-js/app/search-params';
 
 const pageCodec = fromSchema(z.coerce.number().default(1));
 ```
@@ -88,7 +88,7 @@ Client hook for reading and updating typed search params. Backed by nuqs.
 
 ```tsx
 'use client';
-import { useQueryStates } from '@timber/app/search-params';
+import { useQueryStates } from '@timber-js/app/search-params';
 
 const [params, setParams] = useQueryStates(searchParams);
 setParams({ page: 2 });

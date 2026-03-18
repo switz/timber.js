@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { RedisCacheHandler } from '@timber/app/cache';
-import type { RedisClient } from '@timber/app/cache';
+import { RedisCacheHandler } from '@timber-js/app/cache';
+import type { RedisClient } from '@timber-js/app/cache';
 
 /**
  * In-memory mock of a Redis client for testing RedisCacheHandler

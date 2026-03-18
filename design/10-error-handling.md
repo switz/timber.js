@@ -63,7 +63,7 @@ The `error` prop received by error boundaries (`error.tsx`, `5xx.tsx`, etc.) is 
 timber.js solves this with `RenderError` — a typed throw that carries a plain-data digest alongside the error, with an optional HTTP status code.
 
 ```typescript
-import { RenderError } from '@timber/app/server';
+import { RenderError } from '@timber-js/app/server';
 
 // In a server component:
 if (!product) {
@@ -93,7 +93,7 @@ The digest is a plain JSON-serializable object. timber.js serializes it into the
 // app/products/error.tsx
 'use client';
 
-import type { RenderErrorDigest } from '@timber/app/client';
+import type { RenderErrorDigest } from '@timber-js/app/client';
 
 export default function ProductError({
   error,
@@ -136,7 +136,7 @@ Serializing arbitrary `Error` subclasses across the RSC boundary is a security f
 `deny()` is the universal denial primitive. Accepts any 4xx status code. It produces the correct HTTP status code based on context:
 
 ```typescript
-import { deny } from '@timber/app/server';
+import { deny } from '@timber-js/app/server';
 
 deny(); // 403 Forbidden (default)
 deny(404); // 404 Not Found

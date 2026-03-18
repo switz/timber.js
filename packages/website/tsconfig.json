@@ -5,8 +5,8 @@
     "types": ["vite/client"],
     "paths": {
       "content-collections": ["./.content-collections/generated"],
-      "@timber/app": ["../timber-app/src/index.ts"],
-      "@timber/app/*": ["../timber-app/src/*"],
+      "@timber-js/app": ["../timber-app/src/index.ts"],
+      "@timber-js/app/*": ["../timber-app/src/*"],
       "@/*": ["./*"]
     }
   },

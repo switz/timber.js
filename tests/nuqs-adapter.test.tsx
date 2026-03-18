@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import React, { createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { TimberNuqsAdapter } from '@timber/app/client/nuqs-adapter';
+import { TimberNuqsAdapter } from '@timber-js/app/client/nuqs-adapter';
 
 // ---------------------------------------------------------------------------
 // Mock router-ref
@@ -10,7 +10,7 @@ import { TimberNuqsAdapter } from '@timber/app/client/nuqs-adapter';
 
 const mockNavigate = vi.fn<(url: string, opts?: Record<string, unknown>) => Promise<void>>();
 
-vi.mock('@timber/app/client/router-ref', () => ({
+vi.mock('@timber-js/app/client/router-ref', () => ({
   getRouter: () => ({
     navigate: mockNavigate,
   }),

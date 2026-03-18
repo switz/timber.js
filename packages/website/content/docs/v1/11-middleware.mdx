@@ -39,7 +39,7 @@ export default function proxy(req: Request, next: () => Promise<Response>) {
 
 ```ts
 // app/dashboard/middleware.ts
-import { redirect } from '@timber/app/server';
+import { redirect } from '@timber-js/app/server';
 
 export default async function middleware(ctx) {
   const session = await getSession(ctx);

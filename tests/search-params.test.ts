@@ -5,8 +5,8 @@ import {
   fromArraySchema,
   analyzeSearchParams,
   formatAnalyzeError,
-} from '@timber/app/search-params';
-import type { SearchParamCodec } from '@timber/app/search-params';
+} from '@timber-js/app/search-params';
+import type { SearchParamCodec } from '@timber-js/app/search-params';
 
 // ---------------------------------------------------------------------------
 // Mock Standard Schema for testing (mimics Zod's ~standard interface)
@@ -564,7 +564,7 @@ describe('fromArraySchema', () => {
 describe('non-analyzable error', () => {
   it('accepts createSearchParams() call', () => {
     const source = `
-      import { createSearchParams, fromSchema } from '@timber/app/search-params'
+      import { createSearchParams, fromSchema } from '@timber-js/app/search-params'
       import { z } from 'zod/v4'
 
       export default createSearchParams({

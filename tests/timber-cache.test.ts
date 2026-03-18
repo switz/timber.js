@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { MemoryCacheHandler } from '@timber/app/cache';
+import { MemoryCacheHandler } from '@timber-js/app/cache';
 import { stableStringify } from '../packages/timber-app/src/cache/stable-stringify';
 import { createSingleflight } from '../packages/timber-app/src/cache/singleflight';
 import { createCache } from '../packages/timber-app/src/cache/timber-cache';

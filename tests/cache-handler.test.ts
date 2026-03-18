@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { MemoryCacheHandler, createCache } from '@timber/app/cache';
-import type { CacheHandler } from '@timber/app/cache';
+import { MemoryCacheHandler, createCache } from '@timber-js/app/cache';
+import type { CacheHandler } from '@timber-js/app/cache';
 
 describe('MemoryCacheHandler', () => {
   it('returns null for missing keys', async () => {

@@ -1,13 +1,13 @@
 ---
-title: "API: @timber/app/server"
+title: "API: @timber-js/app/server"
 description: "Server-side exports — deny, redirect, headers, cookies, createActionClient, and context types."
 section: "API Reference"
 slug: "api-server"
 ---
 
-# @timber/app/server
+# @timber-js/app/server
 
-Server-side utilities and types. Import from `@timber/app/server`.
+Server-side utilities and types. Import from `@timber-js/app/server`.
 
 ## Navigation & Status
 
@@ -16,7 +16,7 @@ Server-side utilities and types. Import from `@timber/app/server`.
 Produce an HTTP error status and render the matching status file. Default status is 403.
 
 ```ts
-import { deny } from '@timber/app/server';
+import { deny } from '@timber-js/app/server';
 
 deny();      // 403 Forbidden
 deny(404);   // 404 Not Found
@@ -28,7 +28,7 @@ deny(401);   // 401 Unauthorized
 Redirect to a URL. Sends HTTP 307 (temporary) by default.
 
 ```ts
-import { redirect } from '@timber/app/server';
+import { redirect } from '@timber-js/app/server';
 
 redirect('/login');              // 307 Temporary Redirect
 redirect('/new-page', 'permanent'); // 308 Permanent Redirect
@@ -53,7 +53,7 @@ Redirect to an external URL. Same behavior as `redirect()` but allows absolute U
 Returns the incoming request headers. ALS-backed — works in server components, middleware, access checks.
 
 ```ts
-import { headers } from '@timber/app/server';
+import { headers } from '@timber-js/app/server';
 
 const h = headers();
 const auth = h.get('authorization');
@@ -66,7 +66,7 @@ Returns `ReadonlyHeaders` — a read-only `Headers` interface.
 Returns the request cookies with mutation methods.
 
 ```ts
-import { cookies } from '@timber/app/server';
+import { cookies } from '@timber-js/app/server';
 
 const c = cookies();
 c.get('session');           // Read
@@ -82,7 +82,7 @@ Mutations are only allowed before the response flushes. Attempting to set a cook
 Returns typed, validated search params when a `search-params.ts` file exists for the current route.
 
 ```ts
-import { searchParams } from '@timber/app/server';
+import { searchParams } from '@timber-js/app/server';
 
 const { page, sort } = await searchParams();
 ```
@@ -94,7 +94,7 @@ const { page, sort } = await searchParams();
 Create a reusable action client with middleware for auth and validation.
 
 ```ts
-import { createActionClient, ActionError } from '@timber/app/server';
+import { createActionClient, ActionError } from '@timber-js/app/server';
 
 const action = createActionClient({
   middleware: async () => {
@@ -136,7 +136,7 @@ Invalidate all cache entries with the given tag.
 Throw structured error data that survives the RSC → client boundary.
 
 ```ts
-import { RenderError } from '@timber/app/server';
+import { RenderError } from '@timber-js/app/server';
 
 throw new RenderError('PRODUCT_NOT_FOUND', {
   title: 'Product not found',
@@ -191,7 +191,7 @@ Type for metadata route files (sitemap, robots, etc.).
 Register a promise to be kept alive after the response is sent. Platform-dependent — works on Cloudflare Workers and other platforms that support it.
 
 ```ts
-import { waitUntil } from '@timber/app/server';
+import { waitUntil } from '@timber-js/app/server';
 
 waitUntil(analytics.track(event));
 ```

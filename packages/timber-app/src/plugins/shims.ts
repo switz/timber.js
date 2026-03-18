@@ -56,17 +56,17 @@ const CLIENT_SHIM_OVERRIDES: Record<string, string> = {
 };
 
 /**
- * Map from @timber/app/* subpath imports to real source files.
+ * Map from @timber-js/app/* subpath imports to real source files.
  *
- * These resolve subpath imports like `@timber/app/server` to the
+ * These resolve subpath imports like `@timber-js/app/server` to the
  * real entry files in the package source.
  */
 const TIMBER_SUBPATH_MAP: Record<string, string> = {
-  '@timber/app/server': resolve(__dirname, '..', 'server', 'index.ts'),
-  '@timber/app/client': resolve(__dirname, '..', 'client', 'index.ts'),
-  '@timber/app/cache': resolve(__dirname, '..', 'cache', 'index.ts'),
-  '@timber/app/search-params': resolve(__dirname, '..', 'search-params', 'index.ts'),
-  '@timber/app/routing': resolve(__dirname, '..', 'routing', 'index.ts'),
+  '@timber-js/app/server': resolve(__dirname, '..', 'server', 'index.ts'),
+  '@timber-js/app/client': resolve(__dirname, '..', 'client', 'index.ts'),
+  '@timber-js/app/cache': resolve(__dirname, '..', 'cache', 'index.ts'),
+  '@timber-js/app/search-params': resolve(__dirname, '..', 'search-params', 'index.ts'),
+  '@timber-js/app/routing': resolve(__dirname, '..', 'routing', 'index.ts'),
 };
 
 /**
@@ -94,13 +94,13 @@ export function timberShims(_ctx: PluginContext): Plugin {
     enforce: 'pre',
 
     /**
-     * Resolve next/* and @timber/app/* imports to shim/source files.
+     * Resolve next/* and @timber-js/app/* imports to shim/source files.
      *
      * Resolution order:
      * 1. Check server-only / client-only poison pill packages
      * 2. Strip .js extension from the import specifier
      * 3. Check next/* shim map
-     * 4. Check @timber/app/* subpath map
+     * 4. Check @timber-js/app/* subpath map
      * 5. Return null (pass through) for unrecognized imports
      */
     resolveId(id: string) {
@@ -121,7 +121,7 @@ export function timberShims(_ctx: PluginContext): Plugin {
         return SHIM_MAP[cleanId];
       }
 
-      // Check @timber/app/* subpath map
+      // Check @timber-js/app/* subpath map
       if (cleanId in TIMBER_SUBPATH_MAP) {
         return TIMBER_SUBPATH_MAP[cleanId];
       }

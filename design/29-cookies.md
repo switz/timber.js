@@ -27,7 +27,7 @@ This document designs the full cookies interface: reading, writing, merging acro
 No changes to the read API. `cookies()` returns a read-only view of incoming request cookies:
 
 ```typescript
-import { cookies } from '@timber/app/server';
+import { cookies } from '@timber-js/app/server';
 
 const session = cookies().get('session_id');
 const all = cookies().getAll();
@@ -40,7 +40,7 @@ Available in: `proxy.ts`, `middleware.ts`, `access.ts`, server components, serve
 The `cookies()` return type gains mutation methods — but only in contexts where mutation is safe. This follows the same object, context-dependent behavior pattern as `deny()` (which behaves differently in segments vs slots).
 
 ```typescript
-import { cookies } from '@timber/app/server';
+import { cookies } from '@timber-js/app/server';
 
 // In middleware.ts, server actions, or route.ts handlers:
 cookies().set('theme', 'dark');
@@ -190,7 +190,7 @@ Server actions can set cookies. This is the primary mechanism for auth flows:
 
 ```typescript
 'use server';
-import { cookies, redirect } from '@timber/app/server';
+import { cookies, redirect } from '@timber-js/app/server';
 
 export async function login(formData: FormData) {
   const user = await authenticate(formData.get('email'), formData.get('password'));
@@ -311,7 +311,7 @@ Signed cookies prevent tampering — the server can verify that a cookie value w
 ### API
 
 ```typescript
-import { cookies } from '@timber/app/server';
+import { cookies } from '@timber-js/app/server';
 
 // Sign on write
 cookies().set('prefs', JSON.stringify({ lang: 'en' }), { signed: true });
@@ -374,7 +374,7 @@ interface CookieCodec<T> {
 This is intentionally identical to `SearchParamCodec<T>`. The same `fromSchema()` bridge works for cookies:
 
 ```typescript
-import { fromSchema } from '@timber/app/search-params';
+import { fromSchema } from '@timber-js/app/search-params';
 import { z } from 'zod/v4';
 
 const themeCodec = fromSchema(z.enum(['light', 'dark', 'system']).default('system'));
@@ -390,8 +390,8 @@ const prefsCodec = fromSchema(
 ### `defineCookie(name, codec, options?)` — Named Cookie Definitions
 
 ```typescript
-import { defineCookie } from '@timber/app/cookies';
-import { fromSchema } from '@timber/app/search-params';
+import { defineCookie } from '@timber-js/app/cookies';
+import { fromSchema } from '@timber-js/app/search-params';
 import { z } from 'zod/v4';
 
 // Define a typed cookie once, use everywhere
@@ -601,7 +601,7 @@ All of these share a pattern: the **client writes** a cookie, and the **server r
 The untyped hook for simple string cookies. For typed cookies with schema validation, use `defineCookie(...).useCookie()` instead (see §"Typed Cookies with Schema Validation").
 
 ```typescript
-import { useCookie } from '@timber/app/client';
+import { useCookie } from '@timber-js/app/client';
 
 function ThemeToggle() {
   const [theme, setTheme] = useCookie('theme');
@@ -687,7 +687,7 @@ A common pattern is a server action that sets a cookie, followed by the client r
 ```typescript
 // actions.ts — server
 'use server';
-import { cookies } from '@timber/app/server';
+import { cookies } from '@timber-js/app/server';
 
 export async function setLocale(locale: string) {
   cookies().set('locale', locale, { httpOnly: false }); // httpOnly: false so client can read
@@ -698,7 +698,7 @@ export async function setLocale(locale: string) {
 ```tsx
 // locale-picker.tsx — client
 'use client';
-import { useCookie } from '@timber/app/client';
+import { useCookie } from '@timber-js/app/client';
 import { setLocale } from './actions';
 
 export function LocalePicker() {

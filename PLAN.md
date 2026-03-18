@@ -12,7 +12,7 @@ Design docs: [`design/`](design/README.md) — read these before implementing an
 
 timber.js is a fresh implementation — all code is written from scratch against the design docs. Vinext and Next.js serve as reference for understanding the problem space, not as a codebase to fork or migrate from.
 
-- [x] Set up fresh repo with `@timber/app` package
+- [x] Set up fresh repo with `@timber-js/app` package
 - [x] Design docs written as the source of truth for all behavior
 
 ### Upstream Monitoring
@@ -211,7 +211,7 @@ Navigation, forms, observability, and dev tooling. Builds on the Phase 1 pipelin
 - [ ] `useActionState`, `useFormStatus`, `useOptimistic` from React for JS-enhanced forms
 - [ ] `createActionClient` — typed middleware, `.schema()` validation (Zod/Valibot/ArkType), `ActionError`
 - [ ] Raw `'use server'` exports remain as escape hatch
-- [ ] `useActionState` from `@timber/app/client` typed to understand `createActionClient` result shape
+- [ ] `useActionState` from `@timber-js/app/client` typed to understand `createActionClient` result shape
 - [ ] `revalidatePath(path)` — re-runs middleware + access + render, returns RSC payload in action response
   - [ ] If middleware short-circuits or auth fails during revalidation → action response includes redirect
 - [ ] `revalidateTag(tag)` — invalidates `timber.cache` and `'use cache'` entries with matching tag
@@ -229,7 +229,7 @@ Navigation, forms, observability, and dev tooling. Builds on the Phase 1 pipelin
   - [ ] `register()` — async, awaited before first request; for SDK init and startup work
   - [ ] `onRequestError(error, request, context)` — called for every unhandled server error in any phase
   - [ ] `export const logger` — any `{ info, warn, error, debug }` object picked up automatically
-- [ ] `traceId()` — importable from `@timber/app/server`:
+- [ ] `traceId()` — importable from `@timber-js/app/server`:
   - [ ] Always set: OTEL trace ID when tracing active, `crypto.randomUUID().replace(/-/g,'')` otherwise
   - [ ] Always 32-char lowercase hex (`[0-9a-f]{32}`)
   - [ ] Stored in ALS store at request start
@@ -305,7 +305,7 @@ Typed routes, typed search params, typed `<Link>`. Requires a running Phase 1+2 
 
 ### 3c. `search-params.ts` System
 
-- [ ] `createSearchParams` factory from `@timber/app/search-params`
+- [ ] `createSearchParams` factory from `@timber-js/app/search-params`
 - [ ] `fromSchema(zodSchema)` bridge — converts Zod/Valibot/ArkType schemas to `SearchParamCodec`
 - [ ] `SearchParamCodec` protocol: `{ parse(raw: string | null): T, serialize(val: T): string | null }`
 - [ ] `SearchParamsDefinition<T>` with `.extend()`, `.pick()`, `.serialize()`, `.href()`, `.toSearchParams()`, `.codecs`
@@ -327,7 +327,7 @@ Typed routes, typed search params, typed `<Link>`. Requires a running Phase 1+2 
 
 ### 3e. `useQueryStates`
 
-- [ ] `useQueryStates(definition)` from `@timber/app/client` — URL-synced state hook
+- [ ] `useQueryStates(definition)` from `@timber-js/app/client` — URL-synced state hook
 - [ ] Wraps nuqs (peer dependency — developer installs `nuqs`)
 - [ ] Default `shallow: false` — state changes trigger full server RSC navigation
 - [ ] `scroll`, `history` options
@@ -434,12 +434,12 @@ Static builds and the opt-in static shell optimization for server mode. Signific
 
 ## Phase 6 — Shim Alignment
 
-Bring `next/*` shims into the `@timber/app` namespace and audit compatibility with ecosystem libraries.
+Bring `next/*` shims into the `@timber-js/app` namespace and audit compatibility with ecosystem libraries.
 
 **Dependencies:** Phases 1–5. Shim behavior depends on a complete request pipeline.
 
 - [ ] Audit all `next/*` shims against their Next.js equivalents: `next/link`, `next/image`, `next/font`, `next/navigation`, `next/headers`
-- [ ] Update shim import paths from `next/*` → `@timber/app/*` (or keep as `next/*` aliases — decide)
+- [ ] Update shim import paths from `next/*` → `@timber-js/app/*` (or keep as `next/*` aliases — decide)
 - [ ] Test with ecosystem libraries: next-themes, nuqs, and any others identified during earlier phases
 - [ ] Establish upstream tracking process: document which shims track Next.js closely vs. are intentional divergences
 - [ ] Regression tests for each shim against ecosystem library behavior
@@ -451,8 +451,8 @@ Bring `next/*` shims into the `@timber/app` namespace and audit compatibility wi
 Adapters can be developed in parallel with any phase once the Phase 1 pipeline is stable.
 
 - [ ] Define `TimberPlatformAdapter` interface: `name`, `buildOutput(config, buildDir)`, `preview?(config, buildDir)`
-- [ ] `@timber/app/adapters/cloudflare` — Cloudflare Workers/Pages (primary target, deep binding integration)
-- [ ] `@timber/app/adapters/nitro` — Everything else: Node.js, Bun, Vercel, Netlify, AWS Lambda, Deno Deploy, Azure via `nitro({ preset })`
+- [ ] `@timber-js/app/adapters/cloudflare` — Cloudflare Workers/Pages (primary target, deep binding integration)
+- [ ] `@timber-js/app/adapters/nitro` — Everything else: Node.js, Bun, Vercel, Netlify, AWS Lambda, Deno Deploy, Azure via `nitro({ preset })`
 
 ---
 
@@ -486,7 +486,7 @@ _(none — all resolved)_
 
 See [`design/`](design/README.md) for full rationale. Summary of key decisions:
 
-- **Package name** — `@timber/app`. Subpaths: `/server`, `/client`, `/cache`, `/search-params`, `/adapters/*`
+- **Package name** — `@timber-js/app`. Subpaths: `/server`, `/client`, `/cache`, `/search-params`, `/adapters/*`
 - **Rendering model** — single `renderToReadableStream` call, one `React.cache` scope, unified element tree. Not parallel per-segment rendering.
 - **Flush point** — held until `onShellReady`. Status code commits only when outcome is known.
 - **`proxy.ts`** — global middleware with `next()`, runs before route matching
@@ -494,7 +494,7 @@ See [`design/`](design/README.md) for full rationale. Summary of key decisions:
 - **`access.ts`** — runs inside React tree via `AccessGate`, shares `React.cache` with layouts/pages
 - **`MiddlewareContext`** — one-arg: `middleware(ctx)`. `{ req: Request, requestHeaders: Headers, headers: Headers, params, searchParams }`
 - **`RouteContext`** — one-arg: `GET(ctx)`. `{ req: Request, params, searchParams: URLSearchParams, headers: Headers }`
-- **`AccessContext`** — single type for both segments and slots. `{ params, searchParams }`. `cookies()`/`headers()` imported from `@timber/app/server`
+- **`AccessContext`** — single type for both segments and slots. `{ params, searchParams }`. `cookies()`/`headers()` imported from `@timber-js/app/server`
 - **`requestHeaders`** — mutable Headers overlay, original request never mutated, visible downstream via `headers()`
 - **`deny()`** — one function, context-dependent: HTTP status in segments, graceful degradation in slots
 - **`denied.tsx` props** — `{ slot: string, dangerouslyPassData?: unknown }`

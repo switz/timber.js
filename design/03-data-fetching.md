@@ -109,7 +109,7 @@ Each data file exports `timber.cache`-wrapped functions. `React.cache` wrappers 
 ```typescript
 // lib/products.ts
 import { cache } from 'react';
-import { cache as timberCache } from '@timber/app/cache';
+import { cache as timberCache } from '@timber-js/app/cache';
 
 // Cross-request cached — TTL, tags, shared across requests
 export const getProduct = timberCache(async (id: string) => db.products.find(id), {

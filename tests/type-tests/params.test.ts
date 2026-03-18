@@ -16,7 +16,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { generateRouteMap } from '../../packages/timber-app/src/routing/codegen.js';
-import { scanRoutes } from '@timber/app/routing';
+import { scanRoutes } from '@timber-js/app/routing';
 
 const TMP_DIR = join(import.meta.dirname, '.tmp-type-params-test');
 

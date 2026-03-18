@@ -16,7 +16,7 @@ Forms in timber.js work without JavaScript. They submit to the server, validate,
 'use server';
 import { z } from 'zod/v4';
 import { action } from '@/lib/action';
-import { revalidatePath } from '@timber/app/cache';
+import { revalidatePath } from '@timber-js/app/cache';
 
 export const createTodo = action
   .schema(z.object({ title: z.string().min(1) }))
@@ -32,7 +32,7 @@ Define reusable action middleware with `createActionClient`. This handles auth, 
 
 ```ts
 // lib/action.ts
-import { createActionClient, ActionError } from '@timber/app/server';
+import { createActionClient, ActionError } from '@timber-js/app/server';
 import { getUser } from '@/lib/auth';
 
 export const action = createActionClient({

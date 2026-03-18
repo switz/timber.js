@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { scanRoutes, classifySegment } from '@timber/app/routing';
+import { scanRoutes, classifySegment } from '@timber-js/app/routing';
 
 const TMP_DIR = join(import.meta.dirname, '.tmp-routing-test');
 

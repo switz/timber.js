@@ -5,7 +5,7 @@
 The `timber()` Vite plugin export returns an array of sub-plugins. Each sub-plugin registers its own Vite hooks and has a focused responsibility. Shared state is passed via a closure-scoped context object.
 
 ```ts
-import { timber } from '@timber/app';
+import { timber } from '@timber-js/app';
 
 export default defineConfig({
   plugins: [timber()],
@@ -17,7 +17,7 @@ export default defineConfig({
 | Plugin                     | Hooks                                                | Responsibility                                                                                            |
 | -------------------------- | ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
 | `timber-root-sync`         | `configResolved`                                     | Syncs `ctx.root` and `ctx.appDir` with Vite's resolved root (must be first)                               |
-| `timber-shims`             | `resolveId`, `load`                                  | Resolves `next/*` and `@timber/app/*` imports to shim implementations                                     |
+| `timber-shims`             | `resolveId`, `load`                                  | Resolves `next/*` and `@timber-js/app/*` imports to shim implementations                                  |
 | `timber-routing`           | `configureServer`, `buildStart`, `resolveId`, `load` | Scans `app/` directory, builds route tree, generates virtual route manifest                               |
 | `timber-entries`           | `resolveId`, `load`                                  | Generates RSC/SSR/browser entry virtual modules                                                           |
 | `timber-cache`             | `transform`                                          | Transforms `"use cache"` directives into `registerCachedFunction()` calls                                 |
@@ -98,9 +98,9 @@ next/navigation (RSC/SSR) → shims/navigation.ts (full — client hooks + serve
 next/navigation (client)  → shims/navigation-client.ts (client hooks only)
 ```
 
-### `@timber/app/*` Subpath Resolution
+### `@timber-js/app/*` Subpath Resolution
 
-`@timber/app/server`, `@timber/app/client`, `@timber/app/cache`, and `@timber/app/search-params` resolve to their respective entry files. These are real files, not virtual modules.
+`@timber-js/app/server`, `@timber-js/app/client`, `@timber-js/app/cache`, and `@timber-js/app/search-params` resolve to their respective entry files. These are real files, not virtual modules.
 
 ---
 

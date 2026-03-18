@@ -366,8 +366,8 @@ When a slot's `access.ts` calls `deny()`:
 
 ```tsx
 // @admin/access.ts
-import type { AccessContext } from '@timber/app/server';
-import { deny } from '@timber/app/server';
+import type { AccessContext } from '@timber-js/app/server';
+import { deny } from '@timber-js/app/server';
 
 export default async function access(ctx: AccessContext) {
   const user = await requireUser(); // cache hit from parent's access

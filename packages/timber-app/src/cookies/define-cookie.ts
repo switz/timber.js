@@ -60,8 +60,8 @@ export interface CookieDefinition<T> {
  * Define a typed cookie.
  *
  * ```ts
- * import { defineCookie } from '@timber/app/cookies';
- * import { fromSchema } from '@timber/app/search-params';
+ * import { defineCookie } from '@timber-js/app/cookies';
+ * import { fromSchema } from '@timber-js/app/search-params';
  * import { z } from 'zod/v4';
  *
  * export const themeCookie = defineCookie('theme', {

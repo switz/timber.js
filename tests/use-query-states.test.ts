@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { NuqsTestingAdapter } from 'nuqs/adapters/testing';
 import { createElement, type ReactNode } from 'react';
-import { createSearchParams } from '@timber/app/search-params';
+import { createSearchParams } from '@timber-js/app/search-params';
 import {
   useQueryStates,
   bindUseQueryStates,

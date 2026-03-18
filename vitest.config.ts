@@ -8,42 +8,42 @@ export default defineConfig({
     alias: [
       { find: /^@\/(.*)/, replacement: resolve(root, 'packages/timber-app/src/$1') },
       {
-        find: '@timber/app/cache',
+        find: '@timber-js/app/cache',
         replacement: resolve(root, 'packages/timber-app/src/cache/index.ts'),
       },
       {
-        find: '@timber/app/server',
+        find: '@timber-js/app/server',
         replacement: resolve(root, 'packages/timber-app/src/server/index.ts'),
       },
       {
-        find: '@timber/app/client/nuqs-adapter',
+        find: '@timber-js/app/client/nuqs-adapter',
         replacement: resolve(root, 'packages/timber-app/src/client/nuqs-adapter.tsx'),
       },
       {
-        find: '@timber/app/client/router-ref',
+        find: '@timber-js/app/client/router-ref',
         replacement: resolve(root, 'packages/timber-app/src/client/router-ref.ts'),
       },
       {
-        find: '@timber/app/client',
+        find: '@timber-js/app/client',
         replacement: resolve(root, 'packages/timber-app/src/client/index.ts'),
       },
       {
-        find: '@timber/app/routing',
+        find: '@timber-js/app/routing',
         replacement: resolve(root, 'packages/timber-app/src/routing/index.ts'),
       },
       {
-        find: '@timber/app/adapters/cloudflare',
+        find: '@timber-js/app/adapters/cloudflare',
         replacement: resolve(root, 'packages/timber-app/src/adapters/cloudflare.ts'),
       },
       {
-        find: '@timber/app/adapters/types',
+        find: '@timber-js/app/adapters/types',
         replacement: resolve(root, 'packages/timber-app/src/adapters/types.ts'),
       },
       {
-        find: '@timber/app/search-params',
+        find: '@timber-js/app/search-params',
         replacement: resolve(root, 'packages/timber-app/src/search-params/index.ts'),
       },
-      { find: '@timber/app', replacement: resolve(root, 'packages/timber-app/src/index.ts') },
+      { find: '@timber-js/app', replacement: resolve(root, 'packages/timber-app/src/index.ts') },
     ],
   },
   test: {

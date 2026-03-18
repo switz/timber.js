@@ -258,7 +258,7 @@ A client-side hook that returns `true` while an RSC navigation is in flight. Int
 
 ```tsx
 'use client';
-import { useNavigationPending } from '@timber/app/client';
+import { useNavigationPending } from '@timber-js/app/client';
 
 export function NavBar() {
   const isPending = useNavigationPending();
@@ -289,7 +289,7 @@ The hook takes no arguments — it reads from a React context provided by `<Link
 
 ```tsx
 'use client';
-import { Link, useLinkStatus } from '@timber/app/client';
+import { Link, useLinkStatus } from '@timber-js/app/client';
 
 function Hint() {
   const { pending } = useLinkStatus();
@@ -324,7 +324,7 @@ The pending state follows the same lifecycle as `useNavigationPending()`: true f
 
 ```tsx
 'use client';
-import { Link, useRouter } from '@timber/app/client';
+import { Link, useRouter } from '@timber-js/app/client';
 
 export function TransitionLink({ href, children }) {
   const router = useRouter();

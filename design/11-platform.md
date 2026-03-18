@@ -32,8 +32,8 @@ An opt-in static shell optimization within `server` mode (`'use dynamic'`, `prer
 The adapter and cache handler are also specified in `timber.config.ts`:
 
 ```ts
-import { cloudflare } from '@timber/app/adapters/cloudflare';
-import { MemoryCacheHandler } from '@timber/app/cache';
+import { cloudflare } from '@timber-js/app/adapters/cloudflare';
+import { MemoryCacheHandler } from '@timber-js/app/cache';
 
 export default {
   output: 'server',
@@ -78,12 +78,12 @@ Adapters are small. They receive the build output directory and transform or cop
 
 timber.js ships exactly two adapters. See [Production Deployments](25-production-deployments.md) for the full rationale.
 
-**`@timber/app/adapters/cloudflare`** — Cloudflare Workers and Pages. First-class, deeply integrated. Generates `wrangler.jsonc`, wraps the request handler in a Workers-compatible entry point, and passes through KV/D1/DO/R2/Queues bindings directly. This adapter exists because Workers is architecturally different from Node — it has no file system, no `node:http`, and its own lifecycle model.
+**`@timber-js/app/adapters/cloudflare`** — Cloudflare Workers and Pages. First-class, deeply integrated. Generates `wrangler.jsonc`, wraps the request handler in a Workers-compatible entry point, and passes through KV/D1/DO/R2/Queues bindings directly. This adapter exists because Workers is architecturally different from Node — it has no file system, no `node:http`, and its own lifecycle model.
 
-**`@timber/app/adapters/nitro`** — Everything else. Node.js (Docker, VPS), Bun, Vercel, Netlify, AWS Lambda, Deno Deploy, Azure Functions. Nitro handles platform-specific wiring (compression, graceful shutdown, static file serving, serverless function shape).
+**`@timber-js/app/adapters/nitro`** — Everything else. Node.js (Docker, VPS), Bun, Vercel, Netlify, AWS Lambda, Deno Deploy, Azure Functions. Nitro handles platform-specific wiring (compression, graceful shutdown, static file serving, serverless function shape).
 
 ```ts
-import { nitro } from '@timber/app/adapters/nitro';
+import { nitro } from '@timber-js/app/adapters/nitro';
 
 export default {
   output: 'server',
@@ -112,7 +112,7 @@ Standard Web APIs first: `Request`, `Response`, `ReadableStream`, `crypto`. Node
 `waitUntil()` extends the request lifecycle to perform work after the response has been sent. It follows the web standard `ExtendableEvent.waitUntil()` API — the promise passed to `waitUntil()` keeps the runtime alive until it settles, without blocking the response.
 
 ```typescript
-import { waitUntil } from '@timber/app/server'
+import { waitUntil } from '@timber-js/app/server'
 
 // In middleware:
 export default async function middleware(ctx: MiddlewareContext): Promise<Response | void> {
@@ -177,7 +177,7 @@ The main `timber()` export returns an array of Vite plugins. Each sub-plugin has
 
 | Plugin           | Responsibility                                                            |
 | ---------------- | ------------------------------------------------------------------------- |
-| `timber-shims`   | Resolves `next/*` and `@timber/app/*` imports to shim files               |
+| `timber-shims`   | Resolves `next/*` and `@timber-js/app/*` imports to shim files            |
 | `timber-routing` | Scans `app/` directory, generates virtual route modules                   |
 | `timber-entries` | Generates RSC/SSR/browser entry virtual modules                           |
 | `timber-cache`   | Transforms `"use cache"` directives into `registerCachedFunction()` calls |

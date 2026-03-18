@@ -6,7 +6,7 @@ One export name — `metadata` — handles both static and dynamic cases. The fr
 
 ```tsx
 // Static — known at module load time
-import type { Metadata } from '@timber/app/server';
+import type { Metadata } from '@timber-js/app/server';
 
 export const metadata: Metadata = {
   title: 'Dashboard',
@@ -44,7 +44,7 @@ The dynamic `metadata` function runs during the render pass. `React.cache` is ac
 ## The `Metadata` Type
 
 ```typescript
-import type { Metadata } from '@timber/app/server';
+import type { Metadata } from '@timber-js/app/server';
 
 interface Metadata {
   // --- Core ---
@@ -382,7 +382,7 @@ File-based metadata routes generate well-known URLs for crawlers and browsers. T
 
 ```typescript
 // app/sitemap.ts
-import type { MetadataRoute } from '@timber/app/server';
+import type { MetadataRoute } from '@timber-js/app/server';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const products = await db.products.findAll();

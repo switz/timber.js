@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { Plugin } from 'vite';
-import { timber } from '@timber/app';
+import { timber } from '@timber-js/app';
 
 /**
  * Resolve the PluginOption[] returned by timber() into a flat array of

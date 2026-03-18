@@ -241,7 +241,7 @@ export default async function middleware(ctx: MiddlewareContext) {
 
 ```typescript
 // app/[locale]/dashboard/page.tsx
-import { headers } from '@timber/app/server'
+import { headers } from '@timber-js/app/server'
 
 export default async function DashboardPage() {
   const locale = headers().get('X-Locale')  // 'en' — set by middleware
@@ -262,7 +262,7 @@ Middleware can perform lightweight auth checks — validating a token from a req
 
 ```typescript
 // app/api/internal/middleware.ts
-import { cookies } from '@timber/app/server';
+import { cookies } from '@timber-js/app/server';
 
 export default async function middleware(ctx: MiddlewareContext): Promise<Response | void> {
   const token = ctx.req.headers.get('Authorization')?.replace('Bearer ', '');
@@ -641,7 +641,7 @@ API endpoints are defined by `route.ts` files co-located with route segments. Th
 
 ```typescript
 // app/api/users/route.ts
-import type { RouteContext } from '@timber/app/server';
+import type { RouteContext } from '@timber-js/app/server';
 
 export async function GET(ctx: RouteContext) {
   const users = await db.users.findAll();
@@ -848,12 +848,12 @@ interface ParamCodec<T> {
 
 **Why not reuse `SearchParamCodec<T>`?**
 
-| Concern | `SearchParamCodec<T>` | `ParamCodec<T>` |
-|---|---|---|
-| `parse` input | `string \| string[] \| undefined` | `string` (always present — the route matched) |
-| `serialize` return | `string \| null` (null = omit from URL) | `string` (must produce a valid path segment) |
-| Absent values | Handled (undefined input) | Not possible — dynamic segment always captures |
-| Semantic | Query param (optional, additive) | Path segment (structural, required for the route to match) |
+| Concern            | `SearchParamCodec<T>`                   | `ParamCodec<T>`                                            |
+| ------------------ | --------------------------------------- | ---------------------------------------------------------- |
+| `parse` input      | `string \| string[] \| undefined`       | `string` (always present — the route matched)              |
+| `serialize` return | `string \| null` (null = omit from URL) | `string` (must produce a valid path segment)               |
+| Absent values      | Handled (undefined input)               | Not possible — dynamic segment always captures             |
+| Semantic           | Query param (optional, additive)        | Path segment (structural, required for the route to match) |
 
 A `SearchParamCodec` where `serialize` never returns null and `parse` ignores the array/undefined cases is structurally compatible, but the narrower `ParamCodec` interface makes the contract clearer and prevents misuse (e.g., a codec that returns null from serialize would break URL construction).
 
@@ -890,7 +890,7 @@ The default export is a `ParamCodec<T>` (or `CatchAllParamCodec<T>` for catch-al
 
 ```typescript
 // app/products/[id]/params.ts
-import type { ParamCodec } from '@timber/app/server';
+import type { ParamCodec } from '@timber-js/app/server';
 
 const codec: ParamCodec<number> = {
   parse(value) {
@@ -914,7 +914,7 @@ Like `fromSchema` for search params, a bridge for Standard Schema-compatible val
 
 ```typescript
 // app/products/[id]/params.ts
-import { fromParamSchema } from '@timber/app/server';
+import { fromParamSchema } from '@timber-js/app/server';
 import { z } from 'zod/v4';
 
 export default fromParamSchema(z.coerce.number().int().positive());
@@ -1014,12 +1014,12 @@ The `params` object passed to middleware/access/components has per-field types d
 
 ### Comparison with Other Frameworks
 
-| Framework | Param coercion | Where it runs | Failure behavior |
-|---|---|---|---|
-| **timber.js (proposed)** | `params.ts` codec per segment | After matching, before middleware | 404 |
-| **TanStack Router** | Schema-based in route definition | During matching | Route doesn't match → fallback/404 |
-| **Remix** | Manual in loader | In component code | Developer decides (throw Response) |
-| **Next.js** | None | N/A | N/A — always strings |
+| Framework                | Param coercion                   | Where it runs                     | Failure behavior                   |
+| ------------------------ | -------------------------------- | --------------------------------- | ---------------------------------- |
+| **timber.js (proposed)** | `params.ts` codec per segment    | After matching, before middleware | 404                                |
+| **TanStack Router**      | Schema-based in route definition | During matching                   | Route doesn't match → fallback/404 |
+| **Remix**                | Manual in loader                 | In component code                 | Developer decides (throw Response) |
+| **Next.js**              | None                             | N/A                               | N/A — always strings               |
 
 timber's approach is closest to Remix in spirit (explicit, opt-in) but moves coercion earlier in the pipeline (before middleware rather than in components) and standardizes the failure behavior (404) rather than leaving it to each page.
 

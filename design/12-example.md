@@ -20,7 +20,7 @@ app/
 
 ```typescript
 // app/(authenticated)/access.ts
-import { cookies, redirect } from '@timber/app/server';
+import { cookies, redirect } from '@timber-js/app/server';
 import { requireUser } from '@/lib/auth';
 
 export default async function access() {

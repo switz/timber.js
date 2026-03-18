@@ -386,7 +386,7 @@ export function createActionClient<TCtx = Record<string, never>>(
  * @example
  * ```ts
  * 'use server'
- * import { validated } from '@timber/app/server'
+ * import { validated } from '@timber-js/app/server'
  * import { z } from 'zod'
  *
  * export const createTodo = validated(

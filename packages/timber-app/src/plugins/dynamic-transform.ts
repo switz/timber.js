@@ -54,7 +54,7 @@ interface TransformResult {
  *
  * Output:
  * ```tsx
- * import { markDynamic as __markDynamic } from '@timber/app/runtime';
+ * import { markDynamic as __markDynamic } from '@timber-js/app/runtime';
  * export default async function AddToCartButton({ productId }) {
  *   __markDynamic();
  *   const user = await getUser()
@@ -83,7 +83,7 @@ export function transformUseDynamic(code: string): TransformResult | null {
   }
 
   // Add the import at the top
-  result = `import { markDynamic as __markDynamic } from '@timber/app/runtime';\n` + result;
+  result = `import { markDynamic as __markDynamic } from '@timber-js/app/runtime';\n` + result;
 
   return { code: result, map: null };
 }

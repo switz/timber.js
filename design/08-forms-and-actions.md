@@ -44,7 +44,7 @@ The action response carries both the action result and the revalidated tree in a
 
 ```typescript
 // lib/action.ts — define your action clients once, reuse across the app
-import { createActionClient, ActionError } from '@timber/app/server';
+import { createActionClient, ActionError } from '@timber-js/app/server';
 import { getUser } from '@/lib/auth';
 
 export const action = createActionClient({
@@ -82,7 +82,7 @@ export const createTodo = action
 ```tsx
 // app/todos/new-todo-form.tsx
 'use client';
-import { useActionState } from '@timber/app/client';
+import { useActionState } from '@timber-js/app/client';
 import { createTodo } from './actions';
 
 export function NewTodoForm() {
@@ -98,7 +98,7 @@ export function NewTodoForm() {
 }
 ```
 
-`@timber/app/client` exports a typed `useActionState` that understands the action builder's result shape. `result` is typed to `{ data: Awaited<ReturnType> } | { validationErrors: SchemaErrors } | { serverError: { code: string; data?: Record<string, unknown> } } | null` — no casting, no `any`. The action builder emits a function that satisfies both the direct call signature and React's `(prevState, formData) => Promise<State>` contract, so it passes to `useActionState` without wrapping.
+`@timber-js/app/client` exports a typed `useActionState` that understands the action builder's result shape. `result` is typed to `{ data: Awaited<ReturnType> } | { validationErrors: SchemaErrors } | { serverError: { code: string; data?: Record<string, unknown> } } | null` — no casting, no `any`. The action builder emits a function that satisfies both the direct call signature and React's `(prevState, formData) => Promise<State>` contract, so it passes to `useActionState` without wrapping.
 
 `createActionClient` creates a typed action builder. `.schema()` declares the input schema — any library implementing the [Standard Schema](https://github.com/standard-schema/standard-schema) protocol (Zod ≥3.24, Valibot ≥1.0, ArkType). Legacy schemas with `.parse()` / `.safeParse()` are also accepted for backward compatibility. `.action()` receives the validated `input` and the middleware `ctx`. If middleware throws an `ActionError`, the action short-circuits and the error is returned to the client as a typed value.
 
@@ -117,7 +117,7 @@ Each middleware in the array runs sequentially. Their return values are merged a
 `ActionError` is the typed error class for server actions. It carries a string code and optional plain-data context.
 
 ```typescript
-import { ActionError } from '@timber/app/server';
+import { ActionError } from '@timber-js/app/server';
 
 // In middleware:
 throw new ActionError('UNAUTHORIZED');
@@ -312,7 +312,7 @@ Session cookies should use `SameSite=Lax` or `SameSite=Strict`. The framework do
 For external redirects, use `redirectExternal(url, allowList)`:
 
 ```typescript
-import { redirectExternal } from '@timber/app/server';
+import { redirectExternal } from '@timber-js/app/server';
 
 // Requires an explicit allow-list
 redirectExternal(url, ['https://accounts.google.com', 'https://github.com']);
@@ -388,10 +388,10 @@ Timber uses `serverHandler: false` with `@vitejs/plugin-rsc` because timber has 
 
 ### `parseFormData()`
 
-Schema-agnostic FormData-to-object conversion that runs _before_ schema validation. Imported from `@timber/app/server`.
+Schema-agnostic FormData-to-object conversion that runs _before_ schema validation. Imported from `@timber-js/app/server`.
 
 ```typescript
-import { parseFormData } from '@timber/app/server';
+import { parseFormData } from '@timber-js/app/server';
 
 const obj = parseFormData(formData);
 ```
@@ -411,7 +411,7 @@ Replaces the framework's internal `formDataToObject()`. Automatically used by `c
 Schema-agnostic coercion primitives for common FormData patterns:
 
 ```typescript
-import { coerce } from '@timber/app/server';
+import { coerce } from '@timber-js/app/server';
 
 coerce.number('42'); // → 42
 coerce.number(''); // → undefined
@@ -437,7 +437,7 @@ For the 90% case where you don't need middleware:
 
 ```typescript
 'use server';
-import { validated } from '@timber/app/server';
+import { validated } from '@timber-js/app/server';
 import { z } from 'zod';
 
 export const createTodo = validated(z.object({ title: z.string().min(1) }), async (input) => {
@@ -454,7 +454,7 @@ Thin wrapper over `createActionClient().schema(schema).action()`.
 Client-side error extraction hook for `ActionResult`:
 
 ```tsx
-import { useFormErrors } from '@timber/app/client';
+import { useFormErrors } from '@timber-js/app/client';
 
 const [result, action, isPending] = useActionState(createTodo, null);
 const errors = useFormErrors(result);
@@ -497,7 +497,7 @@ When a no-JS form action returns validation errors, the server **re-renders the 
 
 ```typescript
 // app/contact/page.tsx (server component)
-import { getFormFlash } from '@timber/app/server'
+import { getFormFlash } from '@timber-js/app/server'
 
 export default function ContactPage() {
   const flash = getFormFlash()

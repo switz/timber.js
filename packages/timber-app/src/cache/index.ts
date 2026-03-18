@@ -1,4 +1,4 @@
-// @timber/app/cache — Caching primitives
+// @timber-js/app/cache — Caching primitives
 
 export interface CacheHandler {
   get(key: string): Promise<{ value: unknown; stale: boolean } | null>;

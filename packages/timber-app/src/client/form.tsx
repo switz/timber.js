@@ -51,7 +51,7 @@ export type UseActionStateReturn<TData> = [
  * @example
  * ```tsx
  * 'use client'
- * import { useActionState } from '@timber/app/client'
+ * import { useActionState } from '@timber-js/app/client'
  * import { createTodo } from './actions'
  *
  * export function NewTodoForm({ flash }) {

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Link } from '@timber/app/client';
+import { Link } from '@timber-js/app/client';
 import { allDocs } from 'content-collections';
 import { LATEST_VERSION, groupBy } from '@/lib/docs';
 import { SidebarLink } from '@/app/(pre-release)/components/sidebar-link';

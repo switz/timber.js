@@ -1,4 +1,4 @@
-import { Link } from '@timber/app/client';
+import { Link } from '@timber-js/app/client';
 import { allBlogs } from 'content-collections';
 
 export const metadata = {
@@ -20,10 +20,7 @@ export default function BlogIndex() {
         <div className="space-y-8">
           {posts.map((post) => (
             <article key={post.slug}>
-              <Link
-                href={`/blog/${post.slug}`}
-                className="block group"
-              >
+              <Link href={`/blog/${post.slug}`} className="block group">
                 <h2 className="text-xl font-semibold text-walnut dark:text-stone-100 group-hover:text-bark-light dark:group-hover:text-stone-300 transition-colors">
                   {post.title}
                 </h2>

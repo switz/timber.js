@@ -1,5 +1,5 @@
 /**
- * @timber/app/content — Public API for content collections.
+ * @timber-js/app/content — Public API for content collections.
  *
  * Re-exports from content-collections and provides timber-specific utilities.
  * Users can import directly from 'content-collections' for generated types,

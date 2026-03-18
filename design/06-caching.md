@@ -5,7 +5,7 @@
 `timber.cache` is the primary caching API. It replaces the Next.js data cache entirely — no patched `fetch`, no `unstable_cache`, no implicit caching. If you wrap a function with `timber.cache`, it's cached. If you don't, it's not.
 
 ```typescript
-import { cache } from '@timber/app/cache';
+import { cache } from '@timber-js/app/cache';
 
 export const getPopularProducts = cache(
   async () => {
@@ -172,7 +172,7 @@ interface CacheHandler {
 
 ```typescript
 // timber.config.ts
-import { MemoryCacheHandler, RedisCacheHandler } from '@timber/app/cache';
+import { MemoryCacheHandler, RedisCacheHandler } from '@timber-js/app/cache';
 
 export default {
   cacheHandler: process.env.REDIS_URL
@@ -277,7 +277,7 @@ The caching system is split across three files with distinct responsibilities:
 | ------------------ | ------------------------------------------------------------------------------------------------------------ |
 | `cache-handler.ts` | `CacheHandler` interface + `MemoryCacheHandler` default implementation                                       |
 | `cache-runtime.ts` | `"use cache"` transform runtime: `registerCachedFunction()`, RSC payload serialization, cache key generation |
-| `cache.ts`         | Public API: `timber.cache()` wrapper, `timber.cache.invalidate()`, exports for `@timber/app/cache`           |
+| `cache.ts`         | Public API: `timber.cache()` wrapper, `timber.cache.invalidate()`, exports for `@timber-js/app/cache`        |
 
 `cache-handler.ts` is a standalone module with no framework dependencies — it can be tested in isolation. `cache-runtime.ts` depends on the RSC environment (it serializes React element trees). `cache.ts` ties them together and provides the developer-facing API.
 

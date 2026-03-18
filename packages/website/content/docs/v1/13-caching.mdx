@@ -13,7 +13,7 @@ timber.js does not cache anything by default. No patched `fetch`, no implicit da
 Wrap any async function to cache its result:
 
 ```ts
-import { cache } from '@timber/app/cache';
+import { cache } from '@timber-js/app/cache';
 
 export const getPopularProducts = cache(
   async () => {
@@ -48,7 +48,7 @@ const getUser = cache(
 Invalidate by tag:
 
 ```ts
-import { revalidateTag } from '@timber/app/cache';
+import { revalidateTag } from '@timber-js/app/cache';
 
 // In a server action after updating a product:
 revalidateTag('products');
@@ -87,7 +87,7 @@ This caches the rendered RSC output of the entire component.
 The default handler is in-memory. Configure a different backend in `timber.config.ts`:
 
 ```ts
-import { MemoryCacheHandler } from '@timber/app/cache';
+import { MemoryCacheHandler } from '@timber-js/app/cache';
 
 export default {
   cacheHandler: new MemoryCacheHandler(),

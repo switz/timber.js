@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { generateRouteMap } from '../packages/timber-app/src/routing/codegen.js';
-import { scanRoutes } from '@timber/app/routing';
+import { scanRoutes } from '@timber-js/app/routing';
 
 const TMP_DIR = join(import.meta.dirname, '.tmp-codegen-sp-test');
 
@@ -30,7 +30,7 @@ describe('useQueryStates codegen overloads', () => {
     const root = createApp({
       'products/page.tsx': '',
       'products/search-params.ts': `
-import { createSearchParams } from '@timber/app/search-params'
+import { createSearchParams } from '@timber-js/app/search-params'
 export default createSearchParams({
   page: { parse: (v) => Number(v) || 1, serialize: (v) => String(v) },
 })

@@ -4,7 +4,7 @@
 
 timber.js provides two import surfaces:
 
-1. **`@timber/app/*`** — Native timber imports. These are the primary API and should be used by timber-first code.
+1. **`@timber-js/app/*`** — Native timber imports. These are the primary API and should be used by timber-first code.
 2. **`next/*`** — Shims for Next.js-compatible libraries. These enable ecosystem libraries that import from `next/*` public APIs to work unmodified.
 
 The `next/*` shims are resolved at the Vite layer by the `timber-shims` plugin. They are **not** listed in `package.json` exports — they only exist during the Vite build/dev process.
@@ -162,7 +162,7 @@ These Next.js modules are **not shimmed** and will produce import errors:
 | `next/script`     | Not yet implemented                                                                    |
 | `next/dynamic`    | Use React.lazy() + Suspense                                                            |
 | `next/server`     | Internal Next.js server utilities — no equivalent needed                               |
-| `next/cache`      | Use `@timber/app/cache` (`timber.cache()`)                                             |
+| `next/cache`      | Use `@timber-js/app/cache` (`timber.cache()`)                                          |
 | `next/font/local` | Shimmed via `@timber/fonts/local` — resolved by `timber-shims` + `timber-fonts` plugin |
 
 Libraries that depend on Next.js build plugins (SWC transforms, webpack plugins) or internal APIs cannot be shimmed and require custom integration.

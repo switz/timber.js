@@ -16,7 +16,7 @@ import { getRouter } from './router-ref.js';
  *
  * ```tsx
  * 'use client'
- * import { useNavigationPending } from '@timber/app/client'
+ * import { useNavigationPending } from '@timber-js/app/client'
  *
  * export function NavBar() {
  *   const isPending = useNavigationPending()

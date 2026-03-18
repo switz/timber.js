@@ -23,10 +23,7 @@ import type { ManifestSegmentNode } from './route-matcher.js';
 import { resolveMetadata, renderMetadataToElements } from './metadata.js';
 import type { HeadElement as MetadataHeadElement } from './metadata.js';
 import type { Metadata } from './types.js';
-import {
-  METADATA_ROUTE_CONVENTIONS,
-  getMetadataRouteAutoLink,
-} from './metadata-routes.js';
+import { METADATA_ROUTE_CONVENTIONS, getMetadataRouteAutoLink } from './metadata-routes.js';
 import { DenySignal, RedirectSignal } from './primitives.js';
 import { AccessGate } from './access-gate.js';
 import { resolveSlotElement } from './slot-resolver.js';
@@ -155,7 +152,7 @@ export async function buildRouteElement(
     // Load page (leaf segment only)
     if (isLeaf && segment.page) {
       // Load and apply search-params.ts definition before rendering so
-      // searchParams() from @timber/app/server returns parsed typed values.
+      // searchParams() from @timber-js/app/server returns parsed typed values.
       if (segment.searchParams) {
         const spMod = (await segment.searchParams.load()) as {
           default?: SearchParamsDefinition<Record<string, unknown>>;

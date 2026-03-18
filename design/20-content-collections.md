@@ -47,10 +47,10 @@ import { CopyButton } from '../../components/copy-button' {/* 'use client' compo
 Install the package:
 
 \```bash
-pnpm add @timber/app
+pnpm add @timber-js/app
 \```
 
-<CopyButton text="pnpm add @timber/app" />
+<CopyButton text="pnpm add @timber-js/app" />
 ````
 
 ### Custom Components via `mdx-components.ts`
@@ -59,7 +59,7 @@ A project-wide `mdx-components.ts` (or `.tsx`) at the project root provides cust
 
 ```tsx
 // mdx-components.tsx
-import type { MDXComponents } from '@timber/app/server';
+import type { MDXComponents } from '@timber-js/app/server';
 
 export function useMDXComponents(components: MDXComponents): MDXComponents {
   return {
@@ -145,7 +145,7 @@ For MDX route pages, frontmatter exports can serve as an implicit `metadata` exp
 
 Content collections are a typed, file-based content system for managing structured content outside the route tree. Collections are data sources — they do not generate routes. Routing is explicit, through `page.tsx` files that query collections.
 
-timber.js uses [`content-collections`](https://www.content-collections.dev/) as the underlying engine for content scanning, schema validation, file watching, and code generation. This is a battle-tested library with built-in Vite support that handles the complex lifecycle of content processing. timber.js wraps it with a thin integration layer and provides a typed `@timber/app/content` API surface.
+timber.js uses [`content-collections`](https://www.content-collections.dev/) as the underlying engine for content scanning, schema validation, file watching, and code generation. This is a battle-tested library with built-in Vite support that handles the complex lifecycle of content processing. timber.js wraps it with a thin integration layer and provides a typed `@timber-js/app/content` API surface.
 
 ### Why Not Routes?
 
@@ -289,10 +289,10 @@ import { allBlogs, allChangelogs } from 'content-collections';
 // Fully typed based on the schema + transform
 ```
 
-For timber.js, we also provide a convenience wrapper via `@timber/app/content` that re-exports the generated collections and adds timber-specific utilities:
+For timber.js, we also provide a convenience wrapper via `@timber-js/app/content` that re-exports the generated collections and adds timber-specific utilities:
 
 ```ts
-import { allBlogs } from '@timber/app/content';
+import { allBlogs } from '@timber-js/app/content';
 
 // Filter at query time
 const published = allBlogs.filter((post) => !post.draft);
@@ -327,7 +327,7 @@ Content that defines whether a page exists is **primary content** — it belongs
 ```tsx
 // app/blog/[slug]/page.tsx
 import { allBlogs } from 'content-collections';
-import { deny } from '@timber/app/server';
+import { deny } from '@timber-js/app/server';
 
 export default async function BlogPost({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -345,7 +345,7 @@ Dynamic `metadata()` reads content entry data directly:
 
 ```tsx
 // app/blog/[slug]/page.tsx
-import type { Metadata } from '@timber/app/server';
+import type { Metadata } from '@timber-js/app/server';
 import { allBlogs } from 'content-collections';
 
 export async function metadata({
@@ -496,7 +496,7 @@ This is my first post. It supports **GFM** thanks to `remark-gfm`.
 ```tsx
 // app/blog/page.tsx
 import { allBlogs } from 'content-collections';
-import Link from '@timber/app/link';
+import Link from '@timber-js/app/link';
 
 export const metadata = { title: 'Blog' };
 
@@ -527,8 +527,8 @@ export default async function BlogIndex() {
 // app/blog/[slug]/page.tsx
 import { allBlogs } from 'content-collections';
 import { useMDXComponent } from '@content-collections/mdx/react';
-import { deny } from '@timber/app/server';
-import type { Metadata } from '@timber/app/server';
+import { deny } from '@timber-js/app/server';
+import type { Metadata } from '@timber-js/app/server';
 
 export async function generateStaticParams() {
   return allBlogs.filter((p) => !p.draft).map((post) => ({ slug: post._meta.path }));

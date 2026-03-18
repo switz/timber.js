@@ -22,7 +22,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { MemoryCacheHandler } from '@timber/app/cache';
+import { MemoryCacheHandler } from '@timber-js/app/cache';
 import { createCache } from '../../packages/timber-app/src/cache/timber-cache';
 import { registerCachedFunction } from '../../packages/timber-app/src/cache/register-cached-function';
 import { executeAction, revalidateTag } from '../../packages/timber-app/src/server/actions';

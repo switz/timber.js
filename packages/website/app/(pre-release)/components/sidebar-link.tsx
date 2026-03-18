@@ -1,6 +1,6 @@
 'use client';
 
-import { Link, usePathname } from '@timber/app/client';
+import { Link, usePathname } from '@timber-js/app/client';
 
 export function SidebarLink({ href, children }: { href: string; children: React.ReactNode }) {
   const pathname = usePathname();

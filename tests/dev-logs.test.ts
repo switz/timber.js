@@ -412,11 +412,11 @@ describe('dev-logs framework-internal filtering', () => {
     }
   });
 
-  it('isFrameworkInternalCaller handles @timber/app installed path', () => {
+  it('isFrameworkInternalCaller handles @timber-js/app installed path', () => {
     const OrigError = globalThis.Error;
     const mockStack = `Error
     at Object.<anonymous> (/dev/null/dev-logs.ts:10:5)
-    at summary (/app/node_modules/@timber/app/dist/plugins/dev-server.js:80:9)`;
+    at summary (/app/node_modules/@timber-js/app/dist/plugins/dev-server.js:80:9)`;
 
     globalThis.Error = class extends OrigError {
       constructor(msg?: string) {

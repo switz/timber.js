@@ -12,7 +12,7 @@ Every route can declare typed search params via a co-located `search-params.ts` 
 
 ```ts
 // app/products/search-params.ts
-import { createSearchParams } from '@timber/app/search-params';
+import { createSearchParams } from '@timber-js/app/search-params';
 import { z } from 'zod/v4';
 
 export const searchParams = createSearchParams({
@@ -28,7 +28,7 @@ In `page.tsx`, `middleware.ts`, and `access.ts`, search params are auto-parsed v
 
 ```tsx
 // app/products/page.tsx
-import { searchParams } from '@timber/app/server';
+import { searchParams } from '@timber-js/app/server';
 
 export default async function ProductsPage() {
   const { page, sort, q } = await searchParams();
@@ -46,7 +46,7 @@ Use `useQueryStates` to read and update search params from client components:
 
 ```tsx
 'use client';
-import { useQueryStates } from '@timber/app/search-params';
+import { useQueryStates } from '@timber-js/app/search-params';
 import { searchParams } from './search-params';
 
 export function ProductFilters() {

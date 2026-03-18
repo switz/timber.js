@@ -24,7 +24,7 @@ function transform(code: string, id: string = 'test.ts') {
 describe('server-action-exports', () => {
   test('rewrites export const with CallExpression initializer', () => {
     const input = `'use server';
-import { createActionClient } from '@timber/app/server';
+import { createActionClient } from '@timber-js/app/server';
 const action = createActionClient();
 export const createTodo = action.schema(schema).action(async ({ input }) => {
   return input;
@@ -41,7 +41,7 @@ export const createTodo = action.schema(schema).action(async ({ input }) => {
 
   test('rewrites export const with validated() call', () => {
     const input = `'use server';
-import { validated } from '@timber/app/server';
+import { validated } from '@timber-js/app/server';
 export const submitForm = validated(schema, async (input) => {
   return input;
 });
@@ -85,7 +85,7 @@ export const createTodo = async function() {
 
   test('rewrites multiple exports in one file', () => {
     const input = `'use server';
-import { createActionClient } from '@timber/app/server';
+import { createActionClient } from '@timber-js/app/server';
 const action = createActionClient();
 export const createTodo = action.schema(schema).action(async ({ input }) => input);
 export const deleteTodo = action.action(async ({ ctx }) => ctx);
@@ -100,7 +100,7 @@ export async function listTodos() { return []; }
   });
 
   test('skips files without use server directive', () => {
-    const input = `import { createActionClient } from '@timber/app/server';
+    const input = `import { createActionClient } from '@timber-js/app/server';
 export const action = createActionClient();
 `;
     const result = transform(input);
@@ -117,7 +117,7 @@ export const foo = bar();
 
   test('rewrites export default with CallExpression', () => {
     const input = `'use server';
-import { validated } from '@timber/app/server';
+import { validated } from '@timber-js/app/server';
 export default validated(schema, async (input) => input);
 `;
     const result = transform(input);
@@ -147,7 +147,7 @@ export default myAction;
 
   test('handles mixed exports (const + function + default)', () => {
     const input = `'use server';
-import { validated, createActionClient } from '@timber/app/server';
+import { validated, createActionClient } from '@timber-js/app/server';
 const action = createActionClient();
 export const submit = validated(schema, async (input) => input);
 export async function reset() { return true; }
@@ -280,7 +280,7 @@ export async function submit(...args) {
 
     test('handles file with only async function exports (common pattern)', () => {
       const input = `'use server';
-import { revalidatePath } from '@timber/app/server';
+import { revalidatePath } from '@timber-js/app/server';
 
 export async function addTodo(prev, formData) {
   const title = formData.get('title');
@@ -358,7 +358,7 @@ export const count = 42;
     test('preserves comments in the file', () => {
       const input = `'use server';
 // This is an action file
-import { validated } from '@timber/app/server';
+import { validated } from '@timber-js/app/server';
 
 /** Create a new todo */
 export const createTodo = validated(schema, async (input) => input);
@@ -396,7 +396,7 @@ export async function reset() { return true }
 
     test('handles file with imports and non-exported helpers', () => {
       const input = `'use server';
-import { createActionClient } from '@timber/app/server';
+import { createActionClient } from '@timber-js/app/server';
 import { db } from '../lib/db';
 
 const action = createActionClient({
@@ -420,7 +420,7 @@ export const createTodo = action
       const result = transform(input);
       expect(result).toBeDefined();
       // Private helpers and imports preserved
-      expect(result.code).toContain("import { createActionClient } from '@timber/app/server'");
+      expect(result.code).toContain("import { createActionClient } from '@timber-js/app/server'");
       expect(result.code).toContain("import { db } from '../lib/db'");
       expect(result.code).toContain('const action = createActionClient(');
       expect(result.code).toContain('function getUser()');
@@ -452,7 +452,7 @@ export default new ActionHandler();
 
     test('output is valid JS that can be re-parsed', () => {
       const input = `'use server';
-import { createActionClient, validated } from '@timber/app/server';
+import { createActionClient, validated } from '@timber-js/app/server';
 
 const action = createActionClient();
 

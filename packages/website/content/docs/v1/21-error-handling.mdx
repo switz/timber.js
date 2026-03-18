@@ -21,7 +21,7 @@ Errors thrown during React rendering are caught by error boundaries. Because tim
 `deny()` produces the correct HTTP status and renders the matching status file:
 
 ```tsx
-import { deny } from '@timber/app/server';
+import { deny } from '@timber-js/app/server';
 
 export default async function ProductPage({ params }) {
   const { id } = await params;
@@ -81,7 +81,7 @@ Error boundaries wrap page content inside layouts — the layout shell (nav, sid
 Pass structured data to error boundaries with `RenderError`:
 
 ```tsx
-import { RenderError } from '@timber/app/server';
+import { RenderError } from '@timber-js/app/server';
 
 if (!product) {
   throw new RenderError('PRODUCT_NOT_FOUND', {

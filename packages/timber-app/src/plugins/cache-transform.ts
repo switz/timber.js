@@ -162,7 +162,7 @@ export function transformUseCache(code: string, fileId: string): TransformResult
 
   if (needsImport) {
     // Add the import at the top of the file
-    result = `import { registerCachedFunction } from '@timber/app/cache';\n` + result;
+    result = `import { registerCachedFunction } from '@timber-js/app/cache';\n` + result;
   }
 
   return { code: result, map: null, warnings: warnings.length > 0 ? warnings : undefined };

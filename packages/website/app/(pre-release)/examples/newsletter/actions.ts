@@ -1,6 +1,6 @@
 'use server';
 
-import { createActionClient } from '@timber/app/server';
+import { createActionClient } from '@timber-js/app/server';
 import { z } from 'zod/v4';
 
 const action = createActionClient();

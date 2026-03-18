@@ -1,4 +1,4 @@
-// @timber/app/search-params — Typed search params
+// @timber-js/app/search-params — Typed search params
 
 // Core types and factory
 export type {

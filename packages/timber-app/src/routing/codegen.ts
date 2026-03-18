@@ -46,7 +46,7 @@ export interface CodegenOptions {
 /**
  * Generate a TypeScript declaration file string from a scanned route tree.
  *
- * The output is a `declare module '@timber/app'` block containing the Routes
+ * The output is a `declare module '@timber-js/app'` block containing the Routes
  * interface that maps every route path to its params and searchParams shape.
  */
 export function generateRouteMap(tree: RouteTree, options: CodegenOptions = {}): string {
@@ -180,7 +180,7 @@ function formatDeclarationFile(routes: RouteEntry[], importBase?: string): strin
   // (removing exports like bindUseQueryStates that aren't listed here).
   lines.push('export {};');
   lines.push('');
-  lines.push("declare module '@timber/app' {");
+  lines.push("declare module '@timber-js/app' {");
   lines.push('  interface Routes {');
 
   for (const route of routes) {
@@ -197,12 +197,12 @@ function formatDeclarationFile(routes: RouteEntry[], importBase?: string): strin
   lines.push('}');
   lines.push('');
 
-  // Generate @timber/app/server augmentation — typed searchParams() generic
+  // Generate @timber-js/app/server augmentation — typed searchParams() generic
   const pageRoutes = routes.filter((r) => !r.isApiRoute);
 
   if (pageRoutes.length > 0) {
-    lines.push("declare module '@timber/app/server' {");
-    lines.push("  import type { Routes } from '@timber/app'");
+    lines.push("declare module '@timber-js/app/server' {");
+    lines.push("  import type { Routes } from '@timber-js/app'");
     lines.push(
       "  export function searchParams<R extends keyof Routes>(): Promise<Routes[R]['searchParams']>"
     );
@@ -210,13 +210,13 @@ function formatDeclarationFile(routes: RouteEntry[], importBase?: string): strin
     lines.push('');
   }
 
-  // Generate overloads for @timber/app/client
+  // Generate overloads for @timber-js/app/client
   const dynamicRoutes = routes.filter((r) => r.params.length > 0);
 
   if (dynamicRoutes.length > 0 || pageRoutes.length > 0) {
-    lines.push("declare module '@timber/app/client' {");
+    lines.push("declare module '@timber-js/app/client' {");
     lines.push(
-      "  import type { SearchParamsDefinition, SetParams, QueryStatesOptions, SearchParamCodec } from '@timber/app/search-params'"
+      "  import type { SearchParamsDefinition, SetParams, QueryStatesOptions, SearchParamCodec } from '@timber-js/app/search-params'"
     );
     lines.push('');
 
@@ -303,7 +303,7 @@ function formatSearchParamsType(route: RouteEntry, importBase?: string): string 
     // Use (typeof import('...'))[' default'] instead of import('...').default
     // because with moduleResolution:"bundler", import('...').default is treated as
     // a namespace member access which doesn't work for default exports.
-    return `(typeof import('${importPath}'))['default'] extends import('@timber/app/search-params').SearchParamsDefinition<infer T> ? T : never`;
+    return `(typeof import('${importPath}'))['default'] extends import('@timber-js/app/search-params').SearchParamsDefinition<infer T> ? T : never`;
   }
   return '{}';
 }

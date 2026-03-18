@@ -8,7 +8,7 @@ import {
   DenySignal,
   RedirectSignal,
   type RenderErrorDigest,
-} from '@timber/app/server';
+} from '@timber-js/app/server';
 // Internal helper for resetting warn-once state between tests
 import { _resetWaitUntilWarning } from '../packages/timber-app/src/server/primitives';
 

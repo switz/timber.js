@@ -145,7 +145,7 @@ function getDefaultSerialized<T>(codec: SearchParamCodec<T>): string | null {
  * Create a SearchParamsDefinition from a codec map and optional URL key aliases.
  *
  * ```ts
- * import { createSearchParams, fromSchema } from '@timber/app/search-params'
+ * import { createSearchParams, fromSchema } from '@timber-js/app/search-params'
  * import { z } from 'zod/v4'
  *
  * export default createSearchParams({
@@ -290,11 +290,11 @@ function buildDefinition<T extends Record<string, unknown>>(
   // ---- useQueryStates ----
   // This is a placeholder that will be replaced by the client runtime.
   // At import time in a server context, calling this throws.
-  // The actual implementation wraps nuqs and lives in @timber/app/client.
+  // The actual implementation wraps nuqs and lives in @timber-js/app/client.
   function useQueryStates(_options?: QueryStatesOptions): [T, SetParams<T>] {
     throw new Error(
       'useQueryStates() can only be called in a client component. ' +
-        'Import from @timber/app/client instead.'
+        'Import from @timber-js/app/client instead.'
     );
   }
 

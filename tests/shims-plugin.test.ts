@@ -88,32 +88,32 @@ describe('timber-shims plugin', () => {
     });
   });
 
-  describe('resolveId — @timber/app/* subpaths', () => {
-    it('resolves @timber/app/server', () => {
+  describe('resolveId — @timber-js/app/* subpaths', () => {
+    it('resolves @timber-js/app/server', () => {
       const resolveId = createResolveId();
-      expect(resolveId('@timber/app/server')).toBe(resolve(SRC_DIR, 'server/index.ts'));
+      expect(resolveId('@timber-js/app/server')).toBe(resolve(SRC_DIR, 'server/index.ts'));
     });
 
-    it('resolves @timber/app/client', () => {
+    it('resolves @timber-js/app/client', () => {
       const resolveId = createResolveId();
-      expect(resolveId('@timber/app/client')).toBe(resolve(SRC_DIR, 'client/index.ts'));
+      expect(resolveId('@timber-js/app/client')).toBe(resolve(SRC_DIR, 'client/index.ts'));
     });
 
-    it('resolves @timber/app/cache', () => {
+    it('resolves @timber-js/app/cache', () => {
       const resolveId = createResolveId();
-      expect(resolveId('@timber/app/cache')).toBe(resolve(SRC_DIR, 'cache/index.ts'));
+      expect(resolveId('@timber-js/app/cache')).toBe(resolve(SRC_DIR, 'cache/index.ts'));
     });
 
-    it('resolves @timber/app/search-params', () => {
+    it('resolves @timber-js/app/search-params', () => {
       const resolveId = createResolveId();
-      expect(resolveId('@timber/app/search-params')).toBe(
+      expect(resolveId('@timber-js/app/search-params')).toBe(
         resolve(SRC_DIR, 'search-params/index.ts')
       );
     });
 
-    it('resolves @timber/app/routing', () => {
+    it('resolves @timber-js/app/routing', () => {
       const resolveId = createResolveId();
-      expect(resolveId('@timber/app/routing')).toBe(resolve(SRC_DIR, 'routing/index.ts'));
+      expect(resolveId('@timber-js/app/routing')).toBe(resolve(SRC_DIR, 'routing/index.ts'));
     });
   });
 
@@ -133,9 +133,9 @@ describe('timber-shims plugin', () => {
       expect(resolveId('react')).toBeNull();
     });
 
-    it('returns null for unknown @timber/app/* subpath', () => {
+    it('returns null for unknown @timber-js/app/* subpath', () => {
       const resolveId = createResolveId();
-      expect(resolveId('@timber/app/nonexistent')).toBeNull();
+      expect(resolveId('@timber-js/app/nonexistent')).toBeNull();
     });
   });
 

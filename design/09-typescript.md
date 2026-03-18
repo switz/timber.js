@@ -35,11 +35,11 @@ app/products/
   search-params.ts    ← declares what searchParams this route accepts
 ```
 
-The default export must be a `SearchParamsDefinition<T>` — created via `createSearchParams` from `@timber/app/search-params`. The framework reads `T` from the default export at build time and populates the route map.
+The default export must be a `SearchParamsDefinition<T>` — created via `createSearchParams` from `@timber-js/app/search-params`. The framework reads `T` from the default export at build time and populates the route map.
 
 ```typescript
 // app/products/search-params.ts
-import { createSearchParams, fromSchema } from '@timber/app/search-params';
+import { createSearchParams, fromSchema } from '@timber-js/app/search-params';
 import { z } from 'zod/v4';
 
 export default createSearchParams(
@@ -74,7 +74,7 @@ export default async function middleware(ctx: MiddlewareContext) {
 }
 
 // app/products/page.tsx — searchParams() is typed via route generic
-import { searchParams } from '@timber/app/server';
+import { searchParams } from '@timber-js/app/server';
 
 export default async function ProductsPage() {
   const { page, pageSize, category, sort } = await searchParams<'/products'>();
@@ -92,7 +92,7 @@ To get typed search params in a nested component, import the definition and pars
 
 ```typescript
 // components/product-sidebar.tsx (server component)
-import { searchParams } from '@timber/app/server';
+import { searchParams } from '@timber-js/app/server';
 import searchParamsDef from '@/app/products/search-params';
 
 export default async function ProductSidebar() {
@@ -113,19 +113,19 @@ export default async function ProductSidebar() {
 2. **Per-file `.d.ts` shims** — generate per-route declaration files that override `searchParams`. Requires `tsconfig` `paths` entries per file, which isn't possible. Rejected.
 3. **Module augmentation** — already used for the `Routes` interface, but module augmentation is global — can't vary per importing file. Rejected.
 4. **`tsconfig` paths per route** — would work but requires modifying the user's `tsconfig.json` with per-route entries. Rejected (too invasive).
-5. **Per-route `tsconfig` via project references** — each route directory gets its own `tsconfig.json` with project references. TypeScript project references create separate compilation units, so a per-route `tsconfig` could theoretically remap `@timber/app/server` to a route-specific declaration. However, this requires a `tsconfig.json` per route directory (heavy boilerplate), composite builds change the compilation model in ways that conflict with Vite's module resolution, and the user's IDE must understand the project reference graph. Rejected (too invasive, fragile with Vite).
+5. **Per-route `tsconfig` via project references** — each route directory gets its own `tsconfig.json` with project references. TypeScript project references create separate compilation units, so a per-route `tsconfig` could theoretically remap `@timber-js/app/server` to a route-specific declaration. However, this requires a `tsconfig.json` per route directory (heavy boilerplate), composite builds change the compilation model in ways that conflict with Vite's module resolution, and the user's IDE must understand the project reference graph. Rejected (too invasive, fragile with Vite).
 6. **Codegen injects route path into each file (TanStack Router approach)** — TanStack Router solves this by having codegen write `createFileRoute('/products')` directly into each route file. The path string literal is the type discriminator. This works with `tsc` because the type information is in the source file itself, not inferred from the file path. However, this requires the framework to **modify user source files** — inserting and maintaining a codegen'd line. timber.js's convention-based approach (`page.tsx` is a page by virtue of its filename, not by calling a framework function) would need to change to accommodate this. It would also require a file watcher that edits user code. Noted as technically viable but architecturally incompatible with timber's convention-over-configuration design.
 
 **Decision:** The explicit generic `searchParams<'/products'>()` is the correct API. It is zero-runtime-overhead, works with `tsc`/`tsgo`, requires no tsconfig changes, and the route path string is autocompleted by the IDE from the generated `Routes` interface. The trade-off (a few extra characters at the call site) is minimal compared to the complexity of any auto-detection approach. Leaf server components always need the generic anyway — making it consistent everywhere is simpler than having it be implicit in `page.tsx` but explicit elsewhere.
 
 **Which `search-params.ts` applies:** The leaf route's `search-params.ts` is the canonical definition. `middleware.ts` always gets the leaf route's parsed searchParams (middleware only runs for the leaf). For `access.ts`, each segment's access check receives the leaf route's parsed searchParams — all segments in the chain share the same URL and the same query string, so they share the same parsed result.
 
-**In a client component**, `useQueryStates` from `@timber/app/client` is the client equivalent — same type, URL-synced:
+**In a client component**, `useQueryStates` from `@timber-js/app/client` is the client equivalent — same type, URL-synced:
 
 ```typescript
 // app/products/filters.tsx
 'use client'
-import { useQueryStates } from '@timber/app/client'
+import { useQueryStates } from '@timber-js/app/client'
 import searchParamsDef from './search-params'
 
 export function ProductFilters() {
@@ -179,7 +179,7 @@ sort: {
 **Array params:** The codec protocol accepts `string | string[] | undefined` in `.parse()`. When the URL contains repeated keys (`?tag=a&tag=b`), the framework passes the array `['a', 'b']` to the codec. For single values, a string is passed. Codecs that expect arrays should handle both cases:
 
 ```typescript
-import { fromSchema } from '@timber/app/search-params'
+import { fromSchema } from '@timber-js/app/search-params'
 import { z } from 'zod/v4'
 
 // Array codec via fromSchema — coerces single string to array
@@ -242,7 +242,7 @@ Many routes share common search params — pagination, search queries, status fi
 
 ```typescript
 // lib/search-params/pagination.ts — shared, NOT a route file
-import { createSearchParams, fromSchema } from '@timber/app/search-params';
+import { createSearchParams, fromSchema } from '@timber-js/app/search-params';
 import { z } from 'zod/v4';
 
 export const pagination = createSearchParams({
@@ -262,7 +262,7 @@ export const searchable = createSearchParams({
 // app/products/search-params.ts
 import { pagination } from '@/lib/search-params/pagination';
 import { searchable } from '@/lib/search-params/searchable';
-import { fromSchema } from '@timber/app/search-params';
+import { fromSchema } from '@timber-js/app/search-params';
 import { z } from 'zod/v4';
 
 export default pagination.extend(searchable.codecs).extend(
@@ -379,7 +379,7 @@ searchParamsDef.serialize({});
 
 ```typescript
 import searchParamsDef from '../products/search-params'
-import Link from '@timber/app/link'
+import Link from '@timber-js/app/link'
 
 function CategoryLink({ category }: { category: string }) {
   return (
@@ -408,11 +408,11 @@ params.get('page'); // "3"
 
 ## `useQueryStates` — Client-Side Search Params
 
-`useQueryStates` is a first-class timber hook exported from `@timber/app/client`. It reads the current URL search params, parses them through the codecs, and returns a setter that updates the URL with typed values.
+`useQueryStates` is a first-class timber hook exported from `@timber-js/app/client`. It reads the current URL search params, parses them through the codecs, and returns a setter that updates the URL with typed values.
 
 ```typescript
 'use client';
-import { useQueryStates } from '@timber/app/client';
+import { useQueryStates } from '@timber-js/app/client';
 ```
 
 **Three usage patterns:**
@@ -427,7 +427,7 @@ const filterParams = searchParamsDef.pick('category', 'sort', 'q');
 const [{ category, sort, q }, setParams] = filterParams.useQueryStates();
 
 // Pattern 3: Standalone hook with inline codecs
-import { fromSchema } from '@timber/app/search-params';
+import { fromSchema } from '@timber-js/app/search-params';
 const [params, setParams] = useQueryStates({
   page: fromSchema(z.coerce.number().int().min(1).default(1)),
   q: fromSchema(z.string().nullable().default(null)),
@@ -461,7 +461,7 @@ setParams(
 
 **Cross-route usage:** A client component can call `useQueryStates` with any definition — it does not need to match the route's `search-params.ts`. The hook reads from the current URL and parses through whatever codecs you give it. A shared filter component used across routes with different definitions works fine. The route's `search-params.ts` is the canonical type for codegen and server-side auto-parsing; client components are free to use any definition they want.
 
-**Implementation:** `useQueryStates` wraps nuqs, which handles the hard parts — URL synchronization, React 19 transitions, `useSearchParams` integration, and `history.pushState`/`replaceState`. nuqs is a peer dependency the developer installs (`@timber/app` lists it as a peer dep). The public API is `@timber/app/client` — developers import from there, not from nuqs directly. The `shallow: false` default (triggering a server RSC fetch) is a timber.js behavior layered on top of nuqs's URL update mechanism. nuqs parser objects are valid `SearchParamCodec` values natively — no adapter required.
+**Implementation:** `useQueryStates` wraps nuqs, which handles the hard parts — URL synchronization, React 19 transitions, `useSearchParams` integration, and `history.pushState`/`replaceState`. nuqs is a peer dependency the developer installs (`@timber-js/app` lists it as a peer dep). The public API is `@timber-js/app/client` — developers import from there, not from nuqs directly. The `shallow: false` default (triggering a server RSC fetch) is a timber.js behavior layered on top of nuqs's URL update mechanism. nuqs parser objects are valid `SearchParamCodec` values natively — no adapter required.
 
 ---
 

@@ -40,7 +40,7 @@ export default {
 Adapters transform the build output for your deployment platform. timber.js ships two:
 
 ```ts
-import { cloudflare } from '@timber/app/adapters/cloudflare';
+import { cloudflare } from '@timber-js/app/adapters/cloudflare';
 
 export default {
   output: 'server',
@@ -49,7 +49,7 @@ export default {
 ```
 
 ```ts
-import { nitro } from '@timber/app/adapters/nitro';
+import { nitro } from '@timber-js/app/adapters/nitro';
 
 export default {
   output: 'server',
@@ -63,7 +63,7 @@ Cloudflare gets its own adapter because Workers are architecturally different â€
 ## Cache Handler
 
 ```ts
-import { MemoryCacheHandler } from '@timber/app/cache';
+import { MemoryCacheHandler } from '@timber-js/app/cache';
 
 export default {
   output: 'server',

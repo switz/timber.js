@@ -3,8 +3,8 @@ import { z } from 'zod/v4';
 import * as v from 'valibot';
 import { createActionClient } from '../packages/timber-app/src/server/action-client';
 import type { ActionResult } from '../packages/timber-app/src/server/action-client';
-import { createSearchParams, fromSchema } from '@timber/app/search-params';
-import type { SearchParamCodec } from '@timber/app/search-params';
+import { createSearchParams, fromSchema } from '@timber-js/app/search-params';
+import type { SearchParamCodec } from '@timber-js/app/search-params';
 
 // ---------------------------------------------------------------------------
 // Action client — Standard Schema (Zod v4)

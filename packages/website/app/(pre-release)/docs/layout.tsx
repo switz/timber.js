@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import type { Metadata } from '@timber/app/server';
+import type { Metadata } from '@timber-js/app/server';
 
 export default function DocsLayout({ children }: { children: ReactNode }) {
   return <>{children}</>;

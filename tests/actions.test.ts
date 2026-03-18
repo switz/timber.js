@@ -15,7 +15,7 @@ import {
   _clearRevalidationState,
 } from '../packages/timber-app/src/server/actions';
 import type { RevalidationState } from '../packages/timber-app/src/server/actions';
-import { MemoryCacheHandler } from '@timber/app/cache';
+import { MemoryCacheHandler } from '@timber-js/app/cache';
 
 // ---------------------------------------------------------------------------
 // Helpers

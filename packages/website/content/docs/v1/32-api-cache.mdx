@@ -1,20 +1,20 @@
 ---
-title: "API: @timber/app/cache"
+title: "API: @timber-js/app/cache"
 description: "Cache exports — createCache, CacheHandler, MemoryCacheHandler, and invalidation."
 section: "API Reference"
 slug: "api-cache"
 ---
 
-# @timber/app/cache
+# @timber-js/app/cache
 
-Caching primitives and cache handler interface. Import from `@timber/app/cache`.
+Caching primitives and cache handler interface. Import from `@timber-js/app/cache`.
 
 ## `createCache(fn, options)`
 
 Wrap an async function with cross-request caching.
 
 ```ts
-import { createCache } from '@timber/app/cache';
+import { createCache } from '@timber-js/app/cache';
 
 const getUser = createCache(
   async (userId: string) => {
@@ -57,7 +57,7 @@ interface CacheHandler {
 In-memory cache with LRU eviction. The default handler.
 
 ```ts
-import { MemoryCacheHandler } from '@timber/app/cache';
+import { MemoryCacheHandler } from '@timber-js/app/cache';
 
 const handler = new MemoryCacheHandler({ maxSize: 1000 });
 handler.size; // Current number of entries
@@ -74,7 +74,7 @@ handler.size; // Current number of entries
 Redis-backed cache handler.
 
 ```ts
-import { RedisCacheHandler } from '@timber/app/cache';
+import { RedisCacheHandler } from '@timber-js/app/cache';
 import { createClient } from 'redis';
 
 const redis = createClient({ url: 'redis://localhost:6379' });
@@ -85,10 +85,10 @@ const handler = new RedisCacheHandler(redis);
 
 ### `revalidateTag(tag)`
 
-Invalidate all cache entries with the given tag. Re-exported from `@timber/app/server` for convenience.
+Invalidate all cache entries with the given tag. Re-exported from `@timber-js/app/server` for convenience.
 
 ```ts
-import { revalidateTag } from '@timber/app/cache';
+import { revalidateTag } from '@timber-js/app/cache';
 
 revalidateTag('products');
 revalidateTag(`user:${userId}`);
@@ -101,7 +101,7 @@ revalidateTag(`user:${userId}`);
 Request coalescing — when multiple concurrent calls miss the cache for the same key, only one executes the underlying function. Built into `createCache()` automatically.
 
 ```ts
-import { createSingleflight } from '@timber/app/cache';
+import { createSingleflight } from '@timber-js/app/cache';
 
 const sf = createSingleflight();
 const result = await sf.do('key', () => expensiveOperation());

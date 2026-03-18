@@ -60,7 +60,7 @@ const formFlashAls = new AsyncLocalStorage<FormFlashData>();
  *
  * ```tsx
  * // app/contact/page.tsx (server component)
- * import { getFormFlash } from '@timber/app/server'
+ * import { getFormFlash } from '@timber-js/app/server'
  *
  * export default function ContactPage() {
  *   const flash = getFormFlash()

@@ -178,7 +178,7 @@ function extractCallerLocation(projectRoot: string): string | null {
  * (render errors, action errors, route handler errors, etc.).
  *
  * Handles both monorepo paths (timber-app/src/plugins/) and installed
- * package paths (@timber/app/dist/plugins/).
+ * package paths (@timber-js/app/dist/plugins/).
  */
 export function isFrameworkInternalCaller(): boolean {
   const err = new Error();
@@ -194,7 +194,7 @@ export function isFrameworkInternalCaller(): boolean {
     if (line.includes('node:')) continue;
 
     // Check if this first real frame is inside timber's own source
-    const isTimberPath = line.includes('timber-app/') || line.includes('@timber/app/');
+    const isTimberPath = line.includes('timber-app/') || line.includes('@timber-js/app/');
     if (!isTimberPath) return false;
 
     // Only filter plugin and adapter internals, not server/ runtime code

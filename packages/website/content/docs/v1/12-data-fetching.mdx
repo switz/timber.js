@@ -12,7 +12,7 @@ In timber.js, your components are your data layer. Server components are async â
 
 ```tsx
 // app/products/[id]/page.tsx
-import { deny } from '@timber/app/server';
+import { deny } from '@timber-js/app/server';
 
 export default async function ProductPage({ params }) {
   const { id } = await params;

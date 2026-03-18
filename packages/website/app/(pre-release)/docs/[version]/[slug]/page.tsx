@@ -1,6 +1,6 @@
 import { allDocs } from 'content-collections';
-import { deny } from '@timber/app/server';
-import type { Metadata } from '@timber/app/server';
+import { deny } from '@timber-js/app/server';
+import type { Metadata } from '@timber-js/app/server';
 import { LATEST_VERSION } from '@/lib/docs';
 import { AiDocsBanner } from '@/app/(pre-release)/components/ai-docs-banner';
 

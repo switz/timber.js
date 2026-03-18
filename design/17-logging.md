@@ -74,7 +74,7 @@ sdk.start();
 ```typescript
 // instrumentation.ts — Sentry
 import * as Sentry from '@sentry/node';
-import type { Instrumentation } from '@timber/app';
+import type { Instrumentation } from '@timber-js/app';
 
 export async function onRequestError(
   error: unknown,
@@ -191,7 +191,7 @@ The format is always `[0-9a-f]{32}`, with or without OTEL. Log parsers, dashboar
 `trace_id` is accessible anywhere in server code:
 
 ```typescript
-import { traceId } from '@timber/app/server';
+import { traceId } from '@timber-js/app/server';
 
 // In middleware.ts, access.ts, server components, server actions:
 logger.info('fetching product', { traceId: traceId(), productId: params.id });
@@ -236,18 +236,18 @@ One per incoming request. Follows [OTel HTTP server semantic conventions](https:
 
 #### Child spans
 
-| Span name                | When emitted                            | Key attributes                                                                  |
-| ------------------------ | --------------------------------------- | ------------------------------------------------------------------------------- |
-| `timber.proxy`           | `proxy.ts` execution                    | `timber.result`: `'next'` \| `'short-circuit'`                                  |
-| `timber.middleware`      | `middleware.ts` execution               | `timber.route`, `timber.result`: `'continue'` \| `'short-circuit'` \| `'error'` |
-| `timber.access`          | Each `access.ts` execution              | `timber.segment`, `timber.result`: `'pass'` \| `'deny'` \| `'redirect'`         |
-| `timber.render`          | Full RSC render pass                    | `timber.route`, `timber.environment`: `'rsc'`                                   |
-| `timber.render.suspense` | Each `<Suspense>` boundary that streams | `timber.boundary`, `timber.flush`: `'pre'` \| `'post'`                          |
-| `timber.ssr`             | SSR hydration render                    | `timber.environment`: `'ssr'`                                                   |
-| `timber.action`          | Server action execution                 | `timber.action_file`, `timber.action_name`                                      |
-| `timber.metadata`        | Dynamic `metadata()` execution          | `timber.segment`                                                                |
-| `timber.layout`          | Each layout component render            | `timber.segment`                                                                |
-| `timber.page`            | Page component render                   | `timber.route`                                                                  |
+| Span name                | When emitted                            | Key attributes                                                                        |
+| ------------------------ | --------------------------------------- | ------------------------------------------------------------------------------------- |
+| `timber.proxy`           | `proxy.ts` execution                    | `timber.result`: `'next'` \| `'short-circuit'`                                        |
+| `timber.middleware`      | `middleware.ts` execution               | `timber.route`, `timber.result`: `'continue'` \| `'short-circuit'` \| `'error'`       |
+| `timber.access`          | Each `access.ts` execution              | `timber.segment`, `timber.result`: `'pass'` \| `'deny'` \| `'redirect'`               |
+| `timber.render`          | Full RSC render pass                    | `timber.route`, `timber.environment`: `'rsc'`                                         |
+| `timber.render.suspense` | Each `<Suspense>` boundary that streams | `timber.boundary`, `timber.flush`: `'pre'` \| `'post'`                                |
+| `timber.ssr`             | SSR hydration render                    | `timber.environment`: `'ssr'`                                                         |
+| `timber.action`          | Server action execution                 | `timber.action_file`, `timber.action_name`                                            |
+| `timber.metadata`        | Dynamic `metadata()` execution          | `timber.segment`                                                                      |
+| `timber.layout`          | Each layout component render            | `timber.segment`                                                                      |
+| `timber.page`            | Page component render                   | `timber.route`                                                                        |
 | `timber.fetch`           | Dev-mode `fetch()` call (dev only)      | `http.request.method`, `http.url`, `http.response.status_code`, `timber.cache_status` |
 
 `timber.cache` calls are recorded as **span events** on the enclosing span — not child spans. Keeps cardinality low:
@@ -450,7 +450,7 @@ export async function onRequestError(error, request, context) {
 
 ```typescript
 // app/proxy.ts — propagate trace ID to client as a response header
-import { traceId } from '@timber/app/server';
+import { traceId } from '@timber-js/app/server';
 
 export default function proxy(req: Request, next: () => Promise<Response>) {
   return next().then((res) => {
@@ -485,7 +485,7 @@ The dev logger is implemented as a Vite plugin and stripped entirely from produc
 
 **Implemented (Phase 2d):**
 
-- `traceId()` — per-request 32-char hex ID, ALS-backed, exported from `@timber/app/server`
+- `traceId()` — per-request 32-char hex ID, ALS-backed, exported from `@timber-js/app/server`
 - `spanId()` — current OTEL span ID when available
 - `runWithTraceId()` / `replaceTraceId()` / `updateSpanId()` — framework-internal ALS scope management
 - `instrumentation.ts` support — `register()`, `onRequestError()`, `logger` export via `loadInstrumentation()`

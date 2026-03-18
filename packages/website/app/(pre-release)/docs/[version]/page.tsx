@@ -1,4 +1,4 @@
-import { Link } from '@timber/app/client';
+import { Link } from '@timber-js/app/client';
 import { allDocs } from 'content-collections';
 import { LATEST_VERSION } from '@/lib/docs';
 import { AiDocsBanner } from '@/app/(pre-release)/components/ai-docs-banner';
@@ -17,11 +17,7 @@ const FEATURED_SLUGS = [
   'why-timber',
 ];
 
-export default async function VersionIndex({
-  params,
-}: {
-  params: Promise<{ version: string }>;
-}) {
+export default async function VersionIndex({ params }: { params: Promise<{ version: string }> }) {
   const { version } = await params;
   const resolvedVersion = version === 'latest' ? LATEST_VERSION : version;
 

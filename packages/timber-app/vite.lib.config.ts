@@ -1,4 +1,4 @@
-// Vite library mode config for building @timber/app for npm distribution.
+// Vite library mode config for building @timber-js/app for npm distribution.
 // Produces compiled ESM in dist/ — declaration files are generated separately via tsc.
 // See design/28-npm-packaging.md for rationale.
 

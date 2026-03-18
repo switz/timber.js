@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { scanRoutes } from '@timber/app/routing';
+import { scanRoutes } from '@timber-js/app/routing';
 import {
   resolvePrerenderConfig,
   checkDynamicSegmentParams,

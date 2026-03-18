@@ -63,7 +63,7 @@ function validateSync<Output>(
  * Serialize: uses `String()` for primitives, `null` for null/undefined.
  *
  * ```ts
- * import { fromSchema } from '@timber/app/search-params'
+ * import { fromSchema } from '@timber-js/app/search-params'
  * import { z } from 'zod/v4'
  *
  * const pageCodec = fromSchema(z.coerce.number().int().min(1).default(1))
@@ -109,7 +109,7 @@ export function fromSchema<T>(schema: StandardSchemaV1<T>): SearchParamCodec<T> 
  * and repeated query keys (`?tag=a&tag=b`).
  *
  * ```ts
- * import { fromArraySchema } from '@timber/app/search-params'
+ * import { fromArraySchema } from '@timber-js/app/search-params'
  * import { z } from 'zod/v4'
  *
  * const tagsCodec = fromArraySchema(z.array(z.string()).default([]))

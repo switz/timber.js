@@ -6,7 +6,7 @@ Instructions for AI agents working on this codebase.
 
 ## Project Overview
 
-**timber.js** (`@timber/app`) is a Vite-native React framework for Cloudflare Workers. It prioritizes correct HTTP semantics, real status codes, pages that work without JavaScript, and streaming only where explicitly requested.
+**timber.js** (`@timber-js/app`) is a Vite-native React framework for Cloudflare Workers. It prioritizes correct HTTP semantics, real status codes, pages that work without JavaScript, and streaming only where explicitly requested.
 
 ### Design Docs
 

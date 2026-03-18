@@ -128,6 +128,43 @@ function matchPathname(root: ManifestSegmentNode, pathname: string): RouteMatch 
 }
 
 /**
+ * An effective child flattened through group segments.
+ * Includes the chain of group nodes that must be added to the segments
+ * array before the child itself (to preserve the group → child nesting
+ * that the renderer expects).
+ */
+interface EffectiveChild {
+  child: ManifestSegmentNode;
+  groupChain: ManifestSegmentNode[];
+}
+
+/**
+ * Collect effective children by flattening through group segments.
+ *
+ * Groups are transparent for URL matching — their non-group descendants
+ * are returned with the chain of group nodes that lead to them. This
+ * allows the caller to apply priority ordering (static > dynamic > ...)
+ * across all groups uniformly instead of per-group.
+ */
+function collectEffectiveChildren(
+  node: ManifestSegmentNode,
+  groupChain: ManifestSegmentNode[] = []
+): EffectiveChild[] {
+  const result: EffectiveChild[] = [];
+  for (const child of node.children) {
+    if (child.segmentType === 'group') {
+      // Look through the group — its children become effective children
+      // with this group prepended to their chain
+      const nested = collectEffectiveChildren(child, [...groupChain, child]);
+      result.push(...nested);
+    } else {
+      result.push({ child, groupChain });
+    }
+  }
+  return result;
+}
+
+/**
  * Recursively match URL segments against the segment tree.
  *
  * Priority order for children at each level:
@@ -136,8 +173,10 @@ function matchPathname(root: ManifestSegmentNode, pathname: string): RouteMatch 
  *   3. Catch-all segments ([...param])
  *   4. Optional catch-all segments ([[...param]])
  *
- * Groups are transparent — they don't consume URL segments but their
- * children are checked as if they were direct children of the parent.
+ * Groups are transparent — they don't consume URL segments. Children
+ * are flattened through groups so that priority ordering applies across
+ * all groups uniformly (a static in group A always beats a dynamic in
+ * group B, regardless of group ordering).
  */
 function matchSegments(
   node: ManifestSegmentNode,
@@ -163,11 +202,12 @@ function matchSegments(
       }
     }
 
-    // Check optional catch-all children (they can match zero segments)
-    for (const child of node.children) {
+    // Check optional catch-all children (direct and through groups)
+    const effective = collectEffectiveChildren(node);
+    for (const { child, groupChain } of effective) {
       if (child.segmentType === 'optional-catch-all') {
         if (child.page || child.route) {
-          segments.push(child);
+          segments.push(...groupChain, child);
           // Zero segments → param is undefined (not set), matching Next.js semantics
           return true;
         }
@@ -180,35 +220,33 @@ function matchSegments(
 
   const part = parts[index];
 
-  // Try children in priority order
+  // Flatten children through groups so priority ordering applies globally
+  // across all groups, not per-group.
+  const effective = collectEffectiveChildren(node);
 
   // 1. Static segments
-  for (const child of node.children) {
+  for (const { child, groupChain } of effective) {
     if (child.segmentType === 'static' && child.segmentName === part) {
+      segments.push(...groupChain);
       if (matchSegments(child, parts, index + 1, segments, params)) {
         return true;
       }
+      // Backtrack group chain
+      segments.length -= groupChain.length;
     }
   }
 
-  // 2. Group segments (transparent — recurse without consuming)
-  for (const child of node.children) {
-    if (child.segmentType === 'group') {
-      if (matchSegments(child, parts, index, segments, params)) {
-        return true;
-      }
-    }
-  }
-
-  // 3. Dynamic segments ([param])
-  for (const child of node.children) {
+  // 2. Dynamic segments ([param])
+  for (const { child, groupChain } of effective) {
     if (child.segmentType === 'dynamic' && child.paramName) {
+      segments.push(...groupChain);
       const prevParam = params[child.paramName];
       params[child.paramName] = part;
       if (matchSegments(child, parts, index + 1, segments, params)) {
         return true;
       }
       // Backtrack
+      segments.length -= groupChain.length;
       if (prevParam !== undefined) {
         params[child.paramName] = prevParam;
       } else {
@@ -217,24 +255,24 @@ function matchSegments(
     }
   }
 
-  // 4. Catch-all segments ([...param])
-  for (const child of node.children) {
+  // 3. Catch-all segments ([...param])
+  for (const { child, groupChain } of effective) {
     if (child.segmentType === 'catch-all' && child.paramName) {
       if (child.page || child.route) {
         const remaining = parts.slice(index);
-        segments.push(child);
+        segments.push(...groupChain, child);
         params[child.paramName] = remaining;
         return true;
       }
     }
   }
 
-  // 5. Optional catch-all segments ([[...param]])
-  for (const child of node.children) {
+  // 4. Optional catch-all segments ([[...param]])
+  for (const { child, groupChain } of effective) {
     if (child.segmentType === 'optional-catch-all' && child.paramName) {
       if (child.page || child.route) {
         const remaining = parts.slice(index);
-        segments.push(child);
+        segments.push(...groupChain, child);
         params[child.paramName] = remaining;
         return true;
       }

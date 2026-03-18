@@ -69,12 +69,13 @@ All framework-internal endpoints (RSC payload delivery, etc.) are subject to `pr
 After URL canonicalization, the canonical pathname is matched against the segment tree built by the route scanner. The route matcher (`server/route-matcher.ts`) walks the tree depth-first with the following priority at each level:
 
 1. **Static segments** — exact match on directory name
-2. **Route groups** — transparent (don't consume URL segments), children checked recursively
-3. **Dynamic segments** (`[param]`) — match any single segment, extract param value
-4. **Catch-all segments** (`[...param]`) — match one or more remaining segments
-5. **Optional catch-all segments** (`[[...param]]`) — match zero or more remaining segments
+2. **Dynamic segments** (`[param]`) — match any single segment, extract param value
+3. **Catch-all segments** (`[...param]`) — match one or more remaining segments
+4. **Optional catch-all segments** (`[[...param]]`) — match zero or more remaining segments
 
-A match succeeds when all URL segments are consumed and the leaf segment has a `page` or `route` file. The result includes the full segment chain (root → leaf) and extracted params.
+**Route groups** are fully transparent — they don't consume URL segments and are flattened away during matching. Children of groups are treated as if they were direct children of the group's parent, so priority ordering (static > dynamic > catch-all > optional-catch-all) applies uniformly across all groups. A static route in `(content)/about` always beats a dynamic route in `(browse)/[slug]`, regardless of which group appears first in the filesystem.
+
+A match succeeds when all URL segments are consumed and the leaf segment has a `page` or `route` file. The result includes the full segment chain (root → leaf, including group nodes) and extracted params.
 
 **Params as Promise:** Following the React 19+ convention (and Next.js 15+), `params` is passed to page components and dynamic `metadata()` as a `Promise<Record<string, string>>` rather than a plain object. Components `await` the params promise to access values.
 

@@ -94,26 +94,27 @@ describe('timber-shims plugin', () => {
       expect(resolveId('@timber-js/app/server')).toBe(resolve(SRC_DIR, 'server/index.ts'));
     });
 
-    it('resolves @timber-js/app/client', () => {
+    // @timber-js/app/client, cache, search-params, routing are NOT resolved
+    // by the shims plugin — they go through Vite's native package.json exports.
+    // Only @timber-js/app/server is resolved to src/ for ALS singleton sharing.
+    it('passes through @timber-js/app/client to Vite native resolution', () => {
       const resolveId = createResolveId();
-      expect(resolveId('@timber-js/app/client')).toBe(resolve(SRC_DIR, 'client/index.ts'));
+      expect(resolveId('@timber-js/app/client')).toBeNull();
     });
 
-    it('resolves @timber-js/app/cache', () => {
+    it('passes through @timber-js/app/cache to Vite native resolution', () => {
       const resolveId = createResolveId();
-      expect(resolveId('@timber-js/app/cache')).toBe(resolve(SRC_DIR, 'cache/index.ts'));
+      expect(resolveId('@timber-js/app/cache')).toBeNull();
     });
 
-    it('resolves @timber-js/app/search-params', () => {
+    it('passes through @timber-js/app/search-params to Vite native resolution', () => {
       const resolveId = createResolveId();
-      expect(resolveId('@timber-js/app/search-params')).toBe(
-        resolve(SRC_DIR, 'search-params/index.ts')
-      );
+      expect(resolveId('@timber-js/app/search-params')).toBeNull();
     });
 
-    it('resolves @timber-js/app/routing', () => {
+    it('passes through @timber-js/app/routing to Vite native resolution', () => {
       const resolveId = createResolveId();
-      expect(resolveId('@timber-js/app/routing')).toBe(resolve(SRC_DIR, 'routing/index.ts'));
+      expect(resolveId('@timber-js/app/routing')).toBeNull();
     });
   });
 
@@ -289,9 +290,9 @@ describe('timber-shims plugin', () => {
       expect(result).toContain('cannot be imported from a Server Component');
     });
 
-    it('returns null for unrelated virtual modules', () => {
+    it('returns undefined for unrelated virtual modules', () => {
       const load = createLoad('rsc');
-      expect(load('\0some-other-module')).toBeNull();
+      expect(load('\0some-other-module')).toBeUndefined();
     });
   });
 

@@ -5,6 +5,11 @@
  * shim implementations. This enables Next.js-compatible libraries
  * (nuqs, next-intl, etc.) to work unmodified.
  *
+ * NOTE: This plugin does NOT resolve @timber-js/app/* subpath imports.
+ * Those are handled by Vite's native package.json `exports` resolution,
+ * which maps them to dist/ files. This ensures a single module instance
+ * for shared modules like request-context (ALS singleton).
+ *
  * Design doc: 18-build-system.md §"Shim Map"
  */
 
@@ -14,7 +19,14 @@ import { fileURLToPath } from 'node:url';
 import type { PluginContext } from '#/index.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const SHIMS_DIR = resolve(__dirname, '..', 'shims');
+// Detect whether we're running from source (src/plugins/) or dist (dist/).
+// From src/plugins/: go up 2 levels to package root.
+// From dist/: go up 1 level to package root.
+// When Rollup bundles into dist/index.js, __dirname is dist/, not src/plugins/.
+const PKG_ROOT = __dirname.endsWith('plugins')
+  ? resolve(__dirname, '..', '..')
+  : resolve(__dirname, '..');
+const SHIMS_DIR = resolve(PKG_ROOT, 'src', 'shims');
 
 /**
  * Virtual module IDs for server-only and client-only poison pills.
@@ -56,20 +68,6 @@ const CLIENT_SHIM_OVERRIDES: Record<string, string> = {
 };
 
 /**
- * Map from @timber-js/app/* subpath imports to real source files.
- *
- * These resolve subpath imports like `@timber-js/app/server` to the
- * real entry files in the package source.
- */
-const TIMBER_SUBPATH_MAP: Record<string, string> = {
-  '@timber-js/app/server': resolve(__dirname, '..', 'server', 'index.ts'),
-  '@timber-js/app/client': resolve(__dirname, '..', 'client', 'index.ts'),
-  '@timber-js/app/cache': resolve(__dirname, '..', 'cache', 'index.ts'),
-  '@timber-js/app/search-params': resolve(__dirname, '..', 'search-params', 'index.ts'),
-  '@timber-js/app/routing': resolve(__dirname, '..', 'routing', 'index.ts'),
-};
-
-/**
  * Strip .js extension from an import specifier.
  *
  * Libraries like nuqs import `next/navigation.js` with an explicit
@@ -94,14 +92,20 @@ export function timberShims(_ctx: PluginContext): Plugin {
     enforce: 'pre',
 
     /**
-     * Resolve next/* and @timber-js/app/* imports to shim/source files.
+     * Resolve next/* imports to shim files.
      *
      * Resolution order:
      * 1. Check server-only / client-only poison pill packages
      * 2. Strip .js extension from the import specifier
      * 3. Check next/* shim map
-     * 4. Check @timber-js/app/* subpath map
-     * 5. Return null (pass through) for unrecognized imports
+     * 4. Return null (pass through) for everything else
+     *
+     * @timber-js/app/server is resolved to src/ so it shares the same module
+     * instance as framework internals (which import via #/). This ensures
+     * a single requestContextAls and _getRscFallback variable.
+     *
+     * @timber-js/app/client is NOT mapped here — it resolves to dist/ via
+     * package.json exports, where 'use client' is preserved on the entry.
      */
     resolveId(id: string) {
       // Poison pill packages — resolve to virtual modules handled by load()
@@ -121,9 +125,16 @@ export function timberShims(_ctx: PluginContext): Plugin {
         return SHIM_MAP[cleanId];
       }
 
-      // Check @timber-js/app/* subpath map
-      if (cleanId in TIMBER_SUBPATH_MAP) {
-        return TIMBER_SUBPATH_MAP[cleanId];
+      // @timber-js/app/server → src/ in server environments so user code
+      // shares the same module instance as framework internals (single ALS).
+      // In the client environment, return a virtual empty module — server
+      // code must never be bundled into the browser.
+      if (cleanId === '@timber-js/app/server') {
+        const envName = (this as unknown as { environment?: { name?: string } }).environment?.name;
+        if (envName === 'client') {
+          return '\0timber:server-empty';
+        }
+        return resolve(PKG_ROOT, 'src', 'server', 'index.ts');
       }
 
       return null;
@@ -162,7 +173,22 @@ export function timberShims(_ctx: PluginContext): Plugin {
         return 'export {};';
       }
 
-      return null;
+      // Stub for @timber-js/app/server in client environment.
+      // Exports throw-on-call stubs so named imports resolve but
+      // calling them gives a clear error instead of crashing the bundle.
+      if (id === '\0timber:server-empty') {
+        return `
+const stub = (name) => () => { throw new Error(name + "() is a server-only function and cannot be called in client code."); };
+export const headers = stub("headers");
+export const cookies = stub("cookies");
+export const notFound = stub("notFound");
+export const redirect = stub("redirect");
+export const permanentRedirect = stub("permanentRedirect");
+export const deny = stub("deny");
+export const searchParams = stub("searchParams");
+export const RedirectType = { push: "push", replace: "replace" };
+`;
+      }
     },
   };
 }

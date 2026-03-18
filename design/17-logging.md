@@ -368,7 +368,7 @@ When a server component calls `fetch()`, the call appears as a child of the comp
 ```
 ├─ [rsc]  page /                              6ms → 101ms
 │     ├─ fetch GET https://api.example.com/products  12ms → 89ms (77ms)
-│     └─ fetch GET https://api.example.com/user      12ms → 45ms (33ms) [cache: HIT]
+│     └─ fetch GET https://api.example.com/user      12ms → 45ms (33ms) [cdn: HIT]
 ```
 
 Start times reveal whether fetches ran concurrently (same start time) or sequentially. Duration is shown in parentheses. Cache status from `X-Cache` or `CF-Cache-Status` response headers is surfaced.

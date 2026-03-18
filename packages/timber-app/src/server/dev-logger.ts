@@ -311,7 +311,7 @@ function formatFetchLine(
   line += `  ${DIM}${startMs}ms → ${endMs}ms (${durationMs}ms)${RESET}`;
 
   if (cacheStatus) {
-    line += `  ${DIM}[cache: ${cacheStatus}]${RESET}`;
+    line += `  ${DIM}[cdn: ${cacheStatus}]${RESET}`;
   }
 
   if (isError) {

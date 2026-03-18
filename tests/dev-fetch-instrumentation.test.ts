@@ -370,7 +370,7 @@ describe('fetch span tree formatting', () => {
     expect(output).toContain('fetch GET https://api.example.com/products');
     expect(output).toContain('fetch GET https://api.example.com/user');
     // Cache status should be shown
-    expect(output).toContain('[cache: HIT]');
+    expect(output).toContain('[cdn: HIT]');
     // Duration should be visible
     expect(output).toContain('12ms');
     expect(output).toContain('89ms');

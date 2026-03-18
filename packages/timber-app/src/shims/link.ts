@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * Shim: next/link → @timber-js/app/client Link
  *

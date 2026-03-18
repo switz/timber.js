@@ -11,6 +11,7 @@ export default defineConfig({
         'index': 'src/index.ts',
         'server/index': 'src/server/index.ts',
         'client/index': 'src/client/index.ts',
+        'client/error-boundary': 'src/client/error-boundary.tsx',
         'cache/index': 'src/cache/index.ts',
         'content/index': 'src/content/index.ts',
         'cookies/index': 'src/cookies/index.ts',
@@ -59,6 +60,14 @@ export default defineConfig({
         // Ensure .js extension for ESM
         entryFileNames: '[name].js',
         chunkFileNames: '_chunks/[name]-[hash].js',
+        // Preserve 'use client' directive on client entry points.
+        // Rollup strips directives during bundling, so we re-add them.
+        banner: (chunk) => {
+          if (chunk.name === 'client/index' || chunk.name === 'client/error-boundary') {
+            return "'use client';";
+          }
+          return '';
+        },
       },
     },
   },

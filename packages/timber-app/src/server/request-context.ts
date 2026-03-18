@@ -46,7 +46,13 @@ interface CookieEntry {
   options: CookieOptions;
 }
 
-const requestContextAls = new AsyncLocalStorage<RequestContextStore>();
+/** @internal */
+export const requestContextAls = new AsyncLocalStorage<RequestContextStore>();
+
+// No fallback needed — we use enterWith() instead of run() to ensure
+// the ALS context persists for the entire request lifecycle including
+// async stream consumption by React's renderToReadableStream.
+
 
 // ─── Cookie Signing Secrets ──────────────────────────────────────────────
 

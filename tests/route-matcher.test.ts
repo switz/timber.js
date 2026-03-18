@@ -491,3 +491,234 @@ describe('metadata route matcher', () => {
     expect(result!.type).toBe('sitemap');
   });
 });
+
+// ─── Cross-group static/dynamic priority ─────────────────────────────────────
+
+describe('route-matcher: static routes in route groups beat dynamic segments in sibling groups', () => {
+  // Regression: (content)/recently-played should match before (browse)/[artistSlug]
+  // regardless of group ordering in the children array.
+  // See: LOCAL-296
+
+  function buildCrossGroupManifest(browseFirst: boolean): ManifestRoot {
+    const contentGroup = makeNode({
+      segmentName: '(content)',
+      segmentType: 'group',
+      urlPath: '/',
+      children: [
+        makeNode({
+          segmentName: 'recently-played',
+          segmentType: 'static',
+          urlPath: '/recently-played',
+          page: dummyFile,
+        }),
+        makeNode({
+          segmentName: 'today',
+          segmentType: 'static',
+          urlPath: '/today',
+          page: dummyFile,
+        }),
+        makeNode({
+          segmentName: 'about',
+          segmentType: 'static',
+          urlPath: '/about',
+          page: dummyFile,
+        }),
+      ],
+    });
+
+    const browseGroup = makeNode({
+      segmentName: '(browse)',
+      segmentType: 'group',
+      urlPath: '/',
+      children: [
+        makeNode({
+          segmentName: '[artistSlug]',
+          segmentType: 'dynamic',
+          urlPath: '/[artistSlug]',
+          paramName: 'artistSlug',
+          page: dummyFile,
+        }),
+      ],
+    });
+
+    const root = makeNode({
+      children: browseFirst
+        ? [browseGroup, contentGroup]
+        : [contentGroup, browseGroup],
+    });
+
+    return makeManifest(root);
+  }
+
+  it('static route in (content) wins over dynamic in (browse) — browse group first', () => {
+    const match = createRouteMatcher(buildCrossGroupManifest(true));
+
+    const result = match('/recently-played');
+    expect(result).not.toBeNull();
+    // Must match the static route, not [artistSlug]
+    expect(result!.params).not.toHaveProperty('artistSlug');
+    expect(result!.segments).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ segmentName: 'recently-played', segmentType: 'static' }),
+      ])
+    );
+  });
+
+  it('static route in (content) wins over dynamic in (browse) — content group first', () => {
+    const match = createRouteMatcher(buildCrossGroupManifest(false));
+
+    const result = match('/recently-played');
+    expect(result).not.toBeNull();
+    expect(result!.params).not.toHaveProperty('artistSlug');
+    expect(result!.segments).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ segmentName: 'recently-played', segmentType: 'static' }),
+      ])
+    );
+  });
+
+  it('dynamic route still matches non-static paths', () => {
+    const match = createRouteMatcher(buildCrossGroupManifest(true));
+
+    const result = match('/some-artist');
+    expect(result).not.toBeNull();
+    expect(result!.params.artistSlug).toBe('some-artist');
+  });
+
+  it('all static routes in (content) are reachable', () => {
+    const match = createRouteMatcher(buildCrossGroupManifest(true));
+
+    for (const path of ['/recently-played', '/today', '/about']) {
+      const result = match(path);
+      expect(result).not.toBeNull();
+      expect(result!.params).not.toHaveProperty('artistSlug');
+    }
+  });
+
+  it('static wins over dynamic across nested groups', () => {
+    // (outer)/(inner)/page vs (other)/[slug]
+    const root = makeNode({
+      children: [
+        makeNode({
+          segmentName: '(other)',
+          segmentType: 'group',
+          urlPath: '/',
+          children: [
+            makeNode({
+              segmentName: '[slug]',
+              segmentType: 'dynamic',
+              urlPath: '/[slug]',
+              paramName: 'slug',
+              page: dummyFile,
+            }),
+          ],
+        }),
+        makeNode({
+          segmentName: '(outer)',
+          segmentType: 'group',
+          urlPath: '/',
+          children: [
+            makeNode({
+              segmentName: '(inner)',
+              segmentType: 'group',
+              urlPath: '/',
+              children: [
+                makeNode({
+                  segmentName: 'about',
+                  segmentType: 'static',
+                  urlPath: '/about',
+                  page: dummyFile,
+                }),
+              ],
+            }),
+          ],
+        }),
+      ],
+    });
+
+    const match = createRouteMatcher(makeManifest(root));
+    const result = match('/about');
+    expect(result).not.toBeNull();
+    expect(result!.params).not.toHaveProperty('slug');
+  });
+
+  it('static wins over catch-all across groups', () => {
+    const root = makeNode({
+      children: [
+        makeNode({
+          segmentName: '(catch)',
+          segmentType: 'group',
+          urlPath: '/',
+          children: [
+            makeNode({
+              segmentName: '[...all]',
+              segmentType: 'catch-all',
+              urlPath: '/[...all]',
+              paramName: 'all',
+              page: dummyFile,
+            }),
+          ],
+        }),
+        makeNode({
+          segmentName: '(pages)',
+          segmentType: 'group',
+          urlPath: '/',
+          children: [
+            makeNode({
+              segmentName: 'about',
+              segmentType: 'static',
+              urlPath: '/about',
+              page: dummyFile,
+            }),
+          ],
+        }),
+      ],
+    });
+
+    const match = createRouteMatcher(makeManifest(root));
+    const result = match('/about');
+    expect(result).not.toBeNull();
+    expect(result!.params).not.toHaveProperty('all');
+  });
+
+  it('dynamic wins over catch-all across groups', () => {
+    const root = makeNode({
+      children: [
+        makeNode({
+          segmentName: '(catch)',
+          segmentType: 'group',
+          urlPath: '/',
+          children: [
+            makeNode({
+              segmentName: '[...all]',
+              segmentType: 'catch-all',
+              urlPath: '/[...all]',
+              paramName: 'all',
+              page: dummyFile,
+            }),
+          ],
+        }),
+        makeNode({
+          segmentName: '(browse)',
+          segmentType: 'group',
+          urlPath: '/',
+          children: [
+            makeNode({
+              segmentName: '[slug]',
+              segmentType: 'dynamic',
+              urlPath: '/[slug]',
+              paramName: 'slug',
+              page: dummyFile,
+            }),
+          ],
+        }),
+      ],
+    });
+
+    const match = createRouteMatcher(makeManifest(root));
+    const result = match('/hello');
+    expect(result).not.toBeNull();
+    expect(result!.params.slug).toBe('hello');
+    expect(result!.params).not.toHaveProperty('all');
+  });
+});

@@ -125,6 +125,10 @@ async function createRequestHandler(manifest: typeof routeManifest, runtimeConfi
     const devLogMode = resolveLogMode();
     if (devLogMode !== 'quiet') {
       await initDevTracing({ mode: devLogMode, slowPhaseMs });
+      // Patch globalThis.fetch to create OTEL spans for fetch calls.
+      // Spans appear as children of the active component span in the dev log tree.
+      const { instrumentDevFetch } = await import('../dev-fetch-instrumentation.js');
+      instrumentDevFetch();
     }
   }
 

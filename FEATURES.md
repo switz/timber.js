@@ -87,6 +87,7 @@ Features tagged as **[novel]** (not in Next.js or Vinext), **[enhanced]** (impro
 - **[novel]** Dev logging tree — indented request tree with timing ([17-logging.md](design/17-logging.md))
 - **[novel]** Dev log modes — tree, summary, verbose ([17-logging.md](design/17-logging.md))
 - **[novel]** Slow phase threshold warnings in dev mode ([17-logging.md](design/17-logging.md))
+- **[novel]** Dev-mode fetch instrumentation — fetch calls shown as children in dev log tree with method, URL, duration, cache status ([17-logging.md](design/17-logging.md))
 - **[enhanced]** OTEL spans — timber.access, timber.ssr, timber.action, timber.metadata ([17-logging.md](design/17-logging.md))
 - **[enhanced]** Server console logs piped to browser console in development ([17-logging.md](design/17-logging.md))
 

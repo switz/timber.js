@@ -248,6 +248,7 @@ One per incoming request. Follows [OTel HTTP server semantic conventions](https:
 | `timber.metadata`        | Dynamic `metadata()` execution          | `timber.segment`                                                                |
 | `timber.layout`          | Each layout component render            | `timber.segment`                                                                |
 | `timber.page`            | Page component render                   | `timber.route`                                                                  |
+| `timber.fetch`           | Dev-mode `fetch()` call (dev only)      | `http.request.method`, `http.url`, `http.response.status_code`, `timber.cache_status` |
 
 `timber.cache` calls are recorded as **span events** on the enclosing span — not child spans. Keeps cardinality low:
 
@@ -359,6 +360,20 @@ POST /dashboard/projects/123  trace_id: 4bf92f3577b34da6a3ce929d0e0e4736
 ```
 
 `trace_id` is always shown on the request line — a UUID when OTEL is not configured, the real OTEL trace ID when it is. When OTEL is active, clicking the ID in a terminal that supports links (or copy-pasting it) goes directly to the trace in Jaeger/Honeycomb/etc.
+
+### Fetch Calls
+
+When a server component calls `fetch()`, the call appears as a child of the component in the dev log tree:
+
+```
+├─ [rsc]  page /                              6ms → 101ms
+│     ├─ fetch GET https://api.example.com/products  12ms → 89ms (77ms)
+│     └─ fetch GET https://api.example.com/user      12ms → 45ms (33ms) [cdn: HIT]
+```
+
+Start times reveal whether fetches ran concurrently (same start time) or sequentially. Duration is shown in parentheses. Cache status from `X-Cache` or `CF-Cache-Status` response headers is surfaced.
+
+Fetch instrumentation is dev-only — `globalThis.fetch` is only patched when dev logging is active.
 
 ### Cache Annotations
 
@@ -505,6 +520,7 @@ The dev logger is implemented as a Vite plugin and stripped entirely from produc
 - Access results from span attributes: `timber.result` (PASS/DENY/REDIRECT), `timber.deny_status`
 - `slowPhaseMs` threshold highlighting in tree mode (default 200ms)
 - Removed: `DevLogEmitter`, `DevLogEvents`, `dev-log-context.ts` ALS, `PipelineConfig.onDevLog`, all manual `devEmitter.emit()` calls
+- Dev-mode fetch instrumentation: `instrumentDevFetch()` patches `globalThis.fetch` to create `timber.fetch` OTEL spans with method, URL, status code, duration, and cache status (`X-Cache`/`CF-Cache-Status`). Spans are children of the active component span, so fetches appear nested under the page/layout that initiated them in the dev log tree. Zero overhead in production — only activated in dev mode when dev logging is enabled.
 
 **Not yet implemented:**
 

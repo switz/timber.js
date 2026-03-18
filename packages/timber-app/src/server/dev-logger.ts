@@ -107,6 +107,11 @@ function spanLabel(span: ReadableSpan): { label: string; env: string } {
       const route = attrs['timber.route'] ?? '/';
       return { label: `page ${route}`, env: 'rsc' };
     }
+    case 'timber.fetch': {
+      const fetchMethod = attrs['http.request.method'] ?? 'GET';
+      const fetchUrl = attrs['http.url'] ?? '';
+      return { label: `fetch ${fetchMethod} ${fetchUrl}`, env: 'fetch' };
+    }
     default:
       return { label: span.name, env: 'rsc' };
   }
@@ -283,6 +288,43 @@ export function formatSpanTree(spans: ReadableSpan[], config?: DevLoggerConfig):
 }
 
 /**
+ * Format a fetch span line with method, URL, timing, duration, and cache status.
+ *
+ * Output: `├─ fetch GET https://api.example.com/data  12ms → 89ms (77ms) [cache: HIT]`
+ */
+function formatFetchLine(
+  span: ReadableSpan,
+  prefix: string,
+  connector: string,
+  startMs: number,
+  endMs: number,
+  durationMs: number
+): string {
+  const method = String(span.attributes['http.request.method'] ?? 'GET');
+  const url = String(span.attributes['http.url'] ?? '');
+  const statusCode = span.attributes['http.response.status_code'] as number | undefined;
+  const cacheStatus = span.attributes['timber.cache_status'] as string | undefined;
+  const fetchError = span.attributes['timber.fetch_error'] as string | undefined;
+  const isError = span.status.code === 2; // SpanStatusCode.ERROR
+
+  let line = `${prefix}${connector} ${DIM}fetch ${method}${RESET} ${url}`;
+  line += `  ${DIM}${startMs}ms → ${endMs}ms (${durationMs}ms)${RESET}`;
+
+  if (cacheStatus) {
+    line += `  ${DIM}[cdn: ${cacheStatus}]${RESET}`;
+  }
+
+  if (isError) {
+    const errMsg = fetchError ? `: ${fetchError}` : '';
+    line += `  ${RED}ERROR${errMsg}${RESET}`;
+  } else if (statusCode && statusCode >= 400) {
+    line += `  ${YELLOW}${statusCode}${RESET}`;
+  }
+
+  return line;
+}
+
+/**
  * Format a single span tree node with children, timing, and annotations.
  */
 function formatSpanNode(
@@ -300,6 +342,13 @@ function formatSpanNode(
   const endMs = Math.round(relativeMs(node.span.endTime, rootStart));
   const durationMs = endMs - startMs;
   const isSlow = durationMs > slowPhaseMs;
+
+  // Fetch spans get special formatting: no env tag, duration in parens, cache status
+  if (node.span.name === 'timber.fetch') {
+    const fetchLine = formatFetchLine(node.span, prefix, connector, startMs, endMs, durationMs);
+    lines.push(fetchLine);
+    return;
+  }
 
   // Access results from span attributes
   const accessResult = node.span.attributes['timber.result'] as string | undefined;

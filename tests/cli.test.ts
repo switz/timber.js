@@ -1,5 +1,26 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { parseArgs } from '../packages/timber-app/src/cli';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+// ─── Top-level mocks ─────────────────────────────────────────────────────────
+// vi.mock is hoisted and reliably intercepts both static and dynamic imports.
+// vi.doMock + vi.resetModules + dynamic import() is flaky in forks pool mode.
+
+vi.mock('vite', () => ({
+  createServer: vi.fn(),
+  createBuilder: vi.fn(),
+  preview: vi.fn(),
+}));
+
+vi.mock('node:fs', () => ({
+  existsSync: vi.fn(() => false),
+}));
+
+vi.mock('node:child_process', () => ({
+  execFile: vi.fn(),
+}));
+
+import { createServer, createBuilder, preview } from 'vite';
+import { execFile } from 'node:child_process';
+import { parseArgs, runDev, runBuild, runPreview, runCheck } from '../packages/timber-app/src/cli';
 
 // ─── parseArgs ────────────────────────────────────────────────────────────────
 
@@ -46,37 +67,29 @@ describe('parseArgs', () => {
 // ─── dev command ──────────────────────────────────────────────────────────────
 
 describe('runDev', () => {
-  let mockCreateServer: ReturnType<typeof vi.fn>;
   let mockServer: { listen: ReturnType<typeof vi.fn>; printUrls: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
-    vi.resetModules();
+    vi.clearAllMocks();
     mockServer = {
       listen: vi.fn().mockResolvedValue(undefined),
       printUrls: vi.fn(),
     };
-    mockCreateServer = vi.fn().mockResolvedValue(mockServer);
-    vi.doMock('vite', () => ({ createServer: mockCreateServer }));
-  });
-
-  afterEach(() => {
-    vi.doUnmock('vite');
+    vi.mocked(createServer).mockResolvedValue(mockServer as never);
   });
 
   it('dev starts Vite dev server', async () => {
-    const { runDev } = await import('../packages/timber-app/src/cli');
     await runDev({});
 
-    expect(mockCreateServer).toHaveBeenCalledOnce();
+    expect(createServer).toHaveBeenCalledOnce();
     expect(mockServer.listen).toHaveBeenCalledOnce();
     expect(mockServer.printUrls).toHaveBeenCalledOnce();
   });
 
   it('dev passes config path to createServer', async () => {
-    const { runDev } = await import('../packages/timber-app/src/cli');
     await runDev({ config: 'custom.config.ts' });
 
-    expect(mockCreateServer).toHaveBeenCalledWith(
+    expect(createServer).toHaveBeenCalledWith(
       expect.objectContaining({ configFile: 'custom.config.ts' })
     );
   });
@@ -85,41 +98,32 @@ describe('runDev', () => {
 // ─── build command ────────────────────────────────────────────────────────────
 
 describe('runBuild', () => {
-  let mockCreateBuilder: ReturnType<typeof vi.fn>;
   let mockBuilder: { buildApp: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
-    vi.resetModules();
+    vi.clearAllMocks();
     mockBuilder = {
       buildApp: vi.fn().mockResolvedValue(undefined),
     };
-    mockCreateBuilder = vi.fn().mockResolvedValue(mockBuilder);
-    vi.doMock('vite', () => ({ createBuilder: mockCreateBuilder }));
-  });
-
-  afterEach(() => {
-    vi.doUnmock('vite');
+    vi.mocked(createBuilder).mockResolvedValue(mockBuilder as never);
   });
 
   it('build produces output', async () => {
-    const { runBuild } = await import('../packages/timber-app/src/cli');
     await runBuild({});
 
     expect(mockBuilder.buildApp).toHaveBeenCalledOnce();
   });
 
   it('build uses createBuilder', async () => {
-    const { runBuild } = await import('../packages/timber-app/src/cli');
     await runBuild({});
 
-    expect(mockCreateBuilder).toHaveBeenCalledOnce();
+    expect(createBuilder).toHaveBeenCalledOnce();
   });
 
   it('build passes config path', async () => {
-    const { runBuild } = await import('../packages/timber-app/src/cli');
     await runBuild({ config: 'custom.config.ts' });
 
-    expect(mockCreateBuilder).toHaveBeenCalledWith(
+    expect(createBuilder).toHaveBeenCalledWith(
       expect.objectContaining({ configFile: 'custom.config.ts' })
     );
   });
@@ -128,35 +132,23 @@ describe('runBuild', () => {
 // ─── preview command ──────────────────────────────────────────────────────────
 
 describe('runPreview', () => {
-  let mockPreview: ReturnType<typeof vi.fn>;
-
   beforeEach(() => {
-    vi.resetModules();
-    mockPreview = vi.fn().mockResolvedValue({
-      printUrls: vi.fn(),
-    });
-    vi.doMock('vite', () => ({ preview: mockPreview }));
-    // Mock node:fs so loadTimberConfig finds no config and falls through to Vite preview
-    vi.doMock('node:fs', () => ({ existsSync: () => false }));
-  });
-
-  afterEach(() => {
-    vi.doUnmock('vite');
-    vi.doUnmock('node:fs');
+    vi.clearAllMocks();
+    // existsSync returns false by default (from top-level mock), so loadTimberConfig
+    // finds no config and falls through to Vite preview.
+    vi.mocked(preview).mockResolvedValue({ printUrls: vi.fn() } as never);
   });
 
   it('preview serves build', async () => {
-    const { runPreview } = await import('../packages/timber-app/src/cli');
     await runPreview({});
 
-    expect(mockPreview).toHaveBeenCalledOnce();
+    expect(preview).toHaveBeenCalledOnce();
   });
 
   it('preview passes config path', async () => {
-    const { runPreview } = await import('../packages/timber-app/src/cli');
     await runPreview({ config: 'custom.config.ts' });
 
-    expect(mockPreview).toHaveBeenCalledWith(
+    expect(preview).toHaveBeenCalledWith(
       expect.objectContaining({ configFile: 'custom.config.ts' })
     );
   });
@@ -165,35 +157,25 @@ describe('runPreview', () => {
 // ─── check command ────────────────────────────────────────────────────────────
 
 describe('runCheck', () => {
-  let mockExecFile: ReturnType<typeof vi.fn>;
-
   beforeEach(() => {
-    vi.resetModules();
-    mockExecFile = vi
-      .fn()
-      .mockImplementation(
-        (
-          _cmd: string,
-          _args: string[],
-          callback: (err: Error | null, stdout: string, stderr: string) => void
-        ) => {
-          callback(null, '', '');
-        }
-      );
-    vi.doMock('node:child_process', () => ({ execFile: mockExecFile }));
-  });
-
-  afterEach(() => {
-    vi.doUnmock('node:child_process');
+    vi.clearAllMocks();
+    vi.mocked(execFile).mockImplementation(
+      ((
+        _cmd: string,
+        _args: string[],
+        callback: (err: Error | null, stdout: string, stderr: string) => void
+      ) => {
+        callback(null, '', '');
+      }) as never
+    );
   });
 
   it('check validates without building', async () => {
-    const { runCheck } = await import('../packages/timber-app/src/cli');
     await runCheck({});
 
     // check should run tsc, not createBuilder
-    expect(mockExecFile).toHaveBeenCalled();
-    const firstCall = mockExecFile.mock.calls[0];
+    expect(execFile).toHaveBeenCalled();
+    const firstCall = vi.mocked(execFile).mock.calls[0];
     expect(firstCall[0]).toContain('tsgo');
   });
 });

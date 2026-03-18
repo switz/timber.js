@@ -9,6 +9,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { resolveSlotElement } from '../packages/timber-app/src/server/slot-resolver';
 import type { ManifestSegmentNode } from '../packages/timber-app/src/server/route-matcher';
+import { TimberErrorBoundary } from '../packages/timber-app/src/client/error-boundary';
 
 /** Test-only RouteMatch using ManifestSegmentNode (avoids RouteFile vs ManifestFile mismatch) */
 interface TestRouteMatch {
@@ -68,7 +69,10 @@ describe('resolveSlotElement', () => {
       h
     );
     expect(result).not.toBeNull();
-    expect((result as { type: unknown }).type).toBe(
+    // Outermost is the catch-all TimberErrorBoundary; inner is the page
+    const outer = result as { type: unknown; props: { children: { type: unknown } } };
+    expect(outer.type).toBe(TimberErrorBoundary);
+    expect(outer.props.children.type).toBe(
       ((await slotNode.page!.load()) as Record<string, unknown>).default
     );
   });
@@ -115,7 +119,10 @@ describe('resolveSlotElement', () => {
         slotNode.children as Array<{ page: { load: () => Promise<Record<string, unknown>> } }>
       )[0].page.load()
     ).default;
-    expect((result as { type: unknown }).type).toBe(projectsPage);
+    // Outermost is catch-all TimberErrorBoundary; inner is the page
+    const outer = result as { type: unknown; props: { children: { type: unknown } } };
+    expect(outer.type).toBe(TimberErrorBoundary);
+    expect(outer.props.children.type).toBe(projectsPage);
   });
 
   it('returns default.tsx when URL does not match any slot page', async () => {
@@ -295,12 +302,12 @@ describe('resolveSlotElement', () => {
     );
     expect(result).not.toBeNull();
 
-    // The outermost element should be the SidebarLayout
-    const outer = result as { type: unknown; props: { children: unknown } };
+    // Outermost is catch-all TimberErrorBoundary; next is the SidebarLayout
+    const catchAll = result as { type: unknown; props: { children: { type: unknown; props: { children: unknown } } } };
+    expect(catchAll.type).toBe(TimberErrorBoundary);
     const sidebarLayout = ((await slotNode.layout!.load()) as Record<string, unknown>).default;
-    expect(outer.type).toBe(sidebarLayout);
-    // The children prop should contain the page element
-    expect(outer.props.children).toBeDefined();
+    expect(catchAll.props.children.type).toBe(sidebarLayout);
+    expect(catchAll.props.children.props.children).toBeDefined();
   });
 
   it('renders intercepting child when interception is active', async () => {
@@ -358,7 +365,10 @@ describe('resolveSlotElement', () => {
         }>
       )[0].children[0].page.load()
     ).default;
-    expect((result as { type: unknown }).type).toBe(interceptedPage);
+    // Outermost is catch-all TimberErrorBoundary; inner is the page
+    const outer = result as { type: unknown; props: { children: { type: unknown } } };
+    expect(outer.type).toBe(TimberErrorBoundary);
+    expect(outer.props.children.type).toBe(interceptedPage);
   });
 
   it('falls back to default.tsx when no intercepting child matches', async () => {
@@ -449,13 +459,14 @@ describe('resolveSlotElement', () => {
     );
     expect(result).not.toBeNull();
 
-    // The outermost element should be the intermediate layout
-    const outer = result as { type: unknown; props: { children: unknown } };
+    // Outermost is catch-all TimberErrorBoundary; next is the intermediate layout
+    const catchAll = result as { type: unknown; props: { children: { type: unknown } } };
+    expect(catchAll.type).toBe(TimberErrorBoundary);
     const projectsLayout = (
       await (
         slotNode.children as Array<{ layout: { load: () => Promise<Record<string, unknown>> } }>
       )[0].layout.load()
     ).default;
-    expect(outer.type).toBe(projectsLayout);
+    expect(catchAll.props.children.type).toBe(projectsLayout);
   });
 });

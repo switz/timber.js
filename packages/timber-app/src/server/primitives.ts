@@ -1,4 +1,4 @@
-// Server-side primitives: deny, redirect, redirectExternal, RenderError, waitUntil
+// Server-side primitives: deny, redirect, redirectExternal, RenderError, waitUntil, SsrStreamError
 //
 // These are the core runtime signals that components, middleware, and access gates
 // use to control request flow. See design/10-error-handling.md.
@@ -261,4 +261,27 @@ export function waitUntil(promise: Promise<unknown>, adapter: WaitUntilAdapter):
  */
 export function _resetWaitUntilWarning(): void {
   _waitUntilWarned = false;
+}
+
+// ─── SsrStreamError ─────────────────────────────────────────────────────────
+
+/**
+ * Error thrown when SSR's renderToReadableStream fails due to an error
+ * in the decoded RSC stream (e.g., uncontained slot errors).
+ *
+ * The RSC entry checks for this error type in its catch block to avoid
+ * re-executing server components via renderDenyPage. Instead, it renders
+ * a bare deny/error page without layout wrapping.
+ *
+ * Defined in primitives.ts (not ssr-entry.ts) because ssr-entry.ts imports
+ * react-dom/server which cannot be loaded in the RSC environment.
+ */
+export class SsrStreamError extends Error {
+  constructor(
+    message: string,
+    public readonly cause: unknown
+  ) {
+    super(message);
+    this.name = 'SsrStreamError';
+  }
 }

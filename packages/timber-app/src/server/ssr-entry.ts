@@ -18,6 +18,8 @@ import { createFromReadableStream } from '@vitejs/plugin-rsc/ssr';
 import { AsyncLocalStorage } from 'node:async_hooks';
 
 import { renderSsrStream, buildSsrResponse } from './ssr-render.js';
+import { formatSsrError } from './error-formatter.js';
+import { SsrStreamError } from './primitives.js';
 import { injectHead, injectRscPayload } from './html-injectors.js';
 import { withNuqsSsrAdapter } from './nuqs-ssr-provider.js';
 import { withSpan } from './tracing.js';
@@ -141,11 +143,25 @@ export async function handleSsr(
       // in the shell HTML. This executes immediately during parsing — even
       // while Suspense boundaries are still streaming — triggering module
       // loading via dynamic import() so hydration can start early.
-      const htmlStream = await renderSsrStream(wrappedElement, {
-        bootstrapScriptContent: navContext.bootstrapScriptContent || undefined,
-        deferSuspenseFor: navContext.deferSuspenseFor,
-        signal: navContext.signal,
-      });
+      let htmlStream: ReadableStream<Uint8Array>;
+      try {
+        htmlStream = await renderSsrStream(wrappedElement, {
+          bootstrapScriptContent: navContext.bootstrapScriptContent || undefined,
+          deferSuspenseFor: navContext.deferSuspenseFor,
+          signal: navContext.signal,
+        });
+      } catch (renderError) {
+        // SSR shell rendering failed — the RSC stream contained an error
+        // that wasn't caught by any error boundary in the decoded tree.
+        // Wrap in SsrStreamError so the RSC entry can handle it without
+        // re-executing server components via renderDenyPage.
+        // See LOCAL-293.
+        console.error('[timber] SSR shell failed from RSC stream error:', formatSsrError(renderError));
+        throw new SsrStreamError(
+          'SSR renderToReadableStream failed due to RSC stream error',
+          renderError
+        );
+      }
 
       // Inject metadata into <head>, then interleave RSC payload chunks
       // into the body as they arrive from the tee'd RSC stream.

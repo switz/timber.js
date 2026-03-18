@@ -20,6 +20,8 @@ import type { ManifestSegmentNode } from './route-matcher.js';
 import type { RouteMatch, InterceptionContext } from './pipeline.js';
 import { SlotAccessGate } from './access-gate.js';
 import { wrapSegmentWithErrorBoundaries } from './error-boundary-wrapper.js';
+import { TimberErrorBoundary } from '#/client/error-boundary.js';
+import SlotErrorFallback from '#/client/slot-error-fallback.js';
 
 type CreateElementFn = (...args: unknown[]) => React.ReactElement;
 
@@ -141,6 +143,18 @@ export async function resolveSlotElement(
 
       // Wrap with slot root's error boundaries (outermost)
       element = await wrapSegmentWithErrorBoundaries(slotNode, element, h);
+
+      // Catch-all error boundary: ensures slot errors NEVER propagate to the
+      // parent layout. Without this, a slot without error.tsx that throws
+      // causes SSR's renderToReadableStream to reject, triggering renderDenyPage
+      // which re-executes all layout server components (including headers() calls
+      // that fail in the SSR environment). The null fallback means the slot
+      // degrades to nothing — consistent with the slot access denial behavior.
+      // See design/02-rendering-pipeline.md §"Slot Access Failure = Graceful Degradation"
+      element = h(TimberErrorBoundary, {
+        fallbackComponent: SlotErrorFallback,
+        children: element,
+      });
 
       return element;
     }

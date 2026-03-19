@@ -42,6 +42,7 @@ Before requesting external review:
 2. Check security against `design/13-security.md`
 3. Run lint and typecheck and fix issues
 4. Verify no file exceeds 500 lines
+5. Pull all Github PR comments/reviews from codex and other reviewers and double verify them
 
 ## Phase 4: Address feedback and merge
 

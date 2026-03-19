@@ -1,21 +1,20 @@
 /**
  * Shim: next/navigation → timber navigation primitives
  *
- * Client hooks use #/ source imports (individual files with 'use client' directives
- * that the RSC plugin detects).
- * Server functions use @timber-js/app/server (resolved to dist/ via native exports)
- * for ALS singleton consistency.
+ * Client hooks import from @timber-js/app/client (the public barrel) so they
+ * resolve to the same module instances as user code in Vite dev. Server
+ * functions import from @timber-js/app/server for ALS singleton consistency.
  */
 
-// Hooks (client-side — must use source imports for RSC 'use client' detection)
-export { useParams } from '#/client/use-params.js';
-export { usePathname } from '#/client/use-pathname.js';
-export { useSearchParams } from '#/client/use-search-params.js';
-export { useRouter } from '#/client/use-router.js';
+// Hooks (client-side — imported from public barrel for module singleton)
 export {
+  useParams,
+  usePathname,
+  useSearchParams,
+  useRouter,
   useSelectedLayoutSegment,
   useSelectedLayoutSegments,
-} from '#/client/use-selected-layout-segment.js';
+} from '@timber-js/app/client';
 
-// Functions (server-side — resolved to dist/ for ALS singleton consistency)
+// Functions (server-side)
 export { redirect, permanentRedirect, notFound, RedirectType } from '@timber-js/app/server';

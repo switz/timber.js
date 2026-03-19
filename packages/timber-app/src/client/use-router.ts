@@ -27,16 +27,6 @@ export interface AppRouterInstance {
   prefetch(href: string): void;
 }
 
-/** No-op router returned during SSR or before bootstrap. All methods are safe no-ops. */
-const SSR_NOOP_ROUTER: AppRouterInstance = {
-  push() {},
-  replace() {},
-  refresh() {},
-  back() {},
-  forward() {},
-  prefetch() {},
-};
-
 /**
  * Get a router instance for programmatic navigation.
  *
@@ -47,7 +37,7 @@ const SSR_NOOP_ROUTER: AppRouterInstance = {
  * because during hydration, React synchronously executes component render
  * functions *before* the router is bootstrapped in browser-entry.ts.
  * If we eagerly captured the router during render, components would get
- * the SSR_NOOP_ROUTER and be stuck with silent no-ops forever.
+ * a null reference and be stuck with silent no-ops forever.
  *
  * Returns safe no-ops during SSR or before bootstrap. The `typeof window`
  * check is insufficient because Vite's client SSR environment defines

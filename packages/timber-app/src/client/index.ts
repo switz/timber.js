@@ -18,7 +18,7 @@ export type {
 export { useNavigationPending } from './use-navigation-pending';
 export { useLinkStatus, LinkStatusContext } from './use-link-status';
 export type { LinkStatus } from './use-link-status';
-export { getRouter } from './router-ref';
+export { getRouter, setGlobalRouter } from './router-ref';
 export { useRouter } from './use-router';
 export type { AppRouterInstance } from './use-router';
 export { usePathname } from './use-pathname';

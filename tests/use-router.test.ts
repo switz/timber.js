@@ -6,8 +6,8 @@ import type { RouterInstance } from '../packages/timber-app/src/client/router';
 
 function makeMockRouter(): RouterInstance {
   return {
-    navigate: vi.fn(),
-    refresh: vi.fn(),
+    navigate: vi.fn().mockResolvedValue(undefined),
+    refresh: vi.fn().mockResolvedValue(undefined),
     handlePopState: vi.fn(),
     isPending: vi.fn(() => false),
     getPendingUrl: vi.fn(() => null),
@@ -40,21 +40,88 @@ describe('useRouter', () => {
     expect(() => router.prefetch('/baz')).not.toThrow();
   });
 
-  it('delegates to real router when bootstrapped', () => {
+  it('push triggers router.navigate with correct args', async () => {
     const mock = makeMockRouter();
     setGlobalRouter(mock);
 
     const router = useRouter();
     router.push('/page');
-    expect(mock.navigate).toHaveBeenCalledWith('/page', { scroll: undefined });
 
+    // navigate is called inside startTransition — wait for microtask flush
+    await vi.waitFor(() => {
+      expect(mock.navigate).toHaveBeenCalledWith('/page', { scroll: undefined });
+    });
+  });
+
+  it('replace triggers router.navigate with replace option', async () => {
+    const mock = makeMockRouter();
+    setGlobalRouter(mock);
+
+    const router = useRouter();
     router.replace('/other');
-    expect(mock.navigate).toHaveBeenCalledWith('/other', { scroll: undefined, replace: true });
 
+    await vi.waitFor(() => {
+      expect(mock.navigate).toHaveBeenCalledWith('/other', { scroll: undefined, replace: true });
+    });
+  });
+
+  it('refresh triggers router.refresh', async () => {
+    const mock = makeMockRouter();
+    setGlobalRouter(mock);
+
+    const router = useRouter();
     router.refresh();
-    expect(mock.refresh).toHaveBeenCalled();
 
+    await vi.waitFor(() => {
+      expect(mock.refresh).toHaveBeenCalled();
+    });
+  });
+
+  it('prefetch delegates directly (not via startTransition)', () => {
+    const mock = makeMockRouter();
+    setGlobalRouter(mock);
+
+    const router = useRouter();
     router.prefetch('/pre');
+
+    // prefetch is synchronous — called immediately without startTransition
     expect(mock.prefetch).toHaveBeenCalledWith('/pre');
+  });
+
+  it('push actually awaits router.navigate (not fire-and-forget)', async () => {
+    // Verify that navigate is called and its promise is tracked.
+    // Before the fix, `void router.navigate()` discarded the promise,
+    // meaning the RSC fetch might not complete.
+    let resolveNavigate!: () => void;
+    const navigatePromise = new Promise<void>((resolve) => {
+      resolveNavigate = resolve;
+    });
+    const mock = makeMockRouter();
+    mock.navigate = vi.fn().mockReturnValue(navigatePromise);
+    setGlobalRouter(mock);
+
+    const router = useRouter();
+    router.push('/dashboard');
+
+    // navigate was called inside startTransition
+    await vi.waitFor(() => {
+      expect(mock.navigate).toHaveBeenCalledWith('/dashboard', { scroll: undefined });
+    });
+
+    // Resolve the navigation promise (simulating RSC fetch completion)
+    resolveNavigate();
+    await navigatePromise;
+  });
+
+  it('push passes scroll: false through to navigate', async () => {
+    const mock = makeMockRouter();
+    setGlobalRouter(mock);
+
+    const router = useRouter();
+    router.push('/page', { scroll: false });
+
+    await vi.waitFor(() => {
+      expect(mock.navigate).toHaveBeenCalledWith('/page', { scroll: false });
+    });
   });
 });

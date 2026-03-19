@@ -9,6 +9,7 @@
  * AppRouterInstance shape that ecosystem libraries expect.
  */
 
+import { startTransition } from 'react';
 import { getRouter } from './router-ref.js';
 
 export interface AppRouterInstance {
@@ -56,13 +57,24 @@ export function useRouter(): AppRouterInstance {
 
   return {
     push(href: string, options?: { scroll?: boolean }) {
-      void router.navigate(href, { scroll: options?.scroll });
+      // Wrap in startTransition so React 19 tracks the async navigation.
+      // React 19's startTransition accepts async callbacks — it keeps
+      // isPending=true until the returned promise resolves. This means
+      // useTransition's isPending reflects the full RSC fetch + render
+      // lifecycle when wrapping router.push() in startTransition.
+      startTransition(async () => {
+        await router.navigate(href, { scroll: options?.scroll });
+      });
     },
     replace(href: string, options?: { scroll?: boolean }) {
-      void router.navigate(href, { scroll: options?.scroll, replace: true });
+      startTransition(async () => {
+        await router.navigate(href, { scroll: options?.scroll, replace: true });
+      });
     },
     refresh() {
-      void router.refresh();
+      startTransition(async () => {
+        await router.refresh();
+      });
     },
     back() {
       window.history.back();

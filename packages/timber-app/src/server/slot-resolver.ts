@@ -18,6 +18,7 @@
 
 import type { ManifestSegmentNode } from './route-matcher.js';
 import type { RouteMatch, InterceptionContext } from './pipeline.js';
+import { DenySignal } from './primitives.js';
 import { SlotAccessGate } from './access-gate.js';
 import { wrapSegmentWithErrorBoundaries } from './error-boundary-wrapper.js';
 import { TimberErrorBoundary } from '#/client/error-boundary.js';
@@ -56,7 +57,39 @@ export async function resolveSlotElement(
     const mod = (await slotMatch.page.load()) as Record<string, unknown>;
     if (mod.default) {
       const SlotPage = mod.default as (...args: unknown[]) => unknown;
-      let element: React.ReactElement = h(SlotPage, {
+
+      // Load default.tsx fallback for notFound() handling in the slot page.
+      // When a slot page calls notFound() or deny(), it should gracefully
+      // degrade to default.tsx or null — not crash the page. This matches
+      // Next.js behavior. See design/02-rendering-pipeline.md
+      // §"Slot Access Failure = Graceful Degradation"
+      let denyFallback: React.ReactElement | null = null;
+      if (slotNode.default) {
+        const defaultMod = (await slotNode.default.load()) as Record<string, unknown>;
+        const DefaultComp = defaultMod.default as ((...args: unknown[]) => unknown) | undefined;
+        if (DefaultComp) {
+          denyFallback = h(DefaultComp, { params: paramsPromise, searchParams: {} });
+        }
+      }
+
+      // Wrap the slot page to catch DenySignal (from notFound() or deny())
+      // at the component level. This prevents the signal from reaching the
+      // RSC onError callback and being tracked as a page-level denial, which
+      // would cause the pipeline to replace the entire successful SSR response
+      // with a deny page. Instead, the slot gracefully degrades.
+      const denyFallbackCapture = denyFallback;
+      const SafeSlotPage = async (props: Record<string, unknown>) => {
+        try {
+          return await (SlotPage as (props: Record<string, unknown>) => unknown)(props);
+        } catch (error) {
+          if (error instanceof DenySignal) {
+            return denyFallbackCapture;
+          }
+          throw error;
+        }
+      };
+
+      let element: React.ReactElement = h(SafeSlotPage, {
         params: paramsPromise,
         searchParams: {},
       });

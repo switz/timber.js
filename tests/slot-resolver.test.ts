@@ -6,11 +6,11 @@
  * independent error boundaries and layouts from their matched segment chain.
  */
 
-import { describe, it, expect, vi } from 'vitest';
-import { resolveSlotElement } from '../packages/timber-app/src/server/slot-resolver';
-import type { ManifestSegmentNode } from '../packages/timber-app/src/server/route-matcher';
+import { describe, expect, it, vi } from 'vitest';
 import { TimberErrorBoundary } from '../packages/timber-app/src/client/error-boundary';
 import { DenySignal } from '../packages/timber-app/src/server/primitives';
+import type { ManifestSegmentNode } from '../packages/timber-app/src/server/route-matcher';
+import { resolveSlotElement } from '../packages/timber-app/src/server/slot-resolver';
 
 /** Test-only RouteMatch using ManifestSegmentNode (avoids RouteFile vs ManifestFile mismatch) */
 interface TestRouteMatch {
@@ -119,11 +119,11 @@ describe('resolveSlotElement', () => {
       h
     );
     expect(result).not.toBeNull();
-    const projectsPage = (
-      await (
-        slotNode.children as Array<{ page: { load: () => Promise<Record<string, unknown>> } }>
-      )[0].page.load()
-    ).default;
+    // const projectsPage = (
+    //   await (
+    //     slotNode.children as Array<{ page: { load: () => Promise<Record<string, unknown>> } }>
+    //   )[0].page.load()
+    // ).default;
     // Outermost is catch-all TimberErrorBoundary; inner is SafeSlotPage wrapper
     const outer = result as {
       type: unknown;
@@ -371,13 +371,13 @@ describe('resolveSlotElement', () => {
       { targetPathname: '/feed/photo/123' }
     );
     expect(result).not.toBeNull();
-    const interceptedPage = (
-      await (
-        slotNode.children as Array<{
-          children: Array<{ page: { load: () => Promise<Record<string, unknown>> } }>;
-        }>
-      )[0].children[0].page.load()
-    ).default;
+    // const interceptedPage = (
+    //   await (
+    //     slotNode.children as Array<{
+    //       children: Array<{ page: { load: () => Promise<Record<string, unknown>> } }>;
+    //     }>
+    //   )[0].children[0].page.load()
+    // ).default;
     // Outermost is catch-all TimberErrorBoundary; inner is SafeSlotPage wrapper
     const outer = result as {
       type: unknown;
@@ -703,11 +703,11 @@ describe('resolveSlotElement', () => {
     expect(result).not.toBeNull();
 
     // Should match the slot's [artistSlug] child, not fail
-    const slotArtistPage = (
-      await (
-        slotNode.children as Array<{ page: { load: () => Promise<Record<string, unknown>> } }>
-      )[0].page.load()
-    ).default;
+    // const slotArtistPage = (
+    //   await (
+    //     slotNode.children as Array<{ page: { load: () => Promise<Record<string, unknown>> } }>
+    //   )[0].page.load()
+    // ).default;
     const outer = result as {
       type: unknown;
       props: { children: { type: unknown; props: unknown } };

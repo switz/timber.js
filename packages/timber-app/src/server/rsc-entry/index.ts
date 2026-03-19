@@ -24,51 +24,50 @@ import buildManifest from 'virtual:timber-build-manifest';
 
 import { renderToReadableStream } from '@vitejs/plugin-rsc/rsc';
 
-import React, { createElement } from 'react';
-import { createPipeline } from '#/server/pipeline.js';
-import { initDevTracing } from '#/server/tracing.js';
-import type { PipelineConfig, RouteMatch, InterceptionContext } from '#/server/pipeline.js';
-import { logRenderError } from '#/server/logger.js';
-import { resolveLogMode } from '#/server/dev-logger.js';
-import { createRouteMatcher, createMetadataRouteMatcher } from '#/server/route-matcher.js';
-import type { ManifestSegmentNode } from '#/server/route-matcher.js';
-import { DenySignal, RedirectSignal, RenderError, SsrStreamError } from '#/server/primitives.js';
-import { buildClientScripts } from '#/server/html-injectors.js';
-import type { ClientBootstrapConfig } from '#/server/html-injectors.js';
-import { renderDenyPage, renderDenyPageAsRsc } from '#/server/deny-renderer.js';
-import type { LayoutEntry } from '#/server/deny-renderer.js';
+import type { FormRerender } from '#/server/action-handler.js';
+import { handleActionRequest, isActionRequest } from '#/server/action-handler.js';
+import type { BodyLimitsConfig } from '#/server/body-limits.js';
+import type { BuildManifest } from '#/server/build-manifest.js';
 import {
-  collectRouteCss,
-  collectRouteFonts,
-  collectRouteModulepreloads,
   buildCssLinkTags,
   buildFontPreloadTags,
   buildModulepreloadTags,
+  collectRouteCss,
+  collectRouteFonts,
+  collectRouteModulepreloads,
 } from '#/server/build-manifest.js';
-import type { BuildManifest } from '#/server/build-manifest.js';
-import { collectEarlyHintHeaders } from '#/server/early-hints.js';
+import type { LayoutEntry } from '#/server/deny-renderer.js';
+import { renderDenyPage, renderDenyPageAsRsc } from '#/server/deny-renderer.js';
+import { resolveLogMode } from '#/server/dev-logger.js';
 import { sendEarlyHints103 } from '#/server/early-hints-sender.js';
-import type { NavContext } from '#/server/ssr-entry.js';
-import { buildRouteElement, RouteSignalWithContext } from '#/server/route-element-builder.js';
-import { isActionRequest, handleActionRequest } from '#/server/action-handler.js';
-import type { FormRerender } from '#/server/action-handler.js';
-import type { BodyLimitsConfig } from '#/server/body-limits.js';
+import { collectEarlyHintHeaders } from '#/server/early-hints.js';
 import { runWithFormFlash } from '#/server/form-flash.js';
+import type { ClientBootstrapConfig } from '#/server/html-injectors.js';
+import { buildClientScripts } from '#/server/html-injectors.js';
+import { logRenderError } from '#/server/logger.js';
+import type { InterceptionContext, PipelineConfig, RouteMatch } from '#/server/pipeline.js';
+import { createPipeline } from '#/server/pipeline.js';
+import { DenySignal, RedirectSignal, RenderError, SsrStreamError } from '#/server/primitives.js';
+import { buildRouteElement, RouteSignalWithContext } from '#/server/route-element-builder.js';
+import type { ManifestSegmentNode } from '#/server/route-matcher.js';
+import { createMetadataRouteMatcher, createRouteMatcher } from '#/server/route-matcher.js';
+import type { NavContext } from '#/server/ssr-entry.js';
+import { initDevTracing } from '#/server/tracing.js';
 
+import { renderFallbackError as renderFallback } from '#/server/fallback-error.js';
+import { handleApiRoute } from './api-handler.js';
+import { renderErrorPage, renderNoMatchPage } from './error-renderer.js';
 import {
-  createDebugChannelSink,
-  buildSegmentInfo,
-  isRscPayloadRequest,
   buildRedirectResponse,
+  buildSegmentInfo,
+  createDebugChannelSink,
   escapeHtml,
   isAbortError,
+  isRscPayloadRequest,
   parseCookiesFromHeader,
   RSC_CONTENT_TYPE,
 } from './helpers.js';
-import { handleApiRoute } from './api-handler.js';
-import { renderErrorPage, renderNoMatchPage } from './error-renderer.js';
 import { callSsr } from './ssr-bridge.js';
-import { renderFallbackError as renderFallback } from '#/server/fallback-error.js';
 
 // Dev-only pipeline error handler, set by the dev server after import.
 // In production this is always undefined — no overhead.

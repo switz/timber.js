@@ -16,13 +16,13 @@
  * See design/02-rendering-pipeline.md §"Parallel Slots"
  */
 
-import type { ManifestSegmentNode } from './route-matcher.js';
-import type { RouteMatch, InterceptionContext } from './pipeline.js';
-import { DenySignal } from './primitives.js';
-import { SlotAccessGate } from './access-gate.js';
-import { wrapSegmentWithErrorBoundaries } from './error-boundary-wrapper.js';
 import { TimberErrorBoundary } from '#/client/error-boundary.js';
 import SlotErrorFallback from '#/client/slot-error-fallback.js';
+import { SlotAccessGate } from './access-gate.js';
+import { wrapSegmentWithErrorBoundaries } from './error-boundary-wrapper.js';
+import type { InterceptionContext, RouteMatch } from './pipeline.js';
+import { DenySignal } from './primitives.js';
+import type { ManifestSegmentNode } from './route-matcher.js';
 
 type CreateElementFn = (...args: unknown[]) => React.ReactElement;
 

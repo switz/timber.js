@@ -661,10 +661,17 @@ async function renderRoute(
   // Helper: check if render-phase signals were captured and return the
   // appropriate HTTP response. Used after both successful SSR (signal
   // promotion from Suspense) and failed SSR (signal outside Suspense).
-  function checkCapturedSignals(): Response | Promise<Response> | null {
+  //
+  // When `skipHandledDeny` is true (SSR success path), skip DenySignal
+  // promotion if the denial was already handled by a TimberErrorBoundary
+  // (e.g., slot error boundary). The boundary sets navContext._denyHandledByBoundary
+  // during SSR rendering. See LOCAL-298.
+  function checkCapturedSignals(
+    skipHandledDeny = false
+  ): Response | Promise<Response> | null {
     const sig = redirectSignal as RedirectSignal | null;
     if (sig) return buildRedirectResponse(_req, sig, responseHeaders);
-    if (denySignal) {
+    if (denySignal && !(skipHandledDeny && navContext._denyHandledByBoundary)) {
       return renderDenyPage(
         denySignal,
         segments,
@@ -703,7 +710,7 @@ async function renderRoute(
     // See design/05-streaming.md §"deferSuspenseFor and the Hold Window"
     await new Promise<void>((r) => setTimeout(r, 0));
 
-    const promoted = checkCapturedSignals();
+    const promoted = checkCapturedSignals(/* skipHandledDeny */ true);
     if (promoted) {
       ssrResponse.body?.cancel();
       return promoted;

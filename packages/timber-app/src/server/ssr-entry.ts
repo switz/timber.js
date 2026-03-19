@@ -74,6 +74,13 @@ export interface NavContext {
   /** Request cookies as name→value pairs. Used by useCookie() during SSR
    *  to return correct cookie values before hydration. */
   cookies?: Map<string, string>;
+  /**
+   * Mutable flag: set by TimberErrorBoundary during SSR when it catches
+   * a DenySignal (via digest). This tells the RSC entry that the denial
+   * was contained by a slot error boundary and should NOT be promoted
+   * to a page-level deny. See LOCAL-298.
+   */
+  _denyHandledByBoundary?: boolean;
 }
 
 /**
@@ -111,6 +118,7 @@ export async function handleSsr(
       searchParams: navContext.searchParams,
       cookies: navContext.cookies ?? new Map(),
       params: navContext.params,
+      _navContext: navContext,
     };
 
     // Run the entire render inside the SSR data ALS scope.

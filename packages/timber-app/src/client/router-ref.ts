@@ -23,3 +23,12 @@ export function getRouter(): RouterInstance {
   }
   return globalRouter;
 }
+
+/**
+ * Get the global router instance or null if not yet initialized.
+ * Used by useRouter() methods to avoid silent failures — callers
+ * can log a meaningful warning instead of silently no-oping.
+ */
+export function getRouterOrNull(): RouterInstance | null {
+  return globalRouter;
+}

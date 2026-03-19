@@ -130,6 +130,17 @@ setServerCallback(async (id: string, args: unknown[]) => {
  * Hydrates the server-rendered HTML with React, then initializes
  * client-side navigation for SPA transitions.
  */
+/** Read scroll position from window or scroll containers. */
+function getScrollY(): number {
+  if (window.scrollY || document.documentElement.scrollTop || document.body.scrollTop) {
+    return window.scrollY || document.documentElement.scrollTop || document.body.scrollTop;
+  }
+  for (const el of document.querySelectorAll('[data-timber-scroll-restoration]')) {
+    if ((el as HTMLElement).scrollTop > 0) return (el as HTMLElement).scrollTop;
+  }
+  return 0;
+}
+
 function bootstrap(runtimeConfig: typeof config): void {
   const _config = runtimeConfig;
 
@@ -157,6 +168,9 @@ function bootstrap(runtimeConfig: typeof config): void {
 
   let reactRoot: Root | null = null;
   let initialElement: unknown = null;
+  // Declared here so it's accessible after the if/else hydration block.
+  // Assigned inside initRouter() which is called in both branches.
+  let router!: RouterInstance;
 
   if (timberChunks) {
     const encoder = new TextEncoder();
@@ -240,6 +254,15 @@ function bootstrap(runtimeConfig: typeof config): void {
 
     const element = createFromReadableStream(rscPayload);
     initialElement = element;
+
+    // ── Initialize the navigation router BEFORE hydration ──────────────
+    // hydrateRoot() synchronously executes component render functions.
+    // Components that call useRouter() during render need the global
+    // router to be available, otherwise they get a stale no-op reference.
+    // The renderRoot callback reads `reactRoot` lazily (via closure), so
+    // it's safe to create the router before reactRoot is assigned.
+    initRouter();
+
     // Hydrate on document — the root layout renders the full <html> tree,
     // so React owns the entire document from the root.
     // Wrap with TimberNuqsAdapter so useQueryStates works out of the box.
@@ -267,66 +290,66 @@ function bootstrap(runtimeConfig: typeof config): void {
     // non-hydrated root so client navigation can still render RSC payloads.
     // The initial SSR HTML remains as-is; the first client navigation will
     // replace it with a React-managed tree.
+    initRouter();
     reactRoot = createRoot(document);
   }
 
-  // Initialize the client-side navigation router.
-  const deps: RouterDeps = {
-    fetch: (url, init) => window.fetch(url, init),
-    pushState: (data, unused, url) => window.history.pushState(data, unused, url),
-    replaceState: (data, unused, url) => window.history.replaceState(data, unused, url),
-    scrollTo: (x, y) => {
-      window.scrollTo(x, y);
-      document.documentElement.scrollTop = y;
-      document.body.scrollTop = y;
-      // Also scroll any element explicitly marked as a scroll container.
-      for (const el of document.querySelectorAll('[data-timber-scroll-restoration]')) {
-        (el as HTMLElement).scrollTop = y;
-      }
-    },
-    getCurrentUrl: () => window.location.pathname + window.location.search,
-    getScrollY: () => {
-      if (window.scrollY || document.documentElement.scrollTop || document.body.scrollTop) {
-        return window.scrollY || document.documentElement.scrollTop || document.body.scrollTop;
-      }
-      for (const el of document.querySelectorAll('[data-timber-scroll-restoration]')) {
-        if ((el as HTMLElement).scrollTop > 0) return (el as HTMLElement).scrollTop;
-      }
-      return 0;
-    },
+  // ── Router initialization (hoisted above hydrateRoot) ────────────────
+  // Extracted into a function so both the hydration and createRoot paths
+  // can call it. Must run before hydrateRoot so useRouter() works during
+  // the initial render. The renderRoot dep reads `reactRoot` via closure,
+  // so it's fine that reactRoot is assigned after this runs.
+  function initRouter(): void {
+    const deps: RouterDeps = {
+      fetch: (url, init) => window.fetch(url, init),
+      pushState: (data, unused, url) => window.history.pushState(data, unused, url),
+      replaceState: (data, unused, url) => window.history.replaceState(data, unused, url),
+      scrollTo: (x, y) => {
+        window.scrollTo(x, y);
+        document.documentElement.scrollTop = y;
+        document.body.scrollTop = y;
+        // Also scroll any element explicitly marked as a scroll container.
+        for (const el of document.querySelectorAll('[data-timber-scroll-restoration]')) {
+          (el as HTMLElement).scrollTop = y;
+        }
+      },
+      getCurrentUrl: () => window.location.pathname + window.location.search,
+      getScrollY,
 
-    // Decode RSC Flight stream using createFromFetch.
-    // createFromFetch takes a Promise<Response> and progressively
-    // parses the RSC stream as chunks arrive.
-    decodeRsc: (fetchPromise: Promise<Response>) => {
-      return createFromFetch(fetchPromise);
-    },
+      // Decode RSC Flight stream using createFromFetch.
+      // createFromFetch takes a Promise<Response> and progressively
+      // parses the RSC stream as chunks arrive.
+      decodeRsc: (fetchPromise: Promise<Response>) => {
+        return createFromFetch(fetchPromise);
+      },
 
-    // Render decoded RSC tree into the hydrated React root.
-    // Wrap with TimberNuqsAdapter to maintain nuqs context across navigations.
-    renderRoot: (element: unknown) => {
-      if (reactRoot) {
-        const wrapped = createElement(TimberNuqsAdapter, null, element as React.ReactNode);
-        reactRoot.render(wrapped);
-      }
-    },
+      // Render decoded RSC tree into the hydrated React root.
+      // Wrap with TimberNuqsAdapter to maintain nuqs context across navigations.
+      // Reads `reactRoot` from the outer closure — assigned after hydrateRoot().
+      renderRoot: (element: unknown) => {
+        if (reactRoot) {
+          const wrapped = createElement(TimberNuqsAdapter, null, element as React.ReactNode);
+          reactRoot.render(wrapped);
+        }
+      },
 
-    // Schedule a callback after the next paint so scroll operations
-    // happen after React commits the new content to the DOM.
-    // Double-rAF ensures the browser has painted the new frame.
-    afterPaint: (callback: () => void) => {
-      requestAnimationFrame(() => {
-        requestAnimationFrame(callback);
-      });
-    },
+      // Schedule a callback after the next paint so scroll operations
+      // happen after React commits the new content to the DOM.
+      // Double-rAF ensures the browser has painted the new frame.
+      afterPaint: (callback: () => void) => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(callback);
+        });
+      },
 
-    // Apply resolved head elements (title, meta tags) to the DOM after
-    // SPA navigation. See design/16-metadata.md.
-    applyHead: applyHeadElements,
-  };
+      // Apply resolved head elements (title, meta tags) to the DOM after
+      // SPA navigation. See design/16-metadata.md.
+      applyHead: applyHeadElements,
+    };
 
-  const router = createRouter(deps);
-  setGlobalRouter(router);
+    router = createRouter(deps);
+    setGlobalRouter(router);
+  }
 
   // Store the initial page in the history stack so back-button works
   // after the first navigation. We store the decoded RSC element so
@@ -379,7 +402,7 @@ function bootstrap(runtimeConfig: typeof config): void {
       const state = window.history.state;
       if (state && typeof state === 'object') {
         // Use getScrollY to capture scroll from overflow containers too.
-        window.history.replaceState({ ...state, scrollY: deps.getScrollY() }, '');
+        window.history.replaceState({ ...state, scrollY: getScrollY() }, '');
       }
     }, 100);
   }

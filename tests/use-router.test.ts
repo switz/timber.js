@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { useRouter } from '../packages/timber-app/src/client/use-router';
-import { setGlobalRouter } from '../packages/timber-app/src/client/router-ref';
+import { setGlobalRouter, getRouterOrNull } from '../packages/timber-app/src/client/router-ref';
 import type { RouterInstance } from '../packages/timber-app/src/client/router';
 
 function makeMockRouter(): RouterInstance {

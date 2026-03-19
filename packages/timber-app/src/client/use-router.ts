@@ -10,7 +10,7 @@
  */
 
 import { startTransition } from 'react';
-import { getRouter } from './router-ref.js';
+import { getRouterOrNull } from './router-ref.js';
 
 export interface AppRouterInstance {
   /** Navigate to a URL, pushing a new history entry */
@@ -57,8 +57,13 @@ const SSR_NOOP_ROUTER: AppRouterInstance = {
 export function useRouter(): AppRouterInstance {
   return {
     push(href: string, options?: { scroll?: boolean }) {
-      let router;
-      try { router = getRouter(); } catch { return; }
+      const router = getRouterOrNull();
+      if (!router) {
+        if (process.env.NODE_ENV === 'development') {
+          console.error('[timber] useRouter().push() called but router is not initialized. This is a bug — please report it.');
+        }
+        return;
+      }
       // Wrap in startTransition so React 19 tracks the async navigation.
       // React 19's startTransition accepts async callbacks — it keeps
       // isPending=true until the returned promise resolves. This means
@@ -69,15 +74,25 @@ export function useRouter(): AppRouterInstance {
       });
     },
     replace(href: string, options?: { scroll?: boolean }) {
-      let router;
-      try { router = getRouter(); } catch { return; }
+      const router = getRouterOrNull();
+      if (!router) {
+        if (process.env.NODE_ENV === 'development') {
+          console.error('[timber] useRouter().replace() called but router is not initialized.');
+        }
+        return;
+      }
       startTransition(async () => {
         await router.navigate(href, { scroll: options?.scroll, replace: true });
       });
     },
     refresh() {
-      let router;
-      try { router = getRouter(); } catch { return; }
+      const router = getRouterOrNull();
+      if (!router) {
+        if (process.env.NODE_ENV === 'development') {
+          console.error('[timber] useRouter().refresh() called but router is not initialized.');
+        }
+        return;
+      }
       startTransition(async () => {
         await router.refresh();
       });
@@ -89,8 +104,8 @@ export function useRouter(): AppRouterInstance {
       if (typeof window !== 'undefined') window.history.forward();
     },
     prefetch(href: string) {
-      let router;
-      try { router = getRouter(); } catch { return; }
+      const router = getRouterOrNull();
+      if (!router) return; // Silent — prefetch failure is non-fatal
       router.prefetch(href);
     },
   };

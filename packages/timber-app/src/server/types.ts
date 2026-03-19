@@ -2,6 +2,22 @@
 
 import type { EarlyHint } from './early-hints.js';
 
+/**
+ * A value that is safe to pass through `JSON.stringify` without data loss.
+ *
+ * Used as the constraint for `deny(status, data)` and `RenderError` digest data
+ * because the post-flush path serializes via JSON.stringify, not React Flight.
+ * Types that survive Flight (Date, Map, Set, BigInt) would silently coerce or
+ * throw when serialized as JSON. This type prevents that at compile time.
+ */
+export type JsonSerializable =
+  | string
+  | number
+  | boolean
+  | null
+  | JsonSerializable[]
+  | { [key: string]: JsonSerializable };
+
 export interface MiddlewareContext {
   req: Request;
   requestHeaders: Headers;

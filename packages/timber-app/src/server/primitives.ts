@@ -3,6 +3,94 @@
 // These are the core runtime signals that components, middleware, and access gates
 // use to control request flow. See design/10-error-handling.md.
 
+import type { JsonSerializable } from './types.js';
+
+// ─── Dev-mode validation ────────────────────────────────────────────────────
+
+/**
+ * Check if a value is JSON-serializable without data loss.
+ * Returns a description of the first non-serializable value found, or null if OK.
+ *
+ * @internal Exported for testing only.
+ */
+export function findNonSerializable(value: unknown, path = 'data'): string | null {
+  if (value === null || value === undefined) return null;
+
+  switch (typeof value) {
+    case 'string':
+    case 'number':
+    case 'boolean':
+      return null;
+    case 'bigint':
+      return `${path} contains a BigInt — BigInt throws in JSON.stringify`;
+    case 'function':
+      return `${path} is a function — functions are not JSON-serializable`;
+    case 'symbol':
+      return `${path} is a symbol — symbols are not JSON-serializable`;
+    case 'object':
+      break;
+    default:
+      return `${path} has unsupported type "${typeof value}"`;
+  }
+
+  if (value instanceof Date) {
+    return `${path} is a Date — Dates silently coerce to strings in JSON.stringify`;
+  }
+  if (value instanceof Map) {
+    return `${path} is a Map — Maps serialize as {} in JSON.stringify (data loss)`;
+  }
+  if (value instanceof Set) {
+    return `${path} is a Set — Sets serialize as {} in JSON.stringify (data loss)`;
+  }
+  if (value instanceof RegExp) {
+    return `${path} is a RegExp — RegExps serialize as {} in JSON.stringify`;
+  }
+  if (value instanceof Error) {
+    return `${path} is an Error — Errors serialize as {} in JSON.stringify`;
+  }
+
+  if (Array.isArray(value)) {
+    for (let i = 0; i < value.length; i++) {
+      const result = findNonSerializable(value[i], `${path}[${i}]`);
+      if (result) return result;
+    }
+    return null;
+  }
+
+  // Plain object
+  if (Object.getPrototypeOf(value) !== Object.prototype && Object.getPrototypeOf(value) !== null) {
+    const name = (value as object).constructor?.name ?? 'unknown';
+    return `${path} is a ${name} instance — class instances may lose data in JSON.stringify`;
+  }
+
+  for (const key of Object.keys(value as Record<string, unknown>)) {
+    const result = findNonSerializable(
+      (value as Record<string, unknown>)[key],
+      `${path}.${key}`
+    );
+    if (result) return result;
+  }
+  return null;
+}
+
+/**
+ * Emit a dev-mode warning if data is not JSON-serializable.
+ * No-op in production.
+ */
+function warnIfNotSerializable(data: unknown, callerName: string): void {
+  if (process.env.NODE_ENV === 'production') return;
+  if (data === undefined) return;
+
+  const issue = findNonSerializable(data);
+  if (issue) {
+    console.warn(
+      `[timber] ${callerName}: ${issue}. ` +
+        'Data passed to deny() or RenderError must be JSON-serializable because ' +
+        'the post-flush path uses JSON.stringify, not React Flight.'
+    );
+  }
+}
+
 // ─── DenySignal ─────────────────────────────────────────────────────────────
 
 /**
@@ -11,9 +99,9 @@
  */
 export class DenySignal extends Error {
   readonly status: number;
-  readonly data: unknown;
+  readonly data: JsonSerializable | undefined;
 
-  constructor(status: number, data?: unknown) {
+  constructor(status: number, data?: JsonSerializable) {
     super(`Access denied with status ${status}`);
     this.name = 'DenySignal';
     this.status = status;
@@ -58,15 +146,16 @@ export class DenySignal extends Error {
  * - Inside Suspense (after flush): error boundary + noindex meta
  *
  * @param status - Any 4xx HTTP status code. Defaults to 403.
- * @param data - Optional data passed as `dangerouslyPassData` prop to status-code files.
+ * @param data - Optional JSON-serializable data passed as `dangerouslyPassData` prop to status-code files.
  */
-export function deny(status: number = 403, data?: unknown): never {
+export function deny(status: number = 403, data?: JsonSerializable): never {
   if (status < 400 || status > 499) {
     throw new Error(
       `deny() requires a 4xx status code, got ${status}. ` +
         'For 5xx errors, throw a RenderError instead.'
     );
   }
+  warnIfNotSerializable(data, 'deny()');
   throw new DenySignal(status, data);
 }
 
@@ -181,7 +270,10 @@ export function redirectExternal(url: string, allowList: string[], status: numbe
  * Typed digest that crosses the RSC → client boundary.
  * The `code` identifies the error class; `data` carries JSON-serializable context.
  */
-export interface RenderErrorDigest<TCode extends string = string, TData = unknown> {
+export interface RenderErrorDigest<
+  TCode extends string = string,
+  TData extends JsonSerializable = JsonSerializable,
+> {
   code: TCode;
   data: TData;
 }
@@ -200,7 +292,10 @@ export interface RenderErrorDigest<TCode extends string = string, TData = unknow
  * })
  * ```
  */
-export class RenderError<TCode extends string = string, TData = unknown> extends Error {
+export class RenderError<
+  TCode extends string = string,
+  TData extends JsonSerializable = JsonSerializable,
+> extends Error {
   readonly code: TCode;
   readonly digest: RenderErrorDigest<TCode, TData>;
   readonly status: number;
@@ -210,6 +305,8 @@ export class RenderError<TCode extends string = string, TData = unknown> extends
     this.name = 'RenderError';
     this.code = code;
     this.digest = { code, data };
+
+    warnIfNotSerializable(data, 'RenderError');
 
     const status = options?.status ?? 500;
     if (status < 400 || status > 599) {

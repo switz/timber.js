@@ -15,7 +15,7 @@ import { resolveSlotElement } from '../packages/timber-app/src/server/slot-resol
 /** Test-only RouteMatch using ManifestSegmentNode (avoids RouteFile vs ManifestFile mismatch) */
 interface TestRouteMatch {
   segments: ManifestSegmentNode[];
-  params: Record<string, string>;
+  params: Record<string, string | string[]>;
 }
 
 // Minimal mock createElement

@@ -186,6 +186,7 @@ export async function resolveSlotElement(
       // See design/02-rendering-pipeline.md §"Slot Access Failure = Graceful Degradation"
       element = h(TimberErrorBoundary, {
         fallbackComponent: SlotErrorFallback,
+        isSlotBoundary: true,
         children: element,
       });
 

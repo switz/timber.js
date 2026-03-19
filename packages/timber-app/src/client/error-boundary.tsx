@@ -71,6 +71,13 @@ export interface TimberErrorBoundaryProps {
    * 400 = any 4xx, 500 = any 5xx, specific number = exact match.
    */
   status?: number;
+  /**
+   * When true, catching a DenySignal sets _denyHandledByBoundary on the
+   * nav context to prevent page-level deny promotion. Only slot catch-all
+   * boundaries should set this — segment boundaries (403.tsx, 4xx.tsx,
+   * error.tsx) must NOT, otherwise normal page denies get swallowed.
+   */
+  isSlotBoundary?: boolean;
   children: ReactNode;
 }
 
@@ -97,26 +104,6 @@ export class TimberErrorBoundary extends Component<
     // would be a jarring flash for the user.
     if (_isUnloading) {
       return { hasError: false, error: null };
-    }
-
-    // Report DenySignal handling to prevent page-level promotion.
-    // When a slot's error boundary catches a DenySignal, the RSC onError
-    // callback has already tracked it globally. Setting this flag tells
-    // the RSC entry not to promote the denial to page-level (which would
-    // replace the entire SSR response). See LOCAL-298.
-    const digest = (error as { digest?: string }).digest;
-    if (typeof digest === 'string') {
-      try {
-        const parsed = JSON.parse(digest);
-        if (parsed?.type === 'deny') {
-          const ssrData = getSsrData();
-          if (ssrData?._navContext) {
-            ssrData._navContext._denyHandledByBoundary = true;
-          }
-        }
-      } catch {
-        // Not a JSON digest — ignore
-      }
     }
 
     return { hasError: true, error };
@@ -158,6 +145,20 @@ export class TimberErrorBoundary extends Component<
       if (errorStatus == null || !statusMatches(this.props.status, errorStatus)) {
         // Re-throw: this boundary doesn't handle this error.
         throw error;
+      }
+    }
+
+    // Report DenySignal handling to prevent page-level promotion — but only
+    // for slot boundaries. Segment boundaries (403.tsx, 4xx.tsx, error.tsx)
+    // must NOT set this flag, otherwise normal page/hold-window denies get
+    // swallowed as 200 with boundary HTML instead of the intended 4xx.
+    // Runs here in render() (not getDerivedStateFromError) so the status
+    // filter has already been applied — non-matching boundaries re-threw above.
+    // See LOCAL-298.
+    if (parsed?.type === 'deny' && this.props.isSlotBoundary) {
+      const ssrData = getSsrData();
+      if (ssrData?._navContext) {
+        ssrData._navContext._denyHandledByBoundary = true;
       }
     }
 

@@ -19,6 +19,7 @@
  */
 
 import { Component, createElement, type ReactNode } from 'react';
+import { getSsrData } from './ssr-data.js';
 
 // ─── Page Unload Detection ───────────────────────────────────────────────────
 // Track whether the page is being unloaded (user refreshed or navigated away).
@@ -97,6 +98,27 @@ export class TimberErrorBoundary extends Component<
     if (_isUnloading) {
       return { hasError: false, error: null };
     }
+
+    // Report DenySignal handling to prevent page-level promotion.
+    // When a slot's error boundary catches a DenySignal, the RSC onError
+    // callback has already tracked it globally. Setting this flag tells
+    // the RSC entry not to promote the denial to page-level (which would
+    // replace the entire SSR response). See LOCAL-298.
+    const digest = (error as { digest?: string }).digest;
+    if (typeof digest === 'string') {
+      try {
+        const parsed = JSON.parse(digest);
+        if (parsed?.type === 'deny') {
+          const ssrData = getSsrData();
+          if (ssrData?._navContext) {
+            ssrData._navContext._denyHandledByBoundary = true;
+          }
+        }
+      } catch {
+        // Not a JSON digest — ignore
+      }
+    }
+
     return { hasError: true, error };
   }
 

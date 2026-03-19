@@ -30,6 +30,13 @@ export interface SsrData {
   cookies: Map<string, string>;
   /** The request's route params (e.g. { id: '123' }) */
   params: Record<string, string | string[]>;
+  /**
+   * Mutable reference to NavContext for error boundary → RSC communication.
+   * When TimberErrorBoundary catches a DenySignal, it sets
+   * `_navContext._denyHandledByBoundary = true` to prevent the RSC entry
+   * from promoting the denial to page-level. See LOCAL-298.
+   */
+  _navContext?: { _denyHandledByBoundary?: boolean };
 }
 
 // ─── ALS-Backed Provider ─────────────────────────────────────────

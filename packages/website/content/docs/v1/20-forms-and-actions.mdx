@@ -1,8 +1,8 @@
 ---
-title: "Forms & Server Actions"
-description: "Server actions with validation, progressive enhancement, and forms that work without JavaScript."
-section: "Guides"
-slug: "forms-and-actions"
+title: 'Forms & Server Actions'
+description: 'Server actions with validation, progressive enhancement, and forms that work without JavaScript.'
+section: 'Guides'
+slug: 'forms-and-actions'
 ---
 
 # Forms & Server Actions
@@ -83,11 +83,11 @@ This form works with or without JavaScript. Without JS, it submits as a standard
 
 Three patterns for updating the UI after a mutation:
 
-| Pattern | When to use |
-|---------|------------|
-| `redirect('/path')` | User should land somewhere new |
-| `revalidatePath('/path')` | Current page needs fresh data |
-| `useOptimistic` | Instant UI update, action confirms in background |
+| Pattern                   | When to use                                      |
+| ------------------------- | ------------------------------------------------ |
+| `redirect('/path')`       | User should land somewhere new                   |
+| `revalidatePath('/path')` | Current page needs fresh data                    |
+| `useOptimistic`           | Instant UI update, action confirms in background |
 
 ## Validation
 
@@ -95,10 +95,12 @@ The `.schema()` method accepts any Standard Schema-compatible validator — Zod,
 
 ```ts
 export const updateProfile = action
-  .schema(z.object({
-    name: z.string().min(1).max(100),
-    bio: z.string().max(500).optional(),
-  }))
+  .schema(
+    z.object({
+      name: z.string().min(1).max(100),
+      bio: z.string().max(500).optional(),
+    })
+  )
   .action(async ({ input, ctx }) => {
     await db.users.update({ where: { id: ctx.user.id }, data: input });
     return revalidatePath('/profile');

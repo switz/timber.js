@@ -1,8 +1,8 @@
 ---
-title: "The network boundary"
+title: 'The network boundary'
 description: "What serializes across server and client, and what doesn't"
-section: "Concepts"
-slug: "the-network-boundary"
+section: 'Concepts'
+slug: 'the-network-boundary'
 notAI: true
 ---
 
@@ -15,6 +15,7 @@ When a server component renders a client component, data must cross from the ser
 Server components pass props to client components. Those props are serialized into the RSC (React Server Components) payload — a JSON-like format that React uses to transfer the component tree.
 
 **Can cross:**
+
 - Strings, numbers, booleans, null, undefined
 - Plain objects and arrays (with serializable values)
 - `BigInt`
@@ -22,6 +23,7 @@ Server components pass props to client components. Those props are serialized in
 - Server action references (`'use server'` functions)
 
 **Cannot cross:**
+
 - Functions (except server actions)
 - Class instances (`new Date()`, `new Map()`, custom classes)
 - Symbols
@@ -40,9 +42,9 @@ export default async function Page() {
   return (
     // ✅ Serializable props
     <UserCard
-      name={user.name}           // string
-      age={user.age}             // number
-      roles={user.roles}         // string[]
+      name={user.name} // string
+      age={user.age} // number
+      roles={user.roles} // string[]
       settings={{ theme: 'dark' }} // plain object
     />
 
@@ -75,7 +77,7 @@ async function addToCart(productId: string) {
 }
 
 // Server component passes the reference
-<AddToCartButton action={addToCart} productId={product.id} />
+<AddToCartButton action={addToCart} productId={product.id} />;
 ```
 
 ```tsx
@@ -102,7 +104,7 @@ When a server component passes JSX as `children` to a client component, the chil
 export default function Page() {
   return (
     <ClientTabs>
-      <ServerContent />   {/* rendered on server, output sent to client */}
+      <ServerContent /> {/* rendered on server, output sent to client */}
     </ClientTabs>
   );
 }

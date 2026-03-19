@@ -1,8 +1,8 @@
 ---
-title: "API: TypeScript"
-description: "Generated route types, typed Link, typed params, and the Routes interface."
-section: "API Reference"
-slug: "api-typescript"
+title: 'API: TypeScript'
+description: 'Generated route types, typed Link, typed params, and the Routes interface.'
+section: 'API Reference'
+slug: 'api-typescript'
 ---
 
 # TypeScript
@@ -44,9 +44,7 @@ For dynamic routes, use `interpolateParams`:
 ```tsx
 import { Link, interpolateParams } from '@timber-js/app/client';
 
-<Link href={interpolateParams('/products/[id]', { id: product.id })}>
-  {product.name}
-</Link>
+<Link href={interpolateParams('/products/[id]', { id: product.id })}>{product.name}</Link>;
 ```
 
 ## Typed Params
@@ -55,11 +53,7 @@ Page components receive typed params matching the route definition:
 
 ```tsx
 // app/products/[id]/page.tsx
-export default async function ProductPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default async function ProductPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   // id is typed as string
 }
@@ -87,9 +81,9 @@ Passed to API route handlers (`route.ts`):
 
 ```ts
 export async function GET(ctx: RouteContext) {
-  ctx.params;   // Record<string, string>
-  ctx.request;  // Request
-  ctx.url;      // URL
+  ctx.params; // Record<string, string>
+  ctx.request; // Request
+  ctx.url; // URL
 }
 ```
 
@@ -99,10 +93,10 @@ Passed to `middleware.ts`:
 
 ```ts
 export default async function middleware(ctx: MiddlewareContext) {
-  ctx.params;        // Record<string, string>
-  ctx.request;       // Request
-  ctx.url;           // URL
-  ctx.searchParams;  // Typed if search-params.ts exists
+  ctx.params; // Record<string, string>
+  ctx.request; // Request
+  ctx.url; // URL
+  ctx.searchParams; // Typed if search-params.ts exists
 }
 ```
 
@@ -112,8 +106,8 @@ Passed to `access.ts`:
 
 ```ts
 export default async function access(ctx: AccessContext) {
-  ctx.params;        // Record<string, string>
-  ctx.searchParams;  // Typed if search-params.ts exists
+  ctx.params; // Record<string, string>
+  ctx.searchParams; // Typed if search-params.ts exists
 }
 ```
 

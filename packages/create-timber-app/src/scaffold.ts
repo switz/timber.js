@@ -40,11 +40,7 @@ export async function copyDir(src: string, dst: string) {
   }
 }
 
-export async function replaceInDir(
-  dir: string,
-  search: string,
-  replacement: string,
-) {
+export async function replaceInDir(dir: string, search: string, replacement: string) {
   const entries = await readdir(dir, { withFileTypes: true });
   for (const entry of entries) {
     const fullPath = join(dir, entry.name);
@@ -63,7 +59,7 @@ export async function replaceInDir(
 export async function writeTimberConfig(
   targetDir: string,
   adapter: AdapterChoice,
-  features: FeatureOptions,
+  features: FeatureOptions
 ) {
   const adapterConfig = ADAPTERS[adapter];
   const lines: string[] = [];

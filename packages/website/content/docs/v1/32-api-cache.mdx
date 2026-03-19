@@ -1,8 +1,8 @@
 ---
-title: "API: @timber-js/app/cache"
-description: "Cache exports — createCache, CacheHandler, MemoryCacheHandler, and invalidation."
-section: "API Reference"
-slug: "api-cache"
+title: 'API: @timber-js/app/cache'
+description: 'Cache exports — createCache, CacheHandler, MemoryCacheHandler, and invalidation.'
+section: 'API Reference'
+slug: 'api-cache'
 ---
 
 # @timber-js/app/cache
@@ -31,12 +31,12 @@ const getUser = createCache(
 
 ### `CacheOptions<Fn>`
 
-| Option | Type | Description |
-|--------|------|-------------|
-| `ttl` | `number` | Time-to-live in seconds |
-| `key` | `(...args) => string` | Custom cache key function (optional) |
-| `staleWhileRevalidate` | `boolean` | Serve stale while refetching in background |
-| `tags` | `string[] \| (...args) => string[]` | Tags for invalidation |
+| Option                 | Type                                | Description                                |
+| ---------------------- | ----------------------------------- | ------------------------------------------ |
+| `ttl`                  | `number`                            | Time-to-live in seconds                    |
+| `key`                  | `(...args) => string`               | Custom cache key function (optional)       |
+| `staleWhileRevalidate` | `boolean`                           | Serve stale while refetching in background |
+| `tags`                 | `string[] \| (...args) => string[]` | Tags for invalidation                      |
 
 Default key: SHA-256 hash of function identity + deterministic JSON serialization of arguments.
 
@@ -65,9 +65,9 @@ handler.size; // Current number of entries
 
 ### Options
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `maxSize` | `number` | `1000` | Maximum entries before LRU eviction |
+| Option    | Type     | Default | Description                         |
+| --------- | -------- | ------- | ----------------------------------- |
+| `maxSize` | `number` | `1000`  | Maximum entries before LRU eviction |
 
 ## `RedisCacheHandler`
 

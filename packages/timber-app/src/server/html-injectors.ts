@@ -323,8 +323,7 @@ export function injectRscPayload(
 
   // Single transform: strip </body></html>, inject RSC scripts at
   // body level, re-emit suffix at the very end.
-  return htmlStream
-    .pipeThrough(createFlightInjectionTransform(rscScriptStream));
+  return htmlStream.pipeThrough(createFlightInjectionTransform(rscScriptStream));
 }
 
 /**
@@ -354,7 +353,10 @@ function findManifestEntry(map: Record<string, string>, suffix: string): string 
 }
 
 /** Find a manifest array entry by matching the key suffix. */
-function findManifestEntryArray(map: Record<string, string[]>, suffix: string): string[] | undefined {
+function findManifestEntryArray(
+  map: Record<string, string[]>,
+  suffix: string
+): string[] | undefined {
   for (const [key, value] of Object.entries(map)) {
     if (key.endsWith(suffix)) return value;
   }
@@ -431,7 +433,10 @@ export function buildClientScripts(runtimeConfig: {
 
   if (browserEntryUrl) {
     // Modulepreload hints for browser entry dependencies
-    const preloads = (manifest ? findManifestEntryArray(manifest.modulepreload, 'client/browser-entry.ts') : undefined) ?? [];
+    const preloads =
+      (manifest
+        ? findManifestEntryArray(manifest.modulepreload, 'client/browser-entry.ts')
+        : undefined) ?? [];
     for (const url of preloads) {
       preloadLinks += `<link rel="modulepreload" href="${url}">`;
     }

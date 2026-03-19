@@ -12,13 +12,13 @@ timber.js uses React 19.2.4 with `@vitejs/plugin-rsc` ~0.5.21, which bundles `re
 
 Data crosses three boundaries in timber.js:
 
-| Boundary | Mechanism | When |
-|----------|-----------|------|
-| RSC → SSR | `renderToReadableStream` (RSC) → `createFromReadableStream` (SSR) | Every page render |
-| RSC → Client (hydration) | RSC stream tee'd and inlined as `<script>` tags → `createFromReadableStream` (browser) | Initial page load |
-| RSC → Client (navigation) | RSC stream returned directly → `createFromFetch` (browser) | Client-side navigation |
-| Server Action → Client | `renderToReadableStream` of action return value → `createFromFetch` | Server action response |
-| Client → Server Action | `encodeReply` (browser) → `decodeReply` (server) | Action argument passing |
+| Boundary                  | Mechanism                                                                              | When                    |
+| ------------------------- | -------------------------------------------------------------------------------------- | ----------------------- |
+| RSC → SSR                 | `renderToReadableStream` (RSC) → `createFromReadableStream` (SSR)                      | Every page render       |
+| RSC → Client (hydration)  | RSC stream tee'd and inlined as `<script>` tags → `createFromReadableStream` (browser) | Initial page load       |
+| RSC → Client (navigation) | RSC stream returned directly → `createFromFetch` (browser)                             | Client-side navigation  |
+| Server Action → Client    | `renderToReadableStream` of action return value → `createFromFetch`                    | Server action response  |
+| Client → Server Action    | `encodeReply` (browser) → `decodeReply` (server)                                       | Action argument passing |
 
 All boundaries use the same Flight protocol. **A type that survives one boundary survives all of them.**
 
@@ -28,43 +28,43 @@ All boundaries use the same Flight protocol. **A type that survives one boundary
 
 ### Types that survive RSC→Client (React 19 Flight protocol)
 
-| Type | Serialized? | Round-trips correctly? | Notes |
-|------|-------------|----------------------|-------|
-| `string` | ✅ | ✅ | |
-| `number` | ✅ | ✅ | Including `NaN`, `Infinity`, `-Infinity`, `-0` |
-| `boolean` | ✅ | ✅ | |
-| `null` | ✅ | ✅ | |
-| `undefined` | ✅ | ✅ | |
-| `BigInt` | ✅ | ✅ | Serialized as `$n` prefix + decimal string |
-| `Date` | ✅ | ✅ | Serialized as `$D` + ISO string via `.toJSON()` |
-| `Map` | ✅ | ✅ | Serialized as entries |
-| `Set` | ✅ | ✅ | Serialized as values |
-| `Promise<T>` | ✅ | ✅ | Serialized as `$@` + streaming resolution. `T` must be serializable |
-| `FormData` | ✅ | ✅ | |
-| `Blob` | ✅ | ✅ | |
-| `ArrayBuffer` | ✅ | ✅ | |
-| `TypedArray` | ✅ | ✅ | All variants: `Int8Array`, `Uint8Array`, `Float32Array`, etc. |
-| `DataView` | ✅ | ✅ | |
-| `ReadableStream` | ✅ | ✅ | Streaming — chunks forwarded progressively |
-| `AsyncIterator` | ✅ | ✅ | Streaming |
-| `Iterator/Iterable` | ✅ | ✅ | Converted to array, or self-referencing iterators serialized as `$i` |
-| `Error` | ✅ | ⚠️ | Serialized via `onError` digest. Message survives; stack trace does NOT (by design — security). Custom properties stripped. |
-| React elements | ✅ | ✅ | Server components rendered; client component references serialized |
-| Plain objects | ✅ | ✅ | Must be plain (no custom prototype, no methods, no symbol keys) |
-| Arrays | ✅ | ✅ | |
+| Type                | Serialized? | Round-trips correctly? | Notes                                                                                                                       |
+| ------------------- | ----------- | ---------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `string`            | ✅          | ✅                     |                                                                                                                             |
+| `number`            | ✅          | ✅                     | Including `NaN`, `Infinity`, `-Infinity`, `-0`                                                                              |
+| `boolean`           | ✅          | ✅                     |                                                                                                                             |
+| `null`              | ✅          | ✅                     |                                                                                                                             |
+| `undefined`         | ✅          | ✅                     |                                                                                                                             |
+| `BigInt`            | ✅          | ✅                     | Serialized as `$n` prefix + decimal string                                                                                  |
+| `Date`              | ✅          | ✅                     | Serialized as `$D` + ISO string via `.toJSON()`                                                                             |
+| `Map`               | ✅          | ✅                     | Serialized as entries                                                                                                       |
+| `Set`               | ✅          | ✅                     | Serialized as values                                                                                                        |
+| `Promise<T>`        | ✅          | ✅                     | Serialized as `$@` + streaming resolution. `T` must be serializable                                                         |
+| `FormData`          | ✅          | ✅                     |                                                                                                                             |
+| `Blob`              | ✅          | ✅                     |                                                                                                                             |
+| `ArrayBuffer`       | ✅          | ✅                     |                                                                                                                             |
+| `TypedArray`        | ✅          | ✅                     | All variants: `Int8Array`, `Uint8Array`, `Float32Array`, etc.                                                               |
+| `DataView`          | ✅          | ✅                     |                                                                                                                             |
+| `ReadableStream`    | ✅          | ✅                     | Streaming — chunks forwarded progressively                                                                                  |
+| `AsyncIterator`     | ✅          | ✅                     | Streaming                                                                                                                   |
+| `Iterator/Iterable` | ✅          | ✅                     | Converted to array, or self-referencing iterators serialized as `$i`                                                        |
+| `Error`             | ✅          | ⚠️                     | Serialized via `onError` digest. Message survives; stack trace does NOT (by design — security). Custom properties stripped. |
+| React elements      | ✅          | ✅                     | Server components rendered; client component references serialized                                                          |
+| Plain objects       | ✅          | ✅                     | Must be plain (no custom prototype, no methods, no symbol keys)                                                             |
+| Arrays              | ✅          | ✅                     |                                                                                                                             |
 
 ### Types that do NOT survive
 
-| Type | What happens | User-facing behavior |
-|------|-------------|---------------------|
-| `RegExp` | Throws: "Only plain objects can be passed to Client Components" | Dev error in console; production silent error |
-| `Symbol` | Not serializable | Error |
-| Class instances | Throws: "Classes or null prototypes are not supported" | Must convert to plain object first |
-| `WeakMap` | Not serializable | Error |
-| `WeakSet` | Not serializable | Error |
-| Functions | Not serializable (unless server/client reference) | Error |
-| `URL` | Class instance — throws | Must pass `.toString()` or `.href` |
-| `Headers` | Class instance — throws | Must convert to plain object |
+| Type            | What happens                                                    | User-facing behavior                          |
+| --------------- | --------------------------------------------------------------- | --------------------------------------------- |
+| `RegExp`        | Throws: "Only plain objects can be passed to Client Components" | Dev error in console; production silent error |
+| `Symbol`        | Not serializable                                                | Error                                         |
+| Class instances | Throws: "Classes or null prototypes are not supported"          | Must convert to plain object first            |
+| `WeakMap`       | Not serializable                                                | Error                                         |
+| `WeakSet`       | Not serializable                                                | Error                                         |
+| Functions       | Not serializable (unless server/client reference)               | Error                                         |
+| `URL`           | Class instance — throws                                         | Must pass `.toString()` or `.href`            |
+| `Headers`       | Class instance — throws                                         | Must convert to plain object                  |
 
 ---
 
@@ -77,12 +77,14 @@ All boundaries use the same Flight protocol. **A type that survives one boundary
 React 19 Flight natively supports `Promise<T>` as a prop. The promise is serialized as a streaming reference (`$@` prefix) — the RSC stream emits the resolved value when the promise settles, and the client receives it as a real `Promise` that resolves with the deserialized value.
 
 timber.js's pipeline does NOT interfere with this mechanism:
+
 - `renderToReadableStream` in `rsc-entry/index.ts:372` serializes the element tree including promise props
 - The RSC stream is tee'd (`rsc-entry/index.ts:597`) — one copy to SSR, one inlined for hydration
 - SSR's `createFromReadableStream` (`ssr-entry.ts:130`) decodes promise references and passes them through to `renderToReadableStream` (React DOM), which handles Suspense boundaries
 - The browser's `createFromReadableStream` (`browser-entry.ts:241`) decodes promise references for hydration
 
 **The `use` hook pattern works:**
+
 ```tsx
 // Server component
 async function ProductPage() {
@@ -91,11 +93,17 @@ async function ProductPage() {
 }
 
 // Client component
-'use client';
+('use client');
 import { use } from 'react';
 function ReviewList({ reviews }: { reviews: Promise<Review[]> }) {
   const data = use(reviews); // Suspends until resolved
-  return <ul>{data.map(r => <li key={r.id}>{r.text}</li>)}</ul>;
+  return (
+    <ul>
+      {data.map((r) => (
+        <li key={r.id}>{r.text}</li>
+      ))}
+    </ul>
+  );
 }
 ```
 
@@ -122,6 +130,7 @@ React 19 Flight serializes `Date`, `Map`, and `Set` natively. These types surviv
 3. **Post-flush path** (inside Suspense): The RSC `onError` callback serializes `deny.data` into the digest as JSON (`rsc-entry/index.ts:383`). The client error boundary reads it back (`error-boundary.tsx:146`). This path uses `JSON.stringify`/`JSON.parse`, NOT Flight.
 
 **Implications:**
+
 - Pre-flush: `dangerouslyPassData` supports all Flight-serializable types (Date, Map, Set, BigInt, etc.)
 - Post-flush (inside Suspense): `dangerouslyPassData` only supports JSON-serializable types. `Date` becomes a string, `Map`/`Set`/`BigInt` are silently dropped or coerced.
 - The design doc says "Data must be JSON-serializable" — this is correct for the post-flush path but overly restrictive for pre-flush. However, since users can't control which path runs (it depends on Suspense boundary placement), **the effective contract should be JSON-serializable**.
@@ -160,6 +169,7 @@ The `deferSuspenseFor` mechanism (`ssr-render.ts:77-87`) operates at the HTML st
 4. `deferSuspenseFor` delays reading the HTML stream, giving fast promises time to resolve inline
 
 The two streaming mechanisms (Flight promise streaming and SSR Suspense streaming) are independent and compose correctly. A promise passed to a client component inside `<Suspense>`:
+
 - Resolves in the Flight stream when the promise settles
 - The SSR Suspense boundary waits for the `use()` hook to unsuspend
 - `deferSuspenseFor` holds the HTML flush, potentially inlining the content
@@ -179,6 +189,7 @@ Types that work in Next.js work in timber.js. Types that don't work in Next.js d
 ### 1. Dev-mode warning for non-serializable props (Follow-up issue)
 
 React's dev build already logs "Only plain objects can be passed to Client Components" when an unsupported type is detected. However, the warning is generic and doesn't mention timber-specific context. A timber-level dev warning could:
+
 - Detect common mistakes (passing `URL` objects, class instances, `RegExp`)
 - Suggest the fix (`.toString()`, `.href`, spreading to plain object)
 - Reference this audit document
@@ -190,6 +201,7 @@ React's dev build already logs "Only plain objects can be passed to Client Compo
 ### 3. Document serialization behavior (Follow-up issue)
 
 Add a user-facing guide covering:
+
 - What types can be passed from server to client components
 - The promise-as-prop pattern with `use()` and `<Suspense>`
 - Common pitfalls (RegExp, URL, class instances)
@@ -203,6 +215,7 @@ The `onError` callback in `rsc-entry/index.ts:376-411` uses `JSON.stringify` for
 ## Test Plan
 
 E2E tests should verify:
+
 1. `Date` prop survives RSC→client hydration
 2. `Map` prop survives RSC→client hydration
 3. `Set` prop survives RSC→client hydration

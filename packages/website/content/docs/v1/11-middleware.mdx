@@ -1,7 +1,7 @@
 ---
-title: "Middleware"
-description: "Per-segment middleware for request interception, redirects, and header manipulation."
-section: "Core Docs"
+title: 'Middleware'
+description: 'Per-segment middleware for request interception, redirects, and header manipulation.'
+section: 'Core Docs'
 ---
 
 # Middleware
@@ -55,10 +55,10 @@ export default async function middleware(ctx) {
 
 ```ts
 export default async function middleware(ctx: MiddlewareContext) {
-  ctx.params;        // Route params
-  ctx.request;       // The incoming Request
-  ctx.url;           // Parsed URL
-  ctx.searchParams;  // Typed search params (if search-params.ts exists)
+  ctx.params; // Route params
+  ctx.request; // The incoming Request
+  ctx.url; // Parsed URL
+  ctx.searchParams; // Typed search params (if search-params.ts exists)
 }
 ```
 

@@ -106,9 +106,7 @@ export function formatStatusFileLintWarnings(warnings: StatusFileLintWarning[]):
   lines.push(
     "  Status files and error.tsx are rendered inside TimberErrorBoundary (a 'use client' component)."
   );
-  lines.push(
-    "  Add 'use client' as the first line of each file to avoid a runtime error."
-  );
+  lines.push("  Add 'use client' as the first line of each file to avoid a runtime error.");
 
   return lines.join('\n');
 }

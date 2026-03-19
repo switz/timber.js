@@ -194,9 +194,7 @@ describe('AccessGate with pre-computed verdict', () => {
     const accessFn = vi.fn();
 
     // verdict='pass' makes AccessGate synchronous — no await needed
-    const result = AccessGate(
-      makeAccessGateProps({ accessFn, verdict: 'pass' })
-    );
+    const result = AccessGate(makeAccessGateProps({ accessFn, verdict: 'pass' }));
 
     // accessFn should NOT be called — verdict replays stored result
     expect(accessFn).not.toHaveBeenCalled();
@@ -208,9 +206,9 @@ describe('AccessGate with pre-computed verdict', () => {
     const accessFn = vi.fn();
     const denySignal = new DenySignal(403);
 
-    expect(() =>
-      AccessGate(makeAccessGateProps({ accessFn, verdict: denySignal }))
-    ).toThrow(DenySignal);
+    expect(() => AccessGate(makeAccessGateProps({ accessFn, verdict: denySignal }))).toThrow(
+      DenySignal
+    );
 
     expect(accessFn).not.toHaveBeenCalled();
   });
@@ -233,9 +231,9 @@ describe('AccessGate with pre-computed verdict', () => {
     const accessFn = vi.fn();
     const redirectSignal = new RedirectSignal('/login', 302);
 
-    expect(() =>
-      AccessGate(makeAccessGateProps({ accessFn, verdict: redirectSignal }))
-    ).toThrow(RedirectSignal);
+    expect(() => AccessGate(makeAccessGateProps({ accessFn, verdict: redirectSignal }))).toThrow(
+      RedirectSignal
+    );
 
     expect(accessFn).not.toHaveBeenCalled();
   });

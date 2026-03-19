@@ -153,9 +153,9 @@ function extractErrorHint(message: string): string | null {
   if (message.includes('Invalid hook call')) {
     return (
       'A hook was called outside of a React component render. ' +
-      'If this is a \'use client\' component, ensure the directive is at the very top of the file ' +
+      "If this is a 'use client' component, ensure the directive is at the very top of the file " +
       '(before any imports) and that @vitejs/plugin-rsc is loaded correctly. ' +
-      'Barrel re-exports from non-\'use client\' files do not propagate the directive.'
+      "Barrel re-exports from non-'use client' files do not propagate the directive."
     );
   }
 

@@ -22,9 +22,7 @@ export function ProjectFilter() {
         placeholder="Filter projects..."
         data-testid="project-filter-input"
       />
-      {filter && (
-        <span data-testid="project-filter-active">Filtering: {filter}</span>
-      )}
+      {filter && <span data-testid="project-filter-active">Filtering: {filter}</span>}
     </div>
   );
 }

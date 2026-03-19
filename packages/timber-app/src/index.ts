@@ -190,9 +190,7 @@ export function resolveAppDir(root: string, configAppDir?: string): string {
   if (configAppDir) {
     const explicit = join(root, configAppDir);
     if (!existsSync(explicit)) {
-      throw new Error(
-        `[timber] Configured appDir "${configAppDir}" does not exist at ${explicit}`
-      );
+      throw new Error(`[timber] Configured appDir "${configAppDir}" does not exist at ${explicit}`);
     }
     return explicit;
   }
@@ -361,19 +359,21 @@ export function timber(config?: TimberUserConfig): PluginOption[] {
   const consumerRequire = createRequire(join(process.cwd(), 'package.json'));
   const rscPluginPath = consumerRequire.resolve('@vitejs/plugin-rsc');
   ctx.timer.start('rsc-plugin-import');
-  const rscPluginsPromise = import(pathToFileURL(rscPluginPath).href).then(({ default: vitePluginRsc }) => {
-    ctx.timer.end('rsc-plugin-import');
-    return vitePluginRsc({
-      serverHandler: false,
-      customClientEntry: true,
-      entries: {
-        rsc: 'virtual:timber-rsc-entry',
-        ssr: 'virtual:timber-ssr-entry',
-        client: 'virtual:timber-browser-entry',
-      },
-      clientChunks: assignClientChunk,
-    });
-  });
+  const rscPluginsPromise = import(pathToFileURL(rscPluginPath).href).then(
+    ({ default: vitePluginRsc }) => {
+      ctx.timer.end('rsc-plugin-import');
+      return vitePluginRsc({
+        serverHandler: false,
+        customClientEntry: true,
+        entries: {
+          rsc: 'virtual:timber-rsc-entry',
+          ssr: 'virtual:timber-ssr-entry',
+          client: 'virtual:timber-browser-entry',
+        },
+        clientChunks: assignClientChunk,
+      });
+    }
+  );
 
   return [
     rootSync,

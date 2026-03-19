@@ -146,7 +146,9 @@ function createTimberMiddleware(server: ViteDevServer, projectRoot: string) {
     // environment's module runner for HMR-aware loading.
     let handler: (req: Request) => Promise<Response>;
     try {
-      const rscEnv = server.environments.rsc as DevEnvironment & { runner?: { import: (id: string) => Promise<any> } };
+      const rscEnv = server.environments.rsc as DevEnvironment & {
+        runner?: { import: (id: string) => Promise<any> };
+      };
       // Duck-type check instead of isRunnableDevEnvironment() — the vite
       // import-based check fails across pnpm link boundaries where the
       // linked package resolves a different vite module instance.

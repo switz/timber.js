@@ -289,7 +289,9 @@ describe('defineCookie', () => {
       });
 
       const req = new Request('http://localhost/test', {
-        headers: { Cookie: 'session=tampered.invalidsignatureinvalidsignatureinvalidsignature1234' },
+        headers: {
+          Cookie: 'session=tampered.invalidsignatureinvalidsignatureinvalidsignature1234',
+        },
       });
 
       runWithRequestContext(req, () => {

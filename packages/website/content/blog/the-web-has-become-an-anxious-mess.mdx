@@ -1,8 +1,8 @@
 ---
-title: "The Web Has Become an Anxious Mess"
-description: "Rethinking web framework fundamentals to give users a calmer experience"
+title: 'The Web Has Become an Anxious Mess'
+description: 'Rethinking web framework fundamentals to give users a calmer experience'
 publishedAt: 2026-03-16
-author: "Daniel Saewitz"
+author: 'Daniel Saewitz'
 # tags: ["announcement", "release"]
 draft: true
 ---
@@ -27,7 +27,7 @@ As websites became more interactive, we sprinkled in jQuery to add interactivity
 
 In a bid to unify the developer experience of writing web-apps, we began to write SPAs: a website that built HTML entirely with javascript. A huge leap in DX, we cost our users their calm, steadying web experience. And we cost ourselves something too: the rooted strength of the server. We solved #1, but we created three more problems.
 
-In an effort to bridge this gap, we created isomorphic SSR (or universal rendering). A javascript server would execute our client apps and *pre-render* them to unify the experience. Users saw the pages fully rendered, our client javascript integrated with the existing HTML, and all seemed good. But our websites grew beefy, large, and buggy. And we didn't *really* get the server back–instead we turned the server into another a dumbed down client.
+In an effort to bridge this gap, we created isomorphic SSR (or universal rendering). A javascript server would execute our client apps and _pre-render_ them to unify the experience. Users saw the pages fully rendered, our client javascript integrated with the existing HTML, and all seemed good. But our websites grew beefy, large, and buggy. And we didn't _really_ get the server back–instead we turned the server into another a dumbed down client.
 
 ### Spanning The Network Boundary
 
@@ -37,11 +37,10 @@ What if there was an architecture that embraced both. Whose complexity exists be
 
 ### A calm, better experience
 
-I'm going to implore you to try and understand react server components. How they work, why they exist, and how their architecture is *inevitable*. There has been much misunderstood about them. How they exist to sell servers. How they exist to create complexity. No. Neither of these are honest readings of the situation.
+I'm going to implore you to try and understand react server components. How they work, why they exist, and how their architecture is _inevitable_. There has been much misunderstood about them. How they exist to sell servers. How they exist to create complexity. No. Neither of these are honest readings of the situation.
 
 In Timber (and next.js), you can take advantage of server components without a server. They allow you to write components whose code is ran only at build-time, reducing your client-javascript bundle. If you run them with a server, you get full control of both sides of this network boundary.
 
 They are complex because the problem space, the domain is complex. Websites that want to sit across the network boundary need to have the optionality to control both sides. And work together through composition. If you are confused by them, that is okay. But the prior art here has perhaps clouded your judgement. They are graspable and once you do, I think you will see their power. I believe timber.js is a step in that direction.
 
 Please read the docs, please give it a try. Please help me save the web from anxiety and loading states.
-

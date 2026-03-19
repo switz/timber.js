@@ -124,9 +124,7 @@ export function rendererCssAnchor(): TwoslashRenderer {
 function processHoverInfo(text: string): string {
   // Clean up the type text — remove the "(property)" etc prefixes that
   // TS produces but keep the signature
-  let cleaned = text
-    .replace(/^\(alias\)\s+/gm, '')
-    .replace(/^import\s+/gm, '');
+  let cleaned = text.replace(/^\(alias\)\s+/gm, '').replace(/^import\s+/gm, '');
 
   // Trim excessive whitespace
   cleaned = cleaned.replace(/\n{3,}/g, '\n\n').trim();

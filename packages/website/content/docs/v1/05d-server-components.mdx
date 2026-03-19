@@ -1,8 +1,8 @@
 ---
-title: "Server components"
-description: "The three directives, data flow, and what crosses the network"
-section: "Concepts"
-slug: "server-components-concept"
+title: 'Server components'
+description: 'The three directives, data flow, and what crosses the network'
+section: 'Concepts'
+slug: 'server-components-concept'
 notAI: true
 ---
 
@@ -29,6 +29,7 @@ export default async function Dashboard() {
 ```
 
 Server components run on the server only. Their code never reaches the client. You can:
+
 - Use `await` directly in the component
 - Access databases, filesystems, secrets
 - Import large libraries without affecting bundle size
@@ -48,6 +49,7 @@ export default function Counter() {
 ```
 
 Client components run in the browser (and on the server for the initial HTML render). You need `'use client'` when you use:
+
 - `useState`, `useEffect`, `useRef`, or other hooks
 - Event handlers like `onClick`
 - Browser APIs like `window` or `localStorage`
@@ -131,18 +133,14 @@ You only add `'use client'` at the boundaries where interactivity begins. A typi
 </ServerLayout>
 ```
 
-The `'use client'` directive doesn't make everything below it a client component. It marks the *entry point* into client-side code. Server components can still appear as children — they render on the server and their output is passed through.
+The `'use client'` directive doesn't make everything below it a client component. It marks the _entry point_ into client-side code. Server components can still appear as children — they render on the server and their output is passed through.
 
 ## Async is natural
 
 Server components can be `async` functions. This is their superpower:
 
 ```tsx
-export default async function ProductPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default async function ProductPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const product = await db.products.find(id);
 

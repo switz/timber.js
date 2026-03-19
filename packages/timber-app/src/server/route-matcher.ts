@@ -10,10 +10,7 @@
 
 import type { RouteMatch } from './pipeline.js';
 import type { MiddlewareFn } from './middleware-runner.js';
-import {
-  METADATA_ROUTE_CONVENTIONS,
-  type MetadataRouteType,
-} from './metadata-routes.js';
+import { METADATA_ROUTE_CONVENTIONS, type MetadataRouteType } from './metadata-routes.js';
 
 // ─── Manifest Types ───────────────────────────────────────────────────────
 // The virtual module manifest has a slightly different shape than SegmentNode:

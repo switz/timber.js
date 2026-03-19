@@ -16,7 +16,10 @@ export default function ContactPage() {
 
       <form action={action} className="space-y-4">
         <div>
-          <label htmlFor="email" className="block text-sm font-medium text-bark dark:text-stone-300 mb-1">
+          <label
+            htmlFor="email"
+            className="block text-sm font-medium text-bark dark:text-stone-300 mb-1"
+          >
             Email
           </label>
           <input
@@ -29,7 +32,10 @@ export default function ContactPage() {
         </div>
 
         <div>
-          <label htmlFor="message" className="block text-sm font-medium text-bark dark:text-stone-300 mb-1">
+          <label
+            htmlFor="message"
+            className="block text-sm font-medium text-bark dark:text-stone-300 mb-1"
+          >
             Message
           </label>
           <textarea

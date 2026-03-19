@@ -364,7 +364,7 @@ function bootstrap(runtimeConfig: typeof config): void {
   // so duplicate URLs in history each have their own scroll position.
   window.addEventListener('popstate', () => {
     const state = window.history.state;
-    const scrollY = (state && typeof state.scrollY === 'number') ? state.scrollY : 0;
+    const scrollY = state && typeof state.scrollY === 'number' ? state.scrollY : 0;
     void router.handlePopState(window.location.pathname + window.location.search, scrollY);
   });
 

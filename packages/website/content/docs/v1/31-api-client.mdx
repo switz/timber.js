@@ -1,8 +1,8 @@
 ---
-title: "API: @timber-js/app/client"
-description: "Client-side exports — Link, useRouter, usePathname, navigation hooks, and form utilities."
-section: "API Reference"
-slug: "api-client"
+title: 'API: @timber-js/app/client'
+description: 'Client-side exports — Link, useRouter, usePathname, navigation hooks, and form utilities.'
+section: 'API Reference'
+slug: 'api-client'
 ---
 
 # @timber-js/app/client
@@ -25,12 +25,12 @@ import { Link } from '@timber-js/app/client';
 
 #### Props
 
-| Prop | Type | Description |
-|------|------|-------------|
-| `href` | `string` | Target URL (type-checked against route map) |
-| `replace` | `boolean` | Use `replaceState` instead of `pushState` |
-| `prefetch` | `boolean` | Prefetch on hover/viewport |
-| `onNavigate` | `OnNavigateHandler` | Intercept navigation before routing |
+| Prop         | Type                | Description                                 |
+| ------------ | ------------------- | ------------------------------------------- |
+| `href`       | `string`            | Target URL (type-checked against route map) |
+| `replace`    | `boolean`           | Use `replaceState` instead of `pushState`   |
+| `prefetch`   | `boolean`           | Prefetch on hover/viewport                  |
+| `onNavigate` | `OnNavigateHandler` | Intercept navigation before routing         |
 
 ### `<TimberErrorBoundary>`
 
@@ -53,13 +53,13 @@ router.forward();
 
 #### `RouterInstance`
 
-| Method | Description |
-|--------|-------------|
-| `push(href)` | Navigate, add history entry |
-| `replace(href)` | Navigate, replace history entry |
-| `refresh()` | Re-fetch current route RSC payload |
-| `back()` | Go back |
-| `forward()` | Go forward |
+| Method          | Description                        |
+| --------------- | ---------------------------------- |
+| `push(href)`    | Navigate, add history entry        |
+| `replace(href)` | Navigate, replace history entry    |
+| `refresh()`     | Re-fetch current route RSC payload |
+| `back()`        | Go back                            |
+| `forward()`     | Go forward                         |
 
 ### `usePathname()`
 

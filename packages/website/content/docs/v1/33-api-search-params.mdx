@@ -1,8 +1,8 @@
 ---
-title: "API: @timber-js/app/search-params"
-description: "Search params exports — createSearchParams, codecs, fromSchema, and useQueryStates."
-section: "API Reference"
-slug: "api-search-params"
+title: 'API: @timber-js/app/search-params'
+description: 'Search params exports — createSearchParams, codecs, fromSchema, and useQueryStates.'
+section: 'API Reference'
+slug: 'api-search-params'
 ---
 
 # @timber-js/app/search-params
@@ -26,14 +26,14 @@ export const searchParams = createSearchParams({
 
 ### Returns: `SearchParamsDefinition<T>`
 
-| Method | Description |
-|--------|-------------|
-| `.extend(defs)` | Add additional params |
-| `.pick(...keys)` | Create a subset |
-| `.serialize(values)` | Convert typed values to URL search string |
-| `.href(base, values)` | Build a full URL with params |
-| `.toSearchParams(values)` | Convert to `URLSearchParams` |
-| `.parse(searchParams)` | Parse and validate from `URLSearchParams` or string |
+| Method                    | Description                                         |
+| ------------------------- | --------------------------------------------------- |
+| `.extend(defs)`           | Add additional params                               |
+| `.pick(...keys)`          | Create a subset                                     |
+| `.serialize(values)`      | Convert typed values to URL search string           |
+| `.href(base, values)`     | Build a full URL with params                        |
+| `.toSearchParams(values)` | Convert to `URLSearchParams`                        |
+| `.parse(searchParams)`    | Parse and validate from `URLSearchParams` or string |
 
 ## `SearchParamCodec<T>`
 
@@ -47,6 +47,7 @@ interface SearchParamCodec<T> {
 ```
 
 Compatible codecs:
+
 - **Zod schemas** — `z.coerce.number()`, `z.enum([...])`, etc.
 - **nuqs parsers** — `parseAsInteger`, `parseAsString`, `parseAsBoolean`
 - **Custom** — any object implementing the interface
@@ -97,11 +98,11 @@ setParams({ sort: 'price' }, { shallow: true });
 
 ### Options
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `shallow` | `boolean` | `false` | `true`: URL-only update. `false`: triggers RSC navigation |
-| `scroll` | `boolean` | `true` | Scroll to top on change |
-| `history` | `'push' \| 'replace'` | `'push'` | History mode |
+| Option    | Type                  | Default  | Description                                               |
+| --------- | --------------------- | -------- | --------------------------------------------------------- |
+| `shallow` | `boolean`             | `false`  | `true`: URL-only update. `false`: triggers RSC navigation |
+| `scroll`  | `boolean`             | `true`   | Scroll to top on change                                   |
+| `history` | `'push' \| 'replace'` | `'push'` | History mode                                              |
 
 ## Build-Time Analysis
 

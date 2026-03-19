@@ -159,15 +159,13 @@ describe('runPreview', () => {
 describe('runCheck', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(execFile).mockImplementation(
-      ((
-        _cmd: string,
-        _args: string[],
-        callback: (err: Error | null, stdout: string, stderr: string) => void
-      ) => {
-        callback(null, '', '');
-      }) as never
-    );
+    vi.mocked(execFile).mockImplementation(((
+      _cmd: string,
+      _args: string[],
+      callback: (err: Error | null, stdout: string, stderr: string) => void
+    ) => {
+      callback(null, '', '');
+    }) as never);
   });
 
   it('check validates without building', async () => {

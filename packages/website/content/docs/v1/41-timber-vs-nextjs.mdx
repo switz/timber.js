@@ -1,8 +1,8 @@
 ---
-title: "timber.js vs Next.js"
-description: "An honest comparison of timber.js and Next.js — where they differ and why."
-section: "Comparisons"
-slug: "timber-vs-nextjs"
+title: 'timber.js vs Next.js'
+description: 'An honest comparison of timber.js and Next.js — where they differ and why.'
+section: 'Comparisons'
+slug: 'timber-vs-nextjs'
 ---
 
 # timber.js vs Next.js
@@ -13,12 +13,12 @@ That said, we made different design decisions in a few areas. Here's an honest c
 
 ## HTTP Semantics
 
-| Behavior | Next.js | timber.js |
-|----------|---------|-----------|
-| Status codes | Always 200 (streaming commits early) | Real status codes (flush held until shell ready) |
-| 404 pages | 200 + `not-found.tsx` error boundary | HTTP 404 + `404.tsx` |
-| Redirects in pages | Client-side via `redirect()` after 200 | HTTP 302/301 before any bytes sent |
-| Works without JS | Partially (primary content yes, interactions no) | Fully (forms, navigation, status codes all work) |
+| Behavior           | Next.js                                          | timber.js                                        |
+| ------------------ | ------------------------------------------------ | ------------------------------------------------ |
+| Status codes       | Always 200 (streaming commits early)             | Real status codes (flush held until shell ready) |
+| 404 pages          | 200 + `not-found.tsx` error boundary             | HTTP 404 + `404.tsx`                             |
+| Redirects in pages | Client-side via `redirect()` after 200           | HTTP 302/301 before any bytes sent               |
+| Works without JS   | Partially (primary content yes, interactions no) | Fully (forms, navigation, status codes all work) |
 
 This is the core philosophical difference. Next.js optimizes for earliest possible TTFB. timber.js optimizes for correct HTTP responses, at the cost of ~20ms additional server buffering.
 
@@ -38,27 +38,28 @@ Both use file-system routing in an `app/` directory. The models are similar:
 - Route groups — both support `(group)` directories
 
 **Differences:**
+
 - **Middleware:** Next.js has a single global `middleware.ts`. timber.js has per-segment `middleware.ts` files.
 - **Authorization:** timber.js has `access.ts` files for per-segment access control with `deny()`. Next.js uses middleware or in-component checks.
 - **Typed routes:** timber.js generates route types at build time — `<Link>` type-checks `href` and params.
 
 ## Caching
 
-| Behavior | Next.js | timber.js |
-|----------|---------|-----------|
-| `fetch()` caching | Cached by default (opt out with `cache: 'no-store'`) | Never cached (explicit is better) |
-| Cache API | `unstable_cache` / `'use cache'` | `timber.cache()` with TTL, tags, staleWhileRevalidate |
-| Revalidation | `revalidateTag()`, `revalidatePath()` | `revalidateTag()` |
+| Behavior          | Next.js                                              | timber.js                                             |
+| ----------------- | ---------------------------------------------------- | ----------------------------------------------------- |
+| `fetch()` caching | Cached by default (opt out with `cache: 'no-store'`) | Never cached (explicit is better)                     |
+| Cache API         | `unstable_cache` / `'use cache'`                     | `timber.cache()` with TTL, tags, staleWhileRevalidate |
+| Revalidation      | `revalidateTag()`, `revalidatePath()`                | `revalidateTag()`                                     |
 
 timber.js takes the position that implicit caching causes more bugs than it prevents. Nothing is cached unless you wrap it in `timber.cache()` or use `"use cache"`.
 
 ## Build System
 
-| | Next.js | timber.js |
-|--|---------|-----------|
-| Bundler | Turbopack / Webpack | Vite 7 (Rolldown) |
-| Config | `next.config.js` | `vite.config.ts` + `timber.config.ts` |
-| Plugin ecosystem | Next.js-specific | Full Vite plugin ecosystem |
+|                  | Next.js             | timber.js                             |
+| ---------------- | ------------------- | ------------------------------------- |
+| Bundler          | Turbopack / Webpack | Vite 7 (Rolldown)                     |
+| Config           | `next.config.js`    | `vite.config.ts` + `timber.config.ts` |
+| Plugin ecosystem | Next.js-specific    | Full Vite plugin ecosystem            |
 
 ## Platform Support
 

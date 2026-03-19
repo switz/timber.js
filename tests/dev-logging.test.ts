@@ -637,7 +637,9 @@ describe('layout nesting', () => {
     const lines = output.split('\n').filter((l: string) => l.trim().length > 0);
 
     // layout / should be child of render
-    const rootLayoutLine = lines.findIndex((l: string) => l.includes('layout /') && !l.includes('/docs'));
+    const rootLayoutLine = lines.findIndex(
+      (l: string) => l.includes('layout /') && !l.includes('/docs')
+    );
     // layout /docs should be nested deeper than layout /
     const docsLayoutLine = lines.findIndex((l: string) => l.includes('layout /docs'));
     // page should be nested deepest

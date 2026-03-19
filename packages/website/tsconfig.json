@@ -16,6 +16,6 @@
     "lib/**/*.ts",
     "content-collections.ts",
     "mdx-components.tsx",
-    ".content-collections/generated/**/*.ts",
+    ".content-collections/generated/**/*.ts"
   ]
 }

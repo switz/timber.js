@@ -1,8 +1,8 @@
 ---
-title: "Streaming"
-description: "How React streams HTML, what Suspense does in SSR, and how timber uses streaming"
-section: "Concepts"
-slug: "streaming-concept"
+title: 'Streaming'
+description: 'How React streams HTML, what Suspense does in SSR, and how timber uses streaming'
+section: 'Concepts'
+slug: 'streaming-concept'
 notAI: true
 ---
 
@@ -33,21 +33,19 @@ The shell — everything outside `<Suspense>` boundaries — arrives first. Then
 timber divides your page into two phases:
 
 **The shell** (before the flush point):
+
 - Layouts, navigation, page structure
 - Primary content that defines the page
 - Renders synchronously — determines the HTTP status code
 
 **Suspense boundaries** (after the flush):
+
 - Secondary content wrapped in `<Suspense>`
 - Can load data asynchronously
 - Stream in progressively as they resolve
 
 ```tsx
-export default async function ProductPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default async function ProductPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const product = await db.products.find(id);
 
@@ -55,11 +53,10 @@ export default async function ProductPage({
 
   return (
     <div>
-      <h1>{product.name}</h1>           {/* shell — sent at flush */}
-      <p>{product.description}</p>       {/* shell */}
-
+      <h1>{product.name}</h1> {/* shell — sent at flush */}
+      <p>{product.description}</p> {/* shell */}
       <Suspense fallback={<p>Loading reviews...</p>}>
-        <Reviews productId={id} />       {/* streams in later */}
+        <Reviews productId={id} /> {/* streams in later */}
       </Suspense>
     </div>
   );
@@ -82,11 +79,13 @@ timber takes a different approach: stream only what you explicitly opt into with
 ## Choosing what to stream
 
 **Don't stream** (keep in the shell):
+
 - Content that defines the page — the product, the article, the user profile
 - Content that might produce a 404 or redirect
 - Content that should be visible without JavaScript
 
 **Do stream** (wrap in `<Suspense>`):
+
 - Recommendations, related items, activity feeds
 - Analytics widgets, personalization
 - Anything slow that isn't essential to the page's identity

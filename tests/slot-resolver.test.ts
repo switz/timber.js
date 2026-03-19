@@ -71,7 +71,10 @@ describe('resolveSlotElement', () => {
     );
     expect(result).not.toBeNull();
     // Outermost is the catch-all TimberErrorBoundary; inner is the SafeSlotPage wrapper
-    const outer = result as { type: unknown; props: { children: { type: unknown; props: unknown } } };
+    const outer = result as {
+      type: unknown;
+      props: { children: { type: unknown; props: unknown } };
+    };
     expect(outer.type).toBe(TimberErrorBoundary);
     // Verify the wrapper delegates to the actual page — calling it produces the page result
     const wrapper = outer.props.children;
@@ -122,7 +125,10 @@ describe('resolveSlotElement', () => {
       )[0].page.load()
     ).default;
     // Outermost is catch-all TimberErrorBoundary; inner is SafeSlotPage wrapper
-    const outer = result as { type: unknown; props: { children: { type: unknown; props: unknown } } };
+    const outer = result as {
+      type: unknown;
+      props: { children: { type: unknown; props: unknown } };
+    };
     expect(outer.type).toBe(TimberErrorBoundary);
     const wrapper = outer.props.children;
     expect(typeof wrapper.type).toBe('function');
@@ -307,7 +313,10 @@ describe('resolveSlotElement', () => {
     expect(result).not.toBeNull();
 
     // Outermost is catch-all TimberErrorBoundary; next is the SidebarLayout
-    const catchAll = result as { type: unknown; props: { children: { type: unknown; props: { children: unknown } } } };
+    const catchAll = result as {
+      type: unknown;
+      props: { children: { type: unknown; props: { children: unknown } } };
+    };
     expect(catchAll.type).toBe(TimberErrorBoundary);
     const sidebarLayout = ((await slotNode.layout!.load()) as Record<string, unknown>).default;
     expect(catchAll.props.children.type).toBe(sidebarLayout);
@@ -370,7 +379,10 @@ describe('resolveSlotElement', () => {
       )[0].children[0].page.load()
     ).default;
     // Outermost is catch-all TimberErrorBoundary; inner is SafeSlotPage wrapper
-    const outer = result as { type: unknown; props: { children: { type: unknown; props: unknown } } };
+    const outer = result as {
+      type: unknown;
+      props: { children: { type: unknown; props: unknown } };
+    };
     expect(outer.type).toBe(TimberErrorBoundary);
     const wrapper = outer.props.children;
     expect(typeof wrapper.type).toBe('function');
@@ -508,7 +520,10 @@ describe('resolveSlotElement', () => {
     // The outermost is catch-all TimberErrorBoundary.
     // Drill into the tree to find the SafeSlotPage wrapper rendered the default fallback.
     // The SafeSlotPage caught the DenySignal and returned the default.tsx component.
-    const outer = result as { type: unknown; props: { children: { type: unknown; props: unknown } } };
+    const outer = result as {
+      type: unknown;
+      props: { children: { type: unknown; props: unknown } };
+    };
     expect(outer.type).toBe(TimberErrorBoundary);
 
     // Verify the SafeSlotPage wrapper is present (the inner element's type is the wrapper)
@@ -552,7 +567,10 @@ describe('resolveSlotElement', () => {
     expect(result).not.toBeNull(); // element tree exists (has error boundary wrapper)
 
     // Call the SafeSlotPage — should catch DenySignal and return null
-    const outer = result as { type: unknown; props: { children: { type: unknown; props: unknown } } };
+    const outer = result as {
+      type: unknown;
+      props: { children: { type: unknown; props: unknown } };
+    };
     const innerElement = outer.props.children;
     const rendered = await (innerElement.type as (props: unknown) => Promise<unknown>)(
       innerElement.props
@@ -589,7 +607,10 @@ describe('resolveSlotElement', () => {
     );
 
     // Call the SafeSlotPage — should catch any DenySignal, not just 404
-    const outer = result as { type: unknown; props: { children: { type: unknown; props: unknown } } };
+    const outer = result as {
+      type: unknown;
+      props: { children: { type: unknown; props: unknown } };
+    };
     const innerElement = outer.props.children;
     const rendered = await (innerElement.type as (props: unknown) => Promise<unknown>)(
       innerElement.props
@@ -627,7 +648,10 @@ describe('resolveSlotElement', () => {
     );
 
     // Call the SafeSlotPage — non-DenySignal errors should propagate
-    const outer = result as { type: unknown; props: { children: { type: unknown; props: unknown } } };
+    const outer = result as {
+      type: unknown;
+      props: { children: { type: unknown; props: unknown } };
+    };
     const innerElement = outer.props.children;
     await expect(
       (innerElement.type as (props: unknown) => Promise<unknown>)(innerElement.props)
@@ -684,7 +708,10 @@ describe('resolveSlotElement', () => {
         slotNode.children as Array<{ page: { load: () => Promise<Record<string, unknown>> } }>
       )[0].page.load()
     ).default;
-    const outer = result as { type: unknown; props: { children: { type: unknown; props: unknown } } };
+    const outer = result as {
+      type: unknown;
+      props: { children: { type: unknown; props: unknown } };
+    };
     expect(outer.type).toBe(TimberErrorBoundary);
     const wrapper = outer.props.children;
     expect(typeof wrapper.type).toBe('function');

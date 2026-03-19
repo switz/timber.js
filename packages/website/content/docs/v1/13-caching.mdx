@@ -1,7 +1,7 @@
 ---
-title: "Caching"
-description: "Explicit caching with timber.cache — TTL, tags, staleWhileRevalidate, and pluggable backends."
-section: "Core Docs"
+title: 'Caching'
+description: 'Explicit caching with timber.cache — TTL, tags, staleWhileRevalidate, and pluggable backends.'
+section: 'Core Docs'
 ---
 
 # Caching
@@ -33,9 +33,9 @@ const getUser = cache(
     return db.users.findUnique({ where: { id: userId } });
   },
   {
-    ttl: 60,                           // Cache for 60 seconds
+    ttl: 60, // Cache for 60 seconds
     key: (userId) => `user:${userId}`, // Explicit cache key (optional)
-    staleWhileRevalidate: true,        // Serve stale while refetching
+    staleWhileRevalidate: true, // Serve stale while refetching
     tags: (userId) => [`user:${userId}`], // For tag-based invalidation
   }
 );
@@ -72,7 +72,7 @@ When multiple concurrent requests miss the cache for the same key, only one exec
 For component-level caching, use the `"use cache"` directive:
 
 ```tsx
-"use cache";
+'use cache';
 
 export default async function PopularProducts() {
   const products = await db.products.findPopular();
@@ -98,9 +98,9 @@ Implement the `CacheHandler` interface for Redis, Cloudflare KV, or any other ba
 
 ## timber.cache vs React.cache
 
-| | `timber.cache` | `React.cache` |
-|--|---------------|---------------|
-| Scope | Cross-request (persistent) | Single request |
-| TTL/tags | Yes | No |
-| Works in middleware | Yes | No |
-| Use case | Database queries, API calls | Request-scoped dedup |
+|                     | `timber.cache`              | `React.cache`        |
+| ------------------- | --------------------------- | -------------------- |
+| Scope               | Cross-request (persistent)  | Single request       |
+| TTL/tags            | Yes                         | No                   |
+| Works in middleware | Yes                         | No                   |
+| Use case            | Database queries, API calls | Request-scoped dedup |

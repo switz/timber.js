@@ -12,10 +12,7 @@ export function ProjectCounter() {
   return (
     <div data-testid="project-counter">
       <span data-testid="project-counter-value">{count}</span>
-      <button
-        data-testid="project-counter-button"
-        onClick={() => setCount((c) => c + 1)}
-      >
+      <button data-testid="project-counter-button" onClick={() => setCount((c) => c + 1)}>
         +1
       </button>
     </div>

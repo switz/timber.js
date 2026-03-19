@@ -2,30 +2,34 @@
   "name": "@timber-js/app",
   "version": "0.1.10",
   "description": "Vite-native React framework for Cloudflare Workers — correct HTTP semantics, real status codes, pages that work without JavaScript",
-  "type": "module",
+  "keywords": [
+    "cloudflare-workers",
+    "framework",
+    "react",
+    "react-server-components",
+    "rsc",
+    "ssr",
+    "streaming",
+    "vite"
+  ],
+  "homepage": "https://github.com/switz/timber.js",
   "license": "SEE LICENSE IN LICENSE",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/switz/timber.js.git",
     "directory": "packages/timber-app"
   },
-  "homepage": "https://github.com/switz/timber.js",
-  "keywords": [
-    "react",
-    "vite",
-    "rsc",
-    "react-server-components",
-    "cloudflare-workers",
-    "framework",
-    "ssr",
-    "streaming"
-  ],
-  "engines": {
-    "node": ">=20.0.0"
-  },
   "bin": {
     "timber": "./bin/timber.mjs"
   },
+  "files": [
+    "dist",
+    "src",
+    "bin",
+    "README.md",
+    "LICENSE"
+  ],
+  "type": "module",
   "imports": {
     "#/*": "./src/*"
   },
@@ -75,13 +79,6 @@
   "publishConfig": {
     "access": "public"
   },
-  "files": [
-    "dist",
-    "src",
-    "bin",
-    "README.md",
-    "LICENSE"
-  ],
   "scripts": {
     "build": "vite build --config vite.lib.config.ts && tsc --emitDeclarationOnly --project tsconfig.json --outDir dist",
     "typecheck": "tsgo --noEmit",
@@ -121,5 +118,8 @@
     "zod": {
       "optional": true
     }
+  },
+  "engines": {
+    "node": ">=20.0.0"
   }
 }

@@ -79,7 +79,10 @@ export interface AccessGateProps {
    * - 'pass': render children
    * - DenySignal/RedirectSignal: throw synchronously
    */
-  verdict?: 'pass' | import('./primitives.js').DenySignal | import('./primitives.js').RedirectSignal;
+  verdict?:
+    | 'pass'
+    | import('./primitives.js').DenySignal
+    | import('./primitives.js').RedirectSignal;
   children: ReactElement;
 }
 

@@ -130,11 +130,11 @@ describe('signed cookies', () => {
       setCookieSecrets([SECRET]);
 
       const cases = [
-        'prefs=',           // empty value
-        'prefs=.',          // dot only
+        'prefs=', // empty value
+        'prefs=.', // dot only
         'prefs=.signature', // empty value part
-        'prefs=value.',     // empty signature part
-        'prefs=a.b.c.d',   // multiple dots — split at last dot
+        'prefs=value.', // empty signature part
+        'prefs=a.b.c.d', // multiple dots — split at last dot
       ];
 
       for (const cookieStr of cases) {
@@ -200,9 +200,7 @@ describe('signed cookies', () => {
 
       runWithRequestContext(req, () => {
         setMutableCookieContext(true);
-        expect(() => cookies().set('prefs', 'val', { signed: true })).toThrow(
-          'cookies.secret'
-        );
+        expect(() => cookies().set('prefs', 'val', { signed: true })).toThrow('cookies.secret');
       });
     });
 

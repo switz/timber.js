@@ -1,8 +1,8 @@
 ---
-title: "Composition"
-description: "How layouts, slots, and boundaries compose through children"
-section: "Concepts"
-slug: "composition"
+title: 'Composition'
+description: 'How layouts, slots, and boundaries compose through children'
+section: 'Concepts'
+slug: 'composition'
 notAI: true
 ---
 
@@ -16,11 +16,7 @@ A layout is a component that wraps its children:
 
 ```tsx
 // app/layout.tsx
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html>
       <body>
@@ -99,13 +95,7 @@ app/
 ```tsx
 'use client';
 
-export default function Error({
-  error,
-  reset,
-}: {
-  error: Error;
-  reset: () => void;
-}) {
+export default function Error({ error, reset }: { error: Error; reset: () => void }) {
   return (
     <div>
       <p>Something went wrong.</p>
@@ -140,21 +130,25 @@ Each `access.ts` wraps its subtree. If access is denied, the tree below doesn't 
 The common thread: timber doesn't have configuration options for layout patterns. Instead, you compose them:
 
 **Want a sidebar?** Create a slot:
+
 ```
 @sidebar/page.tsx
 ```
 
 **Want auth on some pages?** Use a route group with `access.ts`:
+
 ```
 (authenticated)/access.ts
 ```
 
 **Want error recovery?** Add an error boundary:
+
 ```
 dashboard/error.tsx
 ```
 
 **Want shared chrome?** Nest layouts:
+
 ```
 app/layout.tsx → app/dashboard/layout.tsx
 ```

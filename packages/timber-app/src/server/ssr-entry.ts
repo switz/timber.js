@@ -156,7 +156,10 @@ export async function handleSsr(
         // Wrap in SsrStreamError so the RSC entry can handle it without
         // re-executing server components via renderDenyPage.
         // See LOCAL-293.
-        console.error('[timber] SSR shell failed from RSC stream error:', formatSsrError(renderError));
+        console.error(
+          '[timber] SSR shell failed from RSC stream error:',
+          formatSsrError(renderError)
+        );
         throw new SsrStreamError(
           'SSR renderToReadableStream failed due to RSC stream error',
           renderError

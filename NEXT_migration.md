@@ -24,6 +24,7 @@ npm uninstall next
 Delete `next.config.js`. Create two new files:
 
 **`vite.config.ts`**
+
 ```ts
 import { defineConfig } from 'vite';
 import { resolve } from 'node:path';
@@ -38,6 +39,7 @@ export default defineConfig({
 ```
 
 **`timber.config.ts`** (optional — only needed to configure output, adapters, etc.)
+
 ```ts
 import { nitro } from '@timber-js/app/adapters/nitro';
 
@@ -96,6 +98,7 @@ You can also delete `next-env.d.ts` if it exists.
 ## 2. Dependency Changes
 
 ### Remove
+
 - `next`
 - `next-redux-wrapper` — timber.js doesn't have a server-side Redux hydration step; create your store directly
 - `nextjs-toploader` — Next.js-specific progress bar; use timber's built-in navigation events or a custom solution
@@ -103,10 +106,12 @@ You can also delete `next-env.d.ts` if it exists.
 - `next-zod-route` — Next.js-specific route handler wrapper; use native request parsing or a generic Zod validator
 
 ### Add
+
 - `@timber-js/app`
 - `vite` (dev dependency)
 
 ### Keep (no changes needed)
+
 - React 19, React DOM
 - `@tanstack/react-query`, `@tanstack/react-query-devtools`
 - `nuqs` — shimmed via `nuqs/adapters/next/app` (timber provides the shim)
@@ -122,19 +127,20 @@ You can also delete `next-env.d.ts` if it exists.
 
 Most App Router file conventions carry over directly:
 
-| Convention | Next.js | timber.js | Notes |
-|---|---|---|---|
-| `page.tsx` | ✅ | ✅ | Same |
-| `layout.tsx` | ✅ | ✅ | Same |
-| `route.ts` | ✅ | ✅ | Same (GET, POST, etc.) |
-| `error.tsx` | ✅ | ✅ | Same (`'use client'`, receives `error` + `reset`) |
-| `global-error.tsx` | ✅ | ✅ | Same |
-| `not-found.tsx` | ✅ | Rename to `404.tsx` | timber uses `404.tsx` for not-found pages |
-| `loading.tsx` | ✅ | ❌ Delete | timber has no implicit loading states — use `<Suspense>` explicitly |
-| `default.tsx` | ✅ | ✅ | Same (parallel route fallbacks) |
-| `template.tsx` | ✅ | ❌ | Not supported — use layout with key prop if needed |
+| Convention         | Next.js | timber.js           | Notes                                                               |
+| ------------------ | ------- | ------------------- | ------------------------------------------------------------------- |
+| `page.tsx`         | ✅      | ✅                  | Same                                                                |
+| `layout.tsx`       | ✅      | ✅                  | Same                                                                |
+| `route.ts`         | ✅      | ✅                  | Same (GET, POST, etc.)                                              |
+| `error.tsx`        | ✅      | ✅                  | Same (`'use client'`, receives `error` + `reset`)                   |
+| `global-error.tsx` | ✅      | ✅                  | Same                                                                |
+| `not-found.tsx`    | ✅      | Rename to `404.tsx` | timber uses `404.tsx` for not-found pages                           |
+| `loading.tsx`      | ✅      | ❌ Delete           | timber has no implicit loading states — use `<Suspense>` explicitly |
+| `default.tsx`      | ✅      | ✅                  | Same (parallel route fallbacks)                                     |
+| `template.tsx`     | ✅      | ❌                  | Not supported — use layout with key prop if needed                  |
 
 ### New conventions in timber.js
+
 - `middleware.ts` — per-route middleware (runs after route matching, before rendering)
 - `access.ts` — authorization gate (runs inside React tree)
 - `proxy.ts` — global middleware (replaces Next.js `middleware.ts` at project root)
@@ -142,6 +148,7 @@ Most App Router file conventions carry over directly:
 - `search-params.ts` — typed search params definition
 
 ### Dynamic routes
+
 Same syntax: `[id]`, `[...slug]`, `[[...slug]]`, `(group)`, `@slot` all work identically.
 
 ---
@@ -151,17 +158,25 @@ Same syntax: `[id]`, `[...slug]`, `[[...slug]]`, `(group)`, `@slot` all work ide
 timber.js provides shims for common Next.js imports, so many imports work without changes:
 
 ### Shimmed (works as-is)
+
 ```ts
-import Link from 'next/link';                              // → timber Link
-import { useRouter, usePathname, useSearchParams,
-         useParams, redirect, notFound,
-         useSelectedLayoutSegment,
-         useSelectedLayoutSegments } from 'next/navigation'; // → timber equivalents
-import { headers, cookies } from 'next/headers';            // → timber ALS-backed implementations
-import { Roboto } from 'next/font/google';                  // → timber font pipeline
+import Link from 'next/link'; // → timber Link
+import {
+  useRouter,
+  usePathname,
+  useSearchParams,
+  useParams,
+  redirect,
+  notFound,
+  useSelectedLayoutSegment,
+  useSelectedLayoutSegments,
+} from 'next/navigation'; // → timber equivalents
+import { headers, cookies } from 'next/headers'; // → timber ALS-backed implementations
+import { Roboto } from 'next/font/google'; // → timber font pipeline
 ```
 
 ### Must change
+
 ```diff
 - import type { Metadata } from 'next';
 + import type { Metadata } from '@timber-js/app/server';
@@ -180,6 +195,7 @@ import { Roboto } from 'next/font/google';                  // → timber font p
 ```
 
 ### Not available
+
 - `next/script` — use `<script>` tags directly
 - `next/head` — use metadata exports (same as Next.js App Router)
 - `next/dynamic` — use `React.lazy()` + `<Suspense>`
@@ -210,9 +226,11 @@ In Next.js, `fetch()` has built-in caching and revalidation via `next: { revalid
 ```
 
 ### `React.cache()` still works
+
 Per-request deduplication via `React.cache()` works the same way. If your data fetching already uses `React.cache()` wrappers, it will continue to work.
 
 ### `unstable_cache()` → `timber.cache()`
+
 ```diff
 - import { unstable_cache } from 'next/cache';
 - const getCached = unstable_cache(fn, ['key'], { revalidate: 60 });
@@ -221,6 +239,7 @@ Per-request deduplication via `React.cache()` works the same way. If your data f
 ```
 
 ### `revalidatePath()` / `revalidateTag()`
+
 ```diff
 - import { revalidatePath, revalidateTag } from 'next/cache';
 + import { revalidatePath, revalidateTag } from '@timber-js/app/server';
@@ -231,7 +250,9 @@ Per-request deduplication via `React.cache()` works the same way. If your data f
 ## 6. Metadata Changes
 
 ### Static metadata
+
 Works the same — export a `metadata` object from page or layout files:
+
 ```ts
 export const metadata = {
   title: 'My Page',
@@ -240,6 +261,7 @@ export const metadata = {
 ```
 
 ### `generateMetadata()` → `metadata()`
+
 ```diff
 - export async function generateMetadata({ params }) {
 + export async function metadata({ params }) {
@@ -248,6 +270,7 @@ export const metadata = {
 ```
 
 ### `Metadata` type
+
 ```diff
 - import type { Metadata } from 'next';
 + import type { Metadata } from '@timber-js/app/server';
@@ -282,7 +305,9 @@ Next.js uses a root `middleware.ts` that runs on the edge for all requests. timb
 ```
 
 ### Rewrites
+
 Next.js rewrites from `next.config.js` should move to `proxy.ts`:
+
 ```ts
 // proxy.ts
 export default async (req: Request, next: () => Promise<Response>) => {
@@ -290,9 +315,12 @@ export default async (req: Request, next: () => Promise<Response>) => {
 
   // Rewrite /privacy-policy to static file
   if (url.pathname === '/privacy-policy') {
-    return new Response(await fetch(new URL('/privacy_policy.html', req.url)).then(r => r.text()), {
-      headers: { 'content-type': 'text/html' },
-    });
+    return new Response(
+      await fetch(new URL('/privacy_policy.html', req.url)).then((r) => r.text()),
+      {
+        headers: { 'content-type': 'text/html' },
+      }
+    );
   }
 
   // External redirect
@@ -305,7 +333,9 @@ export default async (req: Request, next: () => Promise<Response>) => {
 ```
 
 ### Per-route middleware (new in timber.js)
+
 timber.js supports per-route `middleware.ts` files that run after route matching but before rendering:
+
 ```ts
 // src/app/dashboard/middleware.ts
 import type { MiddlewareContext } from '@timber-js/app/server';
@@ -334,6 +364,7 @@ timber.js supports the same `instrumentation.ts` convention:
 ```
 
 timber.js also supports additional exports:
+
 ```ts
 export async function onRequestError(error, request, context) {
   // Called on unhandled request errors
@@ -368,6 +399,7 @@ If using `next-redux-wrapper`, you can simplify. The wrapper exists to hydrate s
 ```
 
 Remove `HYDRATE` handling from reducers — it's no longer needed:
+
 ```diff
 // reducers
 - import { HYDRATE } from 'next-redux-wrapper';
@@ -402,21 +434,24 @@ If you were using edge-only APIs (like `next/og` which uses `@vercel/og`), switc
 ## 11. Known Compatibility Issues
 
 ### Libraries that need attention
-| Library | Status | Notes |
-|---|---|---|
-| `nuqs` | ✅ Works | Shimmed via `nuqs/adapters/next/app` |
-| `@tanstack/react-query` | ✅ Works | Core library is framework-agnostic |
-| `@tanstack/react-query-next-experimental` | ❌ Remove | Next.js-specific; not needed with timber |
-| `next-redux-wrapper` | ❌ Remove | Replace with direct store creation |
-| `nextjs-toploader` | ❌ Remove | Next.js-specific; use custom navigation indicator |
-| `next-zod-route` | ❌ Remove | Next.js-specific; parse request params directly |
-| `next-intl` | ✅ Works | Shimmed by timber |
-| `next-auth` / `auth.js` | ⚠️ Needs work | May need adaptation |
-| Framer Motion | ✅ Works | Framework-agnostic |
-| Tailwind CSS | ✅ Works | Framework-agnostic |
+
+| Library                                   | Status        | Notes                                             |
+| ----------------------------------------- | ------------- | ------------------------------------------------- |
+| `nuqs`                                    | ✅ Works      | Shimmed via `nuqs/adapters/next/app`              |
+| `@tanstack/react-query`                   | ✅ Works      | Core library is framework-agnostic                |
+| `@tanstack/react-query-next-experimental` | ❌ Remove     | Next.js-specific; not needed with timber          |
+| `next-redux-wrapper`                      | ❌ Remove     | Replace with direct store creation                |
+| `nextjs-toploader`                        | ❌ Remove     | Next.js-specific; use custom navigation indicator |
+| `next-zod-route`                          | ❌ Remove     | Next.js-specific; parse request params directly   |
+| `next-intl`                               | ✅ Works      | Shimmed by timber                                 |
+| `next-auth` / `auth.js`                   | ⚠️ Needs work | May need adaptation                               |
+| Framer Motion                             | ✅ Works      | Framework-agnostic                                |
+| Tailwind CSS                              | ✅ Works      | Framework-agnostic                                |
 
 ### `NextResponse` → `Response`
+
 Replace all uses of `NextResponse` with standard `Response`. The Web API `Response` class covers all common cases:
+
 ```ts
 new Response('body');
 new Response(JSON.stringify(data), { headers: { 'content-type': 'application/json' } });
@@ -429,6 +464,7 @@ Response.json(data); // Node 20+
 ## Migration Checklist
 
 ### Phase 1: Setup
+
 - [ ] Install `@timber-js/app` and `vite`
 - [ ] Remove `next` and Next.js-specific packages
 - [ ] Create `vite.config.ts`
@@ -438,12 +474,14 @@ Response.json(data); // Node 20+
 - [ ] Delete `next.config.js` and `next-env.d.ts`
 
 ### Phase 2: File Conventions
+
 - [ ] Rename `not-found.tsx` → `404.tsx`
 - [ ] Delete any `loading.tsx` files (add `<Suspense>` where needed)
 - [ ] Move root `middleware.ts` to `proxy.ts`
 - [ ] Move `next.config.js` rewrites to `proxy.ts`
 
 ### Phase 3: Imports
+
 - [ ] Update `Metadata` type imports to `@timber-js/app/server`
 - [ ] Replace `NextResponse` with `Response`
 - [ ] Replace `next/og` with a Node.js image response library
@@ -452,12 +490,14 @@ Response.json(data); // Node 20+
 - [ ] Shimmed imports (`next/link`, `next/navigation`, `next/headers`, `next/font/google`) work as-is
 
 ### Phase 4: Data & State
+
 - [ ] Remove `next-redux-wrapper` and `HYDRATE` handling
 - [ ] Remove `ReactQueryStreamedHydration` wrapper
 - [ ] Migrate `unstable_cache()` to `timber.cache()` if applicable
 - [ ] Update `generateMetadata()` to `metadata()` if applicable
 
 ### Phase 5: Verify
+
 - [ ] `pnpm install` succeeds
 - [ ] `pnpm dev` (vite) starts without errors
 - [ ] Pages render correctly

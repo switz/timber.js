@@ -1,8 +1,8 @@
 ---
-title: "Middleware and request context"
-description: "How middleware wraps the route tree and how context flows inward"
-section: "Concepts"
-slug: "middleware-and-context"
+title: 'Middleware and request context'
+description: 'How middleware wraps the route tree and how context flows inward'
+section: 'Concepts'
+slug: 'middleware-and-context'
 notAI: true
 ---
 
@@ -64,10 +64,10 @@ timber middleware takes a single `MiddlewareContext` argument:
 
 ```tsx
 async function middleware(ctx: MiddlewareContext): Promise<Response | void> {
-  ctx.req;              // the incoming Request
-  ctx.params;           // route parameters
-  ctx.headers;          // response headers (writable)
-  ctx.requestHeaders;   // request headers (injectable)
+  ctx.req; // the incoming Request
+  ctx.params; // route parameters
+  ctx.headers; // response headers (writable)
+  ctx.requestHeaders; // request headers (injectable)
 }
 ```
 
@@ -111,13 +111,13 @@ export default async function Page() {
 
 ## The middleware-to-render boundary
 
-Middleware runs *before* React rendering starts. This is a clean separation:
+Middleware runs _before_ React rendering starts. This is a clean separation:
 
-| | Middleware | Components |
-|---|---|---|
-| When | Before render | During render |
-| Has access to | Request, params | React.cache, cookies, headers |
-| Can do | Redirect, reject, set headers | Render UI, fetch data |
+|                   | Middleware                          | Components                         |
+| ----------------- | ----------------------------------- | ---------------------------------- |
+| When              | Before render                       | During render                      |
+| Has access to     | Request, params                     | React.cache, cookies, headers      |
+| Can do            | Redirect, reject, set headers       | Render UI, fetch data              |
 | Shares cache with | Other middleware (via timber.cache) | Other components (via React.cache) |
 
 Middleware is for request-level decisions: should this request proceed? What context does it need? Components are for rendering: what should the user see?
@@ -130,10 +130,7 @@ One powerful pattern is using middleware to fire off data fetches before renderi
 // middleware.ts
 export async function middleware(ctx: MiddlewareContext) {
   // Fire fetches at t=0 — they populate timber.cache
-  await Promise.all([
-    getUser(ctx.params.userId),
-    getUserPosts(ctx.params.userId),
-  ]);
+  await Promise.all([getUser(ctx.params.userId), getUserPosts(ctx.params.userId)]);
 }
 ```
 
@@ -141,8 +138,8 @@ export async function middleware(ctx: MiddlewareContext) {
 // page.tsx — hits warm cache, essentially free
 export default async function UserPage({ params }) {
   const { userId } = await params;
-  const user = await getUser(userId);        // cache hit
-  const posts = await getUserPosts(userId);  // cache hit
+  const user = await getUser(userId); // cache hit
+  const posts = await getUserPosts(userId); // cache hit
   return <Profile user={user} posts={posts} />;
 }
 ```

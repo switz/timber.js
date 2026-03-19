@@ -1,7 +1,7 @@
 ---
-title: "Configuration"
-description: "Configure timber.js with timber.config.ts — output mode, adapters, caching, and more."
-section: "Getting Started"
+title: 'Configuration'
+description: 'Configure timber.js with timber.config.ts — output mode, adapters, caching, and more.'
+section: 'Getting Started'
 ---
 
 # Configuration
@@ -21,11 +21,11 @@ That's it for most projects. The defaults are sensible.
 
 ## Output Modes
 
-| Mode | Server required | Client JS | Server Actions |
-|------|----------------|-----------|----------------|
-| `'server'` | Yes | Yes | Yes |
-| `'static'` | No | Yes (hydration + SPA nav) | Via adapter |
-| `'static'` + `clientJavascript: false` | No | None | Build error |
+| Mode                                   | Server required | Client JS                 | Server Actions |
+| -------------------------------------- | --------------- | ------------------------- | -------------- |
+| `'server'`                             | Yes             | Yes                       | Yes            |
+| `'static'`                             | No              | Yes (hydration + SPA nav) | Via adapter    |
+| `'static'` + `clientJavascript: false` | No              | None                      | Build error    |
 
 ```ts
 // Static site with no JavaScript
@@ -75,13 +75,13 @@ The default is in-memory. Plug in Redis, Cloudflare KV, or any custom handler th
 
 ## All Options
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `output` | `'server' \| 'static'` | `'server'` | Output mode |
-| `adapter` | `TimberPlatformAdapter` | — | Deployment adapter |
-| `cacheHandler` | `CacheHandler` | `MemoryCacheHandler` | Cache backend |
-| `clientJavascript` | `boolean \| object` | `true` | Control client-side JS |
-| `pageExtensions` | `string[]` | `['tsx', 'ts', 'jsx', 'js']` | File extensions for pages |
-| `mdx` | `object` | — | MDX remark/rehype plugins |
+| Option             | Type                    | Default                      | Description               |
+| ------------------ | ----------------------- | ---------------------------- | ------------------------- |
+| `output`           | `'server' \| 'static'`  | `'server'`                   | Output mode               |
+| `adapter`          | `TimberPlatformAdapter` | —                            | Deployment adapter        |
+| `cacheHandler`     | `CacheHandler`          | `MemoryCacheHandler`         | Cache backend             |
+| `clientJavascript` | `boolean \| object`     | `true`                       | Control client-side JS    |
+| `pageExtensions`   | `string[]`              | `['tsx', 'ts', 'jsx', 'js']` | File extensions for pages |
+| `mdx`              | `object`                | —                            | MDX remark/rehype plugins |
 
 For the full type definition, see the [Config API Reference](/docs/v1/api-config).

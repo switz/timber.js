@@ -542,9 +542,7 @@ describe('route-matcher: static routes in route groups beat dynamic segments in 
     });
 
     const root = makeNode({
-      children: browseFirst
-        ? [browseGroup, contentGroup]
-        : [contentGroup, browseGroup],
+      children: browseFirst ? [browseGroup, contentGroup] : [contentGroup, browseGroup],
     });
 
     return makeManifest(root);

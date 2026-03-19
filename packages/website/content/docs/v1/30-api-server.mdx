@@ -1,8 +1,8 @@
 ---
-title: "API: @timber-js/app/server"
-description: "Server-side exports — deny, redirect, headers, cookies, createActionClient, and context types."
-section: "API Reference"
-slug: "api-server"
+title: 'API: @timber-js/app/server'
+description: 'Server-side exports — deny, redirect, headers, cookies, createActionClient, and context types.'
+section: 'API Reference'
+slug: 'api-server'
 ---
 
 # @timber-js/app/server
@@ -18,9 +18,9 @@ Produce an HTTP error status and render the matching status file. Default status
 ```ts
 import { deny } from '@timber-js/app/server';
 
-deny();      // 403 Forbidden
-deny(404);   // 404 Not Found
-deny(401);   // 401 Unauthorized
+deny(); // 403 Forbidden
+deny(404); // 404 Not Found
+deny(401); // 401 Unauthorized
 ```
 
 ### `redirect(url, type?)`
@@ -30,7 +30,7 @@ Redirect to a URL. Sends HTTP 307 (temporary) by default.
 ```ts
 import { redirect } from '@timber-js/app/server';
 
-redirect('/login');              // 307 Temporary Redirect
+redirect('/login'); // 307 Temporary Redirect
 redirect('/new-page', 'permanent'); // 308 Permanent Redirect
 ```
 
@@ -69,10 +69,10 @@ Returns the request cookies with mutation methods.
 import { cookies } from '@timber-js/app/server';
 
 const c = cookies();
-c.get('session');           // Read
-c.set('theme', 'dark');     // Set (before flush only)
-c.delete('session');        // Delete
-c.clear();                  // Clear all
+c.get('session'); // Read
+c.set('theme', 'dark'); // Set (before flush only)
+c.delete('session'); // Delete
+c.clear(); // Clear all
 ```
 
 Mutations are only allowed before the response flushes. Attempting to set a cookie after flush throws in dev mode.
@@ -105,11 +105,9 @@ const action = createActionClient({
 });
 
 // Usage:
-const myAction = action
-  .schema(z.object({ title: z.string() }))
-  .action(async ({ input, ctx }) => {
-    // ctx.user is typed from middleware return
-  });
+const myAction = action.schema(z.object({ title: z.string() })).action(async ({ input, ctx }) => {
+  // ctx.user is typed from middleware return
+});
 ```
 
 ### `ActionError`

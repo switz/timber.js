@@ -405,9 +405,7 @@ describe('flight injection never lands inside open HTML elements', () => {
         { text: '<html><body><div class="card" data-id="12', delayMs: 0 },
         { text: '3">Card content</div></body></html>', delayMs: 30 },
       ],
-      [
-        { text: '0:D"$1"\n', delayMs: 0 },
-      ]
+      [{ text: '0:D"$1"\n', delayMs: 0 }]
     );
 
     // The <div> tag should be intact

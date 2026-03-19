@@ -47,7 +47,7 @@ async function main() {
       onCancel: () => {
         cancelled = true;
       },
-    },
+    }
   );
 
   if (cancelled) {

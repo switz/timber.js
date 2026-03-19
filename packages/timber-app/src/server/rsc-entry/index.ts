@@ -667,15 +667,28 @@ async function renderRoute(
     if (sig) return buildRedirectResponse(_req, sig, responseHeaders);
     if (denySignal) {
       return renderDenyPage(
-        denySignal, segments, layoutComponents as LayoutEntry[],
-        _req, match, responseHeaders, clientBootstrap, createDebugChannelSink, callSsr
+        denySignal,
+        segments,
+        layoutComponents as LayoutEntry[],
+        _req,
+        match,
+        responseHeaders,
+        clientBootstrap,
+        createDebugChannelSink,
+        callSsr
       );
     }
     const err = renderError as { error: unknown; status: number } | null;
     if (err) {
       return renderErrorPage(
-        err.error, err.status, segments, layoutComponents as LayoutEntry[],
-        _req, match, responseHeaders, clientBootstrap
+        err.error,
+        err.status,
+        segments,
+        layoutComponents as LayoutEntry[],
+        _req,
+        match,
+        responseHeaders,
+        clientBootstrap
       );
     }
     return null;
@@ -715,15 +728,28 @@ async function renderRoute(
       if (denySignal) {
         // Render deny page without layouts — pass empty layout list
         return renderDenyPage(
-          denySignal, segments, [] as LayoutEntry[],
-          _req, match, responseHeaders, clientBootstrap, createDebugChannelSink, callSsr
+          denySignal,
+          segments,
+          [] as LayoutEntry[],
+          _req,
+          match,
+          responseHeaders,
+          clientBootstrap,
+          createDebugChannelSink,
+          callSsr
         );
       }
       const err = renderError as { error: unknown; status: number } | null;
       if (err) {
         return renderErrorPage(
-          err.error, err.status, segments, [] as LayoutEntry[],
-          _req, match, responseHeaders, clientBootstrap
+          err.error,
+          err.status,
+          segments,
+          [] as LayoutEntry[],
+          _req,
+          match,
+          responseHeaders,
+          clientBootstrap
         );
       }
       // No captured signal — return bare 500

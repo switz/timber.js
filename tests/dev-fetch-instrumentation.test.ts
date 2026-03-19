@@ -15,7 +15,10 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { instrumentDevFetch, type DevFetchCleanup } from '../packages/timber-app/src/server/dev-fetch-instrumentation';
+import {
+  instrumentDevFetch,
+  type DevFetchCleanup,
+} from '../packages/timber-app/src/server/dev-fetch-instrumentation';
 import { formatSpanTree } from '../packages/timber-app/src/server/dev-logger';
 import type { ReadableSpan, SpanProcessor } from '@opentelemetry/sdk-trace-base';
 import { BasicTracerProvider } from '@opentelemetry/sdk-trace-base';
@@ -232,7 +235,9 @@ describe('dev fetch instrumentation', () => {
     const tracer = api.trace.getTracer('test');
 
     await tracer.startActiveSpan('timber.page', async (parentSpan) => {
-      await expect(globalThis.fetch('https://api.example.com/fail')).rejects.toThrow('network error');
+      await expect(globalThis.fetch('https://api.example.com/fail')).rejects.toThrow(
+        'network error'
+      );
       parentSpan.end();
     });
 

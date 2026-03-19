@@ -143,6 +143,7 @@ Layouts can also export it — the framework uses the max value from all loaded 
 **Signal promotion mechanism:** After `callSsr` returns, the RSC entry checks if `denySignal`, `redirectSignal`, or `renderError` were captured during rendering. If a signal was set (regardless of whether it fired inside or outside Suspense), the framework discards the SSR response (which hasn't been sent to the client yet — it's an unconsumed stream) and returns the correct HTTP response instead.
 
 This works because:
+
 1. The `deferSuspenseFor` hold in `renderSsrStream` delays reading the HTML stream, giving React time to resolve Suspense boundaries.
 2. The RSC `onError` callback fires when React renders the component that calls `deny()`/`redirect()`, setting the signal variable.
 3. By the time `callSsr` returns, signals from components that resolved during the hold are available for checking.

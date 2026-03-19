@@ -1,7 +1,7 @@
 ---
-title: "Error Handling"
-description: "Status codes, deny(), error boundaries, and status-code files."
-section: "Guides"
+title: 'Error Handling'
+description: 'Status codes, deny(), error boundaries, and status-code files.'
+section: 'Guides'
 ---
 
 # Error Handling
@@ -26,7 +26,7 @@ import { deny } from '@timber-js/app/server';
 export default async function ProductPage({ params }) {
   const { id } = await params;
   const product = await getProduct(id);
-  if (!product) deny(404);    // Real HTTP 404
+  if (!product) deny(404); // Real HTTP 404
   if (!canView(product)) deny(); // Default: 403
 
   return <ProductView product={product} />;
@@ -51,6 +51,7 @@ app/
 ```
 
 Priority order (innermost to outermost):
+
 1. Specific status files (`403.tsx`, `503.tsx`)
 2. Category catch-alls (`4xx.tsx`, `5xx.tsx`)
 3. `error.tsx` — catches anything unmatched

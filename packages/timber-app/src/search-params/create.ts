@@ -299,7 +299,10 @@ function buildDefinition<T extends Record<string, unknown>>(
   //   work during SSR's renderToReadableStream, so this works correctly.
   // On the client: same as SSR — the real function is available.
   function useQueryStates(options?: QueryStatesOptions): [T, SetParams<T>] {
-    return clientUseQueryStates(codecMap, options, Object.freeze({ ...urlKeys })) as [T, SetParams<T>];
+    return clientUseQueryStates(codecMap, options, Object.freeze({ ...urlKeys })) as [
+      T,
+      SetParams<T>,
+    ];
   }
 
   const definition: SearchParamsDefinition<T> = {

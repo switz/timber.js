@@ -92,7 +92,8 @@ function stripRootPrefix(id: string, root: string): string {
  */
 function generateConfigModule(ctx: PluginContext): string {
   // Resolve cookie secrets: `secret` shorthand expands to `secrets: [secret]`
-  const cookieSecrets = ctx.config.cookies?.secrets ??
+  const cookieSecrets =
+    ctx.config.cookies?.secrets ??
     (ctx.config.cookies?.secret ? [ctx.config.cookies.secret] : undefined);
 
   const runtimeConfig = {

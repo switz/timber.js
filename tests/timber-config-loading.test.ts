@@ -152,9 +152,7 @@ describe('warnConfigConflicts', () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     warnConfigConflicts(inline, fileConfig);
 
-    expect(warnSpy).toHaveBeenCalledWith(
-      expect.stringContaining('"clientJavascript"')
-    );
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('"clientJavascript"'));
     expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('"csrf"'));
     expect(warnSpy).toHaveBeenCalledWith(
       expect.stringContaining('Move all config to timber.config.ts')

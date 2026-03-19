@@ -2,23 +2,19 @@
   "name": "create-timber-app",
   "version": "0.1.3",
   "description": "Scaffold a new timber.js project",
-  "type": "module",
+  "keywords": [
+    "cloudflare-workers",
+    "create-app",
+    "react",
+    "scaffold",
+    "vite"
+  ],
+  "homepage": "https://github.com/switz/timber.js",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/switz/timber.js.git",
     "directory": "packages/create-timber-app"
-  },
-  "homepage": "https://github.com/switz/timber.js",
-  "keywords": [
-    "react",
-    "vite",
-    "cloudflare-workers",
-    "scaffold",
-    "create-app"
-  ],
-  "engines": {
-    "node": ">=20.0.0"
   },
   "bin": {
     "create-timber-app": "./dist/index.js"
@@ -27,6 +23,7 @@
     "dist",
     "template"
   ],
+  "type": "module",
   "scripts": {
     "build": "node scripts/build.js",
     "prepublishOnly": "pnpm run build"
@@ -36,5 +33,8 @@
   },
   "devDependencies": {
     "@types/prompts": "^2.4.9"
+  },
+  "engines": {
+    "node": ">=20.0.0"
   }
 }

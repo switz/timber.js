@@ -1,7 +1,7 @@
 ---
-title: "Data Fetching"
-description: "Fetch data in async server components — no loaders, no hooks, no magic."
-section: "Core Docs"
+title: 'Data Fetching'
+description: 'Fetch data in async server components — no loaders, no hooks, no magic.'
+section: 'Core Docs'
 ---
 
 # Data Fetching
@@ -37,13 +37,12 @@ No loaders. No `getServerSideProps`. No `useEffect`. The component runs on the s
 
 ```tsx
 // This hits the API every request
-const data = await fetch('https://api.example.com/data').then(r => r.json());
+const data = await fetch('https://api.example.com/data').then((r) => r.json());
 
 // This is cached for 60 seconds
-const getData = cache(
-  async () => fetch('https://api.example.com/data').then(r => r.json()),
-  { ttl: 60 }
-);
+const getData = cache(async () => fetch('https://api.example.com/data').then((r) => r.json()), {
+  ttl: 60,
+});
 ```
 
 ## Parallel Data Fetching

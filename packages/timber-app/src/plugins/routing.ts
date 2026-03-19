@@ -14,7 +14,10 @@ import { join } from 'node:path';
 import { scanRoutes } from '#/routing/scanner.js';
 import { generateRouteMap } from '#/routing/codegen.js';
 import { collectInterceptionRewrites } from '#/routing/interception.js';
-import { lintStatusFileDirectives, formatStatusFileLintWarnings } from '#/routing/status-file-lint.js';
+import {
+  lintStatusFileDirectives,
+  formatStatusFileLintWarnings,
+} from '#/routing/status-file-lint.js';
 import type { RouteTree, SegmentNode, RouteFile } from '#/routing/types.js';
 import type { PluginContext } from '#/index.js';
 
@@ -352,9 +355,7 @@ function generateManifestModule(tree: RouteTree): string {
           `${nextIndent}    ${JSON.stringify(name)}: { load: ${v}, filePath: ${JSON.stringify(file.filePath)} }`
         );
       }
-      parts.push(
-        `${nextIndent}metadataRoutes: {\n${metaEntries.join(',\n')}\n${nextIndent}},`
-      );
+      parts.push(`${nextIndent}metadataRoutes: {\n${metaEntries.join(',\n')}\n${nextIndent}},`);
     }
 
     // Children

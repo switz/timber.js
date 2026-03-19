@@ -106,9 +106,7 @@ test.describe('middleware cookie handling', () => {
     expect(response.status()).toBe(200);
     // Multiple Set-Cookie headers — headersArray() captures all of them.
     // Header names may be capitalized ("Set-Cookie") depending on the server.
-    const setCookies = response
-      .headersArray()
-      .filter((h) => h.name.toLowerCase() === 'set-cookie');
+    const setCookies = response.headersArray().filter((h) => h.name.toLowerCase() === 'set-cookie');
     const values = setCookies.map((h) => h.value);
     expect(values.some((v) => v.includes('middleware-cookie=set-by-middleware'))).toBe(true);
   });
@@ -117,9 +115,7 @@ test.describe('middleware cookie handling', () => {
     request,
   }) => {
     const response = await request.get('/middleware-test/cookies');
-    const setCookies = response
-      .headersArray()
-      .filter((h) => h.name.toLowerCase() === 'set-cookie');
+    const setCookies = response.headersArray().filter((h) => h.name.toLowerCase() === 'set-cookie');
     const middlewareCookie = setCookies.find((h) =>
       h.value.includes('middleware-cookie=set-by-middleware')
     );
@@ -156,7 +152,7 @@ test.describe('middleware cookie handling', () => {
     await page.goto('/middleware-test/cookies');
     const count = page.locator('[data-testid="cookie-count"]');
     // At least 2 cookies from the test + cookies set by middleware (ryw-cookie, middleware-cookie)
-    const countValue = parseInt(await count.textContent() ?? '0');
+    const countValue = parseInt((await count.textContent()) ?? '0');
     expect(countValue).toBeGreaterThanOrEqual(2);
   });
 });

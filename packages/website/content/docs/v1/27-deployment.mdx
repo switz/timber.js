@@ -1,7 +1,7 @@
 ---
-title: "Deployment"
-description: "Deploy timber.js to Cloudflare Workers, Node.js, Vercel, and more."
-section: "Guides"
+title: 'Deployment'
+description: 'Deploy timber.js to Cloudflare Workers, Node.js, Vercel, and more.'
+section: 'Guides'
 ---
 
 # Deployment
@@ -61,17 +61,17 @@ export default {
 
 The Nitro adapter supports many presets:
 
-| Preset | Platform |
-|--------|----------|
+| Preset        | Platform             |
+| ------------- | -------------------- |
 | `node-server` | Node.js, Docker, VPS |
-| `vercel` | Vercel Serverless |
-| `bun` | Bun.serve() |
-| `netlify` | Netlify Functions |
-| `aws-lambda` | AWS Lambda |
-| `deno-deploy` | Deno Deploy |
+| `vercel`      | Vercel Serverless    |
+| `bun`         | Bun.serve()          |
+| `netlify`     | Netlify Functions    |
+| `aws-lambda`  | AWS Lambda           |
+| `deno-deploy` | Deno Deploy          |
 
 ```ts
-adapter: nitro({ preset: 'bun' })
+adapter: nitro({ preset: 'bun' });
 ```
 
 ## Static Export

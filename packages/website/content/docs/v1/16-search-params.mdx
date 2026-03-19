@@ -1,7 +1,7 @@
 ---
-title: "Search Params"
-description: "Typed, validated search parameters with codecs and URL synchronization."
-section: "Core Docs"
+title: 'Search Params'
+description: 'Typed, validated search parameters with codecs and URL synchronization.'
+section: 'Core Docs'
 ---
 
 # Search Params
@@ -54,14 +54,8 @@ export function ProductFilters() {
 
   return (
     <div>
-      <input
-        value={params.q ?? ''}
-        onChange={(e) => setParams({ q: e.target.value })}
-      />
-      <select
-        value={params.sort}
-        onChange={(e) => setParams({ sort: e.target.value })}
-      >
+      <input value={params.q ?? ''} onChange={(e) => setParams({ q: e.target.value })} />
+      <select value={params.sort} onChange={(e) => setParams({ sort: e.target.value })}>
         <option value="date">Date</option>
         <option value="price">Price</option>
         <option value="name">Name</option>

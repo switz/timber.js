@@ -47,7 +47,14 @@ export async function renderFallbackError(
   }
   const match: RouteMatch = { segments: segments as never, params: {} };
   return renderErrorPage(
-    error, 500, segments, layoutComponents, req, match, responseHeaders, clientBootstrap
+    error,
+    500,
+    segments,
+    layoutComponents,
+    req,
+    match,
+    responseHeaders,
+    clientBootstrap
   );
 }
 

@@ -27,17 +27,20 @@ afterEach(() => {
 });
 
 describe('useRouter', () => {
-  it('returns a no-op router during SSR (router not initialized)', () => {
-    // Router not bootstrapped — simulates SSR environment
+  it('methods throw before bootstrap on the client (router not initialized)', () => {
+    // Router not bootstrapped — calling methods before bootstrap is a bug.
+    // useRouter() itself doesn't throw (it returns an object), but methods
+    // lazily resolve the router and throw if it's not initialized yet.
     const router = useRouter();
     expect(router).toBeDefined();
-    // No-op methods should not throw
-    expect(() => router.push('/foo')).not.toThrow();
-    expect(() => router.replace('/bar')).not.toThrow();
-    expect(() => router.refresh()).not.toThrow();
+    // Methods that need the router should throw
+    expect(() => router.push('/foo')).toThrow(/Router not initialized/);
+    expect(() => router.replace('/bar')).toThrow(/Router not initialized/);
+    expect(() => router.refresh()).toThrow(/Router not initialized/);
+    expect(() => router.prefetch('/baz')).toThrow(/Router not initialized/);
+    // back/forward use window.history directly, not the router
     expect(() => router.back()).not.toThrow();
     expect(() => router.forward()).not.toThrow();
-    expect(() => router.prefetch('/baz')).not.toThrow();
   });
 
   it('push triggers router.navigate with correct args', async () => {

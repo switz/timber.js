@@ -101,7 +101,19 @@ export function useQueryStates<T extends Record<string, unknown>>(
     nuqsOptions.urlKeys = resolvedUrlKeys;
   }
 
-  const [values, setValues] = nuqsUseQueryStates(bridged, nuqsOptions);
+  let values: Record<string, unknown>;
+  let setValues: Function;
+  try {
+    [values, setValues] = nuqsUseQueryStates(bridged, nuqsOptions);
+  } catch (err) {
+    if (err instanceof Error && /Invalid hook call|cannot be called|Cannot read properties of null/i.test(err.message)) {
+      throw new Error(
+        'useQueryStates is a client component hook and cannot be called outside a React component. ' +
+          'Use definition.parse(searchParams) in server components instead.'
+      );
+    }
+    throw err;
+  }
 
   // Wrap the nuqs setter to match timber's SetParams<T> signature.
   // nuqs's setter accepts Partial<Nullable<Values>> | UpdaterFn | null.

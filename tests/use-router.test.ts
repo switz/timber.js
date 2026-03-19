@@ -23,7 +23,7 @@ function makeMockRouter(): RouterInstance {
 
 afterEach(() => {
   // Reset global router after each test
-  setGlobalRouter(null as unknown as RouterInstance);
+  delete (window as any).__timber_router;
 });
 
 describe('useRouter', () => {

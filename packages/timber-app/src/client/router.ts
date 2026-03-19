@@ -5,7 +5,7 @@ import { SegmentCache, PrefetchCache, buildSegmentTree } from './segment-cache';
 import type { SegmentInfo } from './segment-cache';
 import { HistoryStack } from './history';
 import type { HeadElement } from './head';
-import { setCurrentParams } from './use-params.js';
+import { setCurrentParams, notifyParamsListeners } from './use-params.js';
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -393,11 +393,18 @@ export function createRouter(deps: RouterDeps): RouterInstance {
       // header reflects the currently mounted segments.
       updateSegmentCache(result.segmentInfo);
 
-      // Update useParams() with the new route's params before rendering.
+      // Update the params snapshot before rendering so new components in the
+      // RSC tree see the correct params via getSnapshot(). Subscriber
+      // notification is deferred until after renderPayload() so preserved
+      // layouts don't re-render with {old tree, new params}.
       updateParams(result.params);
 
       // Render the decoded RSC tree into the DOM.
       renderPayload(result.payload);
+
+      // Now notify useParams() subscribers — preserved layout components
+      // re-render after the new tree is committed, seeing {new tree, new params}.
+      notifyParamsListeners();
 
       // Update document.title and <meta> tags with the new page's metadata
       applyHead(result.headElements);
@@ -457,11 +464,12 @@ export function createRouter(deps: RouterDeps): RouterInstance {
       // Update segment cache with fresh segment info from full render
       updateSegmentCache(result.segmentInfo);
 
-      // Update useParams() with refreshed route params
+      // Update params snapshot before rendering (see navigate() for rationale)
       updateParams(result.params);
 
-      // Render the fresh RSC tree and update head elements
+      // Render the fresh RSC tree, then notify params subscribers
       renderPayload(result.payload);
+      notifyParamsListeners();
       applyHead(result.headElements);
     } finally {
       setPending(false);
@@ -478,6 +486,7 @@ export function createRouter(deps: RouterDeps): RouterInstance {
       // Replay cached payload — no server roundtrip
       updateParams(entry.params);
       renderPayload(entry.payload);
+      notifyParamsListeners();
       applyHead(entry.headElements);
       afterPaint(() => {
         deps.scrollTo(0, scrollY);
@@ -500,6 +509,7 @@ export function createRouter(deps: RouterDeps): RouterInstance {
           params: result.params,
         });
         renderPayload(result.payload);
+        notifyParamsListeners();
         applyHead(result.headElements);
         afterPaint(() => {
           deps.scrollTo(0, scrollY);

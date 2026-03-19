@@ -72,20 +72,32 @@ function getServerSnapshot(): Record<string, string | string[]> {
 // ---------------------------------------------------------------------------
 
 /**
- * Set the current route params. Called by the framework internals
- * during navigation — not intended for direct use by app code.
+ * Set the current route params WITHOUT notifying subscribers.
+ * Called by the router before renderPayload() so that new components
+ * in the RSC tree see the updated params via getSnapshot(), but
+ * preserved layout components don't re-render prematurely with
+ * {old tree, new params}.
+ *
+ * After the React render commits, the router calls notifyParamsListeners()
+ * to trigger re-renders in preserved layouts that read useParams().
  *
  * On the client, the segment router calls this on each navigation.
  * During SSR, params are also available via getSsrData().params
  * (ALS-backed), but setCurrentParams is still called for the
  * module-level fallback path.
- *
- * After mutation, all useSyncExternalStore subscribers are notified
- * so that every mounted useParams() consumer re-renders in the same
- * React commit — even components in unchanged layouts.
  */
 export function setCurrentParams(params: Record<string, string | string[]>): void {
   currentParams = params;
+}
+
+/**
+ * Notify all useSyncExternalStore subscribers that params have changed.
+ * Called by the router AFTER renderPayload() so that preserved layout
+ * components re-render only after the new tree is committed — producing
+ * an atomic {new tree, new params} update instead of a stale
+ * {old tree, new params} intermediate state.
+ */
+export function notifyParamsListeners(): void {
   for (const listener of listeners) {
     listener();
   }
@@ -112,24 +124,25 @@ export function setCurrentParams(params: Record<string, string | string[]>): voi
 export function useParams<R extends keyof Routes>(route: R): Routes[R]['params'];
 export function useParams(route?: string): Record<string, string | string[]>;
 export function useParams(_route?: string): Record<string, string | string[]> {
-  // During SSR, read from the ALS-backed SSR data context.
-  // This ensures correct params even for components inside Suspense
-  // boundaries that resolve asynchronously across concurrent requests.
-  const ssrData = getSsrData();
-  if (ssrData) {
-    return ssrData.params;
-  }
-
-  // useSyncExternalStore requires a React dispatcher (i.e., must be called
-  // inside a component render). When called outside a component (e.g., in
-  // tests or setup code), fall back to reading the snapshot directly.
-  // This mirrors React's own behavior — hooks only work during rendering.
+  // useSyncExternalStore handles both client and SSR:
+  // - Client: calls getSnapshot() → reads module-level currentParams
+  // - SSR: calls getServerSnapshot() → reads from ALS-backed getSsrData()
+  //
+  // We must always call the hook (Rules of Hooks — no conditional hook calls).
+  // React picks the right snapshot function based on the environment.
+  //
+  // When called outside a React component (e.g., in test assertions),
+  // useSyncExternalStore throws because there's no dispatcher. In that case,
+  // fall back to reading the snapshot directly.
   try {
     return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   } catch {
-    // No React dispatcher available — return the snapshot directly.
+    // No React dispatcher available — return the best available snapshot.
     // This path is hit when useParams() is called outside a component,
     // e.g. in test assertions that verify the current params value.
-    return getSnapshot();
+    // Use getServerSnapshot() because it checks the ALS-backed SSR context
+    // first (request-isolated), falling back to module-level currentParams
+    // only when no SSR context exists (client-side / tests).
+    return getServerSnapshot();
   }
 }

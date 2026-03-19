@@ -173,21 +173,15 @@ export function timberShims(_ctx: PluginContext): Plugin {
         return 'export {};';
       }
 
-      // Stub for @timber-js/app/server in client environment.
-      // Exports throw-on-call stubs so named imports resolve but
-      // calling them gives a clear error instead of crashing the bundle.
+      // Error module for @timber-js/app/server in client environment.
+      // Server modules must never be bundled into the browser — if this
+      // module is reached, there is a broken import chain that needs fixing.
       if (id === '\0timber:server-empty') {
-        return `
-const stub = (name) => () => { throw new Error(name + "() is a server-only function and cannot be called in client code."); };
-export const headers = stub("headers");
-export const cookies = stub("cookies");
-export const notFound = stub("notFound");
-export const redirect = stub("redirect");
-export const permanentRedirect = stub("permanentRedirect");
-export const deny = stub("deny");
-export const searchParams = stub("searchParams");
-export const RedirectType = { push: "push", replace: "replace" };
-`;
+        return `throw new Error(
+  "[timber] @timber-js/app/server was imported from client code. " +
+  "Server modules (headers, cookies, redirect, deny, etc.) cannot be used in client components. " +
+  "If you need these APIs, move the import to a server component or middleware."
+);`;
       }
     },
   };

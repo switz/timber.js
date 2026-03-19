@@ -49,17 +49,16 @@ const SSR_NOOP_ROUTER: AppRouterInstance = {
  * If we eagerly captured the router during render, components would get
  * the SSR_NOOP_ROUTER and be stuck with silent no-ops forever.
  *
- * Returns safe no-ops during SSR (typeof window === 'undefined').
+ * Returns safe no-ops during SSR or before bootstrap. The `typeof window`
+ * check is insufficient because Vite's client SSR environment defines
+ * `window`, so we use a try/catch on getRouter() — but only at method
+ * invocation time, not at render time.
  */
 export function useRouter(): AppRouterInstance {
-  // SSR guard — on the server there's no router and no window.
-  if (typeof window === 'undefined') {
-    return SSR_NOOP_ROUTER;
-  }
-
   return {
     push(href: string, options?: { scroll?: boolean }) {
-      const router = getRouter();
+      let router;
+      try { router = getRouter(); } catch { return; }
       // Wrap in startTransition so React 19 tracks the async navigation.
       // React 19's startTransition accepts async callbacks — it keeps
       // isPending=true until the returned promise resolves. This means
@@ -70,25 +69,28 @@ export function useRouter(): AppRouterInstance {
       });
     },
     replace(href: string, options?: { scroll?: boolean }) {
-      const router = getRouter();
+      let router;
+      try { router = getRouter(); } catch { return; }
       startTransition(async () => {
         await router.navigate(href, { scroll: options?.scroll, replace: true });
       });
     },
     refresh() {
-      const router = getRouter();
+      let router;
+      try { router = getRouter(); } catch { return; }
       startTransition(async () => {
         await router.refresh();
       });
     },
     back() {
-      window.history.back();
+      if (typeof window !== 'undefined') window.history.back();
     },
     forward() {
-      window.history.forward();
+      if (typeof window !== 'undefined') window.history.forward();
     },
     prefetch(href: string) {
-      const router = getRouter();
+      let router;
+      try { router = getRouter(); } catch { return; }
       router.prefetch(href);
     },
   };

@@ -30,13 +30,25 @@ import {
   setServerCallback,
   encodeReply,
 } from '@vitejs/plugin-rsc/browser';
-import { createRouter } from './router.js';
-import type { RouterDeps, RouterInstance } from './router.js';
+// Shared-state modules MUST be imported from @timber-js/app/client (the public
+// barrel) so they resolve to the same module instances as user code. In Vite dev,
+// user code imports @timber-js/app/client from dist/ via package.json exports.
+// If we used relative imports (./router-ref.js), Vite would load separate src/
+// copies with separate module-level state — e.g., globalRouter set here but
+// read as null from the dist/ copy used by useRouter().
+import {
+  createRouter,
+  setGlobalRouter,
+  getRouter,
+  setCurrentParams,
+} from '@timber-js/app/client';
+import type { RouterDeps, RouterInstance } from '@timber-js/app/client';
+
+// Internal-only modules (no shared mutable state with user code) use relative
+// imports — they don't need singleton behavior across module graphs.
 import { applyHeadElements } from './head.js';
-import { setGlobalRouter, getRouter } from './router-ref.js';
 import { TimberNuqsAdapter } from './nuqs-adapter.js';
 import { isPageUnloading } from './unload-guard.js';
-import { setCurrentParams } from './use-params.js';
 import { ON_NAVIGATE_KEY } from './link-navigate-interceptor.js';
 
 // ─── Server Action Dispatch ──────────────────────────────────────

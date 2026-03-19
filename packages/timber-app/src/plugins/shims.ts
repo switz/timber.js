@@ -56,18 +56,6 @@ const SHIM_MAP: Record<string, string> = {
 };
 
 /**
- * Client-only shim overrides for the browser environment.
- *
- * next/navigation in the client environment resolves to navigation-client.ts
- * which only re-exports client hooks — not server functions like redirect()
- * and deny(). This prevents server/primitives.ts from being pulled into the
- * browser bundle via tree-shaking-resistant imports.
- */
-const CLIENT_SHIM_OVERRIDES: Record<string, string> = {
-  'next/navigation': resolve(SHIMS_DIR, 'navigation-client.ts'),
-};
-
-/**
  * Strip .js extension from an import specifier.
  *
  * Libraries like nuqs import `next/navigation.js` with an explicit
@@ -115,12 +103,14 @@ export function timberShims(_ctx: PluginContext): Plugin {
       const cleanId = stripJsExtension(id);
 
       // Check next/* shim map.
-      // In the client (browser) environment, use client-only shim overrides
-      // to avoid pulling server code (primitives.ts) into the browser bundle.
+      // In the client (browser) environment, next/navigation resolves to
+      // navigation-client.ts which only re-exports client hooks — not server
+      // functions like redirect() and deny(). This prevents server/primitives.ts
+      // from being pulled into the browser bundle.
       if (cleanId in SHIM_MAP) {
         const envName = (this as unknown as { environment?: { name?: string } }).environment?.name;
-        if (envName === 'client' && cleanId in CLIENT_SHIM_OVERRIDES) {
-          return CLIENT_SHIM_OVERRIDES[cleanId];
+        if (envName === 'client' && cleanId === 'next/navigation') {
+          return resolve(SHIMS_DIR, 'navigation-client.ts');
         }
         return SHIM_MAP[cleanId];
       }

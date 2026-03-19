@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { useRouter } from '../packages/timber-app/src/client/use-router';
-import { setGlobalRouter, getRouterOrNull } from '../packages/timber-app/src/client/router-ref';
+import { setGlobalRouter, resetGlobalRouter } from '../packages/timber-app/src/client/router-ref';
 import type { RouterInstance } from '../packages/timber-app/src/client/router';
 
 function makeMockRouter(): RouterInstance {
@@ -22,8 +22,8 @@ function makeMockRouter(): RouterInstance {
 }
 
 afterEach(() => {
-  // Reset global router after each test
-  delete (window as any).__timber_router;
+  // Reset module-level globalRouter between tests.
+  resetGlobalRouter();
 });
 
 describe('useRouter', () => {

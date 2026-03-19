@@ -2,29 +2,24 @@
 // This module has no dependencies on virtual modules, so it can be safely
 // imported by client hooks without pulling in browser-entry's virtual imports.
 //
-// The router is stored on `window.__timber_router` rather than a module-level
-// variable to survive module duplication. In Vite dev mode, the shim chain
-// (next/navigation → navigation-client.ts → #/client/use-router.js) can
-// resolve router-ref.ts via a different module URL than browser-entry.ts's
-// relative import, creating two separate module instances with separate
-// `globalRouter` variables. Using `window` as the store guarantees a single
-// shared reference regardless of module graph topology.
+// The router is stored as a module-level variable. browser-entry.ts and all
+// shim files import from @timber-js/app/client (the public barrel) rather
+// than relative paths or #/ subpath imports. This ensures all import chains
+// resolve to the same module instance via Vite's dep optimizer, preventing
+// the duplication that previously required a window.__timber_router workaround.
+//
+// See design/18-build-system.md §"Module Singleton Strategy"
 
 import type { RouterInstance } from './router.js';
 
-declare global {
-  interface Window {
-    __timber_router?: RouterInstance;
-  }
-}
+/** Module-level singleton — set once during bootstrap. */
+let globalRouter: RouterInstance | null = null;
 
 /**
  * Set the global router instance. Called once during bootstrap.
  */
 export function setGlobalRouter(router: RouterInstance): void {
-  if (typeof window !== 'undefined') {
-    window.__timber_router = router;
-  }
+  globalRouter = router;
 }
 
 /**
@@ -32,10 +27,10 @@ export function setGlobalRouter(router: RouterInstance): void {
  * Used by client-side hooks (useNavigationPending, etc.)
  */
 export function getRouter(): RouterInstance {
-  if (typeof window === 'undefined' || !window.__timber_router) {
+  if (!globalRouter) {
     throw new Error('[timber] Router not initialized. getRouter() was called before bootstrap().');
   }
-  return window.__timber_router;
+  return globalRouter;
 }
 
 /**
@@ -44,8 +39,14 @@ export function getRouter(): RouterInstance {
  * can log a meaningful warning instead of silently no-oping.
  */
 export function getRouterOrNull(): RouterInstance | null {
-  if (typeof window !== 'undefined') {
-    return window.__timber_router ?? null;
-  }
-  return null;
+  return globalRouter;
+}
+
+/**
+ * Reset the global router to null. Used only in tests to isolate
+ * module-level state between test cases.
+ * @internal
+ */
+export function resetGlobalRouter(): void {
+  globalRouter = null;
 }

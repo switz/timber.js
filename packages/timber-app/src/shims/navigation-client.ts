@@ -1,25 +1,30 @@
 /**
  * Shim: next/navigation (client environment only)
  *
- * Re-exports only the client-side hooks from timber's navigation shims.
+ * Re-exports only the client-side hooks from timber's client API.
  * Server-only functions (redirect, notFound, etc.) are excluded to prevent
  * server/primitives.ts from being pulled into the browser bundle.
  *
  * The full shim (navigation.ts) is still used in the RSC and SSR environments
  * where both client hooks and server functions are needed.
  *
+ * Imports use @timber-js/app/client (not #/ subpath imports) so they resolve
+ * to the same module instances as user code in Vite dev — preventing module
+ * duplication where setGlobalRouter() writes to one instance and useRouter()
+ * reads from another.
+ *
  * See design/14-ecosystem.md §"next/navigation" for the full shim audit.
  */
 
-// Hooks (client-side only)
-export { useParams } from '#/client/use-params.js';
-export { usePathname } from '#/client/use-pathname.js';
-export { useSearchParams } from '#/client/use-search-params.js';
-export { useRouter } from '#/client/use-router.js';
+// Hooks — imported from the public barrel for module singleton consistency.
 export {
+  useParams,
+  usePathname,
+  useSearchParams,
+  useRouter,
   useSelectedLayoutSegment,
   useSelectedLayoutSegments,
-} from '#/client/use-selected-layout-segment.js';
+} from '@timber-js/app/client';
 
 // RedirectType enum is safe (no server code dependency) and used by some
 // client-side libraries for type checking.

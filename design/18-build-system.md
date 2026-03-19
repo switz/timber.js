@@ -98,6 +98,20 @@ next/navigation (RSC/SSR) → shims/navigation.ts (full — client hooks + serve
 next/navigation (client)  → shims/navigation-client.ts (client hooks only)
 ```
 
+### Module Singleton Strategy
+
+In Vite dev, a module can be instantiated multiple times if it is reached via different import paths (e.g., a relative import from src/ vs a bare import resolved to dist/ by the dep optimizer). This causes bugs when modules have shared mutable state — one instance writes, another reads, and they never see each other's values.
+
+timber prevents this for client-side shared state by requiring that **all imports of shared-state modules go through the public barrel (`@timber-js/app/client`)** rather than relative or `#/` subpath imports:
+
+- `browser-entry.ts` imports `{ setGlobalRouter, createRouter, ... }` from `@timber-js/app/client`
+- Shim files (`navigation-client.ts`, `link.ts`) import from `@timber-js/app/client`
+- User code imports from `@timber-js/app/client`
+
+All three converge through Vite's dep optimizer → single pre-bundled module → single module instance. Internal-only modules (no shared state with user code) may still use relative imports.
+
+For server environments, `@timber-js/app/server` is resolved to src/ by the `timber-shims` plugin so that framework internals and user code share the same ALS singleton.
+
 ### `@timber-js/app/*` Subpath Resolution
 
 `@timber-js/app/server`, `@timber-js/app/client`, `@timber-js/app/cache`, and `@timber-js/app/search-params` resolve to their respective entry files. These are real files, not virtual modules.

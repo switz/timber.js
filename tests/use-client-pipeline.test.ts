@@ -148,16 +148,16 @@ describe('server barrel — no client module imports (LOCAL-295)', () => {
     expect(content).toContain('errorBoundaryComponent');
   });
 
-  it('shims plugin throws error (not stubs) for @timber-js/app/server in client env', () => {
-    // The shim plugin should throw a clear error if @timber-js/app/server
-    // is resolved in the client environment, not silently provide stubs.
+  it('shims plugin exports call-time-throwing stubs for @timber-js/app/server in client env', () => {
+    // The shim plugin should export named stubs that throw at call time
+    // (not at eval time) so the module system can resolve named imports.
     const content = readFileSync(resolve(SRC_DIR, 'plugins/shims.ts'), 'utf-8');
-    // Should contain throw new Error, not export const stubs
     expect(content).toContain('timber:server-empty');
+    // Stubs throw at call time via a shared stub function
     expect(content).toContain('throw new Error');
-    // Should NOT contain the old stub pattern
-    expect(content).not.toMatch(/export const headers = stub/);
-    expect(content).not.toMatch(/export const cookies = stub/);
+    expect(content).toMatch(/export const notFound = stub/);
+    expect(content).toMatch(/export const headers = stub/);
+    expect(content).toMatch(/export const deny = stub/);
   });
 });
 

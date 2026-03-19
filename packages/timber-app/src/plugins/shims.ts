@@ -177,11 +177,38 @@ export function timberShims(_ctx: PluginContext): Plugin {
       // Server modules must never be bundled into the browser — if this
       // module is reached, there is a broken import chain that needs fixing.
       if (id === '\0timber:server-empty') {
-        return `throw new Error(
-  "[timber] @timber-js/app/server was imported from client code. " +
+        // Export named stubs instead of throwing at evaluation time.
+        // Throwing at eval breaks the module system — the browser can't
+        // resolve named imports like `import { notFound } from '...'`.
+        // Instead, each stub throws at call time with a clear message.
+        return `
+const msg = "[timber] @timber-js/app/server was imported from client code. " +
   "Server modules (headers, cookies, redirect, deny, etc.) cannot be used in client components. " +
-  "If you need these APIs, move the import to a server component or middleware."
-);`;
+  "If you need these APIs, move the import to a server component or middleware.";
+function stub() { throw new Error(msg); }
+export const headers = stub;
+export const cookies = stub;
+export const searchParams = stub;
+export const deny = stub;
+export const notFound = stub;
+export const redirect = stub;
+export const permanentRedirect = stub;
+export const redirectExternal = stub;
+export const waitUntil = stub;
+export const RenderError = stub;
+export const RedirectType = {};
+export const DenySignal = stub;
+export const RedirectSignal = stub;
+export const createPipeline = stub;
+export const revalidatePath = stub;
+export const revalidateTag = stub;
+export const createActionClient = stub;
+export const ActionError = stub;
+export const validated = stub;
+export const getFormFlash = stub;
+export const parseFormData = stub;
+export const coerce = stub;
+`;
       }
     },
   };

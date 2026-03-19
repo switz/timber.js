@@ -147,6 +147,18 @@ function extractErrorHint(message: string): string | null {
     return 'A component resolved to undefined/null — check default exports and import paths';
   }
 
+  // "Invalid hook call" — hooks called outside React's render context.
+  // In RSC, this typically means a 'use client' component was executed as a
+  // server component instead of being serialized as a client reference.
+  if (message.includes('Invalid hook call')) {
+    return (
+      'A hook was called outside of a React component render. ' +
+      'If this is a \'use client\' component, ensure the directive is at the very top of the file ' +
+      '(before any imports) and that @vitejs/plugin-rsc is loaded correctly. ' +
+      'Barrel re-exports from non-\'use client\' files do not propagate the directive.'
+    );
+  }
+
   return null;
 }
 

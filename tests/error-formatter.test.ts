@@ -123,6 +123,18 @@ describe('formatSsrError', () => {
     expect(formatSsrError(null)).toBe('null');
   });
 
+  it('adds hint for invalid-hook-call errors (LOCAL-297)', () => {
+    const error = new Error(
+      'Invalid hook call. Hooks can only be called inside of the body of a function component.'
+    );
+    error.stack = error.message;
+
+    const result = formatSsrError(error);
+    expect(result).toContain("'use client'");
+    expect(result).toContain('directive');
+    expect(result).toContain('Barrel');
+  });
+
   it('filters out generic .vite/deps_ssr frames', () => {
     const error = new Error('fail');
     error.stack = `Error: fail

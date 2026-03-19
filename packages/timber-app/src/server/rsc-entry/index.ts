@@ -412,6 +412,30 @@ async function renderRoute(
               status: error.status,
             });
           }
+          // Dev diagnostic: detect "Invalid hook call" errors which indicate
+          // a 'use client' component is being executed during RSC rendering
+          // instead of being serialized as a client reference. This happens when
+          // the RSC plugin's transform doesn't detect the directive — e.g., the
+          // directive isn't at the very top of the file, or the component is
+          // re-exported through a barrel file without 'use client'.
+          // See LOCAL-297.
+          if (
+            process.env.NODE_ENV !== 'production' &&
+            error instanceof Error &&
+            error.message.includes('Invalid hook call')
+          ) {
+            console.error(
+              '[timber] A React hook was called during RSC rendering. This usually means a ' +
+                "'use client' component is being executed as a server component instead of " +
+                'being serialized as a client reference.\n\n' +
+                'Common causes:\n' +
+                "  1. The 'use client' directive is not the FIRST statement in the file (before any imports)\n" +
+                "  2. The component is re-exported through a barrel file (index.ts) that lacks 'use client'\n" +
+                '  3. @vitejs/plugin-rsc is not loaded or is misconfigured\n\n' +
+                `Request: ${_req.method} ${new URL(_req.url).pathname}`
+            );
+          }
+
           // Track unhandled errors for pre-flush handling (500 status)
           if (!renderError) {
             renderError = { error, status: 500 };

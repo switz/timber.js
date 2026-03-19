@@ -44,6 +44,53 @@ test.describe('parallel route initial load', () => {
     await expect(page.locator('[data-testid="parallel-projects-content"]')).toBeVisible();
   });
 
+  test('renders use client components with hooks in slot page (LOCAL-297)', async ({ page }) => {
+    // Regression test: 'use client' components imported by slot pages must be
+    // serialized as client references during RSC rendering, not executed on the
+    // server. If executed server-side, hooks like useState throw "Invalid hook call".
+    //
+    // Tests both direct import and barrel export patterns with an async server
+    // component page (the pattern that triggered the original bug).
+    const errors: string[] = [];
+    page.on('console', (msg) => {
+      if (msg.type() === 'error') errors.push(msg.text());
+    });
+    page.on('pageerror', (err) => errors.push(err.message));
+
+    const response = await page.goto('/parallel/projects');
+    expect(response?.status()).toBe(200);
+
+    // Direct import: ProjectFilter (use client with useState)
+    await expect(page.locator('[data-testid="project-filter"]')).toBeVisible();
+    await expect(page.locator('[data-testid="project-filter-input"]')).toBeVisible();
+
+    // Barrel export: ProjectCounter (use client via re-export)
+    await expect(page.locator('[data-testid="project-counter"]')).toBeVisible();
+    await expect(page.locator('[data-testid="project-counter-value"]')).toHaveText('0');
+
+    // No hook errors or hydration mismatches
+    const hydrationErrors = errors.filter(
+      (e) =>
+        e.includes('hook') ||
+        e.includes('Hydration') ||
+        e.includes('hydrat') ||
+        e.includes('mismatch')
+    );
+    expect(hydrationErrors).toEqual([]);
+
+    // Verify direct-import component is interactive (hydrated)
+    const input = page.locator('[data-testid="project-filter-input"]');
+    await input.click();
+    await input.pressSequentially('test', { delay: 50 });
+    await expect(page.locator('[data-testid="project-filter-active"]')).toHaveText(
+      'Filtering: test'
+    );
+
+    // Verify barrel-exported component is interactive (hydrated)
+    await page.click('[data-testid="project-counter-button"]');
+    await expect(page.locator('[data-testid="project-counter-value"]')).toHaveText('1');
+  });
+
   test('renders default.tsx in sidebar on /parallel/about (no matching slot page)', async ({
     page,
   }) => {

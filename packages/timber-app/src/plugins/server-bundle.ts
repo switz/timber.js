@@ -26,11 +26,20 @@ export function timberServerBundle(): Plugin[] {
       // which throws in the SSR environment.
       if (command === 'serve') {
         // In dev, Vite externalizes node_modules and loads them via Node's
-        // native require(). Deps that import `server-only` (like `bright`)
-        // hit the real CJS package which throws at runtime. We force these
-        // poison-pill packages to be non-external so they go through Vite's
-        // module pipeline, where the timber-shims plugin intercepts them
-        // and serves no-op virtual modules for server environments.
+        // native require(). This causes two problems:
+        //
+        // 1. Poison-pill packages: deps that import `server-only` (like `bright`)
+        //    hit the real CJS package which throws in the SSR environment.
+        //
+        // 2. Dual React instances: deps with React hooks (nuqs, etc.) are
+        //    externalized and loaded via Node.js, getting their own copy of
+        //    React. Meanwhile, SSR's renderToReadableStream uses Vite's
+        //    dep-optimized React. Two React instances = dispatcher mismatch,
+        //    causing "Invalid hook call" / "Cannot read properties of null
+        //    (reading 'useId')" errors. See LOCAL-297.
+        //
+        // We force these packages to be non-external so they go through
+        // Vite's module pipeline, which deduplicates React correctly.
         return {
           environments: {
             rsc: {
@@ -40,7 +49,7 @@ export function timberServerBundle(): Plugin[] {
             },
             ssr: {
               resolve: {
-                noExternal: ['server-only', 'client-only'],
+                noExternal: ['server-only', 'client-only', 'nuqs'],
               },
             },
           },

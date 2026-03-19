@@ -107,15 +107,18 @@ describe('DenySignal — data storage', () => {
     expect(signal.data).toBeUndefined();
   });
 
-  it('stores complex data (pre-Flight serialization)', () => {
-    // DenySignal stores data as-is. Serialization happens downstream
-    // when either Flight (pre-flush) or JSON (post-flush) processes it.
+  it('rejects non-JSON-serializable data at the type level', () => {
+    // With the JsonSerializable constraint, DenySignal no longer accepts
+    // Date, Map, Set, etc. at the type level. This test verifies that
+    // the runtime still stores whatever is passed (for backward compat),
+    // using a type assertion to bypass the compile-time check.
     const data = {
       date: new Date('2024-01-01'),
       map: new Map([['a', 1]]),
       set: new Set([1, 2]),
     };
-    const signal = new DenySignal(404, data);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const signal = new DenySignal(404, data as any);
     expect(signal.data).toBe(data);
     expect((signal.data as Record<string, unknown>).date).toBeInstanceOf(Date);
     expect((signal.data as Record<string, unknown>).map).toBeInstanceOf(Map);
@@ -143,8 +146,9 @@ describe('RenderError — digest serialization via JSON', () => {
     expect(parsed.status).toBe(500);
   });
 
-  it('Date in digest data is coerced to string', () => {
-    const error = new RenderError('EXPIRED', { expiredAt: new Date('2024-01-01') });
+  it('Date in digest data is coerced to string (type assertion bypass)', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const error = new RenderError('EXPIRED', { expiredAt: new Date('2024-01-01') } as any);
     const digest = JSON.stringify({
       type: 'render-error',
       code: error.code,

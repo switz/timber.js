@@ -36,6 +36,7 @@ export {
   RedirectSignal,
 } from './primitives';
 export type { RenderErrorDigest, WaitUntilAdapter } from './primitives';
+export type { JsonSerializable } from './types';
 
 // Pipeline
 export { createPipeline } from './pipeline';

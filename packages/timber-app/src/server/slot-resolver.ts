@@ -257,6 +257,12 @@ function findSlotMatch(slotNode: ManifestSegmentNode, match: RouteMatch): SlotMa
     if (slotNode.page) {
       return { page: slotNode.page, chain: [slotNode] };
     }
+    // Check for optional-catch-all child — [[...slug]] matches zero segments
+    for (const child of slotNode.children ?? []) {
+      if (child.segmentType === 'optional-catch-all' && child.page) {
+        return { page: child.page, chain: [slotNode, child] };
+      }
+    }
     return null;
   }
 
@@ -280,10 +286,26 @@ function findSlotMatch(slotNode: ManifestSegmentNode, match: RouteMatch): SlotMa
     // Try dynamic segments if no static match
     if (!found) {
       for (const child of directChildren) {
-        if (child.segmentType === 'dynamic' || child.segmentType === 'catch-all') {
+        if (child.segmentType === 'dynamic') {
           found = child;
           break;
         }
+      }
+    }
+
+    // Try catch-all segments — these consume ALL remaining URL segments,
+    // so we break out of the outer loop immediately.
+    if (!found) {
+      for (const child of directChildren) {
+        if (child.segmentType === 'catch-all' || child.segmentType === 'optional-catch-all') {
+          found = child;
+          break;
+        }
+      }
+      if (found) {
+        chain.push(found);
+        currentNode = found;
+        break;
       }
     }
 

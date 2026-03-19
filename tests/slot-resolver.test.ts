@@ -15,7 +15,7 @@ import { resolveSlotElement } from '../packages/timber-app/src/server/slot-resol
 /** Test-only RouteMatch using ManifestSegmentNode (avoids RouteFile vs ManifestFile mismatch) */
 interface TestRouteMatch {
   segments: ManifestSegmentNode[];
-  params: Record<string, string>;
+  params: Record<string, string | string[]>;
 }
 
 // Minimal mock createElement
@@ -656,6 +656,161 @@ describe('resolveSlotElement', () => {
     await expect(
       (innerElement.type as (props: unknown) => Promise<unknown>)(innerElement.props)
     ).rejects.toThrow('Some other error');
+  });
+
+  it('matches catch-all route in slot consuming multiple segments', async () => {
+    // @shows/[artistSlug]/[...year]/page.tsx should match /phish/2024/03/15
+    const slotNode = makeSegment({
+      segmentName: '@shows',
+      segmentType: 'slot',
+      urlPath: '/',
+      page: makeFile('ShowsHome'),
+      children: [
+        makeSegment({
+          segmentName: '[artistSlug]',
+          segmentType: 'dynamic',
+          urlPath: '/[artistSlug]',
+          paramName: 'artistSlug',
+          children: [
+            makeSegment({
+              segmentName: '[...year]',
+              segmentType: 'catch-all',
+              urlPath: '/[artistSlug]/[...year]',
+              paramName: 'year',
+              page: makeFile('ShowsByYear'),
+            }),
+          ],
+        }),
+      ],
+    });
+
+    // URL: /phish/2024/03/15 — 4 segments after the slot parent
+    const match: TestRouteMatch = {
+      segments: [
+        makeSegment({ segmentName: '', urlPath: '/' }),
+        makeSegment({
+          segmentName: '[artistSlug]',
+          segmentType: 'dynamic',
+          urlPath: '/[artistSlug]',
+          paramName: 'artistSlug',
+          page: makeFile('ArtistPage'),
+        }),
+        makeSegment({
+          segmentName: '2024',
+          segmentType: 'static',
+          urlPath: '/[artistSlug]/2024',
+        }),
+        makeSegment({
+          segmentName: '03',
+          segmentType: 'static',
+          urlPath: '/[artistSlug]/2024/03',
+        }),
+        makeSegment({
+          segmentName: '15',
+          segmentType: 'static',
+          urlPath: '/[artistSlug]/2024/03/15',
+        }),
+      ],
+      params: { artistSlug: 'phish', year: ['2024', '03', '15'] },
+    };
+
+    const result = await resolveSlotElement(
+      slotNode as never,
+      match as never,
+      Promise.resolve({ artistSlug: 'phish', year: ['2024', '03', '15'] }),
+      h
+    );
+    expect(result).not.toBeNull();
+    const outer = result as {
+      type: unknown;
+      props: { children: { type: unknown; props: unknown } };
+    };
+    expect(outer.type).toBe(TimberErrorBoundary);
+    const wrapper = outer.props.children;
+    expect(typeof wrapper.type).toBe('function');
+    expect((wrapper.type as { name: string }).name).toBe('SafeSlotPage');
+  });
+
+  it('matches catch-all at slot root level consuming all segments', async () => {
+    // @years/[...artistSlug]/page.tsx should match /phish
+    const slotNode = makeSegment({
+      segmentName: '@years',
+      segmentType: 'slot',
+      urlPath: '/',
+      page: makeFile('YearsHome'),
+      children: [
+        makeSegment({
+          segmentName: '[...artistSlug]',
+          segmentType: 'catch-all',
+          urlPath: '/[...artistSlug]',
+          paramName: 'artistSlug',
+          page: makeFile('YearsByArtist'),
+        }),
+      ],
+    });
+
+    const match: TestRouteMatch = {
+      segments: [
+        makeSegment({ segmentName: '', urlPath: '/' }),
+        makeSegment({
+          segmentName: 'phish',
+          segmentType: 'static',
+          urlPath: '/phish',
+          page: makeFile('ArtistPage'),
+        }),
+      ],
+      params: { artistSlug: ['phish'] },
+    };
+
+    const result = await resolveSlotElement(
+      slotNode as never,
+      match as never,
+      Promise.resolve({ artistSlug: ['phish'] }),
+      h
+    );
+    expect(result).not.toBeNull();
+    const outer = result as {
+      type: unknown;
+      props: { children: { type: unknown; props: unknown } };
+    };
+    expect(outer.type).toBe(TimberErrorBoundary);
+  });
+
+  it('matches optional-catch-all in slot with zero segments', async () => {
+    // @years/[[...slug]]/page.tsx should match when URL is at slot root
+    const slotNode = makeSegment({
+      segmentName: '@years',
+      segmentType: 'slot',
+      urlPath: '/',
+      // No page at slot root
+      children: [
+        makeSegment({
+          segmentName: '[[...slug]]',
+          segmentType: 'optional-catch-all',
+          urlPath: '/[[...slug]]',
+          paramName: 'slug',
+          page: makeFile('YearsOptional'),
+        }),
+      ],
+    });
+
+    const match: TestRouteMatch = {
+      segments: [makeSegment({ segmentName: '', urlPath: '/' })],
+      params: {},
+    };
+
+    const result = await resolveSlotElement(
+      slotNode as never,
+      match as never,
+      Promise.resolve({}),
+      h
+    );
+    expect(result).not.toBeNull();
+    const outer = result as {
+      type: unknown;
+      props: { children: { type: unknown; props: unknown } };
+    };
+    expect(outer.type).toBe(TimberErrorBoundary);
   });
 
   it('resolves slot under route group with same urlPath as root', async () => {

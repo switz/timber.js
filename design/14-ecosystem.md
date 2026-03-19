@@ -13,6 +13,8 @@ The `next/*` shims are resolved at the Vite layer by the `timber-shims` plugin. 
 
 We keep `next/*` shims indefinitely. Ecosystem library compatibility is a core value — libraries should work without forking. The shim surface is small (5 modules) and tracked closely against upstream Next.js.
 
+**Evaluated in:** [30-shim-evaluation.md](30-shim-evaluation.md) — full cost/benefit analysis of removing shims. Conclusion: keep shims, fix resolution bugs.
+
 ---
 
 ## Shim Audit

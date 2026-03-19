@@ -53,6 +53,7 @@ function makeConfig(overrides?: Partial<TreeBuilderConfig>): TreeBuilderConfig {
     searchParams: new URLSearchParams(),
     loadModule: () => ({}),
     createElement: mockCreateElement,
+    errorBoundaryComponent: TimberErrorBoundary,
     ...overrides,
   };
 }

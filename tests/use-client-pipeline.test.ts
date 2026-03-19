@@ -123,6 +123,44 @@ describe('server-only exclusion from client bundle', () => {
   });
 });
 
+// ─── Server Barrel — No Client Imports ─────────────────────────────────
+
+describe('server barrel — no client module imports (LOCAL-295)', () => {
+  it('server/index.ts does not import from client/', () => {
+    // The server barrel (@timber-js/app/server) must not transitively import
+    // 'use client' modules. This would create a bidirectional dependency in
+    // the dist build, causing client bundles to pull in node:async_hooks etc.
+    const content = readFileSync(resolve(SRC_DIR, 'server/index.ts'), 'utf-8');
+    expect(content).not.toMatch(/from ['"].*\/client\//);
+    expect(content).not.toMatch(/from ['"]#\/client\//);
+  });
+
+  it('tree-builder.ts does not import TimberErrorBoundary directly', () => {
+    // TimberErrorBoundary is a 'use client' component. It must be injected
+    // via config (not imported) to keep the server barrel free of client deps.
+    const content = readFileSync(resolve(SRC_DIR, 'server/tree-builder.ts'), 'utf-8');
+    expect(content).not.toContain("from '#/client/error-boundary");
+    expect(content).not.toContain("from '../client/error-boundary");
+  });
+
+  it('tree-builder accepts errorBoundaryComponent via config', () => {
+    const content = readFileSync(resolve(SRC_DIR, 'server/tree-builder.ts'), 'utf-8');
+    expect(content).toContain('errorBoundaryComponent');
+  });
+
+  it('shims plugin throws error (not stubs) for @timber-js/app/server in client env', () => {
+    // The shim plugin should throw a clear error if @timber-js/app/server
+    // is resolved in the client environment, not silently provide stubs.
+    const content = readFileSync(resolve(SRC_DIR, 'plugins/shims.ts'), 'utf-8');
+    // Should contain throw new Error, not export const stubs
+    expect(content).toContain('timber:server-empty');
+    expect(content).toContain('throw new Error');
+    // Should NOT contain the old stub pattern
+    expect(content).not.toMatch(/export const headers = stub/);
+    expect(content).not.toMatch(/export const cookies = stub/);
+  });
+});
+
 // ─── Client Module Map ─────────────────────────────────────────────────
 
 describe('client-module-map', () => {

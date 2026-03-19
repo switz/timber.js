@@ -11,7 +11,6 @@
  */
 
 import type { SegmentNode, RouteFile } from '#/routing/types.js';
-import { TimberErrorBoundary } from '#/client/error-boundary.js';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -55,6 +54,16 @@ export interface TreeBuilderConfig {
   loadModule: ModuleLoader;
   /** React.createElement or equivalent. */
   createElement: CreateElement;
+  /**
+   * Error boundary component for wrapping segments.
+   *
+   * This is injected by the caller rather than imported directly to avoid
+   * pulling 'use client' code into the server barrel (@timber-js/app/server).
+   * In the RSC environment, the RSC plugin transforms this import to a
+   * client reference proxy — the caller handles the import so the server
+   * barrel stays free of client dependencies.
+   */
+  errorBoundaryComponent?: unknown;
 }
 
 // ─── Component wrappers ──────────────────────────────────────────────────────
@@ -134,7 +143,8 @@ export interface TreeBuildResult {
  * Parallel slots are resolved at each layout level and composed as named props.
  */
 export async function buildElementTree(config: TreeBuilderConfig): Promise<TreeBuildResult> {
-  const { segments, params, searchParams, loadModule, createElement } = config;
+  const { segments, params, searchParams, loadModule, createElement, errorBoundaryComponent } =
+    config;
 
   if (segments.length === 0) {
     throw new Error('[timber] buildElementTree: empty segment chain');
@@ -166,7 +176,13 @@ export async function buildElementTree(config: TreeBuilderConfig): Promise<TreeB
     const segment = segments[i];
 
     // Wrap in error boundaries (status-code files + error.tsx)
-    element = await wrapWithErrorBoundaries(segment, element, loadModule, createElement);
+    element = await wrapWithErrorBoundaries(
+      segment,
+      element,
+      loadModule,
+      createElement,
+      errorBoundaryComponent
+    );
 
     // Wrap in AccessGate if segment has access.ts
     if (segment.access) {
@@ -198,7 +214,8 @@ export async function buildElementTree(config: TreeBuilderConfig): Promise<TreeB
               params,
               searchParams,
               loadModule,
-              createElement
+              createElement,
+              errorBoundaryComponent
             );
           }
         }
@@ -229,7 +246,8 @@ async function buildSlotElement(
   params: Record<string, string | string[]>,
   searchParams: unknown,
   loadModule: ModuleLoader,
-  createElement: CreateElement
+  createElement: CreateElement,
+  errorBoundaryComponent: unknown
 ): Promise<ReactElement> {
   // Load slot page
   const pageModule = slotNode.page ? await loadModule(slotNode.page) : null;
@@ -249,7 +267,13 @@ async function buildSlotElement(
   let element: ReactElement = createElement(PageComponent, { params, searchParams });
 
   // Wrap in error boundaries
-  element = await wrapWithErrorBoundaries(slotNode, element, loadModule, createElement);
+  element = await wrapWithErrorBoundaries(
+    slotNode,
+    element,
+    loadModule,
+    createElement,
+    errorBoundaryComponent
+  );
 
   // Wrap in SlotAccessGate if slot has access.ts
   if (slotNode.access) {
@@ -301,7 +325,8 @@ async function wrapWithErrorBoundaries(
   segment: SegmentNode,
   element: ReactElement,
   loadModule: ModuleLoader,
-  createElement: CreateElement
+  createElement: CreateElement,
+  errorBoundaryComponent: unknown
 ): Promise<ReactElement> {
   // Wrapping is applied inside-out. The last wrap call produces the outermost boundary.
   // Order: specific status → category → error.tsx (outermost)
@@ -315,7 +340,7 @@ async function wrapWithErrorBoundaries(
           const mod = await loadModule(file);
           const Component = mod.default;
           if (Component) {
-            element = createElement(TimberErrorBoundary, {
+            element = createElement(errorBoundaryComponent, {
               fallbackComponent: Component,
               status,
               children: element,
@@ -331,7 +356,7 @@ async function wrapWithErrorBoundaries(
         const mod = await loadModule(file);
         const Component = mod.default;
         if (Component) {
-          element = createElement(TimberErrorBoundary, {
+          element = createElement(errorBoundaryComponent, {
             fallbackComponent: Component,
             status: key === '4xx' ? 400 : 500, // category marker
             children: element,
@@ -346,7 +371,7 @@ async function wrapWithErrorBoundaries(
     const errorModule = await loadModule(segment.error);
     const ErrorComponent = errorModule.default;
     if (ErrorComponent) {
-      element = createElement(TimberErrorBoundary, {
+      element = createElement(errorBoundaryComponent, {
         fallbackComponent: ErrorComponent,
         children: element,
       } satisfies ErrorBoundaryProps);

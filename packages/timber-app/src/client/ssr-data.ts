@@ -44,8 +44,29 @@ export interface SsrData {
 // Server-side code (ssr-entry.ts) registers a provider that reads
 // from AsyncLocalStorage. This avoids importing node:async_hooks
 // in this browser-bundled module.
+//
+// IMPORTANT: The provider is stored on `globalThis` instead of a
+// module-level variable. In Vite's SSR environment, this module may
+// exist as TWO separate module instances:
+//   1. src/client/ssr-data.ts — imported by ssr-entry.ts via `#/client/...`
+//   2. dist/client/ssr-data chunk — imported by client components via
+//      `@timber-js/app/client` (which resolves to dist/ to preserve
+//      'use client' directives for the RSC environment)
+//
+// If registerSsrDataProvider() writes to a module-level variable on
+// the src/ instance, getSsrData() called from the dist/ instance
+// (by client component hooks like useParams) won't see the provider.
+// Using globalThis bridges all module instances.
+//
+// This does NOT violate the "no global fallback state" security
+// principle (design/13-security.md) — the global only stores the
+// provider *function*; actual per-request data remains in ALS.
 
-let _ssrDataProvider: (() => SsrData | undefined) | undefined;
+const SSR_PROVIDER_KEY = '__timber_ssr_data_provider' as const;
+
+type SsrProviderGlobal = {
+  [SSR_PROVIDER_KEY]?: (() => SsrData | undefined) | undefined;
+};
 
 /**
  * Register an ALS-backed SSR data provider. Called once at module load
@@ -54,9 +75,13 @@ let _ssrDataProvider: (() => SsrData | undefined) | undefined;
  * When registered, getSsrData() reads from the provider (ALS store)
  * instead of module-level state, ensuring correct isolation for
  * concurrent requests with streaming Suspense.
+ *
+ * The provider is stored on globalThis to bridge separate module
+ * instances of this file (src/ vs dist/) in Vite's SSR environment.
+ * See the comment above for details on the module instance split.
  */
 export function registerSsrDataProvider(provider: () => SsrData | undefined): void {
-  _ssrDataProvider = provider;
+  (globalThis as SsrProviderGlobal)[SSR_PROVIDER_KEY] = provider;
 }
 
 // ─── Module-Level Fallback ────────────────────────────────────────
@@ -95,8 +120,9 @@ export function clearSsrData(): void {
  * Used by client hooks' server snapshot functions.
  */
 export function getSsrData(): SsrData | undefined {
-  if (_ssrDataProvider) {
-    return _ssrDataProvider();
+  const provider = (globalThis as SsrProviderGlobal)[SSR_PROVIDER_KEY];
+  if (provider) {
+    return provider();
   }
   return currentSsrData;
 }

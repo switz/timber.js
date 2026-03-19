@@ -92,8 +92,10 @@ export function timberShims(_ctx: PluginContext): Plugin {
      * instance as framework internals (which import via #/). This ensures
      * a single requestContextAls and _getRscFallback variable.
      *
-     * @timber-js/app/client is NOT mapped here — it resolves to dist/ via
-     * package.json exports, where 'use client' is preserved on the entry.
+     * @timber-js/app/client is resolved to src/ in the SSR environment so
+     * client hooks share the same module instance as ssr-entry.ts internals.
+     * In RSC it resolves to dist/ (via package.json exports) where 'use client'
+     * is preserved on the entry for client boundary detection.
      */
     resolveId(id: string) {
       // Poison pill packages — resolve to virtual modules handled by load()
@@ -125,6 +127,28 @@ export function timberShims(_ctx: PluginContext): Plugin {
           return '\0timber:server-empty';
         }
         return resolve(PKG_ROOT, 'src', 'server', 'index.ts');
+      }
+
+      // @timber-js/app/client → src/ in the SSR environment so client hooks
+      // (useParams, usePathname, etc.) share the same module instance as
+      // ssr-entry.ts's internal imports (via #/client/...).
+      //
+      // Without this remap, @timber-js/app/client resolves to dist/ (via
+      // package.json exports), creating a module instance split: ssr-entry.ts
+      // registers the ALS-backed SSR data provider on the src/ instance of
+      // ssr-data.ts, but client component hooks read getSsrData() from the
+      // dist/ instance — which has no provider. Result: hooks like useParams()
+      // return empty defaults during SSR.
+      //
+      // This remap is SSR-only. The RSC environment still resolves to dist/
+      // where 'use client' is preserved on the entry (needed for client
+      // boundary detection). The client (browser) environment uses dist/
+      // for bundling.
+      if (cleanId === '@timber-js/app/client') {
+        const envName = (this as unknown as { environment?: { name?: string } }).environment?.name;
+        if (envName === 'ssr') {
+          return resolve(PKG_ROOT, 'src', 'client', 'index.ts');
+        }
       }
 
       return null;

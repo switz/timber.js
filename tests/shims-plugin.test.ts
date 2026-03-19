@@ -94,10 +94,26 @@ describe('timber-shims plugin', () => {
       expect(resolveId('@timber-js/app/server')).toBe(resolve(SRC_DIR, 'server/index.ts'));
     });
 
-    // @timber-js/app/client, cache, search-params, routing are NOT resolved
-    // by the shims plugin — they go through Vite's native package.json exports.
-    // Only @timber-js/app/server is resolved to src/ for ALS singleton sharing.
-    it('passes through @timber-js/app/client to Vite native resolution', () => {
+    // @timber-js/app/client is resolved to src/ in the SSR environment for
+    // module singleton consistency (same pattern as @timber-js/app/server).
+    // In other environments (RSC, client), it passes through to Vite's native
+    // resolution (dist/) where 'use client' is preserved on the entry.
+    it('resolves @timber-js/app/client to src/ in SSR environment', () => {
+      const resolveId = createResolveId('ssr');
+      expect(resolveId('@timber-js/app/client')).toBe(resolve(SRC_DIR, 'client/index.ts'));
+    });
+
+    it('passes through @timber-js/app/client in RSC environment', () => {
+      const resolveId = createResolveId('rsc');
+      expect(resolveId('@timber-js/app/client')).toBeNull();
+    });
+
+    it('passes through @timber-js/app/client in client environment', () => {
+      const resolveId = createResolveId('client');
+      expect(resolveId('@timber-js/app/client')).toBeNull();
+    });
+
+    it('passes through @timber-js/app/client when no environment set', () => {
       const resolveId = createResolveId();
       expect(resolveId('@timber-js/app/client')).toBeNull();
     });

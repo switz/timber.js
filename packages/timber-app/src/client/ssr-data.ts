@@ -44,6 +44,16 @@ export interface SsrData {
 // Server-side code (ssr-entry.ts) registers a provider that reads
 // from AsyncLocalStorage. This avoids importing node:async_hooks
 // in this browser-bundled module.
+//
+// Module singleton guarantee: In Vite's SSR environment, both
+// ssr-entry.ts (via #/client/ssr-data.js) and client component hooks
+// (via @timber-js/app/client) must resolve to the SAME module instance
+// of this file. The timber-shims plugin ensures this by remapping
+// @timber-js/app/client → src/client/index.ts in the SSR environment.
+// Without this remap, @timber-js/app/client resolves to dist/ (via
+// package.json exports), creating a split where registerSsrDataProvider
+// writes to one instance but getSsrData reads from another.
+// See timber-shims plugin resolveId for details.
 
 let _ssrDataProvider: (() => SsrData | undefined) | undefined;
 

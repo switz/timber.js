@@ -217,9 +217,12 @@ export function createPipeline(config: PipelineConfig): (req: Request) => Promis
               // Append Server-Timing header in dev mode.
               // At this point, pre-flush phases (proxy, middleware, render)
               // have completed and their timing entries are collected.
+              // Response.redirect() creates immutable headers, so we must
+              // ensure mutability before writing Server-Timing.
               if (enableServerTiming) {
                 const serverTiming = getServerTimingHeader();
                 if (serverTiming) {
+                  result = ensureMutableResponse(result);
                   result.headers.set('Server-Timing', serverTiming);
                 }
               }
@@ -412,10 +415,13 @@ export function createPipeline(config: PipelineConfig): (req: Request) => Promis
         );
         setMutableCookieContext(false);
         if (middlewareResponse) {
-          // Apply cookie jar to short-circuit response
-          applyCookieJar(middlewareResponse.headers);
-          logMiddlewareShortCircuit({ method, path, status: middlewareResponse.status });
-          return middlewareResponse;
+          // Apply cookie jar to short-circuit response.
+          // Response.redirect() creates immutable headers, so ensure
+          // mutability before appending Set-Cookie entries.
+          const finalResponse = ensureMutableResponse(middlewareResponse);
+          applyCookieJar(finalResponse.headers);
+          logMiddlewareShortCircuit({ method, path, status: finalResponse.status });
+          return finalResponse;
         }
         // Middleware succeeded without short-circuiting — apply any
         // injected request headers so headers() returns them downstream.
@@ -581,6 +587,36 @@ function pathnameMatchesPattern(pathname: string, pattern: string): boolean {
 function applyCookieJar(headers: Headers): void {
   for (const value of getSetCookieHeaders()) {
     headers.append('Set-Cookie', value);
+  }
+}
+
+// ─── Immutable Response Helpers ──────────────────────────────────────────
+
+/**
+ * Ensure a Response has mutable headers so the pipeline can safely append
+ * Set-Cookie and Server-Timing entries.
+ *
+ * `Response.redirect()` and some platform-level responses return objects
+ * with immutable headers. Calling `.set()` or `.append()` on them throws
+ * `TypeError: immutable`. This helper detects the immutable case by
+ * attempting a no-op write and, on failure, clones into a fresh Response
+ * with mutable headers.
+ */
+function ensureMutableResponse(response: Response): Response {
+  try {
+    // Probe mutability with a benign operation that we immediately undo.
+    // We pick a header name that is extremely unlikely to collide with
+    // anything meaningful and delete it right away.
+    response.headers.set('X-Timber-Probe', '1');
+    response.headers.delete('X-Timber-Probe');
+    return response;
+  } catch {
+    // Headers are immutable — rebuild with mutable headers.
+    return new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: new Headers(response.headers),
+    });
   }
 }
 

@@ -247,6 +247,29 @@ describe('middleware.ts', () => {
     expect(renderSpy).not.toHaveBeenCalled();
   });
 
+  it('middleware short-circuit with Response.redirect() (immutable headers)', async () => {
+    // Response.redirect() creates a Response with immutable headers.
+    // The pipeline must handle this without throwing when applying cookies
+    // or Server-Timing headers.
+    const middlewareFn: MiddlewareFn = async (ctx) => {
+      return Response.redirect(new URL('/', new URL(ctx.req.url)), 302);
+    };
+
+    const renderSpy = vi.fn(() => new Response('should not reach'));
+
+    const handler = createPipeline(
+      makeConfig({
+        matchRoute: () => makeMatch({ middleware: middlewareFn }),
+        render: renderSpy,
+      })
+    );
+
+    const res = await handler(makeRequest('/test'));
+    expect(res.status).toBe(302);
+    expect(res.headers.get('Location')).toBe('http://localhost/');
+    expect(renderSpy).not.toHaveBeenCalled();
+  });
+
   it('middleware throw 500', async () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 

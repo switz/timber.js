@@ -289,12 +289,14 @@ function bootstrap(runtimeConfig: typeof config): void {
       setNavigationState({
         params: earlyParams as Record<string, string | string[]>,
         pathname: window.location.pathname,
+        pendingUrl: null,
       });
       delete (self as unknown as Record<string, unknown>).__timber_params;
     } else {
       setNavigationState({
         params: {},
         pathname: window.location.pathname,
+        pendingUrl: null,
       });
     }
 
@@ -439,6 +441,7 @@ function bootstrap(runtimeConfig: typeof config): void {
     setNavigationState({
       params: lateTimberParams as Record<string, string | string[]>,
       pathname: window.location.pathname,
+      pendingUrl: null,
     });
     delete (self as unknown as Record<string, unknown>).__timber_params;
   }

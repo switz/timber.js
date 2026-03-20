@@ -6,7 +6,7 @@ import type { SegmentInfo } from './segment-cache';
 import { HistoryStack } from './history';
 import type { HeadElement } from './head';
 import { setCurrentParams } from './use-params.js';
-import { setNavigationState } from './navigation-context.js';
+import { getNavigationState, setNavigationState } from './navigation-context.js';
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -298,14 +298,26 @@ export function createRouter(deps: RouterDeps): RouterInstance {
   let pending = false;
   let pendingUrl: string | null = null;
   const pendingListeners = new Set<(pending: boolean) => void>();
+  /** Last rendered payload — used to re-render at navigation start with pendingUrl set. */
+  let lastRenderedPayload: unknown = null;
 
   function setPending(value: boolean, url?: string): void {
     const newPendingUrl = value && url ? url : null;
     if (pending === value && pendingUrl === newPendingUrl) return;
     pending = value;
     pendingUrl = newPendingUrl;
+    // Notify external store listeners (useNavigationPending, etc.)
     for (const listener of pendingListeners) {
       listener(value);
+    }
+    // When navigation starts, re-render the current tree with pendingUrl
+    // set in NavigationContext. This makes the pending state visible to
+    // LinkStatusProvider atomically via React context, avoiding the
+    // two-commit gap between useSyncExternalStore and context updates.
+    if (value && lastRenderedPayload !== null) {
+      const currentState = getNavigationState();
+      setNavigationState({ ...currentState, pendingUrl: newPendingUrl });
+      renderPayload(lastRenderedPayload);
     }
   }
 
@@ -320,22 +332,29 @@ export function createRouter(deps: RouterDeps): RouterInstance {
 
   /** Render a decoded RSC payload into the DOM if a renderer is available. */
   function renderPayload(payload: unknown): void {
+    lastRenderedPayload = payload;
     if (deps.renderRoot) {
       deps.renderRoot(payload);
     }
   }
 
   /**
-   * Update navigation state (params + pathname) for the next render.
+   * Update navigation state (params + pathname + pendingUrl) for the next render.
    *
    * Sets both the module-level fallback (for tests and SSR) and the
    * navigation context state (read by renderRoot to wrap the element
    * in NavigationProvider). The context update is atomic with the tree
    * render — both are passed to reactRoot.render() in the same call.
+   *
+   * pendingUrl is included so that LinkStatusProvider (which reads from
+   * NavigationContext) sees the pending state change in the same React
+   * commit as params/pathname — preventing the gap where the spinner
+   * disappears before the active state updates.
    */
   function updateNavigationState(
     params: Record<string, string | string[]> | null | undefined,
-    url: string
+    url: string,
+    navPendingUrl: string | null = null
   ): void {
     const resolvedParams = params ?? {};
     // Module-level fallback for tests (no NavigationProvider) and SSR
@@ -344,7 +363,7 @@ export function createRouter(deps: RouterDeps): RouterInstance {
     const pathname = url.startsWith('http')
       ? new URL(url).pathname
       : url.split('?')[0] || '/';
-    setNavigationState({ params: resolvedParams, pathname });
+    setNavigationState({ params: resolvedParams, pathname, pendingUrl: navPendingUrl });
   }
 
   /** Apply head elements (title, meta tags) to the DOM if available. */

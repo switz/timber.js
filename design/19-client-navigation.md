@@ -120,12 +120,23 @@ The router calls `setNavigationState({ params, pathname })` then `renderRoot(pay
 
 ### What Stays on useSyncExternalStore
 
-Not all hooks moved to context. Hooks that read browser state or router state independent of the tree render keep `useSyncExternalStore`:
+Not all hooks moved to context. Hooks that read **browser-owned state** that can change **outside of router navigation** keep `useSyncExternalStore`:
 
-- **`useSearchParams()`** — reads `window.location.search`, also updated by nuqs outside of navigation
-- **`useNavigationPending()`** — reads router pending state (exists outside React)
-- **`useLinkStatus()`** — reads router pending URL scoped to a specific link
-- **`useCookie()`** — reads `document.cookie`, entirely independent of navigation
+- **`useSearchParams()`** — reads `window.location.search`. Search params change in two independent ways: (1) router navigation to a URL with query params, and (2) nuqs calling `history.replaceState` directly without going through the router. Putting search params in `NavigationContext` would make nuqs-initiated changes invisible — nuqs would need to call `setNavigationState()` to update the context, coupling it to our internals. The URL itself (`window.location.search`) is the correct source of truth because it reflects changes regardless of who made them. The two-commit gap is also less problematic here because search params rarely need to be atomically synced with route params in the same component (unlike the spinner + active row pairing that motivated moving `pendingUrl` to context).
+- **`useCookie()`** — reads `document.cookie`, entirely independent of navigation.
+
+### What Moved to NavigationContext (with params/pathname)
+
+All **router-owned navigation state** lives in `NavigationContext` and updates atomically in a single React commit:
+
+- **`useParams()`** — route params from the matched route
+- **`usePathname()`** — current pathname
+- **`useNavigationPending()`** — returns `pendingUrl !== null`
+- **`useLinkStatus()`** — returns `{ pending: true }` when `pendingUrl === href` for the nearest parent `<Link>`
+
+The key distinction: these values only change during **router-driven navigation**, and the router controls all updates via `setNavigationState()` → `renderRoot()`. This makes context the right mechanism — the router is the single writer, and all consumers see consistent state in the same render pass.
+
+`useNavigationPending()` and `useLinkStatus()` previously used `useSyncExternalStore` backed by the router's external pending state. This caused a two-commit timing gap: the external store notification (hiding the spinner) and the context update (updating params/active state) were separate React updates. Moving `pendingUrl` into `NavigationContext` ensures both transitions commit atomically.
 
 ---
 
@@ -349,9 +360,11 @@ export function NavLink({ href, children }: { href: string; children: React.Reac
 ### How It Works
 
 1. `<Link>` renders a `LinkStatusProvider` (a `'use client'` component) around its children
-2. `LinkStatusProvider` subscribes to the router's pending URL via `useSyncExternalStore`
-3. When the router's pending URL matches the link's resolved href, the context value becomes `{ pending: true }`
+2. `LinkStatusProvider` reads `pendingUrl` from `NavigationContext` (the same context that provides params and pathname)
+3. When `pendingUrl` matches the link's resolved href, the context value becomes `{ pending: true }`
 4. `useLinkStatus()` reads from this context via `useContext`
+
+Because `pendingUrl`, `params`, and `pathname` all live in `NavigationContext`, they update in the same React commit — the spinner and the active state always transition together.
 
 The `<Link>` component itself remains a pure function (no hooks, no `'use client'` directive) so it can be used from server components. The `LinkStatusProvider` is a client component boundary that activates on hydration.
 

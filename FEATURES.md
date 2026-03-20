@@ -42,6 +42,7 @@ Features tagged as **[novel]** (not in Next.js or Vinext), **[enhanced]** (impro
 - **[enhanced]** Standard Schema support — action client and search params accept Zod, Valibot, or ArkType via `~standard` protocol ([08-forms-and-actions.md](design/08-forms-and-actions.md))
 - **[enhanced]** Forms work very well with un-controlled inputs and with or without javascript. They are automatically wrapped and returned to the client if the form submission fails.
 - **[enhanced]** `useQueryStates` hook — client hook syncs typed params to URL ([23-search-params.md](design/23-search-params.md))
+- **[novel]** Built-in codecs — `parseAsString`, `parseAsInteger`, `parseAsFloat`, `parseAsBoolean`, `parseAsStringEnum`, `parseAsStringLiteral`, and `withDefault()` for zero-dep search param parsing ([23-search-params.md](design/23-search-params.md))
 
 ## Metadata & SEO
 

@@ -381,6 +381,13 @@ Audit of the search params API comparing timber's surface against nuqs and ident
 | `fromArraySchema`           | codec bridge | Standard Schema for array-valued params                      |
 | `registerSearchParams`      | registry     | Route-scoped registration (internal)                         |
 | `getSearchParams`           | registry     | Route-scoped lookup (internal)                               |
+| `parseAsString`             | codec        | String codec, returns `string \| null`                       |
+| `parseAsInteger`            | codec        | Integer codec, returns `number \| null`                      |
+| `parseAsFloat`              | codec        | Float codec, returns `number \| null`                        |
+| `parseAsBoolean`            | codec        | Boolean codec (`true/1/false/0`), returns `boolean \| null`  |
+| `parseAsStringEnum`         | codec factory| String enum codec from allowed values list                   |
+| `parseAsStringLiteral`      | codec factory| String literal codec from `as const` tuple                   |
+| `withDefault`               | codec wrapper| Replaces null with a default value, makes output non-nullable|
 | `analyzeSearchParams`       | build-time   | Static analysis of `search-params.ts` files                  |
 | `SearchParamCodec<T>`       | type         | Codec protocol: `parse` + `serialize`                        |
 | `InferCodec<C>`             | type         | Extract `T` from a codec                                     |
@@ -400,7 +407,7 @@ Audit of the search params API comparing timber's surface against nuqs and ident
 
 ### Identified Gaps
 
-1. **No built-in codecs** — nuqs ships 13+ parsers (`parseAsString`, `parseAsInteger`, `parseAsFloat`, `parseAsBoolean`, `parseAsStringEnum`, etc.). timber has zero — users must use nuqs parsers, `fromSchema` + Zod, or write raw `{ parse, serialize }` objects. Common cases should have zero-dep timber-native equivalents.
+1. ~~**No built-in codecs**~~ **Resolved (TIM-362).** timber now ships `parseAsString`, `parseAsInteger`, `parseAsFloat`, `parseAsBoolean`, `parseAsStringEnum`, `parseAsStringLiteral`, and `withDefault()` in `@timber-js/app/search-params`. These are zero-dependency codecs covering the most common use cases. nuqs parsers remain compatible for advanced cases (dates, JSON, arrays).
 
 2. **No `defaultValue` on `SearchParamCodec`** — nuqs exposes `defaultValue` explicitly via `.withDefault()`. timber derives defaults implicitly via `parse(undefined)`. An optional `defaultValue` property on the codec protocol would enable introspection without calling `parse(undefined)`.
 

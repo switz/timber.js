@@ -14,7 +14,7 @@
 
 // @ts-expect-error — virtual module provided by timber-entries plugin
 import config from 'virtual:timber-config';
-import { createFromReadableStream } from '@vitejs/plugin-rsc/ssr';
+import { createFromReadableStream } from '#/rsc-runtime/ssr.js';
 import { AsyncLocalStorage } from 'node:async_hooks';
 
 import { renderSsrStream, buildSsrResponse } from './ssr-render.js';

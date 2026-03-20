@@ -16,7 +16,7 @@
  */
 
 import { createElement } from 'react';
-import { renderToReadableStream } from '@vitejs/plugin-rsc/rsc';
+import { renderToReadableStream } from '#/rsc-runtime/rsc.js';
 
 import { DenySignal } from './primitives.js';
 import { logRenderError } from './logger.js';

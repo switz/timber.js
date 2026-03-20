@@ -4,40 +4,47 @@
  * Returns the pathname portion of the current URL (e.g. '/dashboard/settings').
  * Updates when client-side navigation changes the URL.
  *
- * This is a thin wrapper over window.location.pathname, provided for
- * Next.js API compatibility (libraries like nuqs import usePathname
- * from next/navigation).
+ * On the client, reads from NavigationContext which is updated atomically
+ * with the RSC tree render. This replaces the previous useSyncExternalStore
+ * approach which only subscribed to popstate events — meaning usePathname()
+ * did NOT re-render on forward navigation (pushState). The context approach
+ * fixes this: pathname updates in the same render pass as the new tree.
  *
  * During SSR, reads the request pathname from the SSR ALS context
  * (populated by ssr-entry.ts) instead of window.location.
+ *
+ * Compatible with Next.js's `usePathname()` from `next/navigation`.
  */
 
-import { useSyncExternalStore } from 'react';
 import { getSsrData } from './ssr-data.js';
-
-function getPathname(): string {
-  if (typeof window !== 'undefined') return window.location.pathname;
-  return getSsrData()?.pathname ?? '/';
-}
-
-function getServerPathname(): string {
-  return getSsrData()?.pathname ?? '/';
-}
-
-function subscribe(callback: () => void): () => void {
-  // Listen for popstate (back/forward) and timber's custom navigation events.
-  // pushState/replaceState don't fire popstate, but timber's router calls
-  // onPendingChange listeners after navigation — components re-render
-  // naturally via React's tree update from the new RSC payload.
-  window.addEventListener('popstate', callback);
-  return () => window.removeEventListener('popstate', callback);
-}
+import { useNavigationContext } from './navigation-context.js';
 
 /**
  * Read the current URL pathname.
  *
- * Compatible with Next.js's `usePathname()` from `next/navigation`.
+ * On the client, reads from NavigationContext (provided by
+ * NavigationProvider in renderRoot). During SSR, reads from the
+ * ALS-backed SSR data context. Falls back to window.location.pathname
+ * when called outside a React component (e.g., in tests).
  */
 export function usePathname(): string {
-  return useSyncExternalStore(subscribe, getPathname, getServerPathname);
+  // Try reading from NavigationContext (client-side, inside React tree).
+  // During SSR, no NavigationProvider is mounted, so this returns null.
+  try {
+    const navContext = useNavigationContext();
+    if (navContext !== null) {
+      return navContext.pathname;
+    }
+  } catch {
+    // No React dispatcher available (called outside a component).
+    // Fall through to SSR/fallback below.
+  }
+
+  // SSR path: read from ALS-backed SSR data context.
+  const ssrData = getSsrData();
+  if (ssrData) return ssrData.pathname ?? '/';
+
+  // Final fallback: window.location (tests, edge cases).
+  if (typeof window !== 'undefined') return window.location.pathname;
+  return '/';
 }

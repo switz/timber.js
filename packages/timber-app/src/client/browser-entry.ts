@@ -50,6 +50,7 @@ import { applyHeadElements } from './head.js';
 import { TimberNuqsAdapter } from './nuqs-adapter.js';
 import { isPageUnloading } from './unload-guard.js';
 import { ON_NAVIGATE_KEY } from './link-navigate-interceptor.js';
+import { NavigationProvider, getNavigationState, setNavigationState } from './navigation-context.js';
 
 // ─── Server Action Dispatch ──────────────────────────────────────
 
@@ -275,10 +276,33 @@ function bootstrap(runtimeConfig: typeof config): void {
     // it's safe to create the router before reactRoot is assigned.
     initRouter();
 
+    // ── Initialize navigation state BEFORE hydration ───────────────────
+    // Read server-embedded params and set navigation state so that
+    // useParams() and usePathname() return correct values during hydration.
+    // This must happen before hydrateRoot so the NavigationProvider
+    // wrapping the element has the right values on the initial render.
+    const earlyParams = (self as unknown as Record<string, unknown>).__timber_params;
+    if (earlyParams && typeof earlyParams === 'object') {
+      setCurrentParams(earlyParams as Record<string, string | string[]>);
+      setNavigationState({
+        params: earlyParams as Record<string, string | string[]>,
+        pathname: window.location.pathname,
+      });
+      delete (self as unknown as Record<string, unknown>).__timber_params;
+    } else {
+      setNavigationState({
+        params: {},
+        pathname: window.location.pathname,
+      });
+    }
+
     // Hydrate on document — the root layout renders the full <html> tree,
     // so React owns the entire document from the root.
-    // Wrap with TimberNuqsAdapter so useQueryStates works out of the box.
-    const wrapped = createElement(TimberNuqsAdapter, null, element as React.ReactNode);
+    // Wrap with NavigationProvider (for atomic useParams/usePathname) and
+    // TimberNuqsAdapter (for nuqs context).
+    const navState = getNavigationState();
+    const withNav = createElement(NavigationProvider, { value: navState }, element as React.ReactNode);
+    const wrapped = createElement(TimberNuqsAdapter, null, withNav);
     reactRoot = hydrateRoot(document, wrapped, {
       // Suppress recoverable hydration errors from deny/error signals
       // inside Suspense boundaries. The server already handled these
@@ -336,11 +360,22 @@ function bootstrap(runtimeConfig: typeof config): void {
       },
 
       // Render decoded RSC tree into the hydrated React root.
-      // Wrap with TimberNuqsAdapter to maintain nuqs context across navigations.
-      // Reads `reactRoot` from the outer closure — assigned after hydrateRoot().
+      // Wraps with NavigationProvider (for atomic useParams/usePathname updates)
+      // and TimberNuqsAdapter (for nuqs context). Reads `reactRoot` and
+      // navigation state from closures — both set before this callback fires.
+      //
+      // The router calls setNavigationState() before renderRoot(), so
+      // getNavigationState() returns the new params/pathname. By wrapping
+      // the element in NavigationProvider here, the context value and the
+      // RSC tree are passed to reactRoot.render() in the same call —
+      // making the update atomic. Preserved layout components that call
+      // useParams() or usePathname() re-render in the same pass as the
+      // new tree, preventing the dual-active-state flash.
       renderRoot: (element: unknown) => {
         if (reactRoot) {
-          const wrapped = createElement(TimberNuqsAdapter, null, element as React.ReactNode);
+          const navState = getNavigationState();
+          const withNav = createElement(NavigationProvider, { value: navState }, element as React.ReactNode);
+          const wrapped = createElement(TimberNuqsAdapter, null, withNav);
           reactRoot.render(wrapped);
         }
       },
@@ -384,11 +419,16 @@ function bootstrap(runtimeConfig: typeof config): void {
     delete (self as unknown as Record<string, unknown>).__timber_segments;
   }
 
-  // Populate useParams() from server-embedded route params.
-  // Without this, useParams() returns {} until the first client navigation.
-  const timberParams = (self as unknown as Record<string, unknown>).__timber_params;
-  if (timberParams && typeof timberParams === 'object') {
-    setCurrentParams(timberParams as Record<string, string | string[]>);
+  // Note: __timber_params is read before hydrateRoot (see above) so that
+  // NavigationProvider has correct values during hydration. If the hydration
+  // path was skipped (no RSC payload), populate the fallback here.
+  const lateTimberParams = (self as unknown as Record<string, unknown>).__timber_params;
+  if (lateTimberParams && typeof lateTimberParams === 'object') {
+    setCurrentParams(lateTimberParams as Record<string, string | string[]>);
+    setNavigationState({
+      params: lateTimberParams as Record<string, string | string[]>,
+      pathname: window.location.pathname,
+    });
     delete (self as unknown as Record<string, unknown>).__timber_params;
   }
 

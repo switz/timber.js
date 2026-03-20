@@ -88,6 +88,47 @@ Explicit full re-render. No state tree is sent — the server renders the comple
 
 ---
 
+## NavigationContext — Atomic Params and Pathname Updates
+
+`useParams()` and `usePathname()` read from a React context (`NavigationContext`) that wraps the RSC payload element in `renderRoot()`. This ensures navigation state updates atomically with the tree render.
+
+### Why Context Instead of useSyncExternalStore
+
+The original implementation used `useSyncExternalStore` for `useParams()` and `usePathname()`. This created a timing problem: `reactRoot.render(newTree)` and the external store notification were two separate update mechanisms that React didn't batch atomically. On navigation, the new tree could commit (showing the new page as active) before the store-triggered re-renders fired in preserved layouts (deactivating the old active state) — causing a visible frame with dual active states.
+
+By wrapping the RSC payload in `NavigationProvider` inside `renderRoot()`, the context value and the element tree are passed to `reactRoot.render()` in the same call. React processes both in a single render pass — preserved layout components see new params in the same commit as the new tree.
+
+### Architecture
+
+```
+renderRoot(element):
+  navState = getNavigationState()   ← set by router before renderRoot
+  NavigationProvider({ value: navState })
+    └── TimberNuqsAdapter
+          └── element (RSC payload)
+```
+
+The router calls `setNavigationState({ params, pathname })` then `renderRoot(payload)`. The `renderRoot` callback reads the navigation state and wraps the element in `NavigationProvider`. This is atomic by construction.
+
+### Hook Resolution Order
+
+| Environment | useParams() path | usePathname() path |
+|---|---|---|
+| Client (in React tree) | `useContext(NavigationContext).params` | `useContext(NavigationContext).pathname` |
+| SSR | `getSsrData().params` (ALS-backed) | `getSsrData().pathname` (ALS-backed) |
+| Outside React (tests) | Module-level `currentParams` fallback | `window.location.pathname` fallback |
+
+### What Stays on useSyncExternalStore
+
+Not all hooks moved to context. Hooks that read browser state or router state independent of the tree render keep `useSyncExternalStore`:
+
+- **`useSearchParams()`** — reads `window.location.search`, also updated by nuqs outside of navigation
+- **`useNavigationPending()`** — reads router pending state (exists outside React)
+- **`useLinkStatus()`** — reads router pending URL scoped to a specific link
+- **`useCookie()`** — reads `document.cookie`, entirely independent of navigation
+
+---
+
 ## RSC Payload Handling
 
 ### Fetch
@@ -242,7 +283,7 @@ Next.js App Router uses `history.scrollRestoration = 'auto'` and browser-native 
 
 The scroll reset is not caused by rendering to `document`. It's caused by replacing the entire element tree instead of updating state within a persistent tree.
 
-**Future improvement:** A persistent `<TimberRouter>` component that holds the current RSC payload in React state and renders it as children would let React reconcile in place, preserve scroll natively, and eliminate all the manual scroll machinery (`scrollRestoration = 'manual'`, `afterPaint`, `timber:scroll-restored`).
+**Future improvement:** A persistent `<TimberRouter>` component that holds the current RSC payload in React state and renders it as children would let React reconcile in place, preserve scroll natively, and eliminate all the manual scroll machinery (`scrollRestoration = 'manual'`, `afterPaint`, `timber:scroll-restored`). Note: `NavigationContext` (see §"NavigationContext — Atomic Params and Pathname Updates") is a partial step in this direction — it wraps the tree so params/pathname update atomically, but the tree itself is still replaced via `reactRoot.render()` rather than held in React state.
 
 For now, timber.js explicitly manages scroll via `history.scrollRestoration = 'manual'` + `history.state.scrollY`.
 

@@ -18,10 +18,11 @@
  * (populated by ssr-entry.ts) to ensure correct per-request isolation
  * across concurrent requests with streaming Suspense.
  *
- * Reactivity: useParams() uses useSyncExternalStore so that components
- * in unchanged layouts (e.g., sidebar items) re-render atomically when
- * params change during client-side navigation. This matches the pattern
- * used by usePathname() and useSearchParams().
+ * Reactivity: On the client, useParams() reads from NavigationContext
+ * which is updated atomically with the RSC tree render. This replaces
+ * the previous useSyncExternalStore approach that suffered from a
+ * timing gap between tree render and store notification — causing
+ * preserved layout components to briefly show stale active state.
  *
  * All mutable state is delegated to client/state.ts for singleton guarantees.
  * See design/18-build-system.md §"Singleton State Registry"
@@ -29,18 +30,20 @@
  * Design doc: design/09-typescript.md §"Typed Routes"
  */
 
-import { useSyncExternalStore } from 'react';
 import type { Routes } from '#/index.js';
 import { getSsrData } from './ssr-data.js';
 import { currentParams, _setCurrentParams, paramsListeners } from './state.js';
+import { useNavigationContext } from './navigation-context.js';
 
 // ---------------------------------------------------------------------------
-// Module-level subscribe/notify pattern — state lives in state.ts
+// Module-level subscribe/notify pattern — kept for backward compat and tests
 // ---------------------------------------------------------------------------
 
 /**
- * Subscribe to params changes. Called by useSyncExternalStore.
- * Exported for testing — not intended for direct use by app code.
+ * Subscribe to params changes.
+ * Retained for backward compatibility with tests that verify the
+ * subscribe/notify contract. On the client, useParams() reads from
+ * NavigationContext instead.
  */
 export function subscribe(callback: () => void): () => void {
   paramsListeners.add(callback);
@@ -48,20 +51,11 @@ export function subscribe(callback: () => void): () => void {
 }
 
 /**
- * Get the current params snapshot (client).
- * Exported for testing — not intended for direct use by app code.
+ * Get the current params snapshot (module-level fallback).
+ * Used by tests and by the hook when called outside a React component.
  */
 export function getSnapshot(): Record<string, string | string[]> {
   return currentParams;
-}
-
-/**
- * Get the server-side params snapshot (SSR).
- * Falls back to the module-level currentParams if no SSR context
- * is available (shouldn't happen, but defensive).
- */
-function getServerSnapshot(): Record<string, string | string[]> {
-  return getSsrData()?.params ?? currentParams;
 }
 
 // ---------------------------------------------------------------------------
@@ -69,30 +63,31 @@ function getServerSnapshot(): Record<string, string | string[]> {
 // ---------------------------------------------------------------------------
 
 /**
- * Set the current route params WITHOUT notifying subscribers.
- * Called by the router before renderPayload() so that new components
- * in the RSC tree see the updated params via getSnapshot(), but
- * preserved layout components don't re-render prematurely with
- * {old tree, new params}.
+ * Set the current route params in the module-level store.
  *
- * After the React render commits, the router calls notifyParamsListeners()
- * to trigger re-renders in preserved layouts that read useParams().
+ * Called by the router on each navigation. This updates the fallback
+ * snapshot used by tests and by the hook when called outside a React
+ * component (no NavigationContext available).
  *
- * On the client, the segment router calls this on each navigation.
+ * On the client, the primary reactivity path is NavigationContext —
+ * the router calls setNavigationState() then renderRoot() which wraps
+ * the element in NavigationProvider. setCurrentParams is still called
+ * for the module-level fallback.
+ *
  * During SSR, params are also available via getSsrData().params
- * (ALS-backed), but setCurrentParams is still called for the
- * module-level fallback path.
+ * (ALS-backed).
  */
 export function setCurrentParams(params: Record<string, string | string[]>): void {
   _setCurrentParams(params);
 }
 
 /**
- * Notify all useSyncExternalStore subscribers that params have changed.
- * Called by the router AFTER renderPayload() so that preserved layout
- * components re-render only after the new tree is committed — producing
- * an atomic {new tree, new params} update instead of a stale
- * {old tree, new params} intermediate state.
+ * Notify all legacy subscribers that params have changed.
+ *
+ * Retained for backward compatibility with tests. On the client,
+ * the NavigationContext + renderRoot pattern replaces this — params
+ * update atomically with the tree render, so explicit notification
+ * is no longer needed.
  */
 export function notifyParamsListeners(): void {
   for (const listener of paramsListeners) {
@@ -110,9 +105,15 @@ export function notifyParamsListeners(): void {
  * The optional `_route` argument exists only for TypeScript narrowing —
  * it does not affect the runtime return value.
  *
+ * On the client, reads from NavigationContext (provided by
+ * NavigationProvider in renderRoot). This ensures params update
+ * atomically with the RSC tree — no timing gap.
+ *
  * During SSR, reads from the ALS-backed SSR data context to ensure
- * per-request isolation. On the client, subscribes to the module-level
- * params store via useSyncExternalStore.
+ * per-request isolation across concurrent requests with streaming Suspense.
+ *
+ * When called outside a React component (e.g., in test assertions),
+ * falls back to the module-level snapshot.
  *
  * @overload Typed — when a known route path is passed, returns the
  *   exact params shape from the generated Routes interface.
@@ -121,25 +122,20 @@ export function notifyParamsListeners(): void {
 export function useParams<R extends keyof Routes>(route: R): Routes[R]['params'];
 export function useParams(route?: string): Record<string, string | string[]>;
 export function useParams(_route?: string): Record<string, string | string[]> {
-  // useSyncExternalStore handles both client and SSR:
-  // - Client: calls getSnapshot() → reads currentParams from state.ts
-  // - SSR: calls getServerSnapshot() → reads from ALS-backed getSsrData()
-  //
-  // We must always call the hook (Rules of Hooks — no conditional hook calls).
-  // React picks the right snapshot function based on the environment.
-  //
-  // When called outside a React component (e.g., in test assertions),
-  // useSyncExternalStore throws because there's no dispatcher. In that case,
-  // fall back to reading the snapshot directly.
+  // Try reading from NavigationContext (client-side, inside React tree).
+  // During SSR, no NavigationProvider is mounted, so this returns null.
+  // When called outside a React component, useContext throws — caught below.
   try {
-    return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+    const navContext = useNavigationContext();
+    if (navContext !== null) {
+      return navContext.params;
+    }
   } catch {
-    // No React dispatcher available — return the best available snapshot.
-    // This path is hit when useParams() is called outside a component,
-    // e.g. in test assertions that verify the current params value.
-    // Use getServerSnapshot() because it checks the ALS-backed SSR context
-    // first (request-isolated), falling back to module-level currentParams
-    // only when no SSR context exists (client-side / tests).
-    return getServerSnapshot();
+    // No React dispatcher available (called outside a component).
+    // Fall through to module-level snapshot below.
   }
+
+  // SSR path: read from ALS-backed SSR data context.
+  // Falls back to module-level currentParams for tests.
+  return getSsrData()?.params ?? currentParams;
 }

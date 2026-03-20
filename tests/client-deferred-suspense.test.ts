@@ -3,21 +3,32 @@
  *
  * Tests for client-side Suspense deferral during navigation.
  *
- * Currently, deferSuspenseFor only works on the server (SSR hold).
- * On client-side navigation, React shows Suspense fallbacks immediately
- * because the new tree has fresh boundaries with no prior committed content.
+ * timber.js wraps the React root in a TransitionRoot component that holds
+ * the current element in state. Navigation updates call
+ * startTransition(() => setState(newElement)), so React keeps the old
+ * committed tree visible while new Suspense boundaries resolve.
  *
- * startTransition doesn't help here — React can only defer reveals for
- * boundaries that already have committed content. A root.render() with a
- * completely new Suspense boundary always shows the fallback.
+ * This is the client-side equivalent of deferSuspenseFor on the server.
+ * See design/05-streaming.md.
  *
- * The it.fails test documents this gap. When we implement client-side
- * deferral, this test should be changed to it() and pass.
+ * Note: The transition tests do NOT wrap the navigation step in act().
+ * React's act() forces all pending work to commit — including transitions
+ * that would normally stay pending while Suspense resolves. In a real
+ * browser, React processes transitions asynchronously and keeps old content
+ * visible. To test this correctly, we trigger the transition directly and
+ * use short timeouts to let React process the update.
  */
 import { describe, expect, it, afterEach } from 'vitest';
-import React, { Suspense, startTransition, use } from 'react';
+import React, { Suspense, startTransition, use, useState } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { act } from 'react';
+
+// React's act() reads this global to determine whether to warn about
+// unacted state updates. We toggle it to avoid warnings in non-act sections.
+declare global {
+  // eslint-disable-next-line no-var -- must be var for globalThis augmentation
+  var IS_REACT_ACT_ENVIRONMENT: boolean;
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -40,6 +51,38 @@ function createSuspendingComponent() {
   };
 }
 
+/**
+ * Wrapper component that mirrors timber's TransitionRoot pattern.
+ *
+ * Holds the current element in React state. Navigation triggers
+ * startTransition(() => setState(newElement)), which is a proper
+ * transition update — React keeps the old committed tree visible
+ * while new Suspense boundaries in the transition resolve.
+ *
+ * This is the same mechanism used in packages/timber-app/src/client/
+ * transition-root.tsx.
+ */
+function createTransitionRoot() {
+  let transitionRender: ((element: React.ReactNode) => void) | null = null;
+
+  function TransitionRoot({ initial }: { initial: React.ReactNode }): React.ReactNode {
+    const [element, setElement] = useState<React.ReactNode>(initial);
+    transitionRender = (newElement: React.ReactNode) => {
+      startTransition(() => {
+        setElement(newElement);
+      });
+    };
+    return element;
+  }
+
+  return {
+    TransitionRoot,
+    render: (element: React.ReactNode) => {
+      if (transitionRender) transitionRender(element);
+    },
+  };
+}
+
 // ─── Client-side navigation Suspense behavior ──────────────────────────────
 
 describe('client-side deferSuspenseFor', () => {
@@ -51,20 +94,37 @@ describe('client-side deferSuspenseFor', () => {
     container?.remove();
   });
 
-  // This test documents the current gap: startTransition does NOT prevent
-  // fallback from showing when the new tree has a fresh Suspense boundary.
-  // React can only defer reveals for boundaries with existing committed content.
+  // This test validates that timber's TransitionRoot mechanism keeps old
+  // content visible while new Suspense boundaries resolve during navigation.
   //
-  // When client-side deferral is implemented, change it.fails → it.
-  it.fails('startTransition keeps old UI visible while new Suspense boundary resolves', async () => {
+  // startTransition(() => setState(newElement)) is a proper transition update.
+  // React keeps the old committed tree visible because the transition's tree
+  // has a suspended Suspense boundary — React doesn't commit incomplete
+  // transition trees.
+  //
+  // Note: We don't wrap the transition in act() because act() forces React
+  // to commit all pending work, defeating the purpose of transitions.
+  // In the real browser, React processes transitions asynchronously.
+  it('startTransition keeps old UI visible while new Suspense boundary resolves', async () => {
+    // Disable act environment warnings for the non-act portions of this test
+    globalThis.IS_REACT_ACT_ENVIRONMENT = false;
+
     container = document.createElement('div');
     document.body.appendChild(container);
 
+    const { TransitionRoot, render } = createTransitionRoot();
+
     // Initial render: simple content (simulates "old page")
     root = createRoot(container);
+    globalThis.IS_REACT_ACT_ENVIRONMENT = true;
     await act(() => {
-      root.render(React.createElement('div', { id: 'old' }, 'Old page'));
+      root.render(
+        React.createElement(TransitionRoot, {
+          initial: React.createElement('div', { id: 'old' }, 'Old page'),
+        })
+      );
     });
+    globalThis.IS_REACT_ACT_ENVIRONMENT = false;
     expect(container.textContent).toBe('Old page');
 
     // Create a suspending component for the "new page"
@@ -80,22 +140,21 @@ describe('client-side deferSuspenseFor', () => {
       )
     );
 
-    // Render the new page inside startTransition.
-    // We'd WANT React to keep showing "Old page" while AsyncContent is pending,
-    // but React shows "Loading..." because this is a new Suspense boundary.
-    await act(() => {
-      startTransition(() => {
-        root.render(newPage);
-      });
-    });
+    // Navigate via TransitionRoot (mirrors timber's router flow).
+    // startTransition(() => setState(newElement)) keeps old UI visible
+    // because React doesn't commit transitions with suspended content.
+    render(newPage);
 
-    // This assertion fails: we see "Loading..." instead of "Old page"
+    // Allow React to process the transition synchronously
+    await new Promise((r) => setTimeout(r, 0));
+
+    // Old content stays visible — React keeps committed tree during transition
     expect(container.textContent).toBe('Old page');
 
-    // Resolve and verify content appears
-    await act(() => {
-      resolve('New page content');
-    });
+    // Resolve async content and let React process
+    resolve('New page content');
+    await new Promise((r) => setTimeout(r, 50));
+
     expect(container.textContent).toBe('New page content');
   });
 

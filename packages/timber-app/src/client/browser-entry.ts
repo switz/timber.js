@@ -52,6 +52,7 @@ import { isPageUnloading } from './unload-guard.js';
 import { NavigationProvider, getNavigationState, setNavigationState } from './navigation-context.js';
 import { setupServerLogReplay, setupClientErrorForwarding } from './browser-dev.js';
 import { handleLinkClick, handleLinkHover } from './browser-links.js';
+import { TransitionRoot, transitionRender } from './transition-root.js';
 
 // ─── Server Action Dispatch ──────────────────────────────────────
 
@@ -180,7 +181,7 @@ function bootstrap(runtimeConfig: typeof config): void {
 
   const timberChunks = (self as unknown as Record<string, FlightSegment[]>).__timber_f;
 
-  let reactRoot: Root | null = null;
+  let _reactRoot: Root | null = null;
   let initialElement: unknown = null;
   // Declared here so it's accessible after the if/else hydration block.
   // Assigned inside initRouter() which is called in both branches.
@@ -273,8 +274,8 @@ function bootstrap(runtimeConfig: typeof config): void {
     // hydrateRoot() synchronously executes component render functions.
     // Components that call useRouter() during render need the global
     // router to be available, otherwise they get a stale no-op reference.
-    // The renderRoot callback reads `reactRoot` lazily (via closure), so
-    // it's safe to create the router before reactRoot is assigned.
+    // The router must be initialized before hydration so useRouter() works.
+    // renderRoot uses transitionRender (no direct reactRoot dependency).
     initRouter();
 
     // ── Initialize navigation state BEFORE hydration ───────────────────
@@ -299,12 +300,18 @@ function bootstrap(runtimeConfig: typeof config): void {
 
     // Hydrate on document — the root layout renders the full <html> tree,
     // so React owns the entire document from the root.
-    // Wrap with NavigationProvider (for atomic useParams/usePathname) and
-    // TimberNuqsAdapter (for nuqs context).
+    // Wrap with NavigationProvider (for atomic useParams/usePathname),
+    // TimberNuqsAdapter (for nuqs context), and TransitionRoot (for
+    // transition-based rendering during client navigation).
+    //
+    // TransitionRoot holds the element in React state and updates via
+    // startTransition, so React keeps old UI visible while new Suspense
+    // boundaries resolve during navigation. See design/05-streaming.md.
     const navState = getNavigationState();
     const withNav = createElement(NavigationProvider, { value: navState }, element as React.ReactNode);
     const wrapped = createElement(TimberNuqsAdapter, null, withNav);
-    reactRoot = hydrateRoot(document, wrapped, {
+    const rootElement = createElement(TransitionRoot, { initial: wrapped });
+    _reactRoot = hydrateRoot(document, rootElement, {
       // Suppress recoverable hydration errors from deny/error signals
       // inside Suspense boundaries. The server already handled these
       // (wrapStreamWithErrorHandling closes the stream cleanly after
@@ -328,14 +335,14 @@ function bootstrap(runtimeConfig: typeof config): void {
     // The initial SSR HTML remains as-is; the first client navigation will
     // replace it with a React-managed tree.
     initRouter();
-    reactRoot = createRoot(document);
+    _reactRoot = createRoot(document);
   }
 
   // ── Router initialization (hoisted above hydrateRoot) ────────────────
   // Extracted into a function so both the hydration and createRoot paths
   // can call it. Must run before hydrateRoot so useRouter() works during
-  // the initial render. The renderRoot dep reads `reactRoot` via closure,
-  // so it's fine that reactRoot is assigned after this runs.
+  // the initial render. renderRoot uses transitionRender which is set
+  // by the TransitionRoot component during hydration.
   function initRouter(): void {
     const deps: RouterDeps = {
       fetch: (url, init) => window.fetch(url, init),
@@ -360,25 +367,28 @@ function bootstrap(runtimeConfig: typeof config): void {
         return createFromFetch(fetchPromise);
       },
 
-      // Render decoded RSC tree into the hydrated React root.
+      // Render decoded RSC tree via TransitionRoot's state-based mechanism.
       // Wraps with NavigationProvider (for atomic useParams/usePathname updates)
-      // and TimberNuqsAdapter (for nuqs context). Reads `reactRoot` and
-      // navigation state from closures — both set before this callback fires.
+      // and TimberNuqsAdapter (for nuqs context).
       //
       // The router calls setNavigationState() before renderRoot(), so
       // getNavigationState() returns the new params/pathname. By wrapping
       // the element in NavigationProvider here, the context value and the
-      // RSC tree are passed to reactRoot.render() in the same call —
-      // making the update atomic. Preserved layout components that call
+      // RSC tree are passed to startTransition(() => setState()) in the same
+      // call — making the update atomic. Preserved layout components that call
       // useParams() or usePathname() re-render in the same pass as the
       // new tree, preventing the dual-active-state flash.
+      //
+      // Using transitionRender instead of reactRoot.render() enables
+      // client-side Suspense deferral: React keeps the old committed tree
+      // visible while new Suspense boundaries in the navigation resolve.
+      // This is the client-side equivalent of deferSuspenseFor on the server.
+      // See design/05-streaming.md.
       renderRoot: (element: unknown) => {
-        if (reactRoot) {
-          const navState = getNavigationState();
-          const withNav = createElement(NavigationProvider, { value: navState }, element as React.ReactNode);
-          const wrapped = createElement(TimberNuqsAdapter, null, withNav);
-          reactRoot.render(wrapped);
-        }
+        const navState = getNavigationState();
+        const withNav = createElement(NavigationProvider, { value: navState }, element as React.ReactNode);
+        const wrapped = createElement(TimberNuqsAdapter, null, withNav);
+        transitionRender(wrapped);
       },
 
       // Schedule a callback after the next paint so scroll operations

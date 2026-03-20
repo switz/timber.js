@@ -139,10 +139,11 @@ describe('findNonSerializable()', () => {
     expect(result).not.toBeNull();
   });
 
-  it('accepts null-prototype objects', () => {
+  it('rejects null-prototype objects (Flight rejects them)', () => {
     const obj = Object.create(null);
     obj.key = 'value';
-    expect(findNonSerializable(obj)).toBeNull();
+    const result = findNonSerializable(obj);
+    expect(result).toContain('null-prototype');
   });
 });
 

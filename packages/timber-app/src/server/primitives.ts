@@ -57,8 +57,15 @@ export function findNonSerializable(value: unknown, path = 'data'): string | nul
     return null;
   }
 
-  // Plain object
-  if (Object.getPrototypeOf(value) !== Object.prototype && Object.getPrototypeOf(value) !== null) {
+  // Plain object — only Object.prototype is safe. Null-prototype objects
+  // (Object.create(null)) survive JSON.stringify but React Flight rejects
+  // them with "Classes or null prototypes are not supported", so the
+  // pre-flush deny path (renderDenyPage → renderToReadableStream) would throw.
+  const proto = Object.getPrototypeOf(value);
+  if (proto === null) {
+    return `${path} is a null-prototype object — React Flight rejects null prototypes`;
+  }
+  if (proto !== Object.prototype) {
     const name = (value as object).constructor?.name ?? 'unknown';
     return `${path} is a ${name} instance — class instances may lose data in JSON.stringify`;
   }

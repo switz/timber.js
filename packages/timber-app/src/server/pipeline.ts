@@ -11,7 +11,6 @@
  * and design/17-logging.md §"Production Logging"
  */
 
-import { readFile } from 'node:fs/promises';
 import { canonicalize } from './canonicalize.js';
 import { runProxy, type ProxyExport } from './proxy.js';
 import { runMiddleware, type MiddlewareFn } from './middleware-runner.js';
@@ -47,6 +46,8 @@ import {
 } from './logger.js';
 import { callOnRequestError } from './instrumentation.js';
 import { RedirectSignal, DenySignal } from './primitives.js';
+import { serveStaticMetadataFile, serializeSitemap } from './pipeline-metadata.js';
+import { findInterceptionMatch } from './pipeline-interception.js';
 import type { MiddlewareContext } from './types.js';
 import type { SegmentNode } from '#/routing/types.js';
 
@@ -511,72 +512,7 @@ async function fireOnRequestError(
   );
 }
 
-// ─── Interception Matching ────────────────────────────────────────────────
 
-interface InterceptionMatchResult {
-  /** The pathname to re-match (the source/intercepting route's parent). */
-  sourcePathname: string;
-}
-
-/**
- * Check if an intercepting route applies for this soft navigation.
- *
- * Matches the target pathname against interception rewrites, constrained
- * by the source URL (X-Timber-URL header — where the user navigates FROM).
- *
- * Returns the source pathname to re-match if interception applies, or null.
- */
-function findInterceptionMatch(
-  targetPathname: string,
-  sourceUrl: string,
-  rewrites: import('#/routing/interception.js').InterceptionRewrite[]
-): InterceptionMatchResult | null {
-  for (const rewrite of rewrites) {
-    // Check if the source URL starts with the intercepting prefix
-    if (!sourceUrl.startsWith(rewrite.interceptingPrefix)) continue;
-
-    // Check if the target URL matches the intercepted pattern.
-    // Dynamic segments in the pattern match any single URL segment.
-    if (pathnameMatchesPattern(targetPathname, rewrite.interceptedPattern)) {
-      return { sourcePathname: rewrite.interceptingPrefix };
-    }
-  }
-  return null;
-}
-
-/**
- * Check if a pathname matches a URL pattern with dynamic segments.
- *
- * Supports [param] (single segment) and [...param] (one or more segments).
- * Static segments must match exactly.
- */
-function pathnameMatchesPattern(pathname: string, pattern: string): boolean {
-  const pathParts = pathname === '/' ? [] : pathname.slice(1).split('/');
-  const patternParts = pattern === '/' ? [] : pattern.slice(1).split('/');
-
-  let pi = 0;
-  for (let i = 0; i < patternParts.length; i++) {
-    const segment = patternParts[i];
-
-    // Catch-all: [...param] or [[...param]] — matches rest of URL
-    if (segment.startsWith('[...') || segment.startsWith('[[...')) {
-      return pi < pathParts.length || segment.startsWith('[[...');
-    }
-
-    // Dynamic: [param] — matches any single segment
-    if (segment.startsWith('[') && segment.endsWith(']')) {
-      if (pi >= pathParts.length) return false;
-      pi++;
-      continue;
-    }
-
-    // Static — must match exactly
-    if (pi >= pathParts.length || pathParts[pi] !== segment) return false;
-    pi++;
-  }
-
-  return pi === pathParts.length;
-}
 
 // ─── Cookie Helpers ──────────────────────────────────────────────────────
 
@@ -620,86 +556,4 @@ function ensureMutableResponse(response: Response): Response {
   }
 }
 
-// ─── Metadata Route Helpers ──────────────────────────────────────────────
 
-/**
- * Serialize a sitemap array to XML.
- * Follows the sitemap.org protocol: https://www.sitemaps.org/protocol.html
- */
-function serializeSitemap(
-  entries: Array<{
-    url: string;
-    lastModified?: string | Date;
-    changeFrequency?: string;
-    priority?: number;
-  }>
-): string {
-  const urls = entries
-    .map((e) => {
-      let xml = `  <url>\n    <loc>${escapeXml(e.url)}</loc>`;
-      if (e.lastModified) {
-        const date = e.lastModified instanceof Date ? e.lastModified.toISOString() : e.lastModified;
-        xml += `\n    <lastmod>${escapeXml(date)}</lastmod>`;
-      }
-      if (e.changeFrequency) {
-        xml += `\n    <changefreq>${escapeXml(e.changeFrequency)}</changefreq>`;
-      }
-      if (e.priority !== undefined) {
-        xml += `\n    <priority>${e.priority}</priority>`;
-      }
-      xml += '\n  </url>';
-      return xml;
-    })
-    .join('\n');
-
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>`;
-}
-
-/** Escape special XML characters. */
-function escapeXml(str: string): string {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
-}
-
-// ─── Static Metadata File Serving ────────────────────────────────────────
-
-/**
- * Content types that are text-based and should include charset=utf-8.
- * Binary formats (images) should not include charset.
- */
-const TEXT_CONTENT_TYPES = new Set([
-  'application/xml',
-  'text/plain',
-  'application/json',
-  'application/manifest+json',
-  'image/svg+xml',
-]);
-
-/**
- * Serve a static metadata file by reading it from disk.
- *
- * Static metadata route files (.xml, .txt, .json, .png, .ico, .svg, etc.)
- * are served as-is with the appropriate Content-Type header.
- * Text files include charset=utf-8; binary files do not.
- *
- * See design/16-metadata.md §"Metadata Routes"
- */
-async function serveStaticMetadataFile(
-  metaMatch: import('./route-matcher.js').MetadataRouteMatch
-): Promise<Response> {
-  const { contentType, file } = metaMatch;
-  const isText = TEXT_CONTENT_TYPES.has(contentType);
-
-  const body = await readFile(file.filePath);
-
-  const headers: Record<string, string> = {
-    'Content-Type': isText ? `${contentType}; charset=utf-8` : contentType,
-    'Content-Length': String(body.byteLength),
-  };
-
-  return new Response(body, { status: 200, headers });
-}

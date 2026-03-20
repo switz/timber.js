@@ -22,8 +22,6 @@ import config from 'virtual:timber-config';
 // @ts-expect-error — virtual module provided by timber-build-manifest plugin
 import buildManifest from 'virtual:timber-build-manifest';
 
-import { renderToReadableStream } from '@vitejs/plugin-rsc/rsc';
-
 import type { FormRerender } from '#/server/action-handler.js';
 import { handleActionRequest, isActionRequest } from '#/server/action-handler.js';
 import type { BodyLimitsConfig } from '#/server/body-limits.js';
@@ -44,30 +42,26 @@ import { collectEarlyHintHeaders } from '#/server/early-hints.js';
 import { runWithFormFlash } from '#/server/form-flash.js';
 import type { ClientBootstrapConfig } from '#/server/html-injectors.js';
 import { buildClientScripts } from '#/server/html-injectors.js';
-import { logRenderError } from '#/server/logger.js';
 import type { InterceptionContext, PipelineConfig, RouteMatch } from '#/server/pipeline.js';
 import { createPipeline } from '#/server/pipeline.js';
-import { DenySignal, RedirectSignal, RenderError, SsrStreamError } from '#/server/primitives.js';
+import { DenySignal, RedirectSignal } from '#/server/primitives.js';
 import { buildRouteElement, RouteSignalWithContext } from '#/server/route-element-builder.js';
 import type { ManifestSegmentNode } from '#/server/route-matcher.js';
 import { createMetadataRouteMatcher, createRouteMatcher } from '#/server/route-matcher.js';
-import type { NavContext } from '#/server/ssr-entry.js';
 import { initDevTracing } from '#/server/tracing.js';
 
 import { renderFallbackError as renderFallback } from '#/server/fallback-error.js';
-import { checkAndWarnRscPropError } from '#/server/rsc-prop-warnings.js';
 import { handleApiRoute } from './api-handler.js';
 import { renderErrorPage, renderNoMatchPage } from './error-renderer.js';
 import {
   buildRedirectResponse,
-  buildSegmentInfo,
   createDebugChannelSink,
   escapeHtml,
-  isAbortError,
   isRscPayloadRequest,
-  parseCookiesFromHeader,
-  RSC_CONTENT_TYPE,
 } from './helpers.js';
+import { buildRscPayloadResponse } from './rsc-payload.js';
+import { renderRscStream } from './rsc-stream.js';
+import { renderSsrResponse } from './ssr-renderer.js';
 import { callSsr } from './ssr-bridge.js';
 
 // Dev-only pipeline error handler, set by the dev server after import.
@@ -318,16 +312,16 @@ async function renderRoute(
 
   const { element, headElements, layoutComponents, deferSuspenseFor } = routeResult;
 
-  // Build head HTML for injection into the SSR output
-  let headHtml = '';
-
-  // Collect CSS, fonts, and modulepreload from the build manifest for matched segments.
+  // Build head HTML for injection into the SSR output.
+  // Collects CSS, fonts, and modulepreload from the build manifest for matched segments.
   // In dev mode the manifest is empty — Vite HMR handles CSS/JS.
   //
   // Link headers (for 103 Early Hints) are emitted by the earlyHints pipeline
   // stage before middleware runs. Here we only emit the <head> HTML fallback tags
   // — these ensure resources load even on platforms without Early Hints support.
   const typedManifest = buildManifest as BuildManifest;
+  let headHtml = '';
+
   const cssUrls = collectRouteCss(segments, typedManifest);
   if (cssUrls.length > 0) {
     headHtml += buildCssLinkTags(cssUrls);
@@ -358,138 +352,21 @@ async function renderRoute(
     }
   }
 
-  // Render to RSC Flight stream.
-  // renderToReadableStream from @vitejs/plugin-rsc/rsc serializes:
-  // - Server components: rendered output (HTML-like structure)
-  // - Client components ("use client"): serialized references with module ID + export name
-  //
-  // The RSC plugin's renderToReadableStream(data, reactOptions, extraOptions):
-  // - reactOptions: passed to React (onError, signal, etc.)
-  // - extraOptions: { onClientReference } for tracking client deps
-  // The client manifest is created internally by the plugin.
-  //
-  // DenySignal detection: deny() in sync components throws during
-  // renderToReadableStream (caught in try/catch). deny() in async components
-  // fires onError during stream consumption. We capture it here and let
-  // SSR determine whether it was pre-flush (outside Suspense) or post-flush
-  // (inside Suspense) based on whether the SSR shell renders successfully.
-  let denySignal: DenySignal | null = null;
-  let redirectSignal: RedirectSignal | null = null;
-  let renderError: { error: unknown; status: number } | null = null;
-  let rscStream: ReadableStream<Uint8Array> | undefined;
-
-  try {
-    rscStream = renderToReadableStream(
-      element,
-      {
-        signal: _req.signal,
-        onError(error: unknown) {
-          // Connection abort (user refreshed or navigated away) — suppress.
-          // Not an application error; no need to track or log.
-          if (isAbortError(error) || _req.signal?.aborted) return;
-          if (error instanceof DenySignal) {
-            denySignal = error;
-            // Return structured digest for client-side error boundaries
-            return JSON.stringify({ type: 'deny', status: error.status, data: error.data });
-          }
-          if (error instanceof RedirectSignal) {
-            redirectSignal = error;
-            return JSON.stringify({
-              type: 'redirect',
-              location: error.location,
-              status: error.status,
-            });
-          }
-          if (error instanceof RenderError) {
-            // Track the first render error for pre-flush handling
-            if (!renderError) {
-              renderError = { error, status: error.status };
-            }
-            logRenderError({ method: _req.method, path: new URL(_req.url).pathname, error });
-            return JSON.stringify({
-              type: 'render-error',
-              code: error.code,
-              data: error.digest.data,
-              status: error.status,
-            });
-          }
-          // Dev diagnostic: detect "Invalid hook call" errors which indicate
-          // a 'use client' component is being executed during RSC rendering
-          // instead of being serialized as a client reference. This happens when
-          // the RSC plugin's transform doesn't detect the directive — e.g., the
-          // directive isn't at the very top of the file, or the component is
-          // re-exported through a barrel file without 'use client'.
-          // See LOCAL-297.
-          if (
-            process.env.NODE_ENV !== 'production' &&
-            error instanceof Error &&
-            error.message.includes('Invalid hook call')
-          ) {
-            console.error(
-              '[timber] A React hook was called during RSC rendering. This usually means a ' +
-                "'use client' component is being executed as a server component instead of " +
-                'being serialized as a client reference.\n\n' +
-                'Common causes:\n' +
-                "  1. The 'use client' directive is not the FIRST statement in the file (before any imports)\n" +
-                "  2. The component is re-exported through a barrel file (index.ts) that lacks 'use client'\n" +
-                '  3. @vitejs/plugin-rsc is not loaded or is misconfigured\n\n' +
-                `Request: ${_req.method} ${new URL(_req.url).pathname}`
-            );
-          }
-
-          // Dev-mode: detect non-serializable RSC props and provide
-          // actionable fix suggestions (TIM-358).
-          // checkAndWarnRscPropError no-ops in production internally.
-          if (error instanceof Error) {
-            checkAndWarnRscPropError(error, new URL(_req.url).pathname);
-          }
-
-          // Track unhandled errors for pre-flush handling (500 status)
-          if (!renderError) {
-            renderError = { error, status: 500 };
-          }
-          logRenderError({ method: _req.method, path: new URL(_req.url).pathname, error });
-        },
-        debugChannel: createDebugChannelSink(),
-      },
-      {
-        onClientReference(info: { id: string; name: string; deps: unknown }) {
-          // Client reference callback — invoked when a "use client"
-          // component is serialized into the RSC stream. Can be extended
-          // for CSS dep collection and Early Hints.
-          void info;
-        },
-      }
-    );
-  } catch (error) {
-    if (error instanceof DenySignal) {
-      denySignal = error;
-    } else if (error instanceof RedirectSignal) {
-      redirectSignal = error;
-    } else {
-      // Synchronous render error — component threw during
-      // renderToReadableStream creation. Capture instead of crashing
-      // the server; the error page will be rendered below.
-      renderError = {
-        error,
-        status: error instanceof RenderError ? error.status : 500,
-      };
-      logRenderError({ method: _req.method, path: new URL(_req.url).pathname, error });
-    }
-  }
+  // Render to RSC Flight stream with signal tracking.
+  const { rscStream, signals } = renderRscStream(element, _req);
 
   // Synchronous redirect — redirect() in access.ts or a non-async component
   // throws during renderToReadableStream creation. Return HTTP redirect.
-  if (redirectSignal) {
-    return buildRedirectResponse(_req, redirectSignal, responseHeaders);
+  if (signals.redirectSignal) {
+    return buildRedirectResponse(_req, signals.redirectSignal, responseHeaders);
   }
 
   // Synchronous deny — deny() in a non-async component throws during
   // renderToReadableStream creation, caught in the try/catch above.
-  if (denySignal) {
+  if (signals.denySignal) {
     if (isRscPayloadRequest(_req)) {
       return renderDenyPageAsRsc(
-        denySignal,
+        signals.denySignal,
         segments,
         layoutComponents as LayoutEntry[],
         responseHeaders,
@@ -497,7 +374,7 @@ async function renderRoute(
       );
     }
     return renderDenyPage(
-      denySignal,
+      signals.denySignal,
       segments,
       layoutComponents as LayoutEntry[],
       _req,
@@ -512,10 +389,10 @@ async function renderRoute(
   // Synchronous render error — renderToReadableStream threw before
   // creating the stream. Render the error page with correct 5xx status.
   // (Async render errors are tracked in onError and handled after SSR.)
-  if (renderError && !rscStream) {
+  if (signals.renderError && !rscStream) {
     return renderErrorPage(
-      renderError.error,
-      renderError.status,
+      signals.renderError.error,
+      signals.renderError.status,
       segments,
       layoutComponents as LayoutEntry[],
       _req,
@@ -529,256 +406,32 @@ async function renderRoute(
   // stream directly — skip SSR HTML rendering entirely.
   // See design/19-client-navigation.md §"RSC Payload Handling"
   if (isRscPayloadRequest(_req)) {
-    // Read the first chunk from the RSC stream before committing headers.
-    // Async components (including page components wrapped in TracedPage)
-    // throw during stream consumption, not during renderToReadableStream.
-    // Reading one chunk triggers rendering of the initial component tree,
-    // allowing onError to capture DenySignal/RedirectSignal before we
-    // commit the response. Without this, the redirect digest is embedded
-    // in the RSC stream and surfaces as an unhandled error on the client.
-    // See TIM-344.
-    const reader = rscStream!.getReader();
-    const firstRead = await reader.read();
-
-    // Yield to the microtask queue so that async component rejections
-    // (e.g. an async-wrapped page component that throws redirect())
-    // propagate to the onError callback before we check the signals.
-    // The rejected Promise from an async component resolves in the next
-    // microtask after read(), so we need at least one tick.
-    await new Promise<void>((r) => setTimeout(r, 0));
-
-    // Check for redirect/deny signals detected during initial rendering
-    const trackedRedirect = redirectSignal as RedirectSignal | null;
-    if (trackedRedirect) {
-      reader.cancel();
-      return buildRedirectResponse(_req, trackedRedirect, responseHeaders);
-    }
-    if (denySignal) {
-      reader.cancel();
-      return renderDenyPageAsRsc(
-        denySignal,
-        segments,
-        layoutComponents as LayoutEntry[],
-        responseHeaders,
-        createDebugChannelSink
-      );
-    }
-
-    // Reconstruct the stream: prepend the buffered first chunk,
-    // then continue piping from the original reader.
-    const patchedStream = new ReadableStream<Uint8Array>({
-      start(controller) {
-        if (firstRead.value) controller.enqueue(firstRead.value);
-        if (firstRead.done) {
-          controller.close();
-          return;
-        }
-      },
-      async pull(controller) {
-        const { value, done } = await reader.read();
-        if (done) {
-          controller.close();
-          return;
-        }
-        controller.enqueue(value);
-      },
-      cancel() {
-        reader.cancel();
-      },
-    });
-
-    responseHeaders.set('content-type', `${RSC_CONTENT_TYPE}; charset=utf-8`);
-    // Vary on Accept so CDNs cache HTML and RSC responses separately
-    // for the same URL. The client appends ?_rsc=<id> as a cache-bust,
-    // but Vary ensures correct behavior even without the query param.
-    responseHeaders.set('Vary', 'Accept');
-
-    // Send resolved head elements so the client can update document.title
-    // and <meta> tags after SPA navigation. See design/16-metadata.md.
-    const encoded = encodeURIComponent(JSON.stringify(headElements));
-    if (encoded.length <= 4096) {
-      responseHeaders.set('X-Timber-Head', encoded);
-    }
-
-    // Send segment metadata so the client can populate its segment cache
-    // for state tree diffing on subsequent navigations.
-    // See design/19-client-navigation.md §"X-Timber-State-Tree Header"
-    const segmentInfo = buildSegmentInfo(segments, layoutComponents);
-    responseHeaders.set('X-Timber-Segments', JSON.stringify(segmentInfo));
-
-    // Send route params so the client can populate useParams() after
-    // SPA navigation. Without this, useParams() returns {}.
-    if (Object.keys(match.params).length > 0) {
-      responseHeaders.set('X-Timber-Params', JSON.stringify(match.params));
-    }
-
-    return new Response(patchedStream, {
-      status: 200,
-      headers: responseHeaders,
-    });
+    return buildRscPayloadResponse(
+      _req,
+      rscStream!,
+      signals,
+      segments,
+      layoutComponents,
+      headElements,
+      match,
+      responseHeaders
+    );
   }
 
-  // Progressive streaming: pipe the RSC stream directly to SSR without
-  // buffering. This enables proper Suspense streaming behavior.
-  //
-  // For async deny() (inside components that await before calling deny()),
-  // SSR will attempt to render the element tree progressively. Two outcomes:
-  //
-  // 1. deny() outside Suspense: the error appears in the RSC shell. SSR's
-  //    renderToReadableStream fails (rejects). We catch the failure, check
-  //    denySignal, and render the deny page with the correct status code.
-  //
-  // 2. deny() inside Suspense: the SSR shell succeeds (200 committed). The
-  //    error streams into the connection as a React error boundary. The
-  //    status is already committed — per design/05-streaming.md this is the
-  //    expected degraded behavior for deny inside Suspense.
-  //
-  // Tee the RSC stream — one copy goes to SSR for HTML rendering,
-  // the other is inlined in the HTML for client-side hydration.
-  const [ssrStream, inlineStream] = rscStream!.tee();
-
-  // Embed segment metadata in HTML for initial hydration.
-  // The client reads this to populate its segment cache before the
-  // first navigation, enabling state tree diffing from the start.
-  // Skipped when client JS is disabled — no client JS to consume it.
-  const segmentScript = clientJsDisabled
-    ? ''
-    : `<script>self.__timber_segments=${JSON.stringify(buildSegmentInfo(segments, layoutComponents))}</script>`;
-
-  // Embed route params in HTML so useParams() works on initial hydration.
-  // Without this, useParams() returns {} until the first client navigation.
-  const paramsScript =
-    clientJsDisabled || Object.keys(match.params).length === 0
-      ? ''
-      : `<script>self.__timber_params=${JSON.stringify(match.params)}</script>`;
-
-  const navContext: NavContext = {
-    pathname: new URL(_req.url).pathname,
-    params: match.params,
-    searchParams: Object.fromEntries(new URL(_req.url).searchParams),
-    statusCode: 200,
+  // Pipe through SSR for HTML rendering with streaming Suspense support.
+  return renderSsrResponse({
+    req: _req,
+    rscStream: rscStream!,
+    signals,
+    segments,
+    layoutComponents,
+    match,
     responseHeaders,
-    headHtml: headHtml + clientBootstrap.preloadLinks + segmentScript + paramsScript,
-    bootstrapScriptContent: clientBootstrap.bootstrapScriptContent,
-    // Skip RSC inline stream when client JS is disabled — no client to hydrate.
-    rscStream: clientJsDisabled ? undefined : inlineStream,
-    deferSuspenseFor: deferSuspenseFor > 0 ? deferSuspenseFor : undefined,
-    signal: _req.signal,
-    cookies: parseCookiesFromHeader(_req.headers.get('cookie') ?? ''),
-  };
-
-  // Helper: check if render-phase signals were captured and return the
-  // appropriate HTTP response. Used after both successful SSR (signal
-  // promotion from Suspense) and failed SSR (signal outside Suspense).
-  //
-  // When `skipHandledDeny` is true (SSR success path), skip DenySignal
-  // promotion if the denial was already handled by a TimberErrorBoundary
-  // (e.g., slot error boundary). The boundary sets navContext._denyHandledByBoundary
-  // during SSR rendering. See LOCAL-298.
-  function checkCapturedSignals(
-    skipHandledDeny = false
-  ): Response | Promise<Response> | null {
-    const sig = redirectSignal as RedirectSignal | null;
-    if (sig) return buildRedirectResponse(_req, sig, responseHeaders);
-    if (denySignal && !(skipHandledDeny && navContext._denyHandledByBoundary)) {
-      return renderDenyPage(
-        denySignal,
-        segments,
-        layoutComponents as LayoutEntry[],
-        _req,
-        match,
-        responseHeaders,
-        clientBootstrap,
-        createDebugChannelSink,
-        callSsr
-      );
-    }
-    const err = renderError as { error: unknown; status: number } | null;
-    if (err) {
-      return renderErrorPage(
-        err.error,
-        err.status,
-        segments,
-        layoutComponents as LayoutEntry[],
-        _req,
-        match,
-        responseHeaders,
-        clientBootstrap
-      );
-    }
-    return null;
-  }
-
-  try {
-    const ssrResponse = await callSsr(ssrStream, navContext);
-
-    // Signal promotion: yield one tick so async component rejections
-    // propagate to the RSC onError callback, then check if any signals
-    // were captured during rendering inside Suspense boundaries.
-    // The Response hasn't been sent yet — it's an unconsumed stream.
-    // See design/05-streaming.md §"deferSuspenseFor and the Hold Window"
-    await new Promise<void>((r) => setTimeout(r, 0));
-
-    const promoted = checkCapturedSignals(/* skipHandledDeny */ true);
-    if (promoted) {
-      ssrResponse.body?.cancel();
-      return promoted;
-    }
-    return ssrResponse;
-  } catch (ssrError) {
-    // Connection abort — the client disconnected (page refresh, navigation
-    // away). No response needed; return empty 499 (client closed request).
-    if (isAbortError(ssrError) || _req.signal?.aborted) {
-      return new Response(null, { status: 499 });
-    }
-
-    // SsrStreamError: SSR's renderToReadableStream failed because the RSC
-    // stream contained an uncontained error (e.g., slot without error boundary).
-    // Render the deny/error page WITHOUT layout wrapping to avoid re-executing
-    // server components (which call headers()/cookies() and fail in SSR's
-    // separate ALS scope). See LOCAL-293.
-    if (ssrError instanceof SsrStreamError) {
-      const sig = redirectSignal as RedirectSignal | null;
-      if (sig) return buildRedirectResponse(_req, sig, responseHeaders);
-      if (denySignal) {
-        // Render deny page without layouts — pass empty layout list
-        return renderDenyPage(
-          denySignal,
-          segments,
-          [] as LayoutEntry[],
-          _req,
-          match,
-          responseHeaders,
-          clientBootstrap,
-          createDebugChannelSink,
-          callSsr
-        );
-      }
-      const err = renderError as { error: unknown; status: number } | null;
-      if (err) {
-        return renderErrorPage(
-          err.error,
-          err.status,
-          segments,
-          [] as LayoutEntry[],
-          _req,
-          match,
-          responseHeaders,
-          clientBootstrap
-        );
-      }
-      // No captured signal — return bare 500
-      return new Response(null, { status: 500, headers: responseHeaders });
-    }
-
-    // SSR shell rendering failed — the error was outside Suspense.
-    // Check captured signals (redirect, deny, render error).
-    const signalResponse = checkCapturedSignals();
-    if (signalResponse) return signalResponse;
-
-    // No tracked error — rethrow (infrastructure failure)
-    throw ssrError;
-  }
+    clientBootstrap,
+    clientJsDisabled,
+    headHtml,
+    deferSuspenseFor,
+  });
 }
 
 // Re-export for generated entry points (e.g., Nitro node-server/bun) to wrap

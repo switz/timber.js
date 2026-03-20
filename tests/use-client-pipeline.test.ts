@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SRC_DIR = resolve(__dirname, '..', 'packages/timber-app/src');
@@ -25,7 +25,8 @@ const SRC_DIR = resolve(__dirname, '..', 'packages/timber-app/src');
 
 describe('RSC entry — client reference serialization', () => {
   it('imports renderToReadableStream from @vitejs/plugin-rsc/rsc', () => {
-    const content = readFileSync(resolve(SRC_DIR, 'server/rsc-entry/index.ts'), 'utf-8');
+    // renderToReadableStream is in rsc-stream.ts (extracted from index.ts)
+    const content = readFileSync(resolve(SRC_DIR, 'server/rsc-entry/rsc-stream.ts'), 'utf-8');
     // RSC entry must use the RSC plugin's renderToReadableStream,
     // which serializes client components as references in the stream.
     expect(content).toContain("from '@vitejs/plugin-rsc/rsc'");
@@ -33,14 +34,20 @@ describe('RSC entry — client reference serialization', () => {
   });
 
   it('does not use react-dom/server renderToReadableStream for RSC', () => {
-    const content = readFileSync(resolve(SRC_DIR, 'server/rsc-entry/index.ts'), 'utf-8');
-    // react-dom/server renderToReadableStream does NOT handle client
-    // references — it would try to render client components on the server.
-    expect(content).not.toContain("from 'react-dom/server'");
+    // Check all files in the rsc-entry directory
+    const rscEntryDir = resolve(SRC_DIR, 'server/rsc-entry');
+    const files = readdirSync(rscEntryDir).filter((f) => f.endsWith('.ts'));
+    for (const file of files) {
+      const content = readFileSync(resolve(rscEntryDir, file), 'utf-8');
+      // react-dom/server renderToReadableStream does NOT handle client
+      // references — it would try to render client components on the server.
+      expect(content).not.toContain("from 'react-dom/server'");
+    }
   });
 
   it('uses onClientReference callback for reference tracking', () => {
-    const content = readFileSync(resolve(SRC_DIR, 'server/rsc-entry/index.ts'), 'utf-8');
+    // onClientReference is in rsc-stream.ts (extracted from index.ts)
+    const content = readFileSync(resolve(SRC_DIR, 'server/rsc-entry/rsc-stream.ts'), 'utf-8');
     // The RSC plugin creates the client manifest internally.
     // timber passes an onClientReference callback to track client deps.
     expect(content).toContain('onClientReference');
@@ -84,7 +91,8 @@ describe('browser entry — client hydration', () => {
 
 describe('module ID consistency across environments', () => {
   it('RSC and SSR entries both reference the RSC plugin for stream handling', () => {
-    const rscContent = readFileSync(resolve(SRC_DIR, 'server/rsc-entry/index.ts'), 'utf-8');
+    // renderToReadableStream is in rsc-stream.ts (extracted from index.ts)
+    const rscContent = readFileSync(resolve(SRC_DIR, 'server/rsc-entry/rsc-stream.ts'), 'utf-8');
     const ssrContent = readFileSync(resolve(SRC_DIR, 'server/ssr-entry.ts'), 'utf-8');
 
     // RSC produces the stream via @vitejs/plugin-rsc/rsc
@@ -112,14 +120,19 @@ describe('server-only exclusion from client bundle', () => {
   });
 
   it('RSC entry does not import client runtime modules', () => {
-    const content = readFileSync(resolve(SRC_DIR, 'server/rsc-entry/index.ts'), 'utf-8');
-    // RSC entry should not import client runtime modules (router, segment cache).
-    // Importing 'use client' components like SegmentProvider is fine — they become
-    // serialized client references in the RSC Flight stream, not executed server-side.
-    expect(content).not.toContain("from '../client/router");
-    expect(content).not.toContain("from '../client/segment-cache");
-    expect(content).not.toContain("from '../client/browser-entry");
-    expect(content).not.toContain("from './router");
+    // Check all files in the rsc-entry directory
+    const rscEntryDir = resolve(SRC_DIR, 'server/rsc-entry');
+    const files = readdirSync(rscEntryDir).filter((f) => f.endsWith('.ts'));
+    for (const file of files) {
+      const content = readFileSync(resolve(rscEntryDir, file), 'utf-8');
+      // RSC entry should not import client runtime modules (router, segment cache).
+      // Importing 'use client' components like SegmentProvider is fine — they become
+      // serialized client references in the RSC Flight stream, not executed server-side.
+      expect(content).not.toContain("from '../client/router");
+      expect(content).not.toContain("from '../client/segment-cache");
+      expect(content).not.toContain("from '../client/browser-entry");
+      expect(content).not.toContain("from './router");
+    }
   });
 });
 

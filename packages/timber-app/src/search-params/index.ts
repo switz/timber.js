@@ -15,6 +15,17 @@ export { createSearchParams } from './create.js';
 // Codec bridges
 export { fromSchema, fromArraySchema } from './codecs.js';
 
+// Built-in codecs
+export {
+  parseAsString,
+  parseAsInteger,
+  parseAsFloat,
+  parseAsBoolean,
+  parseAsStringEnum,
+  parseAsStringLiteral,
+  withDefault,
+} from './builtin-codecs.js';
+
 // Runtime registry (route-scoped useQueryStates)
 export { registerSearchParams, getSearchParams } from './registry.js';
 

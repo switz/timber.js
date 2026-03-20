@@ -177,39 +177,11 @@ export function timberEntries(ctx: PluginContext): Plugin {
      * in the client output. This is confusing since those chunks contain client
      * components, not server code. Renaming clarifies their purpose.
      */
-    generateBundle(_options, bundle) {
-      if ((this as any).environment?.name !== 'client') return;
-
-      for (const [fileName, chunk] of Object.entries(bundle)) {
-        if (chunk.type !== 'chunk') continue;
-        if (!chunk.name?.startsWith('rsc-entry')) continue;
-
-        const newFileName = fileName.replace('rsc-entry', 'rsc-client-entry');
-        // Extract just the basename for matching code references like "./rsc-entry-XYZ.js"
-        const oldBase = fileName.split('/').pop()!;
-        const newBase = newFileName.split('/').pop()!;
-
-        chunk.fileName = newFileName;
-        chunk.name = chunk.name.replace('rsc-entry', 'rsc-client-entry');
-        bundle[newFileName] = chunk;
-        delete bundle[fileName];
-
-        // Update import references in other chunks
-        for (const other of Object.values(bundle)) {
-          if (other.type !== 'chunk') continue;
-          if (other.code.includes(oldBase)) {
-            other.code = other.code.replaceAll(oldBase, newBase);
-          }
-          if (other.imports) {
-            other.imports = other.imports.map((i) => (i === fileName ? newFileName : i));
-          }
-          if (other.dynamicImports) {
-            other.dynamicImports = other.dynamicImports.map((i) =>
-              i === fileName ? newFileName : i
-            );
-          }
-        }
-      }
-    },
+    // Note: chunk renaming (rsc-entry → rsc-client-entry) was previously done
+    // in generateBundle by mutating the bundle object. Rolldown does not support
+    // bundle mutation in generateBundle — assignments are silently ignored, which
+    // causes the renamed file to never be emitted while code references are
+    // updated, breaking client hydration. The rename is purely cosmetic and has
+    // been removed. The chunks keep their original "rsc-entry" names.
   };
 }

@@ -80,45 +80,38 @@ Vinext uses Vite defaults. No custom chunking configuration. Server bundles are 
 
 ## Proposed Strategy
 
-### Client Environment: Three Cache Tiers
+### Client Environment: Five Cache Tiers
 
-Use Rollup `manualChunks` to create three cache tiers based on update frequency:
+Use Rollup `manualChunks` to create five cache tiers based on update frequency and module size:
 
 ```
 Tier 1: vendor-react-*.js   — react, react-dom, scheduler
 Tier 2: vendor-timber-*.js  — @timber-js/app runtime, react-server-dom-*, @vitejs/plugin-rsc runtime
-Tier 3: [route]-*.js        — per-route page/layout chunks (already happening)
-        [shared]-*.js       — shared app components (already happening)
+Tier 3: vendor-app-*.js     — user node_modules (lucide, framer-motion, radix, etc.)
+Tier 4: shared-app-*.js     — small app utilities/components (< 5KB source, non-route files)
+        shared-client-*.js  — small 'use client' components grouped via RSC clientChunks callback
+Tier 5: [route]-*.js        — per-route page/layout chunks (default Rollup splitting)
 ```
 
-**Implementation** in `timber-entries` or a new `timber-chunks` plugin:
+Tiers 3–4 solve the "too many small chunks" problem. Without them, Rolldown creates per-module
+chunks for any code shared between two or more entry points, producing many sub-1KB chunks
+(constants at 105B, sortActiveBands at 30B, Flex at 388B, etc.). The vendor-app tier prevents
+user dependencies from fragmenting across routes. The shared-app tier merges tiny app utilities
+that would otherwise become individual HTTP requests.
+
+The shared-client tier handles RSC client reference facades — the RSC plugin creates separate
+entry points for each 'use client' module, producing thin ~100-300B re-export wrappers.
+Small user client components are grouped via the `clientChunks` callback.
+
+Route convention files (page, layout, loading, error, not-found, template, access, middleware)
+are excluded from the shared-app tier to preserve route-based code splitting.
+
+**Implementation** in the `timber-chunks` plugin (`plugins/chunks.ts`):
 
 ```ts
-// In config hook, inject rollupOptions for the client environment
-config(config) {
-  if (this.environment?.name !== 'client') return;
-  return {
-    build: {
-      rollupOptions: {
-        output: {
-          manualChunks(id) {
-            if (id.includes('node_modules/react-dom') ||
-                id.includes('node_modules/react/') ||
-                id.includes('node_modules/scheduler')) {
-              return 'vendor-react';
-            }
-            if (id.includes('/timber-app/') ||
-                id.includes('react-server-dom') ||
-                id.includes('@vitejs/plugin-rsc')) {
-              return 'vendor-timber';
-            }
-            // Let Rollup handle everything else (per-route splitting)
-          },
-        },
-      },
-    },
-  };
-}
+// See plugins/chunks.ts for the full implementation with size-aware
+// merging and route file exclusion. The assignChunk function handles
+// all five tiers, and assignClientChunk groups RSC facades.
 ```
 
 **Measured impact (benchmark fixture):**

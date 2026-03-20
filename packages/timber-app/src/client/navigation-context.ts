@@ -35,6 +35,14 @@ import React, { createElement, type ReactNode } from 'react';
 export interface NavigationState {
   params: Record<string, string | string[]>;
   pathname: string;
+  /**
+   * The URL currently being navigated to, or null if idle.
+   * Used by LinkStatusProvider to determine pending status atomically
+   * with params/pathname — all three update in the same React commit
+   * via NavigationProvider, preventing the gap where the spinner
+   * disappears before the active state updates.
+   */
+  pendingUrl: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -107,7 +115,7 @@ export function NavigationProvider({ value, children }: NavigationProviderProps)
  * This exists only as a communication channel between the router
  * (which knows the new nav state) and renderRoot (which wraps the element).
  */
-let _currentNavState: NavigationState = { params: {}, pathname: '/' };
+let _currentNavState: NavigationState = { params: {}, pathname: '/', pendingUrl: null };
 
 export function setNavigationState(state: NavigationState): void {
   _currentNavState = state;

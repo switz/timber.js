@@ -13,6 +13,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link, type OnNavigateEvent } from '@timber-js/app/client';
 import { useNavigationPending } from '@timber-js/app/client';
+import { LinkWithStatus } from './link-with-status';
 
 export function RootShell({ children }: { children: React.ReactNode }) {
   const pending = useNavigationPending();
@@ -49,6 +50,14 @@ export function RootShell({ children }: { children: React.ReactNode }) {
         <Link href="/page-redirect-test" data-testid="link-page-redirect">
           Page Redirect
         </Link>
+
+        {/* Links with per-link pending status (useLinkStatus E2E test) */}
+        <LinkWithStatus href="/slow-page" testId="link-status-slow">
+          Slow (status)
+        </LinkWithStatus>
+        <LinkWithStatus href="/dashboard" testId="link-status-dashboard">
+          Dashboard (status)
+        </LinkWithStatus>
 
         {/* Prefetch-enabled link */}
         <Link href="/dashboard" prefetch data-testid="link-prefetch-dashboard">

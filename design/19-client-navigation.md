@@ -143,14 +143,27 @@ All **router-owned navigation state** lives in React context and updates atomica
 
 The pending URL uses React's urgent/transition split to show spinners immediately and clear them atomically with the new tree:
 
-1. **Navigation start:** Router calls `setPendingNavigationUrl(url)` — an **urgent** `setState` in `TransitionRoot`. React commits this before the next paint, so the spinner appears immediately.
-2. **Fetch in progress:** The old tree stays visible (pending spinner showing) while the RSC payload loads.
-3. **Navigation end:** Router calls `renderRoot(newPayload)` → `transitionRender(newElement)` — inside `startTransition`, which sets both the new element AND `setPendingUrl(null)`. React defers this as a transition.
+1. **Navigation start:** `setPendingUrl(url)` — an **urgent** `useState` update in `TransitionRoot`. React commits this before the next paint, so the spinner appears immediately.
+2. **Fetch in progress:** The old tree stays visible (pending spinner showing) while the RSC payload loads. The entire fetch runs inside `startTransition` (from `useTransition`).
+3. **Navigation end:** Inside the same `startTransition`: `setElement(newTree)` and `setPendingUrl(null)` — both deferred as a transition.
 4. **Transition commits:** The new tree (with new params/pathname in `NavigationProvider`) and `pendingUrl=null` both apply in the **same React commit**. Spinners disappear and active state updates atomically.
 
-This follows the same pattern Next.js uses with `useOptimistic` per `<Link>` instance, adapted for timber's architecture where `<Link>` is a server component with global click delegation. Instead of per-link `useOptimistic`, timber uses a single `pendingUrl` in `TransitionRoot` with an urgent set + transition clear.
+### Why Not useOptimistic
 
-The key distinction from the previous `useSyncExternalStore` approach: external store notifications and `reactRoot.render()` were two separate update mechanisms that React didn't batch. The urgent/transition pattern is React's designed solution — urgent updates show immediately, and transition updates commit atomically with the deferred tree.
+Next.js uses `useOptimistic` per `<Link>` instance for pending state. We explored this but it doesn't work in timber's architecture:
+
+1. **`useOptimistic` inside `startTransition` doesn't flush eagerly.** The optimistic value should show immediately, but when called inside an async `startTransition` callback, React doesn't commit it before the async work starts — the spinner never appears.
+2. **Timber's `<Link>` is a server component.** `useOptimistic` requires a client component per link. Next.js makes `<Link>` a client component; timber uses global click delegation with a server component `<Link>`.
+
+The urgent `useState` + transition clear pattern is simpler and works correctly: the urgent update shows immediately (React's standard batching guarantee), and the transition update clears it atomically with the new tree.
+
+### Singleton Context Guarantee
+
+`PendingNavigationContext` lives in `navigation-context.ts` (the same module as `NavigationContext`) rather than a separate file. This is critical: `LinkStatusProvider` is a `'use client'` component that may be bundled into a different chunk than `TransitionRoot` (which is not `'use client'`). If the context were in a separate file, the bundler could duplicate the module-level `_context` variable across chunks — the provider and consumer would create different context instances, and the pending state would never propagate.
+
+By colocating both contexts in one module that's already proven as a singleton in the client graph, we guarantee the same context identity across all consumers.
+
+The key distinction from the previous `useSyncExternalStore` approach: external store notifications and `reactRoot.render()` were two separate update mechanisms that React didn't batch. The urgent/transition pattern uses React's own state management — urgent updates show immediately, and transition updates commit atomically with the deferred tree.
 
 ---
 

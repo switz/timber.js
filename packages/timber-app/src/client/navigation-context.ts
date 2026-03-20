@@ -116,3 +116,57 @@ export function setNavigationState(state: NavigationState): void {
 export function getNavigationState(): NavigationState {
   return _currentNavState;
 }
+
+// ---------------------------------------------------------------------------
+// Pending Navigation Context (same module for singleton guarantee)
+// ---------------------------------------------------------------------------
+
+/**
+ * Separate context for the in-flight navigation URL. Provided by
+ * TransitionRoot (useOptimistic state), consumed by LinkStatusProvider
+ * and useNavigationPending.
+ *
+ * Lives in this module (not a separate file) to guarantee singleton
+ * identity across chunks. The `'use client'` LinkStatusProvider and
+ * the non-directive TransitionRoot both import from this module —
+ * if they were in separate files, the bundler could duplicate the
+ * module-level context variable across chunks.
+ */
+let _pendingContext: React.Context<string | null> | undefined;
+
+function getOrCreatePendingContext(): React.Context<string | null> | undefined {
+  if (_pendingContext !== undefined) return _pendingContext;
+  if (typeof React.createContext === 'function') {
+    _pendingContext = React.createContext<string | null>(null);
+  }
+  return _pendingContext;
+}
+
+/**
+ * Read the pending navigation URL from context.
+ * Returns null during SSR (no provider) or in the RSC environment.
+ */
+export function usePendingNavigationUrl(): string | null {
+  const ctx = getOrCreatePendingContext();
+  if (!ctx) return null;
+  if (typeof React.useContext !== 'function') return null;
+  return React.useContext(ctx);
+}
+
+/**
+ * Provider for the pending navigation URL. Wraps children with
+ * the pending context Provider.
+ */
+export function PendingNavigationProvider({
+  value,
+  children,
+}: {
+  value: string | null;
+  children?: ReactNode;
+}): React.ReactElement {
+  const ctx = getOrCreatePendingContext();
+  if (!ctx) {
+    return children as React.ReactElement;
+  }
+  return createElement(ctx.Provider, { value }, children);
+}

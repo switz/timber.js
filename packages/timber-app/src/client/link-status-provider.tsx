@@ -12,7 +12,7 @@
 
 import type { ReactNode } from 'react';
 import { LinkStatusContext, type LinkStatus } from './use-link-status.js';
-import { usePendingNavigationUrl } from './pending-navigation-context.js';
+import { usePendingNavigationUrl } from './navigation-context.js';
 
 const NOT_PENDING: LinkStatus = { pending: false };
 const IS_PENDING: LinkStatus = { pending: true };

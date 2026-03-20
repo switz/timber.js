@@ -11,14 +11,12 @@
  * a transition update. React keeps the old committed tree visible while
  * any new Suspense boundaries in the transition resolve.
  *
- * Also manages `pendingUrl` via `useOptimistic`. During a navigation
- * transition, the optimistic value (the target URL) shows immediately
- * while the transition is pending, and automatically reverts to null
- * when the transition commits. This ensures useLinkStatus and
- * useNavigationPending show the pending state immediately and clear
- * atomically with the new tree — same pattern Next.js uses with
- * useOptimistic per Link instance, adapted for timber's server-component
- * Link with global click delegation.
+ * Also manages `pendingUrl` as React state with an urgent/transition split:
+ * - Navigation START: `setPendingUrl(url)` is an urgent update — React
+ *   commits it before the next paint, showing the spinner immediately.
+ * - Navigation END: `setPendingUrl(null)` is inside `startTransition`
+ *   alongside `setElement(newTree)` — both commit atomically, so the
+ *   spinner disappears in the same frame as the new content appears.
  *
  * See design/05-streaming.md §"deferSuspenseFor"
  * See design/19-client-navigation.md §"NavigationContext"
@@ -26,12 +24,11 @@
 
 import {
   useState,
-  useOptimistic,
   useTransition,
   createElement,
   type ReactNode,
 } from 'react';
-import { PendingNavigationProvider } from './pending-navigation-context.js';
+import { PendingNavigationProvider } from './navigation-context.js';
 
 // ─── Module-level functions ──────────────────────────────────────
 
@@ -72,10 +69,7 @@ let _navigateTransition: ((
  */
 export function TransitionRoot({ initial }: { initial: ReactNode }): ReactNode {
   const [element, setElement] = useState<ReactNode>(initial);
-  const [optimisticPendingUrl, setOptimisticPendingUrl] = useOptimistic<string | null>(null);
-  // useTransition's startTransition (not the standalone import) creates an
-  // action context that useOptimistic can track. The standalone startTransition
-  // doesn't — optimistic values would never show.
+  const [pendingUrl, setPendingUrl] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
   // Non-navigation render (revalidation, popstate cached replay).
@@ -85,25 +79,35 @@ export function TransitionRoot({ initial }: { initial: ReactNode }): ReactNode {
     });
   };
 
-  // Full navigation transition. The entire navigation (fetch + state updates)
-  // runs inside startTransition. useOptimistic shows the pending URL immediately
-  // (urgent) and reverts to null when the transition commits (atomic with new tree).
-  _navigateTransition = (pendingUrl: string, perform: () => Promise<ReactNode>) => {
+  // Full navigation transition.
+  // setPendingUrl(url) is an URGENT update — React commits it before the next
+  // paint, so the pending spinner appears immediately when navigation starts.
+  // Inside startTransition: the async fetch + setElement + setPendingUrl(null)
+  // are deferred. When the transition commits, the new tree and pendingUrl=null
+  // both apply in the same React commit — making the pending→active transition
+  // atomic (no frame where pending is false but the old tree is still visible).
+  _navigateTransition = (url: string, perform: () => Promise<ReactNode>) => {
+    // Urgent: show pending state immediately
+    setPendingUrl(url);
+
     return new Promise<void>((resolve, reject) => {
       startTransition(async () => {
         try {
-          setOptimisticPendingUrl(pendingUrl);
           const newElement = await perform();
           setElement(newElement);
+          // Clear pending inside the transition — commits atomically with new tree
+          setPendingUrl(null);
           resolve();
         } catch (err) {
+          // Clear pending on error too
+          setPendingUrl(null);
           reject(err);
         }
       });
     });
   };
 
-  return createElement(PendingNavigationProvider, { value: optimisticPendingUrl }, element);
+  return createElement(PendingNavigationProvider, { value: pendingUrl }, element);
 }
 
 // ─── Public API ──────────────────────────────────────────────────

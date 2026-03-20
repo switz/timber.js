@@ -5,7 +5,7 @@
 // pending state shows immediately (urgent update) and clears atomically
 // with the new tree (same startTransition commit).
 
-import { usePendingNavigationUrl } from './pending-navigation-context.js';
+import { usePendingNavigationUrl } from './navigation-context.js';
 
 /**
  * Returns true while an RSC navigation is in flight.

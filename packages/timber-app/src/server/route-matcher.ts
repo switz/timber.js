@@ -10,7 +10,12 @@
 
 import type { RouteMatch } from './pipeline.js';
 import type { MiddlewareFn } from './middleware-runner.js';
-import { METADATA_ROUTE_CONVENTIONS, type MetadataRouteType } from './metadata-routes.js';
+import {
+  METADATA_ROUTE_CONVENTIONS,
+  isStaticMetadataExtension,
+  resolveStaticContentType,
+  type MetadataRouteType,
+} from './metadata-routes.js';
 
 // ─── Manifest Types ───────────────────────────────────────────────────────
 // The virtual module manifest has a slightly different shape than SegmentNode:
@@ -292,6 +297,11 @@ export interface MetadataRouteMatch {
   file: ManifestFile;
   /** The matched segment (for context/params if needed). */
   segment: ManifestSegmentNode;
+  /**
+   * Whether this is a static file (e.g. sitemap.xml, favicon.ico, icon.png)
+   * that should be served from disk rather than executed as a handler.
+   */
+  isStatic: boolean;
 }
 
 /**
@@ -331,11 +341,24 @@ function collectMetadataRoutes(
       const prefix = node.urlPath === '/' ? '' : node.urlPath;
       const pathname = `${prefix}/${convention.servePath}`;
 
+      // Determine if this is a static file based on its extension.
+      // Static files (.xml, .txt, .png, .ico, etc.) are served from disk.
+      // Dynamic files (.ts, .tsx) export a handler function.
+      const ext = file.filePath.slice(file.filePath.lastIndexOf('.') + 1);
+      const isStatic = isStaticMetadataExtension(baseName, ext);
+
+      // Resolve generic content types (e.g. image/*) to concrete MIME types
+      // based on the file extension for static files.
+      const contentType = isStatic
+        ? resolveStaticContentType(convention.contentType, ext)
+        : convention.contentType;
+
       map.set(pathname, {
         type: convention.type,
-        contentType: convention.contentType,
+        contentType,
         file,
         segment: node,
+        isStatic,
       });
     }
   }

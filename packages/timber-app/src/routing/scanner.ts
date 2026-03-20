@@ -19,7 +19,10 @@ import type {
   InterceptionMarker,
 } from './types.js';
 import { DEFAULT_PAGE_EXTENSIONS, INTERCEPTION_MARKERS } from './types.js';
-import { classifyMetadataRoute } from '#/server/metadata-routes.js';
+import {
+  classifyMetadataRoute,
+  isDynamicMetadataExtension,
+} from '#/server/metadata-routes.js';
 
 /**
  * Pattern matching encoded path delimiters that must be rejected during route discovery.
@@ -317,13 +320,26 @@ function scanSegmentFiles(dirPath: string, node: SegmentNode, extSet: Set<string
     }
 
     // Metadata route files (sitemap.ts, robots.ts, icon.tsx, opengraph-image.tsx, etc.)
+    // Both static (.xml, .txt, .png, .ico, etc.) and dynamic (.ts, .tsx) files are recognized.
+    // When both exist for the same base name, dynamic takes precedence.
     // See design/16-metadata.md §"Metadata Routes"
     const metaInfo = classifyMetadataRoute(entry);
     if (metaInfo) {
       if (!node.metadataRoutes) {
         node.metadataRoutes = new Map();
       }
-      node.metadataRoutes.set(name, { filePath: fullPath, extension: ext });
+      const existing = node.metadataRoutes.get(name);
+      if (existing) {
+        // Dynamic > static precedence: only overwrite if the new file is dynamic
+        // or the existing file is static (dynamic always wins).
+        const existingIsDynamic = isDynamicMetadataExtension(name, existing.extension);
+        const newIsDynamic = isDynamicMetadataExtension(name, ext);
+        if (newIsDynamic || !existingIsDynamic) {
+          node.metadataRoutes.set(name, { filePath: fullPath, extension: ext });
+        }
+      } else {
+        node.metadataRoutes.set(name, { filePath: fullPath, extension: ext });
+      }
     }
   }
 

@@ -492,6 +492,144 @@ describe('metadata route matcher', () => {
   });
 });
 
+// ─── Static metadata routes ──────────────────────────────────────────────────
+
+describe('metadata route matcher: static files', () => {
+  it('matches static sitemap.xml with isStatic=true', () => {
+    const root = makeNode({
+      metadataRoutes: {
+        sitemap: { load: async () => ({}), filePath: 'app/sitemap.xml' },
+      },
+    });
+
+    const match = createMetadataRouteMatcher(makeManifest(root));
+    const result = match('/sitemap.xml');
+    expect(result).not.toBeNull();
+    expect(result!.type).toBe('sitemap');
+    expect(result!.isStatic).toBe(true);
+    expect(result!.contentType).toBe('application/xml');
+  });
+
+  it('matches static robots.txt with isStatic=true', () => {
+    const root = makeNode({
+      metadataRoutes: {
+        robots: { load: async () => ({}), filePath: 'app/robots.txt' },
+      },
+    });
+
+    const match = createMetadataRouteMatcher(makeManifest(root));
+    const result = match('/robots.txt');
+    expect(result).not.toBeNull();
+    expect(result!.isStatic).toBe(true);
+    expect(result!.contentType).toBe('text/plain');
+  });
+
+  it('matches static favicon.ico with isStatic=true', () => {
+    const root = makeNode({
+      metadataRoutes: {
+        favicon: { load: async () => ({}), filePath: 'app/favicon.ico' },
+      },
+    });
+
+    const match = createMetadataRouteMatcher(makeManifest(root));
+    const result = match('/favicon.ico');
+    expect(result).not.toBeNull();
+    expect(result!.isStatic).toBe(true);
+    expect(result!.contentType).toBe('image/x-icon');
+  });
+
+  it('resolves image/* to image/png for static icon.png', () => {
+    const root = makeNode({
+      metadataRoutes: {
+        icon: { load: async () => ({}), filePath: 'app/icon.png' },
+      },
+    });
+
+    const match = createMetadataRouteMatcher(makeManifest(root));
+    const result = match('/icon');
+    expect(result).not.toBeNull();
+    expect(result!.isStatic).toBe(true);
+    expect(result!.contentType).toBe('image/png');
+  });
+
+  it('resolves image/* to image/jpeg for static icon.jpg', () => {
+    const root = makeNode({
+      metadataRoutes: {
+        icon: { load: async () => ({}), filePath: 'app/icon.jpg' },
+      },
+    });
+
+    const match = createMetadataRouteMatcher(makeManifest(root));
+    const result = match('/icon');
+    expect(result).not.toBeNull();
+    expect(result!.isStatic).toBe(true);
+    expect(result!.contentType).toBe('image/jpeg');
+  });
+
+  it('resolves image/* to image/svg+xml for static icon.svg', () => {
+    const root = makeNode({
+      metadataRoutes: {
+        icon: { load: async () => ({}), filePath: 'app/icon.svg' },
+      },
+    });
+
+    const match = createMetadataRouteMatcher(makeManifest(root));
+    const result = match('/icon');
+    expect(result).not.toBeNull();
+    expect(result!.isStatic).toBe(true);
+    expect(result!.contentType).toBe('image/svg+xml');
+  });
+
+  it('dynamic metadata routes have isStatic=false', () => {
+    const root = makeNode({
+      metadataRoutes: {
+        sitemap: { load: async () => ({}), filePath: 'app/sitemap.ts' },
+      },
+    });
+
+    const match = createMetadataRouteMatcher(makeManifest(root));
+    const result = match('/sitemap.xml');
+    expect(result).not.toBeNull();
+    expect(result!.isStatic).toBe(false);
+    expect(result!.contentType).toBe('application/xml');
+  });
+
+  it('matches static opengraph-image.png with resolved content type', () => {
+    const root = makeNode({
+      metadataRoutes: {
+        'opengraph-image': { load: async () => ({}), filePath: 'app/opengraph-image.png' },
+      },
+    });
+
+    const match = createMetadataRouteMatcher(makeManifest(root));
+    const result = match('/opengraph-image');
+    expect(result).not.toBeNull();
+    expect(result!.isStatic).toBe(true);
+    expect(result!.contentType).toBe('image/png');
+  });
+
+  it('matches nested static icon.png', () => {
+    const root = makeNode({
+      children: [
+        makeNode({
+          segmentName: 'blog',
+          segmentType: 'static',
+          urlPath: '/blog',
+          metadataRoutes: {
+            icon: { load: async () => ({}), filePath: 'app/blog/icon.png' },
+          },
+        }),
+      ],
+    });
+
+    const match = createMetadataRouteMatcher(makeManifest(root));
+    const result = match('/blog/icon');
+    expect(result).not.toBeNull();
+    expect(result!.isStatic).toBe(true);
+    expect(result!.contentType).toBe('image/png');
+  });
+});
+
 // ─── Cross-group static/dynamic priority ─────────────────────────────────────
 
 describe('route-matcher: static routes in route groups beat dynamic segments in sibling groups', () => {

@@ -121,6 +121,67 @@ export const METADATA_ROUTE_CONVENTIONS: Record<
   },
 };
 
+// ─── MIME Type Resolution ─────────────────────────────────────────────────────
+
+/**
+ * Map of file extensions to MIME types for static metadata route files.
+ * Used to resolve the generic `image/*` content type for static image files.
+ */
+const EXTENSION_MIME_TYPES: Record<string, string> = {
+  xml: 'application/xml',
+  txt: 'text/plain',
+  json: 'application/json',
+  ico: 'image/x-icon',
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  svg: 'image/svg+xml',
+  webp: 'image/webp',
+};
+
+/**
+ * Resolve the concrete MIME type for a static metadata route file.
+ *
+ * For generic content types like `image/*`, this resolves to the actual
+ * MIME type based on the file extension (e.g. `image/png` for `.png`).
+ *
+ * @param conventionContentType - The content type from the convention table (may be generic like `image/*`)
+ * @param extension - The file extension without leading dot (e.g. "png", "xml")
+ * @returns The resolved MIME type
+ */
+export function resolveStaticContentType(conventionContentType: string, extension: string): string {
+  if (conventionContentType.includes('*')) {
+    return EXTENSION_MIME_TYPES[extension] ?? 'application/octet-stream';
+  }
+  return conventionContentType;
+}
+
+/**
+ * Check if a file extension represents a static (non-code) metadata route file.
+ *
+ * @param baseName - The base file name without extension (e.g. "sitemap", "icon")
+ * @param extension - The file extension without leading dot (e.g. "xml", "png", "ts")
+ * @returns true if this is a static file, false if dynamic or unrecognized
+ */
+export function isStaticMetadataExtension(baseName: string, extension: string): boolean {
+  const convention = METADATA_ROUTE_CONVENTIONS[baseName];
+  if (!convention) return false;
+  return convention.staticExtensions.includes(extension);
+}
+
+/**
+ * Check if a file extension represents a dynamic (code) metadata route file.
+ *
+ * @param baseName - The base file name without extension (e.g. "sitemap", "icon")
+ * @param extension - The file extension without leading dot (e.g. "ts", "tsx")
+ * @returns true if this is a dynamic file, false if static or unrecognized
+ */
+export function isDynamicMetadataExtension(baseName: string, extension: string): boolean {
+  const convention = METADATA_ROUTE_CONVENTIONS[baseName];
+  if (!convention) return false;
+  return convention.dynamicExtensions.includes(extension);
+}
+
 // ─── Classification ──────────────────────────────────────────────────────────
 
 /**

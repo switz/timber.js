@@ -178,6 +178,7 @@ async function createRequestHandler(manifest: typeof routeManifest, runtimeConfi
       return renderNoMatchPage(req, manifest.root, responseHeaders, clientBootstrap);
     },
     interceptionRewrites: manifest.interceptionRewrites,
+    enableServerTiming: isDev,
     onPipelineError: isDev
       ? (error: Error, phase: string) => {
           if (_devPipelineErrorHandler) _devPipelineErrorHandler(error, phase);

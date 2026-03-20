@@ -15,6 +15,11 @@ import { canonicalize } from './canonicalize.js';
 import { runProxy, type ProxyExport } from './proxy.js';
 import { runMiddleware, type MiddlewareFn } from './middleware-runner.js';
 import {
+  runWithTimingCollector,
+  withTiming,
+  getServerTimingHeader,
+} from './server-timing.js';
+import {
   runWithRequestContext,
   applyRequestHeaderOverlay,
   setMutableCookieContext,
@@ -114,6 +119,13 @@ export interface PipelineConfig {
    */
   interceptionRewrites?: import('#/routing/interception.js').InterceptionRewrite[];
   /**
+   * Emit Server-Timing header on responses for Chrome DevTools visibility.
+   * Only enable in dev mode — exposes internal timing data.
+   *
+   * Default: false (production-safe).
+   */
+  enableServerTiming?: boolean;
+  /**
    * Dev pipeline error callback — called when a pipeline phase (proxy,
    * middleware, render) catches an unhandled error. Used to wire the error
    * into the Vite browser error overlay in dev mode.
@@ -155,6 +167,7 @@ export function createPipeline(config: PipelineConfig): (req: Request) => Promis
     earlyHints,
     stripTrailingSlash = true,
     slowRequestMs = 3000,
+    enableServerTiming = false,
     onPipelineError,
   } = config;
 
@@ -173,43 +186,62 @@ export function createPipeline(config: PipelineConfig): (req: Request) => Promis
       // Establish request context ALS scope so headers() and cookies() work
       // throughout the entire request lifecycle (proxy, middleware, render).
       return runWithRequestContext(req, async () => {
-        logRequestReceived({ method, path });
+        // In dev mode, wrap with timing collector for Server-Timing header.
+        // The collector uses ALS so timing entries are per-request.
+        const runRequest = async () => {
+          logRequestReceived({ method, path });
 
-        const response = await withSpan(
-          'http.server.request',
-          { 'http.request.method': method, 'url.path': path },
-          async () => {
-            // If OTEL is active, the root span now exists — replace the UUID
-            // fallback with the real OTEL trace ID for log–trace correlation.
-            const otelIds = await getOtelTraceId();
-            if (otelIds) {
-              replaceTraceId(otelIds.traceId, otelIds.spanId);
+          const response = await withSpan(
+            'http.server.request',
+            { 'http.request.method': method, 'url.path': path },
+            async () => {
+              // If OTEL is active, the root span now exists — replace the UUID
+              // fallback with the real OTEL trace ID for log–trace correlation.
+              const otelIds = await getOtelTraceId();
+              if (otelIds) {
+                replaceTraceId(otelIds.traceId, otelIds.spanId);
+              }
+
+              let result: Response;
+              if (proxy || config.proxyLoader) {
+                result = await runProxyPhase(req, method, path);
+              } else {
+                result = await handleRequest(req, method, path);
+              }
+
+              // Set response status on the root span before it ends —
+              // DevSpanProcessor reads this for tree/summary output.
+              await setSpanAttribute('http.response.status_code', result.status);
+
+              // Append Server-Timing header in dev mode.
+              // At this point, pre-flush phases (proxy, middleware, render)
+              // have completed and their timing entries are collected.
+              if (enableServerTiming) {
+                const serverTiming = getServerTimingHeader();
+                if (serverTiming) {
+                  result.headers.set('Server-Timing', serverTiming);
+                }
+              }
+
+              return result;
             }
+          );
 
-            let result: Response;
-            if (proxy || config.proxyLoader) {
-              result = await runProxyPhase(req, method, path);
-            } else {
-              result = await handleRequest(req, method, path);
-            }
+          // Post-span: structured production logging
+          const durationMs = Math.round(performance.now() - startTime);
+          const status = response.status;
+          logRequestCompleted({ method, path, status, durationMs });
 
-            // Set response status on the root span before it ends —
-            // DevSpanProcessor reads this for tree/summary output.
-            await setSpanAttribute('http.response.status_code', result.status);
-            return result;
+          if (slowRequestMs > 0 && durationMs > slowRequestMs) {
+            logSlowRequest({ method, path, durationMs, threshold: slowRequestMs });
           }
-        );
 
-        // Post-span: structured production logging
-        const durationMs = Math.round(performance.now() - startTime);
-        const status = response.status;
-        logRequestCompleted({ method, path, status, durationMs });
+          return response;
+        };
 
-        if (slowRequestMs > 0 && durationMs > slowRequestMs) {
-          logSlowRequest({ method, path, durationMs, threshold: slowRequestMs });
-        }
-
-        return response;
+        return enableServerTiming
+          ? runWithTimingCollector(runRequest)
+          : runRequest();
       });
     });
   };
@@ -225,8 +257,12 @@ export function createPipeline(config: PipelineConfig): (req: Request) => Promis
       } else {
         proxyExport = config.proxy!;
       }
+      const proxyFn = () =>
+        runProxy(proxyExport, req, () => handleRequest(req, method, path));
       return await withSpan('timber.proxy', {}, () =>
-        runProxy(proxyExport, req, () => handleRequest(req, method, path))
+        enableServerTiming
+          ? withTiming('proxy', 'proxy.ts', proxyFn)
+          : proxyFn()
       );
     } catch (error) {
       // Uncaught proxy.ts error → bare HTTP 500
@@ -360,8 +396,11 @@ export function createPipeline(config: PipelineConfig): (req: Request) => Promis
       try {
         // Enable cookie mutation during middleware (design/29-cookies.md §"Context Tracking")
         setMutableCookieContext(true);
+        const middlewareFn = () => runMiddleware(match.middleware!, ctx);
         const middlewareResponse = await withSpan('timber.middleware', {}, () =>
-          runMiddleware(match.middleware!, ctx)
+          enableServerTiming
+            ? withTiming('mw', 'middleware.ts', middlewareFn)
+            : middlewareFn()
         );
         setMutableCookieContext(false);
         if (middlewareResponse) {
@@ -410,8 +449,12 @@ export function createPipeline(config: PipelineConfig): (req: Request) => Promis
 
     // Stage 4: Render (access gates + element tree + renderToReadableStream)
     try {
+      const renderFn = () =>
+        render(req, match, responseHeaders, requestHeaderOverlay, interception);
       const response = await withSpan('timber.render', { 'http.route': canonicalPathname }, () =>
-        render(req, match, responseHeaders, requestHeaderOverlay, interception)
+        enableServerTiming
+          ? withTiming('render', 'RSC + SSR render', renderFn)
+          : renderFn()
       );
       markResponseFlushed();
       return response;

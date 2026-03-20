@@ -10,7 +10,9 @@
  * Ported from acceptance criteria in timber-dch.15.
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { join } from 'node:path';
 import {
   createPipeline,
   type PipelineConfig,
@@ -31,6 +33,7 @@ import {
 } from '../../packages/timber-app/src/server/metadata';
 import type { SegmentNode, RouteFile } from '../../packages/timber-app/src/routing/types';
 import { resolveStatusFile } from '../../packages/timber-app/src/server/status-code-resolver';
+import type { MetadataRouteMatch } from '../../packages/timber-app/src/server/route-matcher';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
 
@@ -569,5 +572,216 @@ describe('request headers overlay', () => {
 
     await handler(makeRequest('/page'));
     expect(Array.from(receivedOverlay!.entries())).toHaveLength(0);
+  });
+});
+
+// ─── Static Metadata File Serving ─────────────────────────────────────────────
+
+describe('static metadata file serving', () => {
+  const TMP_DIR = join(import.meta.dirname, '.tmp-pipeline-static-meta');
+
+  beforeEach(() => {
+    mkdirSync(TMP_DIR, { recursive: true });
+  });
+
+  afterEach(() => {
+    rmSync(TMP_DIR, { recursive: true, force: true });
+  });
+
+  function createStaticFile(name: string, content: string | Buffer): string {
+    const filePath = join(TMP_DIR, name);
+    writeFileSync(filePath, content);
+    return filePath;
+  }
+
+  function makeStaticMetaMatch(
+    filePath: string,
+    contentType: string,
+    type: MetadataRouteMatch['type'] = 'sitemap'
+  ): MetadataRouteMatch {
+    return {
+      type,
+      contentType,
+      file: { load: async () => ({}), filePath },
+      segment: {
+        segmentName: '',
+        segmentType: 'static',
+        urlPath: '/',
+        children: [],
+        slots: {},
+      },
+      isStatic: true,
+    };
+  }
+
+  it('serves static sitemap.xml with correct content type', async () => {
+    const xml = '<?xml version="1.0"?><urlset><url><loc>https://example.com/</loc></url></urlset>';
+    const filePath = createStaticFile('sitemap.xml', xml);
+
+    const handler = createPipeline({
+      matchRoute: () => null,
+      render: okRender(),
+      matchMetadataRoute: (pathname) => {
+        if (pathname === '/sitemap.xml') {
+          return makeStaticMetaMatch(filePath, 'application/xml', 'sitemap');
+        }
+        return null;
+      },
+    });
+
+    const res = await handler(makeRequest('/sitemap.xml'));
+    expect(res.status).toBe(200);
+    expect(res.headers.get('Content-Type')).toContain('application/xml');
+    expect(res.headers.get('Content-Type')).toContain('charset=utf-8');
+    const body = await res.text();
+    expect(body).toContain('<urlset>');
+  });
+
+  it('serves static robots.txt with correct content type', async () => {
+    const txt = 'User-agent: *\nDisallow: /private/';
+    const filePath = createStaticFile('robots.txt', txt);
+
+    const handler = createPipeline({
+      matchRoute: () => null,
+      render: okRender(),
+      matchMetadataRoute: (pathname) => {
+        if (pathname === '/robots.txt') {
+          return makeStaticMetaMatch(filePath, 'text/plain', 'robots');
+        }
+        return null;
+      },
+    });
+
+    const res = await handler(makeRequest('/robots.txt'));
+    expect(res.status).toBe(200);
+    expect(res.headers.get('Content-Type')).toContain('text/plain');
+    const body = await res.text();
+    expect(body).toBe(txt);
+  });
+
+  it('serves static favicon.ico as binary with image/x-icon', async () => {
+    const icoData = Buffer.from([0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x10, 0x10]);
+    const filePath = createStaticFile('favicon.ico', icoData);
+
+    const handler = createPipeline({
+      matchRoute: () => null,
+      render: okRender(),
+      matchMetadataRoute: (pathname) => {
+        if (pathname === '/favicon.ico') {
+          return makeStaticMetaMatch(filePath, 'image/x-icon', 'favicon');
+        }
+        return null;
+      },
+    });
+
+    const res = await handler(makeRequest('/favicon.ico'));
+    expect(res.status).toBe(200);
+    expect(res.headers.get('Content-Type')).toBe('image/x-icon');
+    // Binary content should NOT include charset
+    expect(res.headers.get('Content-Type')).not.toContain('charset');
+    const buffer = new Uint8Array(await res.arrayBuffer());
+    expect(buffer[0]).toBe(0x00);
+    expect(buffer[2]).toBe(0x01);
+  });
+
+  it('serves static icon.png as binary with image/png', async () => {
+    // PNG magic bytes
+    const pngData = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    const filePath = createStaticFile('icon.png', pngData);
+
+    const handler = createPipeline({
+      matchRoute: () => null,
+      render: okRender(),
+      matchMetadataRoute: (pathname) => {
+        if (pathname === '/icon') {
+          return makeStaticMetaMatch(filePath, 'image/png', 'icon');
+        }
+        return null;
+      },
+    });
+
+    const res = await handler(makeRequest('/icon'));
+    expect(res.status).toBe(200);
+    expect(res.headers.get('Content-Type')).toBe('image/png');
+    const buffer = new Uint8Array(await res.arrayBuffer());
+    expect(buffer[0]).toBe(0x89);
+    expect(buffer[1]).toBe(0x50);
+  });
+
+  it('includes Content-Length header for static files', async () => {
+    const content = 'User-agent: *\nAllow: /';
+    const filePath = createStaticFile('robots.txt', content);
+
+    const handler = createPipeline({
+      matchRoute: () => null,
+      render: okRender(),
+      matchMetadataRoute: (pathname) => {
+        if (pathname === '/robots.txt') {
+          return makeStaticMetaMatch(filePath, 'text/plain', 'robots');
+        }
+        return null;
+      },
+    });
+
+    const res = await handler(makeRequest('/robots.txt'));
+    expect(res.headers.get('Content-Length')).toBe(String(Buffer.byteLength(content)));
+  });
+
+  it('serves static manifest.json with correct content type', async () => {
+    const json = '{"name": "My App", "short_name": "App"}';
+    const filePath = createStaticFile('manifest.json', json);
+
+    const handler = createPipeline({
+      matchRoute: () => null,
+      render: okRender(),
+      matchMetadataRoute: (pathname) => {
+        if (pathname === '/manifest.webmanifest') {
+          return makeStaticMetaMatch(filePath, 'application/manifest+json', 'manifest');
+        }
+        return null;
+      },
+    });
+
+    const res = await handler(makeRequest('/manifest.webmanifest'));
+    expect(res.status).toBe(200);
+    expect(res.headers.get('Content-Type')).toContain('application/manifest+json');
+    const body = await res.text();
+    expect(body).toBe(json);
+  });
+
+  it('dynamic metadata route still calls handler function', async () => {
+    const handler = createPipeline({
+      matchRoute: () => null,
+      render: okRender(),
+      matchMetadataRoute: (pathname) => {
+        if (pathname === '/sitemap.xml') {
+          return {
+            type: 'sitemap' as const,
+            contentType: 'application/xml',
+            file: {
+              load: async () => ({
+                default: () => [{ url: 'https://example.com/', priority: 1.0 }],
+              }),
+              filePath: 'app/sitemap.ts',
+            },
+            segment: {
+              segmentName: '',
+              segmentType: 'static' as const,
+              urlPath: '/',
+              children: [],
+              slots: {},
+            },
+            isStatic: false,
+          };
+        }
+        return null;
+      },
+    });
+
+    const res = await handler(makeRequest('/sitemap.xml'));
+    expect(res.status).toBe(200);
+    expect(res.headers.get('Content-Type')).toContain('application/xml');
+    const body = await res.text();
+    expect(body).toContain('<loc>https://example.com/</loc>');
   });
 });

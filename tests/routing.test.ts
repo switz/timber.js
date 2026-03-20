@@ -645,3 +645,122 @@ describe('scanRoutes', () => {
     expect(() => scanRoutes(root)).toThrowError(/\(b\).*conflict|conflict.*\(b\)/);
   });
 });
+
+// --- Static metadata route files ---
+
+describe('static metadata route files', () => {
+  it('scans static sitemap.xml in root', () => {
+    const root = createApp({
+      'page.tsx': '',
+      'sitemap.xml': '<?xml version="1.0"?><urlset></urlset>',
+    });
+
+    const tree = scanRoutes(root);
+    expect(tree.root.metadataRoutes).toBeDefined();
+    expect(tree.root.metadataRoutes!.has('sitemap')).toBe(true);
+    expect(tree.root.metadataRoutes!.get('sitemap')!.extension).toBe('xml');
+  });
+
+  it('scans static robots.txt in root', () => {
+    const root = createApp({
+      'page.tsx': '',
+      'robots.txt': 'User-agent: *\nDisallow:',
+    });
+
+    const tree = scanRoutes(root);
+    expect(tree.root.metadataRoutes).toBeDefined();
+    expect(tree.root.metadataRoutes!.has('robots')).toBe(true);
+    expect(tree.root.metadataRoutes!.get('robots')!.extension).toBe('txt');
+  });
+
+  it('scans static favicon.ico in root', () => {
+    const root = createApp({
+      'page.tsx': '',
+      'favicon.ico': '\x00\x00\x01\x00', // fake ico data
+    });
+
+    const tree = scanRoutes(root);
+    expect(tree.root.metadataRoutes).toBeDefined();
+    expect(tree.root.metadataRoutes!.has('favicon')).toBe(true);
+    expect(tree.root.metadataRoutes!.get('favicon')!.extension).toBe('ico');
+  });
+
+  it('scans static icon.png in a segment', () => {
+    const root = createApp({
+      'page.tsx': '',
+      'blog/page.tsx': '',
+      'blog/icon.png': '\x89PNG', // fake PNG header
+    });
+
+    const tree = scanRoutes(root);
+    const blog = tree.root.children.find((c) => c.segmentName === 'blog');
+    expect(blog).toBeDefined();
+    expect(blog!.metadataRoutes).toBeDefined();
+    expect(blog!.metadataRoutes!.has('icon')).toBe(true);
+    expect(blog!.metadataRoutes!.get('icon')!.extension).toBe('png');
+  });
+
+  it('scans static opengraph-image.png', () => {
+    const root = createApp({
+      'page.tsx': '',
+      'opengraph-image.png': '\x89PNG',
+    });
+
+    const tree = scanRoutes(root);
+    expect(tree.root.metadataRoutes!.has('opengraph-image')).toBe(true);
+    expect(tree.root.metadataRoutes!.get('opengraph-image')!.extension).toBe('png');
+  });
+
+  it('scans static manifest.json', () => {
+    const root = createApp({
+      'page.tsx': '',
+      'manifest.json': '{"name": "test"}',
+    });
+
+    const tree = scanRoutes(root);
+    expect(tree.root.metadataRoutes!.has('manifest')).toBe(true);
+    expect(tree.root.metadataRoutes!.get('manifest')!.extension).toBe('json');
+  });
+
+  it('dynamic takes precedence over static when both exist', () => {
+    const root = createApp({
+      'page.tsx': '',
+      'sitemap.xml': '<?xml version="1.0"?><urlset></urlset>',
+      'sitemap.ts': 'export default function sitemap() { return []; }',
+    });
+
+    const tree = scanRoutes(root);
+    expect(tree.root.metadataRoutes).toBeDefined();
+    const sitemap = tree.root.metadataRoutes!.get('sitemap');
+    expect(sitemap).toBeDefined();
+    // Dynamic (.ts) should win over static (.xml)
+    expect(sitemap!.extension).toBe('ts');
+  });
+
+  it('dynamic icon.tsx takes precedence over static icon.png', () => {
+    const root = createApp({
+      'page.tsx': '',
+      'icon.png': '\x89PNG',
+      'icon.tsx': 'export default function Icon() { return new Response(); }',
+    });
+
+    const tree = scanRoutes(root);
+    const icon = tree.root.metadataRoutes!.get('icon');
+    expect(icon).toBeDefined();
+    expect(icon!.extension).toBe('tsx');
+  });
+
+  it('static file is kept when no dynamic counterpart exists', () => {
+    const root = createApp({
+      'page.tsx': '',
+      'favicon.ico': '\x00\x00\x01\x00',
+      'sitemap.ts': 'export default function sitemap() { return []; }',
+    });
+
+    const tree = scanRoutes(root);
+    // favicon only has static form (no dynamic)
+    expect(tree.root.metadataRoutes!.get('favicon')!.extension).toBe('ico');
+    // sitemap has dynamic form
+    expect(tree.root.metadataRoutes!.get('sitemap')!.extension).toBe('ts');
+  });
+});

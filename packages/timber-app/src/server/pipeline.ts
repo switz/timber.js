@@ -11,6 +11,7 @@
  * and design/17-logging.md §"Production Logging"
  */
 
+import { readFile } from 'node:fs/promises';
 import { canonicalize } from './canonicalize.js';
 import { runProxy, type ProxyExport } from './proxy.js';
 import { runMiddleware, type MiddlewareFn } from './middleware-runner.js';
@@ -289,6 +290,13 @@ export function createPipeline(config: PipelineConfig): (req: Request) => Promis
       const metaMatch = config.matchMetadataRoute(canonicalPathname);
       if (metaMatch) {
         try {
+          // Static metadata files (.xml, .txt, .png, .ico, etc.) are served
+          // directly from disk. Dynamic metadata routes (.ts, .tsx) export a
+          // handler function that generates the response.
+          if (metaMatch.isStatic) {
+            return await serveStaticMetadataFile(metaMatch);
+          }
+
           const mod = (await metaMatch.file.load()) as { default?: Function };
           if (typeof mod.default !== 'function') {
             return new Response('Metadata route must export a default function', { status: 500 });
@@ -619,4 +627,43 @@ function escapeXml(str: string): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&apos;');
+}
+
+// ─── Static Metadata File Serving ────────────────────────────────────────
+
+/**
+ * Content types that are text-based and should include charset=utf-8.
+ * Binary formats (images) should not include charset.
+ */
+const TEXT_CONTENT_TYPES = new Set([
+  'application/xml',
+  'text/plain',
+  'application/json',
+  'application/manifest+json',
+  'image/svg+xml',
+]);
+
+/**
+ * Serve a static metadata file by reading it from disk.
+ *
+ * Static metadata route files (.xml, .txt, .json, .png, .ico, .svg, etc.)
+ * are served as-is with the appropriate Content-Type header.
+ * Text files include charset=utf-8; binary files do not.
+ *
+ * See design/16-metadata.md §"Metadata Routes"
+ */
+async function serveStaticMetadataFile(
+  metaMatch: import('./route-matcher.js').MetadataRouteMatch
+): Promise<Response> {
+  const { contentType, file } = metaMatch;
+  const isText = TEXT_CONTENT_TYPES.has(contentType);
+
+  const body = await readFile(file.filePath);
+
+  const headers: Record<string, string> = {
+    'Content-Type': isText ? `${contentType}; charset=utf-8` : contentType,
+    'Content-Length': String(body.byteLength),
+  };
+
+  return new Response(body, { status: 200, headers });
 }

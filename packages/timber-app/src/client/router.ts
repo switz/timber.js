@@ -5,7 +5,8 @@ import { SegmentCache, PrefetchCache, buildSegmentTree } from './segment-cache';
 import type { SegmentInfo } from './segment-cache';
 import { HistoryStack } from './history';
 import type { HeadElement } from './head';
-import { setCurrentParams, notifyParamsListeners } from './use-params.js';
+import { setCurrentParams } from './use-params.js';
+import { setNavigationState } from './navigation-context.js';
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -324,9 +325,26 @@ export function createRouter(deps: RouterDeps): RouterInstance {
     }
   }
 
-  /** Update useParams() with route params from the server response. */
-  function updateParams(params: Record<string, string | string[]> | null | undefined): void {
-    setCurrentParams(params ?? {});
+  /**
+   * Update navigation state (params + pathname) for the next render.
+   *
+   * Sets both the module-level fallback (for tests and SSR) and the
+   * navigation context state (read by renderRoot to wrap the element
+   * in NavigationProvider). The context update is atomic with the tree
+   * render — both are passed to reactRoot.render() in the same call.
+   */
+  function updateNavigationState(
+    params: Record<string, string | string[]> | null | undefined,
+    url: string
+  ): void {
+    const resolvedParams = params ?? {};
+    // Module-level fallback for tests (no NavigationProvider) and SSR
+    setCurrentParams(resolvedParams);
+    // Navigation context — read by renderRoot to wrap the RSC element
+    const pathname = url.startsWith('http')
+      ? new URL(url).pathname
+      : url.split('?')[0] || '/';
+    setNavigationState({ params: resolvedParams, pathname });
   }
 
   /** Apply head elements (title, meta tags) to the DOM if available. */
@@ -393,18 +411,14 @@ export function createRouter(deps: RouterDeps): RouterInstance {
       // header reflects the currently mounted segments.
       updateSegmentCache(result.segmentInfo);
 
-      // Update the params snapshot before rendering so new components in the
-      // RSC tree see the correct params via getSnapshot(). Subscriber
-      // notification is deferred until after renderPayload() so preserved
-      // layouts don't re-render with {old tree, new params}.
-      updateParams(result.params);
-
-      // Render the decoded RSC tree into the DOM.
+      // Update navigation state (params + pathname) before rendering.
+      // The renderRoot callback reads this state and wraps the RSC element
+      // in NavigationProvider — so the context value and the element tree
+      // are passed to reactRoot.render() in the same call, making the
+      // update atomic. Preserved layouts see new params in the same render
+      // pass as the new tree, preventing the dual-active-row flash.
+      updateNavigationState(result.params, url);
       renderPayload(result.payload);
-
-      // Now notify useParams() subscribers — preserved layout components
-      // re-render after the new tree is committed, seeing {new tree, new params}.
-      notifyParamsListeners();
 
       // Update document.title and <meta> tags with the new page's metadata
       applyHead(result.headElements);
@@ -464,12 +478,9 @@ export function createRouter(deps: RouterDeps): RouterInstance {
       // Update segment cache with fresh segment info from full render
       updateSegmentCache(result.segmentInfo);
 
-      // Update params snapshot before rendering (see navigate() for rationale)
-      updateParams(result.params);
-
-      // Render the fresh RSC tree, then notify params subscribers
+      // Atomic update — see navigate() for rationale on NavigationProvider.
+      updateNavigationState(result.params, currentUrl);
       renderPayload(result.payload);
-      notifyParamsListeners();
       applyHead(result.headElements);
     } finally {
       setPending(false);
@@ -484,9 +495,8 @@ export function createRouter(deps: RouterDeps): RouterInstance {
 
     if (entry && entry.payload !== null) {
       // Replay cached payload — no server roundtrip
-      updateParams(entry.params);
+      updateNavigationState(entry.params, url);
       renderPayload(entry.payload);
-      notifyParamsListeners();
       applyHead(entry.headElements);
       afterPaint(() => {
         deps.scrollTo(0, scrollY);
@@ -502,14 +512,13 @@ export function createRouter(deps: RouterDeps): RouterInstance {
         const stateTree = segmentCache.serializeStateTree();
         const result = await fetchRscPayload(url, deps, stateTree);
         updateSegmentCache(result.segmentInfo);
-        updateParams(result.params);
+        updateNavigationState(result.params, url);
         historyStack.push(url, {
           payload: result.payload,
           headElements: result.headElements,
           params: result.params,
         });
         renderPayload(result.payload);
-        notifyParamsListeners();
         applyHead(result.headElements);
         afterPaint(() => {
           deps.scrollTo(0, scrollY);

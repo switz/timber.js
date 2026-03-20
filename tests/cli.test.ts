@@ -1,14 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// ─── Top-level mocks ─────────────────────────────────────────────────────────
-// vi.mock is hoisted and reliably intercepts both static and dynamic imports.
-// vi.doMock + vi.resetModules + dynamic import() is flaky in forks pool mode.
-
-vi.mock('vite', () => ({
-  createServer: vi.fn(),
-  createBuilder: vi.fn(),
-  preview: vi.fn(),
-}));
+// ─── Mocks ────────────────────────────────────────────────────────────────────
+// Dynamic `await import('vite')` inside cli.ts bypasses vi.mock in Vitest's
+// forks pool. Instead we use dependency injection via the _deps parameter.
 
 vi.mock('node:fs', () => ({
   existsSync: vi.fn(() => false),
@@ -18,9 +12,16 @@ vi.mock('node:child_process', () => ({
   execFile: vi.fn(),
 }));
 
-import { createServer, createBuilder, preview } from 'vite';
 import { execFile } from 'node:child_process';
-import { parseArgs, runDev, runBuild, runPreview, runCheck } from '../packages/timber-app/src/cli';
+import {
+  parseArgs,
+  runDev,
+  runBuild,
+  runPreview,
+  runCheck,
+  resolvePreviewStrategy,
+} from '../packages/timber-app/src/cli';
+import type { ViteDeps } from '../packages/timber-app/src/cli';
 
 // ─── parseArgs ────────────────────────────────────────────────────────────────
 
@@ -68,6 +69,8 @@ describe('parseArgs', () => {
 
 describe('runDev', () => {
   let mockServer: { listen: ReturnType<typeof vi.fn>; printUrls: ReturnType<typeof vi.fn> };
+  let mockCreateServer: ReturnType<typeof vi.fn>;
+  let deps: ViteDeps;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -75,21 +78,22 @@ describe('runDev', () => {
       listen: vi.fn().mockResolvedValue(undefined),
       printUrls: vi.fn(),
     };
-    vi.mocked(createServer).mockResolvedValue(mockServer as never);
+    mockCreateServer = vi.fn().mockResolvedValue(mockServer);
+    deps = { createServer: mockCreateServer as never };
   });
 
   it('dev starts Vite dev server', async () => {
-    await runDev({});
+    await runDev({}, deps);
 
-    expect(createServer).toHaveBeenCalledOnce();
+    expect(mockCreateServer).toHaveBeenCalledOnce();
     expect(mockServer.listen).toHaveBeenCalledOnce();
     expect(mockServer.printUrls).toHaveBeenCalledOnce();
   });
 
   it('dev passes config path to createServer', async () => {
-    await runDev({ config: 'custom.config.ts' });
+    await runDev({ config: 'custom.config.ts' }, deps);
 
-    expect(createServer).toHaveBeenCalledWith(
+    expect(mockCreateServer).toHaveBeenCalledWith(
       expect.objectContaining({ configFile: 'custom.config.ts' })
     );
   });
@@ -99,31 +103,34 @@ describe('runDev', () => {
 
 describe('runBuild', () => {
   let mockBuilder: { buildApp: ReturnType<typeof vi.fn> };
+  let mockCreateBuilder: ReturnType<typeof vi.fn>;
+  let deps: ViteDeps;
 
   beforeEach(() => {
     vi.clearAllMocks();
     mockBuilder = {
       buildApp: vi.fn().mockResolvedValue(undefined),
     };
-    vi.mocked(createBuilder).mockResolvedValue(mockBuilder as never);
+    mockCreateBuilder = vi.fn().mockResolvedValue(mockBuilder);
+    deps = { createBuilder: mockCreateBuilder as never };
   });
 
   it('build produces output', async () => {
-    await runBuild({});
+    await runBuild({}, deps);
 
     expect(mockBuilder.buildApp).toHaveBeenCalledOnce();
   });
 
   it('build uses createBuilder', async () => {
-    await runBuild({});
+    await runBuild({}, deps);
 
-    expect(createBuilder).toHaveBeenCalledOnce();
+    expect(mockCreateBuilder).toHaveBeenCalledOnce();
   });
 
   it('build passes config path', async () => {
-    await runBuild({ config: 'custom.config.ts' });
+    await runBuild({ config: 'custom.config.ts' }, deps);
 
-    expect(createBuilder).toHaveBeenCalledWith(
+    expect(mockCreateBuilder).toHaveBeenCalledWith(
       expect.objectContaining({ configFile: 'custom.config.ts' })
     );
   });
@@ -132,25 +139,47 @@ describe('runBuild', () => {
 // ─── preview command ──────────────────────────────────────────────────────────
 
 describe('runPreview', () => {
+  let mockPreview: ReturnType<typeof vi.fn>;
+  let deps: ViteDeps;
+
   beforeEach(() => {
     vi.clearAllMocks();
     // existsSync returns false by default (from top-level mock), so loadTimberConfig
     // finds no config and falls through to Vite preview.
-    vi.mocked(preview).mockResolvedValue({ printUrls: vi.fn() } as never);
+    mockPreview = vi.fn().mockResolvedValue({ printUrls: vi.fn() });
+    deps = { preview: mockPreview as never };
   });
 
   it('preview serves build', async () => {
-    await runPreview({});
+    await runPreview({}, deps);
 
-    expect(preview).toHaveBeenCalledOnce();
+    expect(mockPreview).toHaveBeenCalledOnce();
   });
 
   it('preview passes config path', async () => {
-    await runPreview({ config: 'custom.config.ts' });
+    await runPreview({ config: 'custom.config.ts' }, deps);
 
-    expect(preview).toHaveBeenCalledWith(
+    expect(mockPreview).toHaveBeenCalledWith(
       expect.objectContaining({ configFile: 'custom.config.ts' })
     );
+  });
+});
+
+// ─── resolvePreviewStrategy ───────────────────────────────────────────────────
+
+describe('resolvePreviewStrategy', () => {
+  it('returns vite when no adapter', () => {
+    expect(resolvePreviewStrategy(undefined)).toBe('vite');
+  });
+
+  it('returns vite when adapter has no preview', () => {
+    expect(resolvePreviewStrategy({ name: 'test' } as never)).toBe('vite');
+  });
+
+  it('returns adapter when adapter has preview', () => {
+    expect(
+      resolvePreviewStrategy({ name: 'test', preview: vi.fn() } as never)
+    ).toBe('adapter');
   });
 });
 
@@ -171,7 +200,7 @@ describe('runCheck', () => {
   it('check validates without building', async () => {
     await runCheck({});
 
-    // check should run tsc, not createBuilder
+    // check should run tsgo, not createBuilder
     expect(execFile).toHaveBeenCalled();
     const firstCall = vi.mocked(execFile).mock.calls[0];
     expect(firstCall[0]).toContain('tsgo');

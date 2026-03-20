@@ -54,12 +54,19 @@ export function parseArgs(args: string[]): ParsedArgs {
 
 // ─── Command Implementations ─────────────────────────────────────────────────
 
+/** @internal Dependency injection for testing. */
+export interface ViteDeps {
+  createServer?: typeof import('vite').createServer;
+  createBuilder?: typeof import('vite').createBuilder;
+  preview?: typeof import('vite').preview;
+}
+
 /**
  * Start the Vite dev server.
  * Middleware re-runs on file change via HMR wiring in timber-routing.
  */
-export async function runDev(options: CommandOptions): Promise<void> {
-  const { createServer } = await import('vite');
+export async function runDev(options: CommandOptions, _deps?: ViteDeps): Promise<void> {
+  const { createServer } = _deps ?? (await import('vite'));
   const server = await createServer({
     configFile: options.config,
   });
@@ -72,8 +79,8 @@ export async function runDev(options: CommandOptions): Promise<void> {
  * Direct build() calls do NOT trigger the RSC plugin's multi-environment
  * pipeline — createBuilder/buildApp is required.
  */
-export async function runBuild(options: CommandOptions): Promise<void> {
-  const { createBuilder } = await import('vite');
+export async function runBuild(options: CommandOptions, _deps?: ViteDeps): Promise<void> {
+  const { createBuilder } = _deps ?? (await import('vite'));
   const builder = await createBuilder({
     configFile: options.config,
   });
@@ -123,7 +130,7 @@ async function loadTimberConfig(
  * If the adapter provides a preview() method, it takes priority.
  * Otherwise falls back to Vite's built-in preview server.
  */
-export async function runPreview(options: CommandOptions): Promise<void> {
+export async function runPreview(options: CommandOptions, _deps?: ViteDeps): Promise<void> {
   const { join } = await import('node:path');
 
   // Try to load timber config for adapter-specific preview
@@ -139,7 +146,7 @@ export async function runPreview(options: CommandOptions): Promise<void> {
   }
 
   // Fallback: Vite's built-in preview server
-  const { preview } = await import('vite');
+  const { preview } = _deps ?? (await import('vite'));
   const server = await preview({
     configFile: options.config,
   });

@@ -103,6 +103,7 @@ Features tagged as **[novel]** (not in Next.js or Vinext), **[enhanced]** (impro
 
 - **[novel]** AST-based directive detection for `'use dynamic'`, `'use cache'`, `'use client'`, `'use server'` ([18-build-system.md](design/18-build-system.md))
 - **[enhanced]** Dev warnings — detects footguns like Suspense wrapping children, deny() in Suspense ([21-dev-server.md](design/21-dev-server.md))
+- **[novel]** RSC prop serialization warnings — detects non-serializable types (RegExp, URL, class instances) with actionable fix suggestions ([30-rsc-serialization-audit.md](design/30-rsc-serialization-audit.md))
 - **[parity]** Error overlay — browser overlay for render errors with component stack ([21-dev-server.md](design/21-dev-server.md))
 - **[parity]** Dev server with HMR — Vite-based with React Fast Refresh ([21-dev-server.md](design/21-dev-server.md))
 - **[novel]** Startup timing instrumentation — per-phase `performance.now()` profiling with dev-mode summary ([18-build-system.md](design/18-build-system.md))

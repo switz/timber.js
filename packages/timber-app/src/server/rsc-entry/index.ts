@@ -55,6 +55,7 @@ import type { NavContext } from '#/server/ssr-entry.js';
 import { initDevTracing } from '#/server/tracing.js';
 
 import { renderFallbackError as renderFallback } from '#/server/fallback-error.js';
+import { checkAndWarnRscPropError } from '#/server/rsc-prop-warnings.js';
 import { handleApiRoute } from './api-handler.js';
 import { renderErrorPage, renderNoMatchPage } from './error-renderer.js';
 import {
@@ -434,6 +435,13 @@ async function renderRoute(
                 '  3. @vitejs/plugin-rsc is not loaded or is misconfigured\n\n' +
                 `Request: ${_req.method} ${new URL(_req.url).pathname}`
             );
+          }
+
+          // Dev-mode: detect non-serializable RSC props and provide
+          // actionable fix suggestions (TIM-358).
+          // checkAndWarnRscPropError no-ops in production internally.
+          if (error instanceof Error) {
+            checkAndWarnRscPropError(error, new URL(_req.url).pathname);
           }
 
           // Track unhandled errors for pre-flush handling (500 status)

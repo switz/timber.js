@@ -89,6 +89,7 @@ Features tagged as **[novel]** (not in Next.js or Vinext), **[enhanced]** (impro
 - **[novel]** Dev log modes — tree, summary, verbose ([17-logging.md](design/17-logging.md))
 - **[novel]** Slow phase threshold warnings in dev mode ([17-logging.md](design/17-logging.md))
 - **[novel]** Dev-mode fetch instrumentation — fetch calls shown as children in dev log tree with method, URL, duration, cache status ([17-logging.md](design/17-logging.md))
+- **[novel]** Server-Timing header in dev mode — Chrome DevTools shows per-phase timing breakdowns (proxy, middleware, render) in the Network panel ([21-dev-server.md](design/21-dev-server.md))
 - **[enhanced]** OTEL spans — timber.access, timber.ssr, timber.action, timber.metadata ([17-logging.md](design/17-logging.md))
 - **[enhanced]** Server console logs piped to browser console in development ([17-logging.md](design/17-logging.md))
 

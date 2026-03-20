@@ -45,7 +45,7 @@ export type { UseActionStateFn, UseActionStateReturn, FormErrorsResult } from '.
 export { useParams, setCurrentParams } from './use-params';
 
 // Navigation context (framework-internal, used by browser-entry for atomic updates)
-export { NavigationProvider, NavigationContext, getNavigationState, setNavigationState } from './navigation-context';
+export { NavigationProvider, getNavigationState, setNavigationState } from './navigation-context';
 export type { NavigationState } from './navigation-context';
 
 // Query states (URL-synced search params)

@@ -17,13 +17,19 @@
  * During SSR, no NavigationProvider is mounted. Hooks fall back to
  * the ALS-backed getSsrData() for per-request isolation.
  *
- * See design/19-client-navigation.md §"Navigation Flow"
+ * IMPORTANT: createContext and useContext are NOT available in the RSC
+ * environment (React Server Components use a stripped-down React).
+ * The context is lazily initialized on first access, and all functions
+ * that depend on these APIs are safe to call from any environment —
+ * they return null or no-op when the APIs aren't available.
+ *
+ * See design/19-client-navigation.md §"NavigationContext"
  */
 
-import { createContext, useContext, createElement, type ReactNode } from 'react';
+import React, { createElement, type ReactNode } from 'react';
 
 // ---------------------------------------------------------------------------
-// Context type and creation
+// Context type
 // ---------------------------------------------------------------------------
 
 export interface NavigationState {
@@ -31,18 +37,37 @@ export interface NavigationState {
   pathname: string;
 }
 
-/**
- * The context value is null when no provider is mounted (SSR).
- * On the client, NavigationProvider always wraps the tree.
- */
-export const NavigationContext = createContext<NavigationState | null>(null);
+// ---------------------------------------------------------------------------
+// Lazy context initialization
+// ---------------------------------------------------------------------------
 
 /**
- * Read the navigation context. Returns null during SSR (no provider).
+ * The context is created lazily to avoid calling createContext at module
+ * level. In the RSC environment, React.createContext doesn't exist —
+ * calling it at import time would crash the server.
+ */
+let _context: React.Context<NavigationState | null> | undefined;
+
+function getOrCreateContext(): React.Context<NavigationState | null> | undefined {
+  if (_context !== undefined) return _context;
+  // createContext may not exist in the RSC environment
+  if (typeof React.createContext === 'function') {
+    _context = React.createContext<NavigationState | null>(null);
+  }
+  return _context;
+}
+
+/**
+ * Read the navigation context. Returns null during SSR (no provider)
+ * or in the RSC environment (no context available).
  * Internal — used by useParams() and usePathname().
  */
 export function useNavigationContext(): NavigationState | null {
-  return useContext(NavigationContext);
+  const ctx = getOrCreateContext();
+  if (!ctx) return null;
+  // useContext may not exist in the RSC environment — caller wraps in try/catch
+  if (typeof React.useContext !== 'function') return null;
+  return React.useContext(ctx);
 }
 
 // ---------------------------------------------------------------------------
@@ -61,7 +86,12 @@ export interface NavigationProviderProps {
  * so that navigation state updates atomically with the tree render.
  */
 export function NavigationProvider({ value, children }: NavigationProviderProps): React.ReactElement {
-  return createElement(NavigationContext.Provider, { value }, children);
+  const ctx = getOrCreateContext();
+  if (!ctx) {
+    // RSC environment — no context available. Return children as-is.
+    return children as React.ReactElement;
+  }
+  return createElement(ctx.Provider, { value }, children);
 }
 
 // ---------------------------------------------------------------------------

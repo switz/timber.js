@@ -51,7 +51,8 @@ describe('slot deny promotion — structural contracts (LOCAL-298)', () => {
   });
 
   it('RSC entry checkCapturedSignals skips handled deny on SSR success path', () => {
-    const content = readFileSync(resolve(SRC_DIR, 'server/rsc-entry/index.ts'), 'utf-8');
+    // checkCapturedSignals is in ssr-renderer.ts (extracted from index.ts)
+    const content = readFileSync(resolve(SRC_DIR, 'server/rsc-entry/ssr-renderer.ts'), 'utf-8');
     // checkCapturedSignals should accept a skipHandledDeny parameter
     expect(content).toContain('skipHandledDeny');
     expect(content).toContain('_denyHandledByBoundary');
@@ -60,7 +61,8 @@ describe('slot deny promotion — structural contracts (LOCAL-298)', () => {
   });
 
   it('RSC entry SSR failure path does NOT skip handled deny', () => {
-    const content = readFileSync(resolve(SRC_DIR, 'server/rsc-entry/index.ts'), 'utf-8');
+    // checkCapturedSignals is in ssr-renderer.ts (extracted from index.ts)
+    const content = readFileSync(resolve(SRC_DIR, 'server/rsc-entry/ssr-renderer.ts'), 'utf-8');
     // In the catch block (SSR failure), checkCapturedSignals should be called
     // WITHOUT skipHandledDeny, so page-level denials still work
     expect(content).toContain('checkCapturedSignals()');

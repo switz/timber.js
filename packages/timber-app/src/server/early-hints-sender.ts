@@ -18,12 +18,10 @@
  * Design doc: 02-rendering-pipeline.md §"Early Hints (103)"
  */
 
-import { AsyncLocalStorage } from 'node:async_hooks';
+import { earlyHintsSenderAls } from './als-registry.js';
 
 /** Function that sends Link header values as a 103 Early Hints response. */
 export type EarlyHintsSenderFn = (links: string[]) => void;
-
-const earlyHintsSenderAls = new AsyncLocalStorage<EarlyHintsSenderFn>();
 
 /**
  * Run a function with a per-request early hints sender installed.

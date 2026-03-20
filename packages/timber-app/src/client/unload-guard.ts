@@ -8,20 +8,23 @@
  * unloaded so error boundaries and error handlers can suppress abort-related
  * errors during the unload window.
  *
+ * Mutable state is delegated to client/state.ts for singleton guarantees.
+ * See design/18-build-system.md §"Singleton State Registry"
+ *
  * See design/10-error-handling.md §"Known limitation: deny() inside Suspense and hydration"
  */
 
-let unloading = false;
+import { unloading, _setUnloading } from './state.js';
 
 if (typeof window !== 'undefined') {
   window.addEventListener('beforeunload', () => {
-    unloading = true;
+    _setUnloading(true);
   });
 
   // Also detect pagehide for bfcache-aware browsers (Safari).
   // pagehide fires for both navigations and page hide events.
   window.addEventListener('pagehide', () => {
-    unloading = true;
+    _setUnloading(true);
   });
 }
 

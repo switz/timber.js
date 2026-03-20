@@ -1,25 +1,19 @@
 // Global router reference — shared between browser-entry and client hooks.
-// This module has no dependencies on virtual modules, so it can be safely
-// imported by client hooks without pulling in browser-entry's virtual imports.
 //
-// The router is stored as a module-level variable. browser-entry.ts and all
-// shim files import from @timber-js/app/client (the public barrel) rather
-// than relative paths or #/ subpath imports. This ensures all import chains
-// resolve to the same module instance via Vite's dep optimizer, preventing
-// the duplication that previously required a window.__timber_router workaround.
+// Delegates to client/state.ts for the actual module-level variable.
+// This ensures singleton semantics regardless of import path — all
+// callers converge on the same state.ts instance via the barrel.
 //
 // See design/18-build-system.md §"Module Singleton Strategy"
 
 import type { RouterInstance } from './router.js';
-
-/** Module-level singleton — set once during bootstrap. */
-let globalRouter: RouterInstance | null = null;
+import { globalRouter, _setGlobalRouter } from './state.js';
 
 /**
  * Set the global router instance. Called once during bootstrap.
  */
 export function setGlobalRouter(router: RouterInstance): void {
-  globalRouter = router;
+  _setGlobalRouter(router);
 }
 
 /**
@@ -48,5 +42,5 @@ export function getRouterOrNull(): RouterInstance | null {
  * @internal
  */
 export function resetGlobalRouter(): void {
-  globalRouter = null;
+  _setGlobalRouter(null);
 }

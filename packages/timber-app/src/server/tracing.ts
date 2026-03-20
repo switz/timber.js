@@ -8,19 +8,11 @@
  * See design/17-logging.md §"trace_id is Always Set"
  */
 
-import { AsyncLocalStorage } from 'node:async_hooks';
 import { randomUUID } from 'node:crypto';
+import { traceAls, type TraceStore } from './als-registry.js';
 
-// ─── ALS Store ────────────────────────────────────────────────────────────
-
-export interface TraceStore {
-  /** 32-char lowercase hex trace ID (OTEL or UUID fallback). */
-  traceId: string;
-  /** OTEL span ID if available, undefined otherwise. */
-  spanId?: string;
-}
-
-const traceAls = new AsyncLocalStorage<TraceStore>();
+// Re-export the TraceStore type for public API consumers.
+export type { TraceStore } from './als-registry.js';
 
 // ─── Public API ───────────────────────────────────────────────────────────
 

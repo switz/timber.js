@@ -10,44 +10,16 @@
  * See design/29-cookies.md for cookie mutation semantics.
  */
 
-import { AsyncLocalStorage } from 'node:async_hooks';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import type { Routes } from '#/index.js';
+import {
+  requestContextAls,
+  type RequestContextStore,
+  type CookieEntry,
+} from './als-registry.js';
 
-// ─── ALS Store ────────────────────────────────────────────────────────────
-
-interface RequestContextStore {
-  /** Incoming request headers (read-only view). */
-  headers: Headers;
-  /** Raw cookie header string, parsed lazily into a Map on first access. */
-  cookieHeader: string;
-  /** Lazily-parsed cookie map (mutable — reflects write-overlay from set()). */
-  parsedCookies?: Map<string, string>;
-  /** Original (pre-overlay) frozen headers, kept for overlay merging. */
-  originalHeaders: Headers;
-  /**
-   * Promise resolving to the route's typed search params (when search-params.ts
-   * exists) or to the raw URLSearchParams. Stored as a Promise so the framework
-   * can later support partial pre-rendering where param resolution is deferred.
-   */
-  searchParamsPromise: Promise<URLSearchParams | Record<string, unknown>>;
-  /** Outgoing Set-Cookie entries (name → serialized value + options). Last write wins. */
-  cookieJar: Map<string, CookieEntry>;
-  /** Whether the response has flushed (headers committed). */
-  flushed: boolean;
-  /** Whether the current context allows cookie mutation. */
-  mutableContext: boolean;
-}
-
-/** A single outgoing cookie entry in the cookie jar. */
-interface CookieEntry {
-  name: string;
-  value: string;
-  options: CookieOptions;
-}
-
-/** @internal */
-export const requestContextAls = new AsyncLocalStorage<RequestContextStore>();
+// Re-export the ALS for framework-internal consumers that need direct access.
+export { requestContextAls };
 
 // No fallback needed — we use enterWith() instead of run() to ensure
 // the ALS context persists for the entire request lifecycle including

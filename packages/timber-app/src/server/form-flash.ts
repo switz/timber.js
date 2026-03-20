@@ -14,8 +14,8 @@
  * See design/08-forms-and-actions.md §"No-JS Error Round-Trip"
  */
 
-import { AsyncLocalStorage } from 'node:async_hooks';
 import type { ValidationErrors } from './action-client.js';
+import { formFlashAls } from './als-registry.js';
 
 // ─── Types ───────────────────────────────────────────────────────────────
 
@@ -42,10 +42,6 @@ export interface FormFlashData {
   /** Server error if the action threw an ActionError. */
   serverError?: { code: string; data?: Record<string, unknown> };
 }
-
-// ─── ALS Store ───────────────────────────────────────────────────────────
-
-const formFlashAls = new AsyncLocalStorage<FormFlashData>();
 
 // ─── Public API ──────────────────────────────────────────────────────────
 

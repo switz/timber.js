@@ -6,7 +6,7 @@ import type { SegmentInfo } from './segment-cache';
 import { HistoryStack } from './history';
 import type { HeadElement } from './head';
 import { setCurrentParams } from './use-params.js';
-import { getNavigationState, setNavigationState } from './navigation-context.js';
+import { setNavigationState } from './navigation-context.js';
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -54,6 +54,21 @@ export interface RouterDeps {
   afterPaint?: (callback: () => void) => void;
   /** Apply resolved head elements (title, meta tags) to the DOM after navigation. */
   applyHead?: (elements: HeadElement[]) => void;
+  /**
+   * Run a navigation inside a React transition with optimistic pending URL.
+   * The pending URL shows immediately (useOptimistic urgent update) and
+   * reverts when the transition commits (atomic with the new tree).
+   *
+   * The `perform` callback receives a `wrapPayload` function to wrap the
+   * decoded RSC payload with NavigationProvider + NuqsAdapter before
+   * TransitionRoot sets it as the new element.
+   *
+   * If not provided (tests), the router falls back to renderRoot.
+   */
+  navigateTransition?: (
+    pendingUrl: string,
+    perform: (wrapPayload: (payload: unknown) => unknown) => Promise<unknown>,
+  ) => Promise<void>;
 }
 
 /** Result of fetching an RSC payload — includes head elements and segment metadata. */
@@ -298,26 +313,17 @@ export function createRouter(deps: RouterDeps): RouterInstance {
   let pending = false;
   let pendingUrl: string | null = null;
   const pendingListeners = new Set<(pending: boolean) => void>();
-  /** Last rendered payload — used to re-render at navigation start with pendingUrl set. */
-  let lastRenderedPayload: unknown = null;
 
   function setPending(value: boolean, url?: string): void {
     const newPendingUrl = value && url ? url : null;
     if (pending === value && pendingUrl === newPendingUrl) return;
     pending = value;
     pendingUrl = newPendingUrl;
-    // Notify external store listeners (useNavigationPending, etc.)
+    // Notify external store listeners (non-React consumers).
+    // React-facing pending state is handled by useOptimistic in
+    // TransitionRoot via navigateTransition — not this function.
     for (const listener of pendingListeners) {
       listener(value);
-    }
-    // When navigation starts, re-render the current tree with pendingUrl
-    // set in NavigationContext. This makes the pending state visible to
-    // LinkStatusProvider atomically via React context, avoiding the
-    // two-commit gap between useSyncExternalStore and context updates.
-    if (value && lastRenderedPayload !== null) {
-      const currentState = getNavigationState();
-      setNavigationState({ ...currentState, pendingUrl: newPendingUrl });
-      renderPayload(lastRenderedPayload);
     }
   }
 
@@ -332,29 +338,22 @@ export function createRouter(deps: RouterDeps): RouterInstance {
 
   /** Render a decoded RSC payload into the DOM if a renderer is available. */
   function renderPayload(payload: unknown): void {
-    lastRenderedPayload = payload;
     if (deps.renderRoot) {
       deps.renderRoot(payload);
     }
   }
 
   /**
-   * Update navigation state (params + pathname + pendingUrl) for the next render.
+   * Update navigation state (params + pathname) for the next render.
    *
    * Sets both the module-level fallback (for tests and SSR) and the
    * navigation context state (read by renderRoot to wrap the element
    * in NavigationProvider). The context update is atomic with the tree
    * render — both are passed to reactRoot.render() in the same call.
-   *
-   * pendingUrl is included so that LinkStatusProvider (which reads from
-   * NavigationContext) sees the pending state change in the same React
-   * commit as params/pathname — preventing the gap where the spinner
-   * disappears before the active state updates.
    */
   function updateNavigationState(
     params: Record<string, string | string[]> | null | undefined,
-    url: string,
-    navPendingUrl: string | null = null
+    url: string
   ): void {
     const resolvedParams = params ?? {};
     // Module-level fallback for tests (no NavigationProvider) and SSR
@@ -363,7 +362,32 @@ export function createRouter(deps: RouterDeps): RouterInstance {
     const pathname = url.startsWith('http')
       ? new URL(url).pathname
       : url.split('?')[0] || '/';
-    setNavigationState({ params: resolvedParams, pathname, pendingUrl: navPendingUrl });
+    setNavigationState({ params: resolvedParams, pathname });
+  }
+
+  /**
+   * Render a payload via navigateTransition (production) or renderRoot (tests).
+   * The perform callback should fetch data, update state, and return the payload.
+   * In production, the entire callback runs inside a React transition with
+   * useOptimistic for the pending URL. In tests, the payload is rendered directly.
+   */
+  async function renderViaTransition(
+    pendingUrl: string,
+    perform: () => Promise<FetchResult>,
+  ): Promise<HeadElement[] | null> {
+    if (deps.navigateTransition) {
+      let headElements: HeadElement[] | null = null;
+      await deps.navigateTransition(pendingUrl, async (wrapPayload) => {
+        const result = await perform();
+        headElements = result.headElements;
+        return wrapPayload(result.payload);
+      });
+      return headElements;
+    }
+    // Fallback: no transition (tests, no React tree)
+    const result = await perform();
+    renderPayload(result.payload);
+    return result.headElements;
   }
 
   /** Apply head elements (title, meta tags) to the DOM if available. */
@@ -382,6 +406,60 @@ export function createRouter(deps: RouterDeps): RouterInstance {
     }
   }
 
+  /**
+   * Core navigation logic shared between the transition and fallback paths.
+   * Fetches the RSC payload, updates all state, and returns the result.
+   */
+  async function performNavigationFetch(
+    url: string,
+    options: { replace: boolean },
+  ): Promise<FetchResult> {
+    // Check prefetch cache first. PrefetchResult has optional segmentInfo/params
+    // fields — normalize to null for FetchResult compatibility.
+    const prefetched = prefetchCache.consume(url);
+    let result: FetchResult | undefined = prefetched
+      ? {
+          payload: prefetched.payload,
+          headElements: prefetched.headElements,
+          segmentInfo: prefetched.segmentInfo ?? null,
+          params: prefetched.params ?? null,
+        }
+      : undefined;
+
+    if (result === undefined) {
+      // Fetch RSC payload with state tree for partial rendering.
+      // Send current URL for intercepting route resolution (modal pattern).
+      const stateTree = segmentCache.serializeStateTree();
+      const rawCurrentUrl = deps.getCurrentUrl();
+      const currentUrl = rawCurrentUrl.startsWith('http')
+        ? new URL(rawCurrentUrl).pathname
+        : new URL(rawCurrentUrl, 'http://localhost').pathname;
+      result = await fetchRscPayload(url, deps, stateTree, currentUrl);
+    }
+
+    // Update the browser history — replace mode overwrites the current entry
+    if (options.replace) {
+      deps.replaceState({ timber: true, scrollY: 0 }, '', url);
+    } else {
+      deps.pushState({ timber: true, scrollY: 0 }, '', url);
+    }
+
+    // Store the payload in the history stack
+    historyStack.push(url, {
+      payload: result.payload,
+      headElements: result.headElements,
+      params: result.params,
+    });
+
+    // Update the segment cache with the new route's segment tree.
+    updateSegmentCache(result.segmentInfo);
+
+    // Update navigation state (params + pathname) before rendering.
+    updateNavigationState(result.params, url);
+
+    return result;
+  }
+
   async function navigate(url: string, options: NavigationOptions = {}): Promise<void> {
     const scroll = options.scroll !== false;
     const replace = options.replace === true;
@@ -397,54 +475,14 @@ export function createRouter(deps: RouterDeps): RouterInstance {
     setPending(true, url);
 
     try {
-      // Check prefetch cache first
-      let result = prefetchCache.consume(url);
-
-      if (result === undefined) {
-        // Fetch RSC payload with state tree for partial rendering.
-        // Send current URL for intercepting route resolution (modal pattern).
-        const stateTree = segmentCache.serializeStateTree();
-        const rawCurrentUrl = deps.getCurrentUrl();
-        const currentUrl = rawCurrentUrl.startsWith('http')
-          ? new URL(rawCurrentUrl).pathname
-          : new URL(rawCurrentUrl, 'http://localhost').pathname;
-        result = await fetchRscPayload(url, deps, stateTree, currentUrl);
-      }
-
-      // Update the browser history — replace mode overwrites the current entry
-      if (replace) {
-        deps.replaceState({ timber: true, scrollY: 0 }, '', url);
-      } else {
-        deps.pushState({ timber: true, scrollY: 0 }, '', url);
-      }
-
-      // Store the payload in the history stack
-      historyStack.push(url, {
-        payload: result.payload,
-        headElements: result.headElements,
-        params: result.params,
-      });
-
-      // Update the segment cache with the new route's segment tree.
-      // This must happen before the next navigation so the state tree
-      // header reflects the currently mounted segments.
-      updateSegmentCache(result.segmentInfo);
-
-      // Update navigation state (params + pathname) before rendering.
-      // The renderRoot callback reads this state and wraps the RSC element
-      // in NavigationProvider — so the context value and the element tree
-      // are passed to reactRoot.render() in the same call, making the
-      // update atomic. Preserved layouts see new params in the same render
-      // pass as the new tree, preventing the dual-active-row flash.
-      updateNavigationState(result.params, url);
-      renderPayload(result.payload);
+      const headElements = await renderViaTransition(url, () =>
+        performNavigationFetch(url, { replace }),
+      );
 
       // Update document.title and <meta> tags with the new page's metadata
-      applyHead(result.headElements);
+      applyHead(headElements);
 
       // Notify nuqs adapter (and any other listeners) that navigation completed.
-      // The nuqs adapter syncs its searchParams state from window.location.search
-      // on this event so URL-bound inputs reflect the new URL after navigation.
       window.dispatchEvent(new Event('timber:navigation-end'));
 
       // Scroll-to-top on forward navigation, or restore captured position
@@ -460,17 +498,12 @@ export function createRouter(deps: RouterDeps): RouterInstance {
       });
     } catch (error) {
       // Server-side redirect during RSC fetch → soft router navigation.
-      // access.ts called redirect() — the server returns X-Timber-Redirect
-      // header, and fetchRscPayload throws RedirectError. We re-navigate
-      // to the redirect target using the router for a seamless SPA transition.
       if (error instanceof RedirectError) {
         setPending(false);
         await navigate(error.redirectUrl, { replace: true });
         return;
       }
-      // Abort errors from the fetch (user refreshed or navigated away
-      // while the RSC payload was loading) are not application errors.
-      // Swallow them silently — the page is being replaced.
+      // Abort errors are not application errors — swallow silently.
       if (isAbortError(error)) return;
       throw error;
     } finally {
@@ -484,23 +517,20 @@ export function createRouter(deps: RouterDeps): RouterInstance {
     setPending(true, currentUrl);
 
     try {
-      // No state tree sent — server renders the complete RSC payload
-      const result = await fetchRscPayload(currentUrl, deps);
-
-      // Update the history entry with the fresh payload
-      historyStack.push(currentUrl, {
-        payload: result.payload,
-        headElements: result.headElements,
-        params: result.params,
+      const headElements = await renderViaTransition(currentUrl, async () => {
+        // No state tree sent — server renders the complete RSC payload
+        const result = await fetchRscPayload(currentUrl, deps);
+        historyStack.push(currentUrl, {
+          payload: result.payload,
+          headElements: result.headElements,
+          params: result.params,
+        });
+        updateSegmentCache(result.segmentInfo);
+        updateNavigationState(result.params, currentUrl);
+        return result;
       });
 
-      // Update segment cache with fresh segment info from full render
-      updateSegmentCache(result.segmentInfo);
-
-      // Atomic update — see navigate() for rationale on NavigationProvider.
-      updateNavigationState(result.params, currentUrl);
-      renderPayload(result.payload);
-      applyHead(result.headElements);
+      applyHead(headElements);
     } finally {
       setPending(false);
     }
@@ -528,17 +558,20 @@ export function createRouter(deps: RouterDeps): RouterInstance {
       // or when the entry doesn't exist at all.
       setPending(true, url);
       try {
-        const stateTree = segmentCache.serializeStateTree();
-        const result = await fetchRscPayload(url, deps, stateTree);
-        updateSegmentCache(result.segmentInfo);
-        updateNavigationState(result.params, url);
-        historyStack.push(url, {
-          payload: result.payload,
-          headElements: result.headElements,
-          params: result.params,
+        const headElements = await renderViaTransition(url, async () => {
+          const stateTree = segmentCache.serializeStateTree();
+          const result = await fetchRscPayload(url, deps, stateTree);
+          updateSegmentCache(result.segmentInfo);
+          updateNavigationState(result.params, url);
+          historyStack.push(url, {
+            payload: result.payload,
+            headElements: result.headElements,
+            params: result.params,
+          });
+          return result;
         });
-        renderPayload(result.payload);
-        applyHead(result.headElements);
+
+        applyHead(headElements);
         afterPaint(() => {
           deps.scrollTo(0, scrollY);
           window.dispatchEvent(new Event('timber:scroll-restored'));

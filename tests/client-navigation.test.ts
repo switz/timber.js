@@ -202,7 +202,6 @@ describe('HistoryStack', () => {
 // ─── Router ──────────────────────────────────────────────────────
 
 import { createRouter, type RouterInstance } from '../packages/timber-app/src/client/router';
-import { getNavigationState } from '../packages/timber-app/src/client/navigation-context';
 
 describe('Router', () => {
   let router: RouterInstance;
@@ -566,14 +565,48 @@ describe('Router', () => {
     });
   });
 
-  describe('pendingUrl in NavigationState (atomic updates)', () => {
-    // These tests verify that pendingUrl flows through NavigationState
-    // so that LinkStatusProvider and useNavigationPending update in the
-    // same React commit as params/pathname — preventing the gap where
-    // the spinner disappears before the active state updates.
+  describe('setPendingNavigationUrl integration', () => {
+    // These tests verify that the router calls setPendingNavigationUrl
+    // at the right times. The atomicity guarantee (pending clears in the
+    // same React commit as the new tree) is structural — TransitionRoot
+    // clears pendingUrl inside the same startTransition as the new tree.
+    // See transition-root.tsx for that mechanism.
 
-    it('NavigationState.pendingUrl is set during navigation via renderRoot', async () => {
-      const renderedStates: { pendingUrl: string | null; params: Record<string, string | string[]> }[] = [];
+    it('setPendingNavigationUrl is called with URL at navigation start', async () => {
+      const pendingUrlCalls: (string | null)[] = [];
+      // Mock setPendingNavigationUrl by intercepting onPendingChange
+      // The router calls setPendingNavigationUrl inside setPending()
+      let resolveFetch!: (res: Response) => void;
+      mockFetch.mockReturnValueOnce(
+        new Promise<Response>((resolve) => {
+          resolveFetch = resolve;
+        })
+      );
+
+      // Track pending URL changes via the external API
+      router.onPendingChange(() => {
+        pendingUrlCalls.push(router.getPendingUrl());
+      });
+
+      const navPromise = router.navigate('/projects');
+
+      // Pending URL is set immediately
+      expect(router.getPendingUrl()).toBe('/projects');
+
+      resolveFetch(
+        new Response('payload', {
+          headers: { 'content-type': 'text/x-component' },
+        })
+      );
+      await navPromise;
+
+      // Pending URL is cleared after navigation
+      expect(router.getPendingUrl()).toBeNull();
+      expect(pendingUrlCalls).toEqual(['/projects', null]);
+    });
+
+    it('renderRoot is called exactly once per navigation (not re-rendered for pending)', async () => {
+      let renderCount = 0;
       let resolveFetch!: (res: Response) => void;
       mockFetch.mockReturnValueOnce(
         new Promise<Response>((resolve) => {
@@ -588,170 +621,35 @@ describe('Router', () => {
         scrollTo: mockScrollTo,
         getCurrentUrl: () => '/dashboard',
         getScrollY: () => 0,
-        renderRoot: () => {
-          // Capture NavigationState at each render call
-          const state = getNavigationState();
-          renderedStates.push({ pendingUrl: state.pendingUrl, params: { ...state.params } });
-        },
+        renderRoot: () => { renderCount++; },
         afterPaint: (cb) => cb(),
       });
-
-      // Need an initial render so lastRenderedPayload is set
-      routerWithRenderer.applyRevalidation('initial-payload', null);
-      renderedStates.length = 0; // Clear the initial render capture
 
       const navPromise = routerWithRenderer.navigate('/projects');
 
-      // After navigate starts, setPending should have triggered a re-render
-      // with pendingUrl set in NavigationState
-      expect(renderedStates.length).toBe(1);
-      expect(renderedStates[0].pendingUrl).toBe('/projects');
-
-      resolveFetch(
-        new Response('payload', {
-          headers: {
-            'content-type': 'text/x-component',
-            'X-Timber-Params': JSON.stringify({ id: '42' }),
-          },
-        })
-      );
-      await navPromise;
-
-      // After navigation completes, the final render should have
-      // pendingUrl: null AND the new params — both in the same render call
-      const finalState = renderedStates[renderedStates.length - 1];
-      expect(finalState.pendingUrl).toBeNull();
-      expect(finalState.params).toEqual({ id: '42' });
-    });
-
-    it('NavigationState.pendingUrl is set during refresh', async () => {
-      const renderedStates: { pendingUrl: string | null }[] = [];
-      let resolveFetch!: (res: Response) => void;
-      mockFetch.mockReturnValueOnce(
-        new Promise<Response>((resolve) => {
-          resolveFetch = resolve;
-        })
-      );
-
-      const routerWithRenderer = createRouter({
-        fetch: mockFetch,
-        pushState: mockPushState,
-        replaceState: mockReplaceState,
-        scrollTo: mockScrollTo,
-        getCurrentUrl: () => '/dashboard',
-        getScrollY: () => 0,
-        renderRoot: () => {
-          const state = getNavigationState();
-          renderedStates.push({ pendingUrl: state.pendingUrl });
-        },
-        afterPaint: (cb) => cb(),
-      });
-
-      // Initial render to set lastRenderedPayload
-      routerWithRenderer.applyRevalidation('initial-payload', null);
-      renderedStates.length = 0;
-
-      const refreshPromise = routerWithRenderer.refresh();
-
-      // setPending(true, '/dashboard') should have re-rendered with pendingUrl
-      expect(renderedStates.length).toBe(1);
-      expect(renderedStates[0].pendingUrl).toBe('/dashboard');
+      // No render call yet — pending state is handled by TransitionRoot's
+      // React state (urgent update via setPendingNavigationUrl), NOT by
+      // re-rendering the old tree through renderRoot
+      expect(renderCount).toBe(0);
 
       resolveFetch(
         new Response('payload', {
           headers: { 'content-type': 'text/x-component' },
         })
       );
-      await refreshPromise;
-
-      // Final render: pendingUrl cleared
-      const finalState = renderedStates[renderedStates.length - 1];
-      expect(finalState.pendingUrl).toBeNull();
-    });
-
-    it('NavigationState.pendingUrl is null after navigation completes (no lingering state)', async () => {
-      mockFetch.mockResolvedValueOnce(
-        new Response('payload', {
-          headers: { 'content-type': 'text/x-component' },
-        })
-      );
-
-      const routerWithRenderer = createRouter({
-        fetch: mockFetch,
-        pushState: mockPushState,
-        replaceState: mockReplaceState,
-        scrollTo: mockScrollTo,
-        getCurrentUrl: () => '/dashboard',
-        getScrollY: () => 0,
-        renderRoot: () => {},
-        afterPaint: (cb) => cb(),
-      });
-
-      routerWithRenderer.applyRevalidation('initial-payload', null);
-      await routerWithRenderer.navigate('/projects');
-
-      const state = getNavigationState();
-      expect(state.pendingUrl).toBeNull();
-    });
-
-    it('pendingUrl and params update in the same renderRoot call on navigation end', async () => {
-      // This is the core atomicity guarantee: when the navigation completes,
-      // the renderRoot call that renders the new tree ALSO has pendingUrl: null.
-      // There is no intermediate state where pendingUrl is null but params are stale.
-      let resolveFetch!: (res: Response) => void;
-      mockFetch.mockReturnValueOnce(
-        new Promise<Response>((resolve) => {
-          resolveFetch = resolve;
-        })
-      );
-
-      type Snapshot = { pendingUrl: string | null; params: Record<string, string | string[]> };
-      const snapshots: Snapshot[] = [];
-
-      const routerWithRenderer = createRouter({
-        fetch: mockFetch,
-        pushState: mockPushState,
-        replaceState: mockReplaceState,
-        scrollTo: mockScrollTo,
-        getCurrentUrl: () => '/dashboard',
-        getScrollY: () => 0,
-        renderRoot: () => {
-          const s = getNavigationState();
-          snapshots.push({ pendingUrl: s.pendingUrl, params: { ...s.params } });
-        },
-        afterPaint: (cb) => cb(),
-      });
-
-      routerWithRenderer.applyRevalidation('initial', null);
-      snapshots.length = 0;
-
-      const navPromise = routerWithRenderer.navigate('/projects/123');
-
-      // Snapshot 0: pending render (pendingUrl set, old params)
-      expect(snapshots[0].pendingUrl).toBe('/projects/123');
-
-      resolveFetch(
-        new Response('new-tree', {
-          headers: {
-            'content-type': 'text/x-component',
-            'X-Timber-Params': JSON.stringify({ id: '123' }),
-          },
-        })
-      );
       await navPromise;
 
-      // Find the render call where params changed to the new values
-      const completionSnapshot = snapshots.find((s) => s.params.id === '123');
-      expect(completionSnapshot).toBeDefined();
-      // In that SAME render call, pendingUrl must be null
-      expect(completionSnapshot!.pendingUrl).toBeNull();
+      // Exactly one render call — for the new tree
+      expect(renderCount).toBe(1);
+    });
 
-      // There must be NO snapshot where pendingUrl is null but params are still old
-      // (that would be the two-commit gap we're fixing)
-      const badSnapshot = snapshots.find(
-        (s) => s.pendingUrl === null && !s.params.id && snapshots.indexOf(s) > 0
-      );
-      expect(badSnapshot).toBeUndefined();
+    it('pending URL is cleared even on navigation error', async () => {
+      mockFetch.mockRejectedValueOnce(new Error('Network error'));
+
+      await expect(router.navigate('/broken')).rejects.toThrow('Network error');
+
+      expect(router.getPendingUrl()).toBeNull();
+      expect(router.isPending()).toBe(false);
     });
   });
 

@@ -1,12 +1,11 @@
 // useNavigationPending — returns true while an RSC navigation is in flight.
 // See design/19-client-navigation.md §"useNavigationPending()"
 //
-// Reads from NavigationContext so the pending state updates atomically
-// with params/pathname in the same React commit. Falls back to the
-// router's external store when no NavigationProvider is mounted (SSR,
-// tests without a React tree).
+// Reads from PendingNavigationContext (provided by TransitionRoot) so the
+// pending state shows immediately (urgent update) and clears atomically
+// with the new tree (same startTransition commit).
 
-import { useNavigationContext } from './navigation-context.js';
+import { usePendingNavigationUrl } from './pending-navigation-context.js';
 
 /**
  * Returns true while an RSC navigation is in flight.
@@ -33,8 +32,7 @@ import { useNavigationContext } from './navigation-context.js';
  * ```
  */
 export function useNavigationPending(): boolean {
-  const navState = useNavigationContext();
-  // During SSR or outside NavigationProvider, no navigation is pending
-  if (!navState) return false;
-  return navState.pendingUrl !== null;
+  const pendingUrl = usePendingNavigationUrl();
+  // During SSR or outside PendingNavigationProvider, no navigation is pending
+  return pendingUrl !== null;
 }

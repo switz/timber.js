@@ -52,7 +52,7 @@ import { isPageUnloading } from './unload-guard.js';
 import { NavigationProvider, getNavigationState, setNavigationState } from './navigation-context.js';
 import { setupServerLogReplay, setupClientErrorForwarding } from './browser-dev.js';
 import { handleLinkClick, handleLinkHover } from './browser-links.js';
-import { TransitionRoot, transitionRender } from './transition-root.js';
+import { TransitionRoot, transitionRender, navigateTransition } from './transition-root.js';
 
 // ─── Server Action Dispatch ──────────────────────────────────────
 
@@ -289,14 +289,12 @@ function bootstrap(runtimeConfig: typeof config): void {
       setNavigationState({
         params: earlyParams as Record<string, string | string[]>,
         pathname: window.location.pathname,
-        pendingUrl: null,
       });
       delete (self as unknown as Record<string, unknown>).__timber_params;
     } else {
       setNavigationState({
         params: {},
         pathname: window.location.pathname,
-        pendingUrl: null,
       });
     }
 
@@ -370,27 +368,37 @@ function bootstrap(runtimeConfig: typeof config): void {
       },
 
       // Render decoded RSC tree via TransitionRoot's state-based mechanism.
-      // Wraps with NavigationProvider (for atomic useParams/usePathname updates)
-      // and TimberNuqsAdapter (for nuqs context).
+      // Used for non-navigation renders (popstate cached replay, applyRevalidation).
+      // Wraps with NavigationProvider + TimberNuqsAdapter.
       //
-      // The router calls setNavigationState() before renderRoot(), so
-      // getNavigationState() returns the new params/pathname. By wrapping
-      // the element in NavigationProvider here, the context value and the
-      // RSC tree are passed to startTransition(() => setState()) in the same
-      // call — making the update atomic. Preserved layout components that call
-      // useParams() or usePathname() re-render in the same pass as the
-      // new tree, preventing the dual-active-state flash.
-      //
-      // Using transitionRender instead of reactRoot.render() enables
-      // client-side Suspense deferral: React keeps the old committed tree
-      // visible while new Suspense boundaries in the navigation resolve.
-      // This is the client-side equivalent of deferSuspenseFor on the server.
-      // See design/05-streaming.md.
+      // For navigation renders (navigate, refresh, popstate-with-fetch),
+      // navigateTransition is used instead — it wraps the entire navigation
+      // in a React transition with useOptimistic for the pending URL.
       renderRoot: (element: unknown) => {
         const navState = getNavigationState();
         const withNav = createElement(NavigationProvider, { value: navState }, element as React.ReactNode);
         const wrapped = createElement(TimberNuqsAdapter, null, withNav);
         transitionRender(wrapped);
+      },
+
+      // Run a navigation inside a React transition with optimistic pending URL.
+      // The entire fetch + state update runs inside startTransition. useOptimistic
+      // shows the pending URL immediately and reverts to null when the transition
+      // commits (atomic with the new tree + params).
+      //
+      // The perform callback receives a wrapPayload function that wraps the
+      // decoded RSC payload with NavigationProvider + NuqsAdapter — this must
+      // happen inside the transition so the NavigationProvider reads the
+      // UPDATED navigation state (set by the router inside perform).
+      navigateTransition: (pendingUrl: string, perform) => {
+        return navigateTransition(pendingUrl, async () => {
+          const payload = await perform((rawPayload: unknown) => {
+            const navState = getNavigationState();
+            const withNav = createElement(NavigationProvider, { value: navState }, rawPayload as React.ReactNode);
+            return createElement(TimberNuqsAdapter, null, withNav);
+          });
+          return payload as React.ReactNode;
+        });
       },
 
       // Schedule a callback after the next paint so scroll operations
@@ -441,7 +449,6 @@ function bootstrap(runtimeConfig: typeof config): void {
     setNavigationState({
       params: lateTimberParams as Record<string, string | string[]>,
       pathname: window.location.pathname,
-      pendingUrl: null,
     });
     delete (self as unknown as Record<string, unknown>).__timber_params;
   }

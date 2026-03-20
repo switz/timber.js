@@ -125,18 +125,32 @@ Not all hooks moved to context. Hooks that read **browser-owned state** that can
 - **`useSearchParams()`** — reads `window.location.search`. Search params change in two independent ways: (1) router navigation to a URL with query params, and (2) nuqs calling `history.replaceState` directly without going through the router. Putting search params in `NavigationContext` would make nuqs-initiated changes invisible — nuqs would need to call `setNavigationState()` to update the context, coupling it to our internals. The URL itself (`window.location.search`) is the correct source of truth because it reflects changes regardless of who made them. The two-commit gap is also less problematic here because search params rarely need to be atomically synced with route params in the same component (unlike the spinner + active row pairing that motivated moving `pendingUrl` to context).
 - **`useCookie()`** — reads `document.cookie`, entirely independent of navigation.
 
-### What Moved to NavigationContext (with params/pathname)
+### What Moved to React Context
 
-All **router-owned navigation state** lives in `NavigationContext` and updates atomically in a single React commit:
+All **router-owned navigation state** lives in React context and updates atomically:
+
+**NavigationContext** (params + pathname) — provided by `NavigationProvider` wrapping the RSC payload in `renderRoot()`:
 
 - **`useParams()`** — route params from the matched route
 - **`usePathname()`** — current pathname
+
+**PendingNavigationContext** (pending URL) — provided by `TransitionRoot` as React state:
+
 - **`useNavigationPending()`** — returns `pendingUrl !== null`
 - **`useLinkStatus()`** — returns `{ pending: true }` when `pendingUrl === href` for the nearest parent `<Link>`
 
-The key distinction: these values only change during **router-driven navigation**, and the router controls all updates via `setNavigationState()` → `renderRoot()`. This makes context the right mechanism — the router is the single writer, and all consumers see consistent state in the same render pass.
+### How Pending State Works (Urgent + Transition Pattern)
 
-`useNavigationPending()` and `useLinkStatus()` previously used `useSyncExternalStore` backed by the router's external pending state. This caused a two-commit timing gap: the external store notification (hiding the spinner) and the context update (updating params/active state) were separate React updates. Moving `pendingUrl` into `NavigationContext` ensures both transitions commit atomically.
+The pending URL uses React's urgent/transition split to show spinners immediately and clear them atomically with the new tree:
+
+1. **Navigation start:** Router calls `setPendingNavigationUrl(url)` — an **urgent** `setState` in `TransitionRoot`. React commits this before the next paint, so the spinner appears immediately.
+2. **Fetch in progress:** The old tree stays visible (pending spinner showing) while the RSC payload loads.
+3. **Navigation end:** Router calls `renderRoot(newPayload)` → `transitionRender(newElement)` — inside `startTransition`, which sets both the new element AND `setPendingUrl(null)`. React defers this as a transition.
+4. **Transition commits:** The new tree (with new params/pathname in `NavigationProvider`) and `pendingUrl=null` both apply in the **same React commit**. Spinners disappear and active state updates atomically.
+
+This follows the same pattern Next.js uses with `useOptimistic` per `<Link>` instance, adapted for timber's architecture where `<Link>` is a server component with global click delegation. Instead of per-link `useOptimistic`, timber uses a single `pendingUrl` in `TransitionRoot` with an urgent set + transition clear.
+
+The key distinction from the previous `useSyncExternalStore` approach: external store notifications and `reactRoot.render()` were two separate update mechanisms that React didn't batch. The urgent/transition pattern is React's designed solution — urgent updates show immediately, and transition updates commit atomically with the deferred tree.
 
 ---
 

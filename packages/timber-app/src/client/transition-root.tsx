@@ -11,70 +11,138 @@
  * a transition update. React keeps the old committed tree visible while
  * any new Suspense boundaries in the transition resolve.
  *
- * This is the client-side equivalent of deferSuspenseFor on the server:
- * the old content stays visible until the new content is ready, avoiding
- * flash-of-fallback during fast navigations.
+ * Also manages `pendingUrl` via `useOptimistic`. During a navigation
+ * transition, the optimistic value (the target URL) shows immediately
+ * while the transition is pending, and automatically reverts to null
+ * when the transition commits. This ensures useLinkStatus and
+ * useNavigationPending show the pending state immediately and clear
+ * atomically with the new tree — same pattern Next.js uses with
+ * useOptimistic per Link instance, adapted for timber's server-component
+ * Link with global click delegation.
  *
  * See design/05-streaming.md §"deferSuspenseFor"
+ * See design/19-client-navigation.md §"NavigationContext"
  */
 
-import { useState, startTransition, type ReactNode } from 'react';
+import {
+  useState,
+  useOptimistic,
+  useTransition,
+  createElement,
+  type ReactNode,
+} from 'react';
+import { PendingNavigationProvider } from './pending-navigation-context.js';
 
-// ─── Module-level render function ────────────────────────────────
+// ─── Module-level functions ──────────────────────────────────────
 
 /**
  * Module-level reference to the state setter wrapped in startTransition.
- * Set during TransitionRoot's render. This is safe because there is
- * exactly one TransitionRoot per application (the document root).
+ * Used for non-navigation renders (applyRevalidation, popstate replay).
  */
 let _transitionRender: ((element: ReactNode) => void) | null = null;
+
+/**
+ * Module-level reference to the navigation transition function.
+ * Wraps a full navigation (fetch + render) in a single startTransition
+ * with useOptimistic for the pending URL.
+ */
+let _navigateTransition: ((
+  pendingUrl: string,
+  perform: () => Promise<ReactNode>,
+) => Promise<void>) | null = null;
 
 // ─── Component ───────────────────────────────────────────────────
 
 /**
  * Root wrapper component that enables transition-based rendering.
  *
- * Renders no DOM elements — returns the current element directly.
- * This means the DOM tree matches the server-rendered HTML during
- * hydration (TransitionRoot is invisible to the DOM).
+ * Renders PendingNavigationProvider around children for the pending URL
+ * context. The DOM tree matches the server-rendered HTML during hydration
+ * (the provider renders no extra DOM elements).
  *
  * Usage in browser-entry.ts:
  *   const rootEl = createElement(TransitionRoot, { initial: wrapped });
  *   reactRoot = hydrateRoot(document, rootEl);
  *
  * Subsequent navigations:
+ *   navigateTransition(url, async () => { fetch; return wrappedElement; });
+ *
+ * Non-navigation renders:
  *   transitionRender(newWrappedElement);
  */
 export function TransitionRoot({ initial }: { initial: ReactNode }): ReactNode {
   const [element, setElement] = useState<ReactNode>(initial);
+  const [optimisticPendingUrl, setOptimisticPendingUrl] = useOptimistic<string | null>(null);
+  // useTransition's startTransition (not the standalone import) creates an
+  // action context that useOptimistic can track. The standalone startTransition
+  // doesn't — optimistic values would never show.
+  const [, startTransition] = useTransition();
 
-  // Update the module-level ref on every render so it always points
-  // to the current component instance's setState.
+  // Non-navigation render (revalidation, popstate cached replay).
   _transitionRender = (newElement: ReactNode) => {
     startTransition(() => {
       setElement(newElement);
     });
   };
 
-  return element;
+  // Full navigation transition. The entire navigation (fetch + state updates)
+  // runs inside startTransition. useOptimistic shows the pending URL immediately
+  // (urgent) and reverts to null when the transition commits (atomic with new tree).
+  _navigateTransition = (pendingUrl: string, perform: () => Promise<ReactNode>) => {
+    return new Promise<void>((resolve, reject) => {
+      startTransition(async () => {
+        try {
+          setOptimisticPendingUrl(pendingUrl);
+          const newElement = await perform();
+          setElement(newElement);
+          resolve();
+        } catch (err) {
+          reject(err);
+        }
+      });
+    });
+  };
+
+  return createElement(PendingNavigationProvider, { value: optimisticPendingUrl }, element);
 }
 
 // ─── Public API ──────────────────────────────────────────────────
 
 /**
- * Trigger a transition render. React keeps the old committed tree
- * visible while any new Suspense boundaries in the update resolve.
+ * Trigger a transition render for non-navigation updates.
+ * React keeps the old committed tree visible while any new Suspense
+ * boundaries in the update resolve.
  *
- * This is the function called by the router's renderRoot callback
- * instead of reactRoot.render() directly.
- *
- * Falls back to no-op if TransitionRoot hasn't mounted yet (shouldn't
- * happen in practice — TransitionRoot mounts during hydration).
+ * Used for: applyRevalidation, popstate replay with cached payload.
  */
 export function transitionRender(element: ReactNode): void {
   if (_transitionRender) {
     _transitionRender(element);
   }
+}
+
+/**
+ * Run a full navigation inside a React transition with optimistic pending URL.
+ *
+ * The `perform` callback runs inside `startTransition` — it should fetch the
+ * RSC payload, update router state, and return the wrapped React element.
+ * The pending URL shows immediately (useOptimistic urgent update) and reverts
+ * to null when the transition commits (atomic with the new tree).
+ *
+ * Returns a Promise that resolves when the async work completes (note: the
+ * React transition may not have committed yet, but all state updates are done).
+ *
+ * Used for: navigate(), refresh(), popstate with fetch.
+ */
+export function navigateTransition(
+  pendingUrl: string,
+  perform: () => Promise<ReactNode>,
+): Promise<void> {
+  if (_navigateTransition) {
+    return _navigateTransition(pendingUrl, perform);
+  }
+  // Fallback: no TransitionRoot mounted (shouldn't happen in production)
+  return perform().then(() => {});
 }
 
 /**

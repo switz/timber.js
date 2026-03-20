@@ -95,10 +95,20 @@ export function timberServerBundle(): Plugin[] {
   // the variable assignment of the init function — so the module's React
   // imports, context creation, etc. never execute.
   //
-  // The fix: patch the `__esmMin` runtime definition to eagerly execute
-  // the init callback while still returning the lazy wrapper. This makes
-  // all ESM module inits run at load time (standard ESM behavior) instead
-  // of lazily, which is functionally correct and avoids the dropped-init bug.
+  // The fix: patch `__esmMin` to eagerly *attempt* each init, but fall
+  // back to lazy retry on failure. This handles two failure modes:
+  //
+  // 1. Forward references (e.g. Zod v4): `init_iso` calls `init_schemas`
+  //    which hasn't been defined yet. Eager execution fails, but when the
+  //    function is called lazily later, all dependencies are available.
+  //
+  // 2. Optional peer dep shims (e.g. @emotion/is-prop-valid for
+  //    framer-motion): Vite generates shims that throw for missing
+  //    optional deps. The throw is deferred to lazy execution where
+  //    the consuming package's try/catch handles it.
+  //
+  // The key: on failure, `fn` is NOT cleared, so the next call retries.
+  // On success, `fn` is set to 0 so subsequent calls are no-ops.
   const esmInitFixPlugin: Plugin = {
     name: 'timber-esm-init-fix',
     applyToEnvironment(environment) {
@@ -108,11 +118,16 @@ export function timberServerBundle(): Plugin[] {
       const lazy = 'var __esmMin = (fn, res) => () => (fn && (res = fn(fn = 0)), res);';
       if (!code.includes(lazy)) return null;
 
-      // Replace with eager-then-lazy: execute init immediately, then
-      // return the lazy wrapper for any subsequent calls (which are
-      // idempotent since fn is set to 0 after first execution).
-      const eager =
-        'var __esmMin = (fn, res) => { var l = () => (fn && (res = fn(fn = 0)), res); l(); return l; };';
+      // Eager-with-retry: attempt init immediately. On success, mark done
+      // (fn = 0). On failure, leave fn intact so the lazy wrapper retries
+      // on next call — by then forward dependencies are initialized.
+      const eager = [
+        'var __esmMin = (fn, res) => {',
+        '  var l = () => { if (fn) { var f = fn; try { res = f(); fn = 0; } catch(e) {} } return res; };',
+        '  l();',
+        '  return l;',
+        '};',
+      ].join(' ');
 
       return { code: code.replace(lazy, eager), map: null };
     },

@@ -7,9 +7,22 @@
  *
  * This wraps timber's internal RouterInstance in the Next.js-compatible
  * AppRouterInstance shape that ecosystem libraries expect.
+ *
+ * NOTE: Unlike Next.js, these methods do NOT wrap navigation in
+ * startTransition. In Next.js, router state is React state (useReducer)
+ * so startTransition defers the update and provides isPending tracking.
+ * In timber, navigation calls reactRoot.render() which is a root-level
+ * render — startTransition has no effect on root renders.
+ *
+ * Navigation state (params, pathname) is delivered atomically via
+ * NavigationContext embedded in the element tree passed to
+ * reactRoot.render(). See design/19-client-navigation.md §"NavigationContext".
+ *
+ * For loading UI during navigation, use:
+ * - useLinkStatus()          — per-link pending indicator (inside <Link>)
+ * - useNavigationPending()   — global navigation pending state
  */
 
-import { startTransition } from 'react';
 import { getRouterOrNull } from './router-ref.js';
 
 export interface AppRouterInstance {
@@ -54,14 +67,7 @@ export function useRouter(): AppRouterInstance {
         }
         return;
       }
-      // Wrap in startTransition so React 19 tracks the async navigation.
-      // React 19's startTransition accepts async callbacks — it keeps
-      // isPending=true until the returned promise resolves. This means
-      // useTransition's isPending reflects the full RSC fetch + render
-      // lifecycle when wrapping router.push() in startTransition.
-      startTransition(async () => {
-        await router.navigate(href, { scroll: options?.scroll });
-      });
+      void router.navigate(href, { scroll: options?.scroll });
     },
     replace(href: string, options?: { scroll?: boolean }) {
       const router = getRouterOrNull();
@@ -71,9 +77,7 @@ export function useRouter(): AppRouterInstance {
         }
         return;
       }
-      startTransition(async () => {
-        await router.navigate(href, { scroll: options?.scroll, replace: true });
-      });
+      void router.navigate(href, { scroll: options?.scroll, replace: true });
     },
     refresh() {
       const router = getRouterOrNull();
@@ -83,9 +87,7 @@ export function useRouter(): AppRouterInstance {
         }
         return;
       }
-      startTransition(async () => {
-        await router.refresh();
-      });
+      void router.refresh();
     },
     back() {
       if (typeof window !== 'undefined') window.history.back();

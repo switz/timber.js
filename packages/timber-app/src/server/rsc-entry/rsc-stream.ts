@@ -10,7 +10,7 @@
  *              13-security.md §"Errors don't leak"
  */
 
-import { renderToReadableStream } from '@vitejs/plugin-rsc/rsc';
+import { renderToReadableStream } from '#/rsc-runtime/rsc.js';
 
 import { logRenderError } from '#/server/logger.js';
 import { DenySignal, RedirectSignal, RenderError } from '#/server/primitives.js';

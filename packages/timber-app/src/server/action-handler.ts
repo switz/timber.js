@@ -18,7 +18,7 @@ import {
   decodeReply,
   decodeAction,
   renderToReadableStream,
-} from '@vitejs/plugin-rsc/rsc';
+} from '#/rsc-runtime/rsc.js';
 
 import { validateCsrf, type CsrfConfig } from './csrf.js';
 import { executeAction, type RevalidateRenderer } from './actions.js';

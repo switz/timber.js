@@ -29,7 +29,7 @@ import {
   createFromFetch,
   setServerCallback,
   encodeReply,
-} from '@vitejs/plugin-rsc/browser';
+} from '#/rsc-runtime/browser.js';
 // Shared-state modules MUST be imported from @timber-js/app/client (the public
 // barrel) so they resolve to the same module instances as user code. In Vite dev,
 // user code imports @timber-js/app/client from dist/ via package.json exports.

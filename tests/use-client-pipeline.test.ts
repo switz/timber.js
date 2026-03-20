@@ -24,13 +24,17 @@ const SRC_DIR = resolve(__dirname, '..', 'packages/timber-app/src');
 // ─── RSC Entry: Client Reference Serialization ─────────────────────────
 
 describe('RSC entry — client reference serialization', () => {
-  it('imports renderToReadableStream from @vitejs/plugin-rsc/rsc', () => {
+  it('imports renderToReadableStream via rsc-runtime adapter', () => {
     // renderToReadableStream is in rsc-stream.ts (extracted from index.ts)
     const content = readFileSync(resolve(SRC_DIR, 'server/rsc-entry/rsc-stream.ts'), 'utf-8');
-    // RSC entry must use the RSC plugin's renderToReadableStream,
+    // RSC entry must use the RSC plugin's renderToReadableStream (via adapter),
     // which serializes client components as references in the stream.
-    expect(content).toContain("from '@vitejs/plugin-rsc/rsc'");
+    expect(content).toContain("from '#/rsc-runtime/rsc.js'");
     expect(content).toContain('renderToReadableStream');
+
+    // The adapter itself re-exports from @vitejs/plugin-rsc/rsc
+    const adapter = readFileSync(resolve(SRC_DIR, 'rsc-runtime/rsc.ts'), 'utf-8');
+    expect(adapter).toContain("from '@vitejs/plugin-rsc/rsc'");
   });
 
   it('does not use react-dom/server renderToReadableStream for RSC', () => {
@@ -57,10 +61,14 @@ describe('RSC entry — client reference serialization', () => {
 // ─── SSR Entry: Client Reference Resolution ────────────────────────────
 
 describe('SSR entry — client reference resolution', () => {
-  it('imports createFromReadableStream from @vitejs/plugin-rsc/ssr', () => {
+  it('imports createFromReadableStream via rsc-runtime adapter', () => {
     const content = readFileSync(resolve(SRC_DIR, 'server/ssr-entry.ts'), 'utf-8');
-    expect(content).toContain("from '@vitejs/plugin-rsc/ssr'");
+    expect(content).toContain("from '#/rsc-runtime/ssr.js'");
     expect(content).toContain('createFromReadableStream');
+
+    // The adapter itself re-exports from @vitejs/plugin-rsc/ssr
+    const adapter = readFileSync(resolve(SRC_DIR, 'rsc-runtime/ssr.ts'), 'utf-8');
+    expect(adapter).toContain("from '@vitejs/plugin-rsc/ssr'");
   });
 
   it('uses renderToReadableStream from react-dom/server for SSR HTML', () => {
@@ -75,10 +83,14 @@ describe('SSR entry — client reference resolution', () => {
 // ─── Browser Entry: Client Hydration ────────────────────────────────────
 
 describe('browser entry — client hydration', () => {
-  it('imports createFromReadableStream from @vitejs/plugin-rsc/browser', () => {
+  it('imports createFromReadableStream via rsc-runtime adapter', () => {
     const content = readFileSync(resolve(SRC_DIR, 'client/browser-entry.ts'), 'utf-8');
-    expect(content).toContain("from '@vitejs/plugin-rsc/browser'");
+    expect(content).toContain("from '#/rsc-runtime/browser.js'");
     expect(content).toContain('createFromReadableStream');
+
+    // The adapter itself re-exports from @vitejs/plugin-rsc/browser
+    const adapter = readFileSync(resolve(SRC_DIR, 'rsc-runtime/browser.ts'), 'utf-8');
+    expect(adapter).toContain("from '@vitejs/plugin-rsc/browser'");
   });
 
   it('calls hydrateRoot for React hydration', () => {
@@ -90,15 +102,36 @@ describe('browser entry — client hydration', () => {
 // ─── Module ID Consistency ──────────────────────────────────────────────
 
 describe('module ID consistency across environments', () => {
-  it('RSC and SSR entries both reference the RSC plugin for stream handling', () => {
+  it('RSC and SSR entries both reference the RSC plugin via rsc-runtime adapters', () => {
     // renderToReadableStream is in rsc-stream.ts (extracted from index.ts)
     const rscContent = readFileSync(resolve(SRC_DIR, 'server/rsc-entry/rsc-stream.ts'), 'utf-8');
     const ssrContent = readFileSync(resolve(SRC_DIR, 'server/ssr-entry.ts'), 'utf-8');
 
-    // RSC produces the stream via @vitejs/plugin-rsc/rsc
-    expect(rscContent).toContain('@vitejs/plugin-rsc/rsc');
-    // SSR consumes the stream via @vitejs/plugin-rsc/ssr
-    expect(ssrContent).toContain('@vitejs/plugin-rsc/ssr');
+    // RSC produces the stream via rsc-runtime/rsc adapter
+    expect(rscContent).toContain('#/rsc-runtime/rsc.js');
+    // SSR consumes the stream via rsc-runtime/ssr adapter
+    expect(ssrContent).toContain('#/rsc-runtime/ssr.js');
+
+    // Both adapters delegate to @vitejs/plugin-rsc
+    const rscAdapter = readFileSync(resolve(SRC_DIR, 'rsc-runtime/rsc.ts'), 'utf-8');
+    const ssrAdapter = readFileSync(resolve(SRC_DIR, 'rsc-runtime/ssr.ts'), 'utf-8');
+    expect(rscAdapter).toContain("from '@vitejs/plugin-rsc/rsc'");
+    expect(ssrAdapter).toContain("from '@vitejs/plugin-rsc/ssr'");
+  });
+
+  it('no direct @vitejs/plugin-rsc imports outside rsc-runtime adapter', () => {
+    // The rsc-runtime adapter is the ONLY place that imports from
+    // @vitejs/plugin-rsc. This ensures upstream API changes are contained
+    // to a single directory.
+    const { execSync } = require('node:child_process');
+    const result = execSync(
+      `grep -rn "from '@vitejs/plugin-rsc/" "${SRC_DIR}" --include='*.ts' --include='*.tsx'`,
+      { encoding: 'utf-8' },
+    );
+    const lines = result.trim().split('\n').filter(Boolean);
+    for (const line of lines) {
+      expect(line).toMatch(/rsc-runtime\//);
+    }
   });
 
   it('client module map exists for SSR reference resolution', () => {

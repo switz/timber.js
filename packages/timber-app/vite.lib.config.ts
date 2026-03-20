@@ -5,6 +5,22 @@
 import { defineConfig } from 'vite';
 
 export default defineConfig({
+  // Force production JSX transform (jsx/jsxs from react/jsx-runtime).
+  // Without this, Vite checks process.env.NODE_ENV to decide between
+  // jsxDEV (dev) and jsx/jsxs (prod). If NODE_ENV isn't explicitly set
+  // to 'production', the lib build emits jsxDEV calls with fileName/
+  // lineNumber args. Since node_modules JS is NOT re-transformed by
+  // vite:oxc in consumer builds, those jsxDEV calls pass through into
+  // the user's production bundle and crash at runtime because the prod
+  // React jsx-runtime doesn't export jsxDEV. File paths also leak into
+  // the production bundle (security concern).
+  //
+  // This is a lib build for npm distribution — always use production JSX.
+  oxc: {
+    jsx: {
+      development: false,
+    },
+  },
   build: {
     lib: {
       entry: {

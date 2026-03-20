@@ -303,7 +303,7 @@ export function timber(config?: TimberUserConfig): PluginOption[] {
   // Also loads timber.config.ts and merges it into ctx.config (inline config wins).
   const rootSync: Plugin = {
     name: 'timber-root-sync',
-    async config(userConfig) {
+    async config(userConfig, { command }) {
       // Load timber.config.ts early — before configResolved/buildStart — so
       // all plugins (including timber-mdx) see the merged config in their
       // buildStart hooks. The config hook runs once and supports async.
@@ -315,6 +315,29 @@ export function timber(config?: TimberUserConfig): PluginOption[] {
         ctx.clientJavascript = resolveClientJavascript(ctx.config);
       }
       ctx.timer.end('config-load');
+
+      // Force production JSX transform for builds.
+      //
+      // Vite determines dev vs prod JSX via `isProduction`, which checks
+      // `process.env.NODE_ENV === 'production'`. If the shell has
+      // NODE_ENV=development (common in dev toolchains), `vite build`
+      // respects that and emits jsxDEV calls with fileName/lineNumber
+      // args. This causes runtime crashes because the production React
+      // jsx-runtime doesn't export jsxDEV, and also leaks file paths
+      // into production bundles (security concern).
+      //
+      // We explicitly set `oxc.jsx.development: false` for builds so
+      // the client bundle always uses jsx/jsxs from react/jsx-runtime,
+      // regardless of the ambient NODE_ENV value.
+      if (command === 'build') {
+        return {
+          oxc: {
+            jsx: {
+              development: false,
+            },
+          },
+        };
+      }
     },
     configResolved(resolved) {
       ctx.root = resolved.root;

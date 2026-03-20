@@ -66,7 +66,7 @@ export interface ViteDeps {
  * Middleware re-runs on file change via HMR wiring in timber-routing.
  */
 export async function runDev(options: CommandOptions, _deps?: ViteDeps): Promise<void> {
-  const { createServer } = _deps ?? (await import('vite'));
+  const createServer = _deps?.createServer ?? (await import('vite')).createServer;
   const server = await createServer({
     configFile: options.config,
   });
@@ -80,7 +80,7 @@ export async function runDev(options: CommandOptions, _deps?: ViteDeps): Promise
  * pipeline — createBuilder/buildApp is required.
  */
 export async function runBuild(options: CommandOptions, _deps?: ViteDeps): Promise<void> {
-  const { createBuilder } = _deps ?? (await import('vite'));
+  const createBuilder = _deps?.createBuilder ?? (await import('vite')).createBuilder;
   const builder = await createBuilder({
     configFile: options.config,
   });
@@ -146,7 +146,7 @@ export async function runPreview(options: CommandOptions, _deps?: ViteDeps): Pro
   }
 
   // Fallback: Vite's built-in preview server
-  const { preview } = _deps ?? (await import('vite'));
+  const preview = _deps?.preview ?? (await import('vite')).preview;
   const server = await preview({
     configFile: options.config,
   });

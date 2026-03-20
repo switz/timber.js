@@ -122,7 +122,7 @@ Layouts can also export it — the framework uses the max value from all loaded 
 - If all boundaries resolve before the deadline, the stream flushes immediately — it does not wait for the remaining time.
 - `deferSuspenseFor = 0` (or omitting the export) means no hold — standard streaming behavior.
 - Users write plain `<Suspense>` boundaries. The hold is invisible to the component tree.
-- **SSR only (for now).** `deferSuspenseFor` delays the first read of the HTML stream on the server. On client-side navigation, React renders new Suspense boundaries immediately — fallbacks show while content resolves. A future enhancement may use `startTransition` or a custom mechanism to defer fallbacks during client navigation, but this requires solving the "new boundary has no old content" problem (React can only defer reveals for boundaries that already have committed content).
+- **SSR and client navigation.** On the server, `deferSuspenseFor` delays the first read of the HTML stream. On client-side navigation, timber wraps the React root in a `TransitionRoot` component that holds the current element in state. Navigation updates call `startTransition(() => setState(newElement))`, which is a transition update — React keeps the old committed tree visible while new Suspense boundaries in the transition resolve. This avoids flash-of-fallback during fast navigations. See `packages/timber-app/src/client/transition-root.tsx`.
 
 ### When to Use `deferSuspenseFor`
 

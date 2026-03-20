@@ -23,31 +23,28 @@
  * params change during client-side navigation. This matches the pattern
  * used by usePathname() and useSearchParams().
  *
+ * All mutable state is delegated to client/state.ts for singleton guarantees.
+ * See design/18-build-system.md §"Singleton State Registry"
+ *
  * Design doc: design/09-typescript.md §"Typed Routes"
  */
 
 import { useSyncExternalStore } from 'react';
 import type { Routes } from '#/index.js';
 import { getSsrData } from './ssr-data.js';
+import { currentParams, _setCurrentParams, paramsListeners } from './state.js';
 
 // ---------------------------------------------------------------------------
-// Module-level state + subscribe/notify pattern
+// Module-level subscribe/notify pattern — state lives in state.ts
 // ---------------------------------------------------------------------------
-
-// The current params snapshot. Replaced (not mutated) on each navigation
-// so that React's Object.is check on the snapshot detects changes.
-let currentParams: Record<string, string | string[]> = {};
-
-// Listeners notified when currentParams changes.
-const listeners = new Set<() => void>();
 
 /**
  * Subscribe to params changes. Called by useSyncExternalStore.
  * Exported for testing — not intended for direct use by app code.
  */
 export function subscribe(callback: () => void): () => void {
-  listeners.add(callback);
-  return () => listeners.delete(callback);
+  paramsListeners.add(callback);
+  return () => paramsListeners.delete(callback);
 }
 
 /**
@@ -87,7 +84,7 @@ function getServerSnapshot(): Record<string, string | string[]> {
  * module-level fallback path.
  */
 export function setCurrentParams(params: Record<string, string | string[]>): void {
-  currentParams = params;
+  _setCurrentParams(params);
 }
 
 /**
@@ -98,7 +95,7 @@ export function setCurrentParams(params: Record<string, string | string[]>): voi
  * {old tree, new params} intermediate state.
  */
 export function notifyParamsListeners(): void {
-  for (const listener of listeners) {
+  for (const listener of paramsListeners) {
     listener();
   }
 }
@@ -125,7 +122,7 @@ export function useParams<R extends keyof Routes>(route: R): Routes[R]['params']
 export function useParams(route?: string): Record<string, string | string[]>;
 export function useParams(_route?: string): Record<string, string | string[]> {
   // useSyncExternalStore handles both client and SSR:
-  // - Client: calls getSnapshot() → reads module-level currentParams
+  // - Client: calls getSnapshot() → reads currentParams from state.ts
   // - SSR: calls getServerSnapshot() → reads from ALS-backed getSsrData()
   //
   // We must always call the hook (Rules of Hooks — no conditional hook calls).

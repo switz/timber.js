@@ -11,7 +11,7 @@
  * Task: LOCAL-290
  */
 
-import { AsyncLocalStorage } from 'node:async_hooks';
+import { timingAls } from './als-registry.js';
 
 // ─── Types ────────────────────────────────────────────────────────────────
 
@@ -23,14 +23,6 @@ export interface TimingEntry {
   /** Human-readable description (shown in DevTools). */
   desc?: string;
 }
-
-interface TimingStore {
-  entries: TimingEntry[];
-}
-
-// ─── ALS ──────────────────────────────────────────────────────────────────
-
-const timingAls = new AsyncLocalStorage<TimingStore>();
 
 // ─── Public API ───────────────────────────────────────────────────────────
 

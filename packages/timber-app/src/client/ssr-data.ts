@@ -17,7 +17,17 @@
  * APIs, as it's imported by 'use client' hooks that are bundled for the browser.
  * The ALS instance lives in ssr-entry.ts (server-only); this module only holds
  * a reference to the provider function.
+ *
+ * All mutable state is delegated to client/state.ts for singleton guarantees.
+ * See design/18-build-system.md §"Singleton State Registry"
  */
+
+import {
+  ssrDataProvider,
+  currentSsrData,
+  _setSsrDataProvider,
+  _setCurrentSsrData,
+} from './state.js';
 
 // ─── Types ────────────────────────────────────────────────────────
 
@@ -55,8 +65,6 @@ export interface SsrData {
 // writes to one instance but getSsrData reads from another.
 // See timber-shims plugin resolveId for details.
 
-let _ssrDataProvider: (() => SsrData | undefined) | undefined;
-
 /**
  * Register an ALS-backed SSR data provider. Called once at module load
  * by ssr-entry.ts to wire up per-request data via AsyncLocalStorage.
@@ -66,14 +74,12 @@ let _ssrDataProvider: (() => SsrData | undefined) | undefined;
  * concurrent requests with streaming Suspense.
  */
 export function registerSsrDataProvider(provider: () => SsrData | undefined): void {
-  _ssrDataProvider = provider;
+  _setSsrDataProvider(provider);
 }
 
 // ─── Module-Level Fallback ────────────────────────────────────────
 //
 // Used by tests and as a fallback when no ALS provider is registered.
-
-let currentSsrData: SsrData | undefined;
 
 /**
  * Set the SSR data for the current request via module-level state.
@@ -82,7 +88,7 @@ let currentSsrData: SsrData | undefined;
  * This function is retained for tests and as a fallback.
  */
 export function setSsrData(data: SsrData): void {
-  currentSsrData = data;
+  _setCurrentSsrData(data);
 }
 
 /**
@@ -92,7 +98,7 @@ export function setSsrData(data: SsrData): void {
  * This function is retained for tests and as a fallback.
  */
 export function clearSsrData(): void {
-  currentSsrData = undefined;
+  _setCurrentSsrData(undefined);
 }
 
 /**
@@ -105,8 +111,8 @@ export function clearSsrData(): void {
  * Used by client hooks' server snapshot functions.
  */
 export function getSsrData(): SsrData | undefined {
-  if (_ssrDataProvider) {
-    return _ssrDataProvider();
+  if (ssrDataProvider) {
+    return ssrDataProvider();
   }
   return currentSsrData;
 }

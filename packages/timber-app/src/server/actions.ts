@@ -14,10 +14,10 @@
  * See design/08-forms-and-actions.md
  */
 
-import { AsyncLocalStorage } from 'node:async_hooks';
 import type { CacheHandler } from '#/cache/index';
 import { RedirectSignal } from './primitives';
 import { withSpan } from './tracing';
+import { revalidationAls, type RevalidationState } from './als-registry.js';
 
 // ─── Types ───────────────────────────────────────────────────────────────
 
@@ -32,13 +32,8 @@ export interface RevalidationResult {
 /** Renderer function that builds a React element tree for a given path. */
 export type RevalidateRenderer = (path: string) => Promise<RevalidationResult>;
 
-/** Per-request revalidation state — tracks revalidatePath/Tag calls within an action. */
-export interface RevalidationState {
-  /** Paths to re-render (populated by revalidatePath calls). */
-  paths: string[];
-  /** Tags to invalidate (populated by revalidateTag calls). */
-  tags: string[];
-}
+// Re-export the type from the registry for public API consumers.
+export type { RevalidationState } from './als-registry.js';
 
 /** Options for creating the action handler. */
 export interface ActionHandlerConfig {
@@ -62,10 +57,9 @@ export interface ActionHandlerResult {
 
 // ─── Revalidation State ──────────────────────────────────────────────────
 
-// Per-request revalidation state stored in AsyncLocalStorage.
+// Per-request revalidation state stored in AsyncLocalStorage (from als-registry.ts).
 // This ensures concurrent requests never share or overwrite each other's state
 // (the previous module-level global was vulnerable to cross-request pollution).
-const revalidationAls = new AsyncLocalStorage<RevalidationState>();
 
 /**
  * Set the revalidation state for the current action execution.

@@ -14,10 +14,14 @@
  *
  * During SSR, reads the request search params from the SSR ALS context
  * (populated by ssr-entry.ts) instead of window.location.
+ *
+ * All mutable state is delegated to client/state.ts for singleton guarantees.
+ * See design/18-build-system.md §"Singleton State Registry"
  */
 
 import { useSyncExternalStore } from 'react';
 import { getSsrData } from './ssr-data.js';
+import { cachedSearch, cachedSearchParams, _setCachedSearch } from './state.js';
 
 function getSearch(): string {
   if (typeof window !== 'undefined') return window.location.search;
@@ -43,16 +47,16 @@ function subscribe(callback: () => void): () => void {
 
 // Cache the last search string and its parsed URLSearchParams to avoid
 // creating a new object on every render when the URL hasn't changed.
-let cachedSearch = '';
-let cachedParams = new URLSearchParams();
+// State lives in client/state.ts for singleton guarantees.
 
 function getSearchParams(): URLSearchParams {
   const search = getSearch();
   if (search !== cachedSearch) {
-    cachedSearch = search;
-    cachedParams = new URLSearchParams(search);
+    const params = new URLSearchParams(search);
+    _setCachedSearch(search, params);
+    return params;
   }
-  return cachedParams;
+  return cachedSearchParams;
 }
 
 function getServerSearchParams(): URLSearchParams {

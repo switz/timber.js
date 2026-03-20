@@ -199,7 +199,7 @@ describe('nitro node-server build', () => {
     expect(entry).toContain('defineEventHandler');
     expect(entry).toContain('toWebRequest');
     expect(entry).toContain('sendWebResponse');
-    expect(entry).toContain('server/entry.js');
+    expect(entry).toContain('rsc/index.js');
   });
 
   it('nitro.config.ts uses node-server preset', async () => {
@@ -323,7 +323,7 @@ describe('nitro preset coverage', () => {
 
       expect(entry).toContain(`process.env.TIMBER_RUNTIME = '${expectedRuntime}'`);
       expect(entry).toContain('defineEventHandler');
-      expect(entry).toContain('server/entry.js');
+      expect(entry).toContain('rsc/index.js');
     });
 
     it(`${preset}: generates valid nitro config`, () => {
@@ -444,7 +444,7 @@ describe('generateNitroEntry', () => {
       '/project/.timber/build/nitro',
       'node-server'
     );
-    expect(entry).toContain('../server/entry.js');
+    expect(entry).toContain('../rsc/index.js');
   });
 
   it('bridges h3 event to web request/response', () => {

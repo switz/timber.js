@@ -6,8 +6,9 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// Mock the RSC runtime — we're testing the handler dispatch logic, not RSC serialization.
-vi.mock('@vitejs/plugin-rsc/rsc', () => ({
+// Mock the RSC runtime adapter — we mock the #/ adapter layer so the underlying
+// @vitejs/plugin-rsc/rsc (which imports Vite virtual modules) is never loaded.
+vi.mock('../packages/timber-app/src/rsc-runtime/rsc', () => ({
   loadServerAction: vi.fn(async () => async () => ({ ok: true })),
   decodeReply: vi.fn(async (body: unknown) => [body]),
   decodeAction: vi.fn(async () => async () => ({ ok: true })),
@@ -254,7 +255,7 @@ describe('handleActionRequest — piggybacked revalidation', () => {
   });
 
   it('serializes wrapper object { _action, _tree } when revalidation is present', async () => {
-    const { renderToReadableStream } = await import('@vitejs/plugin-rsc/rsc');
+    const { renderToReadableStream } = await import('../packages/timber-app/src/rsc-runtime/rsc');
     const { executeAction } = await import('../packages/timber-app/src/server/actions');
 
     const mockElement = { type: 'div', props: { children: 'Fresh' } };
@@ -360,7 +361,7 @@ describe('handleActionRequest — redirect in with-JS path', () => {
   });
 
   it('serializes redirect payload with location and status', async () => {
-    const { renderToReadableStream } = await import('@vitejs/plugin-rsc/rsc');
+    const { renderToReadableStream } = await import('../packages/timber-app/src/rsc-runtime/rsc');
     const { executeAction } = await import('../packages/timber-app/src/server/actions');
 
     (executeAction as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
@@ -379,7 +380,7 @@ describe('handleActionRequest — redirect in with-JS path', () => {
   });
 
   it('defaults redirect status to 302', async () => {
-    const { renderToReadableStream } = await import('@vitejs/plugin-rsc/rsc');
+    const { renderToReadableStream } = await import('../packages/timber-app/src/rsc-runtime/rsc');
     const { executeAction } = await import('../packages/timber-app/src/server/actions');
 
     (executeAction as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
@@ -406,7 +407,7 @@ describe('handleFormAction — redirect remains HTTP 302', () => {
 
   it('no-JS form action redirect returns HTTP 302', async () => {
     const { executeAction } = await import('../packages/timber-app/src/server/actions');
-    const { decodeAction } = await import('@vitejs/plugin-rsc/rsc');
+    const { decodeAction } = await import('../packages/timber-app/src/rsc-runtime/rsc');
     (executeAction as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       actionResult: undefined,
       redirectTo: '/success',

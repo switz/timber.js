@@ -6,6 +6,7 @@ const root = import.meta.dirname!;
 export default defineConfig({
   resolve: {
     alias: [
+      { find: /^#\/(.*)/, replacement: resolve(root, 'packages/timber-app/src/$1') },
       { find: /^@\/(.*)/, replacement: resolve(root, 'packages/timber-app/src/$1') },
       {
         find: '@timber-js/app/cache',

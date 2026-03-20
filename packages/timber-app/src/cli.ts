@@ -132,7 +132,7 @@ export async function runPreview(options: CommandOptions): Promise<void> {
   const adapter = config?.adapter as import('./adapters/types').TimberPlatformAdapter | undefined;
 
   if (resolvePreviewStrategy(adapter) === 'adapter') {
-    const buildDir = join(root, '.timber', 'build');
+    const buildDir = join(root, 'dist');
     const timberConfig = { output: (config?.output ?? 'server') as 'server' | 'static' };
     await adapter!.preview!(timberConfig, buildDir);
     return;
@@ -189,9 +189,16 @@ async function main(): Promise<void> {
   }
 }
 
-// Only run main when executed directly (not imported in tests)
+// Run main when executed as a CLI (not imported in tests).
+// The bin shim (bin/timber.mjs) does `import '../dist/cli.js'`, so
+// process.argv[1] points to the shim, not this file. We check both:
+// direct execution AND being imported by the timber bin shim.
 const isDirectExecution =
-  typeof process !== 'undefined' && process.argv[1] && import.meta.url.endsWith(process.argv[1]);
+  typeof process !== 'undefined' &&
+  process.argv[1] &&
+  (import.meta.url.endsWith(process.argv[1]) ||
+    process.argv[1].endsWith('bin/timber.mjs') ||
+    process.argv[1].endsWith('bin/timber'));
 
 if (isDirectExecution) {
   main().catch((err) => {

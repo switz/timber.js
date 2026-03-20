@@ -254,9 +254,9 @@ describe('buildOutput', () => {
 // ─── Entry Generation ───────────────────────────────────────────────────────
 
 describe('generateNitroEntry', () => {
-  it('generates entry importing from server entry', () => {
+  it('generates entry importing from rsc entry', () => {
     const entry = generateNitroEntry('/tmp/build', '/tmp/build/nitro', 'node-server');
-    expect(entry).toContain('server/entry.js');
+    expect(entry).toContain('rsc/index.js');
   });
 
   it('uses h3 event handler', () => {
@@ -323,17 +323,16 @@ describe('generateNitroEntry', () => {
     expect(entry).toContain('writeEarlyHints');
   });
 
-  it('vercel entry does not include early hints', () => {
+  it('vercel entry does not use early hints in handler call', () => {
     const entry = generateNitroEntry('/tmp/build', '/tmp/build/nitro', 'vercel');
-    expect(entry).not.toContain('runWithEarlyHintsSender');
     expect(entry).not.toContain('writeEarlyHints');
   });
 
-  it('serverless entries do not include early hints', () => {
+  it('serverless entries do not use early hints in handler call', () => {
     const presets: NitroPreset[] = ['netlify', 'aws-lambda', 'azure-functions'];
     for (const preset of presets) {
       const entry = generateNitroEntry('/tmp/build', '/tmp/build/nitro', preset);
-      expect(entry).not.toContain('runWithEarlyHintsSender');
+      expect(entry).not.toContain('writeEarlyHints');
     }
   });
 

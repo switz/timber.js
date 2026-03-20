@@ -11,7 +11,7 @@
     "@mdx-js/rollup": "^3.1.1",
     "@timber-js/app": "workspace:*",
     "clsx": "2.1.1",
-    "codehike": "1.0.7",
+    "codehike": "1.1.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "recma-codehike": "0.0.1",
@@ -21,15 +21,15 @@
   },
   "devDependencies": {
     "@tailwindcss/forms": "0.5.11",
-    "@tailwindcss/postcss": "4.2.1",
+    "@tailwindcss/postcss": "4.2.2",
     "@tailwindcss/typography": "0.5.19",
     "@types/ms": "2.1.0",
-    "@types/node": "25.4.0",
+    "@types/node": "25.5.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "postcss": "8.5.8",
-    "tailwindcss": "4.2.1",
+    "tailwindcss": "4.2.2",
     "typescript": "5.9.3",
-    "vite": "^8.0.0"
+    "vite": "^8.0.1"
   }
 }

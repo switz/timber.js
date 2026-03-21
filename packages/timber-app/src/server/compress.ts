@@ -1,13 +1,12 @@
 // Response compression for self-hosted deployments (dev server, Nitro preview).
 //
-// Uses CompressionStream (Web Platform API) for gzip and node:zlib for
-// brotli (CompressionStream doesn't support brotli). Cloudflare Workers
-// auto-compress at the edge — this module is only used on Node.js/Bun.
+// Uses CompressionStream (Web Platform API) for gzip. Brotli is intentionally
+// left to CDNs and reverse proxies — at streaming-friendly quality levels its
+// ratio advantage is marginal, and node:zlib's brotli transform buffers output
+// internally, breaking streaming. Cloudflare Workers auto-compress at the edge —
+// this module is only used on Node.js/Bun.
 //
 // See design/25-production-deployments.md.
-
-import { createBrotliCompress, constants as zlibConstants } from 'node:zlib';
-import { Readable } from 'node:stream';
 
 // ─── Constants ────────────────────────────────────────────────────────────
 
@@ -41,21 +40,25 @@ const NO_COMPRESS_STATUSES = new Set([204, 304]);
 
 /**
  * Parse Accept-Encoding and return the best supported encoding.
- * Prefers brotli (br) over gzip. Returns null if no supported encoding.
+ * Returns 'gzip' if the client accepts it, null otherwise.
  *
- * We always prefer brotli regardless of quality values because:
- * 1. Brotli achieves better compression ratios than gzip
- * 2. All modern browsers that send br in Accept-Encoding support it well
- * 3. Respecting q-values for br vs gzip adds complexity with no real benefit
+ * Brotli (br) is intentionally not handled at the application level.
+ * At the streaming-friendly quality levels (0–4), brotli's compression
+ * ratio advantage over gzip is marginal, and node:zlib's brotli transform
+ * buffers output internally — turning smooth streaming responses into
+ * large infrequent bursts. Brotli's real wins come from offline/static
+ * compression at higher quality levels (5–11), which CDNs and reverse
+ * proxies (Cloudflare, nginx, Caddy) apply on cached responses.
+ *
+ * See design/25-production-deployments.md.
  */
-export function negotiateEncoding(acceptEncoding: string): 'br' | 'gzip' | null {
+export function negotiateEncoding(acceptEncoding: string): 'gzip' | null {
   if (!acceptEncoding) return null;
 
   // Parse tokens from the Accept-Encoding header (ignore quality values).
   // e.g. "gzip;q=1.0, br;q=0.8, deflate" → ['gzip', 'br', 'deflate']
   const tokens = acceptEncoding.split(',').map((s) => s.split(';')[0].trim().toLowerCase());
 
-  if (tokens.includes('br')) return 'br';
   if (tokens.includes('gzip')) return 'gzip';
   return null;
 }
@@ -112,10 +115,8 @@ export function compressResponse(request: Request, response: Response): Response
   const encoding = negotiateEncoding(acceptEncoding);
   if (!encoding) return response;
 
-  // Compress the body stream
-  const compressedBody = encoding === 'br'
-    ? compressWithBrotli(response.body!)
-    : compressWithGzip(response.body!);
+  // Compress the body stream with gzip via the Web Platform CompressionStream API.
+  const compressedBody = compressWithGzip(response.body!);
 
   // Build new headers: copy originals, add compression headers, remove Content-Length
   // (compressed size is unknown until streaming completes).
@@ -153,48 +154,3 @@ function compressWithGzip(body: ReadableStream<Uint8Array>): ReadableStream<Uint
   return body.pipeThrough(compressionStream as unknown as TransformStream<Uint8Array, Uint8Array>);
 }
 
-// ─── Brotli (node:zlib) ──────────────────────────────────────────────────
-
-/**
- * Compress a ReadableStream with brotli using node:zlib.
- *
- * CompressionStream doesn't support brotli — it only handles gzip and deflate.
- * We use node:zlib's createBrotliCompress() and bridge between Web streams
- * and Node streams.
- */
-function compressWithBrotli(body: ReadableStream<Uint8Array>): ReadableStream<Uint8Array> {
-  const brotli = createBrotliCompress({
-    params: {
-      // Quality 4 balances compression ratio and CPU time for streaming.
-      // Default (11) is too slow for real-time responses.
-      [zlibConstants.BROTLI_PARAM_QUALITY]: 4,
-    },
-  });
-
-  // Pipe the Web ReadableStream into the Node brotli transform.
-  const reader = body.getReader();
-
-  // Pump chunks from the Web ReadableStream into the Node transform.
-  const pump = async (): Promise<void> => {
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) {
-          brotli.end();
-          return;
-        }
-        // Write to brotli, wait for drain if buffer is full
-        if (!brotli.write(value)) {
-          await new Promise<void>((resolve) => brotli.once('drain', resolve));
-        }
-      }
-    } catch (err) {
-      brotli.destroy(err instanceof Error ? err : new Error(String(err)));
-    }
-  };
-  // Start pumping (fire and forget — errors propagate via brotli stream)
-  pump();
-
-  // Convert the Node readable (brotli output) to a Web ReadableStream.
-  return Readable.toWeb(brotli) as ReadableStream<Uint8Array>;
-}

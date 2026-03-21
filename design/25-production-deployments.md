@@ -51,6 +51,22 @@ interface TimberPlatformAdapter {
 
 ---
 
+## Response Compression Strategy
+
+Self-hosted deployments (Node.js/Bun via Nitro) compress responses at the application level using **gzip only** via the Web Platform `CompressionStream` API. Brotli is intentionally not handled at the application level.
+
+**Why not brotli at the application level?**
+
+- At streaming-friendly quality levels (0–4), brotli's compression ratio advantage over gzip is marginal (~2–5% smaller).
+- `node:zlib`'s `createBrotliCompress()` buffers output internally — it accumulates data in its compressor state and emits large blocks sporadically. This turns smooth streaming responses (SSR HTML with Suspense, RSC payloads) into large infrequent bursts, destroying time-to-first-byte and perceived performance.
+- `CompressionStream('gzip')` flushes per transform call, preserving streaming behavior.
+
+**Brotli belongs at the CDN/reverse proxy layer.** CDNs (Cloudflare, Fastly, Vercel Edge Network) and reverse proxies (Nginx, Caddy) apply brotli at higher quality levels (5–11) on cached responses. This is where brotli's compression ratio advantage is meaningful — offline compression of static/cached content, not real-time streaming.
+
+**Cloudflare Workers** auto-compress at the edge. The application-level compression module is not used on Workers.
+
+---
+
 ## Build Pipeline → Deployable Artifact
 
 The 5-step build sequence (RSC → SSR → Client → Manifest → Adapter) produces intermediate output in `.timber/build/`. The adapter step transforms this into a deployable artifact.

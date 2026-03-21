@@ -450,7 +450,7 @@ describe('generateNitroEntry', () => {
   it('bridges h3 event to web request/response', () => {
     const entry = generateNitroEntry('/build', '/build/nitro', 'vercel');
     expect(entry).toContain('toWebRequest(event)');
-    expect(entry).toContain('sendWebResponse(event, webResponse)');
+    expect(entry).toContain('sendWebResponse(event, finalResponse)');
   });
 });
 

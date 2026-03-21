@@ -18,6 +18,7 @@ import { join } from 'node:path';
 import type { PluginContext } from '#/index.js';
 import { setViteServer } from '#/server/dev-warnings.js';
 import { sendErrorToOverlay, classifyErrorPhase, parseFirstAppFrame } from './dev-error-overlay.js';
+import { compressResponse } from '#/server/compress.js';
 
 // ─── Constants ────────────────────────────────────────────────────────────
 
@@ -193,8 +194,13 @@ function createTimberMiddleware(server: ViteDevServer, projectRoot: string) {
       // Run the full pipeline
       const webResponse = await handler(webRequest);
 
+      // Compress the response if the client supports it.
+      // In dev mode, compression is always enabled for parity with production.
+      // See design/25-production-deployments.md.
+      const finalResponse = compressResponse(webRequest, webResponse);
+
       // Convert Web Response → Node ServerResponse
-      await sendWebResponse(res, webResponse);
+      await sendWebResponse(res, finalResponse);
     } catch (error) {
       // Pipeline error — classify the phase, send to overlay, respond 500.
       // The dev server remains running for recovery on file fix + HMR.

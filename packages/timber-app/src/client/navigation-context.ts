@@ -120,22 +120,34 @@ export function NavigationProvider({ value, children }: NavigationProviderProps)
 // ---------------------------------------------------------------------------
 
 /**
- * Module-level navigation state. Updated by the router before calling
- * renderRoot(). The renderRoot callback reads this to create the
- * NavigationProvider with the correct values.
+ * Navigation state communicated between the router and renderRoot.
+ *
+ * The router calls setNavigationState() before renderRoot(). The
+ * renderRoot callback reads via getNavigationState() to create the
+ * NavigationProvider with the correct params/pathname.
  *
  * This is NOT used by hooks directly — hooks read from React context.
- * This exists only as a communication channel between the router
- * (which knows the new nav state) and renderRoot (which wraps the element).
+ *
+ * Stored on globalThis (like the context instances above) because the
+ * router lives in the shared-app chunk while renderRoot lives in the
+ * index chunk. Module-level variables would be separate per chunk.
  */
-let _currentNavState: NavigationState = { params: {}, pathname: '/' };
+const NAV_STATE_KEY = Symbol.for('__timber_nav_state');
+
+function _getNavStateStore(): { current: NavigationState } {
+  const g = globalThis as Record<symbol, unknown>;
+  if (!g[NAV_STATE_KEY]) {
+    g[NAV_STATE_KEY] = { current: { params: {}, pathname: '/' } };
+  }
+  return g[NAV_STATE_KEY] as { current: NavigationState };
+}
 
 export function setNavigationState(state: NavigationState): void {
-  _currentNavState = state;
+  _getNavStateStore().current = state;
 }
 
 export function getNavigationState(): NavigationState {
-  return _currentNavState;
+  return _getNavStateStore().current;
 }
 
 // ---------------------------------------------------------------------------

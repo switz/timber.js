@@ -6,7 +6,6 @@
  * - Per-link pending status demo (useLinkStatus via LinkWithStatus)
  */
 import { Link, useLinkStatus, useNavigationPending } from '@timber-js/app/client';
-import type { ReactNode } from 'react';
 
 function LinkPendingIndicator() {
   const { pending } = useLinkStatus();

@@ -320,6 +320,26 @@ In unit tests, `afterPaint` falls back to synchronous execution (no rAF availabl
 
 Scroll to top via `afterPaint(() => scrollTo(0, 0))` after React reconciliation. This is the expected behavior when navigating to a new page.
 
+### Overflow Scroll Containers
+
+Many layouts use a fixed-height wrapper (`h-screen`) with an inner scrollable container (`overflow-y: auto`). In this pattern, `window.scrollY` is always 0 — all scrolling happens on the overflow container. The router's `window.scrollTo(0, 0)` is a no-op in this case, so forward navigation between pages sharing such a layout won't scroll to top.
+
+To handle this, timber auto-detects overflow scroll containers via `findOverflowContainer()`. On both `scrollTo` and `getScrollY`, the router walks depth-2 children of `document.body` looking for elements with `overflow-y: auto|scroll` that are actually scrollable (`scrollHeight > clientHeight`). This covers common patterns like:
+
+```html
+<body>
+  <div style="height: 100vh">          <!-- fixed wrapper -->
+    <div style="overflow-y: auto">     <!-- scroll container — auto-detected -->
+      ...content...
+    </div>
+  </div>
+</body>
+```
+
+For explicit control, mark a scroll container with `data-timber-scroll-restoration` — these are always included in scroll save/restore regardless of the heuristic.
+
+**Divergence from Next.js:** Next.js's `ScrollAndFocusHandler` uses `useLayoutEffect` / `componentDidUpdate` to scroll `document.documentElement.scrollTop = 0` after React commits. This has better timing guarantees (fires after commit, not after paint) but does NOT handle overflow containers — it has the same bug with `h-screen` + `overflow-y-auto` layouts. timber's `findOverflowContainer()` heuristic is a deliberate improvement. The tradeoff is fragility: the depth-2 traversal may miss deeply nested scroll containers or match the wrong element in complex layouts. If issues arise, consider adopting Next.js's per-segment `useLayoutEffect` scroll handler timing while keeping the overflow container detection.
+
 ### Back/Forward Navigation
 
 Restore saved `scrollY` from `history.state`. The framework sets `history.scrollRestoration = 'manual'` and manages scroll position via the browser's per-entry history state:

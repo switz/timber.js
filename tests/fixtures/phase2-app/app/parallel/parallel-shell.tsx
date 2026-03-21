@@ -27,6 +27,9 @@ export function ParallelShell({
         <Link href="/parallel/about" data-testid="link-parallel-about">
           About
         </Link>
+        <Link href="/parallel/projects" scroll={false} data-testid="link-parallel-projects-noscroll">
+          Projects (no scroll)
+        </Link>
       </nav>
 
       <div style={{ display: 'flex', gap: '16px' }}>

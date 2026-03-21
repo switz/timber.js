@@ -1,6 +1,6 @@
 {
   "name": "@timber-js/app",
-  "version": "0.1.46",
+  "version": "0.1.47",
   "description": "Vite-native React framework for Cloudflare Workers — correct HTTP semantics, real status codes, pages that work without JavaScript",
   "keywords": [
     "cloudflare-workers",

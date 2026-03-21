@@ -118,14 +118,23 @@ const PRESET_CONFIGS: Record<NitroPreset, PresetConfig> = {
     nitroPreset: 'node-server',
     outputDir: '.output',
     supportsWaitUntil: true,
-    supportsEarlyHints: true,
+    // Disabled by default: most node-server deployments sit behind a
+    // reverse proxy (nginx, caddy, traefik) that doesn't support 103
+    // Early Hints over HTTP/1.1. Sending 103 causes nginx to intermittently
+    // treat the response as an error and retry after proxy_connect_timeout
+    // (~5s stalls on ~23% of requests). Link headers on the 200 response
+    // are the safe fallback — Cloudflare and other CDNs convert them to
+    // 103 automatically at the edge (over HTTP/2+ to the browser).
+    supportsEarlyHints: false,
     runtimeName: 'node-server',
   },
   'bun': {
     nitroPreset: 'bun',
     outputDir: '.output',
     supportsWaitUntil: true,
-    supportsEarlyHints: true,
+    // Disabled for same reason as node-server — reverse proxies choke on 103.
+    // Link headers on the 200 response are converted to 103 by CDNs.
+    supportsEarlyHints: false,
     runtimeName: 'bun',
   },
 };

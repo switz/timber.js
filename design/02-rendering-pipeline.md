@@ -51,8 +51,8 @@ Early Hints fire at route match time — before `middleware.ts`, before `access.
 **103 delivery mechanism by platform:**
 
 - **Cloudflare Workers/Pages** — the CDN automatically converts `Link` response headers into 103 Early Hints. No application-level 103 sending needed.
-- **Node.js (node-server preset)** — the generated Nitro entry wraps the request handler with `runWithEarlyHintsSender()`, which installs a per-request ALS-scoped function that calls `res.writeEarlyHints()` on the raw `http.ServerResponse` (Node.js v18.11+). The pipeline calls `sendEarlyHints103()` at route-match time, which invokes the sender if installed.
-- **Bun (bun preset)** — same mechanism as Node.js, using Bun's `writeEarlyHints()` implementation.
+- **Node.js (node-server preset)** — `Link` headers are set on the 200 response. Application-level `res.writeEarlyHints()` is **disabled by default** because most production deployments sit behind a reverse proxy (nginx, caddy, traefik) that proxies to the origin over HTTP/1.1. Nginx in particular does not support 103 informational responses from upstreams without explicit `proxy_pass_early_hints on` (added in 1.25.5), causing intermittent ~5s stalls as nginx treats the 103 as an error and retries after `proxy_connect_timeout`. CDNs (Cloudflare, Fastly) convert `Link` headers on the 200 response into 103 at the edge over HTTP/2+ to the browser, making application-level 103 unnecessary.
+- **Bun (bun preset)** — same as Node.js: `Link` headers on the 200, no application-level 103.
 - **Serverless (Vercel, Netlify, AWS Lambda, etc.)** — no application-level 103 support. The `Link` headers are set on the response and may be picked up by the CDN layer if configured.
 
 ### Developer Control Over the Flush Point

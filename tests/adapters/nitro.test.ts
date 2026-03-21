@@ -129,14 +129,14 @@ describe('preset config', () => {
     expect(config.outputDir).toBe('.output');
   });
 
-  it('node-server preset supports early hints', () => {
+  it('node-server preset does not send application-level 103 (reverse proxy compat)', () => {
     const config = getPresetConfig('node-server');
-    expect(config.supportsEarlyHints).toBe(true);
+    expect(config.supportsEarlyHints).toBe(false);
   });
 
-  it('bun preset supports early hints', () => {
+  it('bun preset does not send application-level 103 (reverse proxy compat)', () => {
     const config = getPresetConfig('bun');
-    expect(config.supportsEarlyHints).toBe(true);
+    expect(config.supportsEarlyHints).toBe(false);
   });
 
   it('serverless presets do not support early hints', () => {
@@ -344,17 +344,16 @@ describe('generateNitroEntry', () => {
     expect(manifestIdx).toBeLessThan(handlerIdx);
   });
 
-  it('node-server entry includes early hints support', () => {
+  it('node-server entry does not include early hints (reverse proxy compat)', () => {
     const entry = generateNitroEntry('/tmp/build', '/tmp/build/nitro', 'node-server');
-    expect(entry).toContain('runWithEarlyHintsSender');
-    expect(entry).toContain('writeEarlyHints');
-    expect(entry).toContain('event.node?.res');
+    expect(entry).not.toContain('writeEarlyHints');
+    expect(entry).not.toContain('earlyHintsSender');
   });
 
-  it('bun entry includes early hints support', () => {
+  it('bun entry does not include early hints (reverse proxy compat)', () => {
     const entry = generateNitroEntry('/tmp/build', '/tmp/build/nitro', 'bun');
-    expect(entry).toContain('runWithEarlyHintsSender');
-    expect(entry).toContain('writeEarlyHints');
+    expect(entry).not.toContain('writeEarlyHints');
+    expect(entry).not.toContain('earlyHintsSender');
   });
 
   it('vercel entry does not use early hints in handler call', () => {
@@ -370,17 +369,11 @@ describe('generateNitroEntry', () => {
     }
   });
 
-  it('early hints sender wraps handler call', () => {
+  it('node-server uses plain handler call without early hints wrapper', () => {
     const entry = generateNitroEntry('/tmp/build', '/tmp/build/nitro', 'node-server');
-    // The handler call should be wrapped in runWithEarlyHintsSender
-    expect(entry).toContain('runWithEarlyHintsSender(earlyHintsSender, () => handler(webRequest))');
-  });
-
-  it('early hints sender catches writeEarlyHints errors', () => {
-    const entry = generateNitroEntry('/tmp/build', '/tmp/build/nitro', 'node-server');
-    // The writeEarlyHints call should be wrapped in try/catch
-    expect(entry).toContain('try { nodeRes.writeEarlyHints');
-    expect(entry).toContain('} catch {}');
+    // Handler should be called directly, not wrapped in runWithEarlyHintsSender
+    expect(entry).toContain('await handler(webRequest)');
+    expect(entry).not.toContain('runWithEarlyHintsSender(earlyHintsSender');
   });
 });
 

@@ -169,25 +169,33 @@ function getScrollY(): number {
  * (scrollHeight > clientHeight). Returns the first match, or null.
  *
  * This heuristic covers the common layout patterns:
- *   <body> → <html-wrapper> → <div class="overflow-y-auto">
- *   <body> → <main class="overflow-y-auto">
+ *   <body> → <root-layout> → <div class="overflow-y-auto">
+ *   <body> → <root-layout> → <main> → <nested-layout overflow-y-auto>
  *
- * We limit depth to avoid expensive full-tree traversals.
+ * We limit depth to 3 to avoid expensive full-tree traversals while still
+ * reaching nested layout scroll containers (e.g., parallel route layouts
+ * inside a root layout's <main> element).
  *
  * DIVERGENCE FROM NEXT.JS: Next.js's ScrollAndFocusHandler scrolls only
  * document.documentElement.scrollTop — it does NOT handle overflow containers.
  * Layouts using h-screen + overflow-y-auto have the same scroll bug in Next.js.
- * This heuristic is a deliberate improvement. The tradeoff is fragility: depth-2
+ * This heuristic is a deliberate improvement. The tradeoff is fragility: depth-3
  * traversal may miss deeply nested containers or match the wrong element.
  * See design/19-client-navigation.md §"Overflow Scroll Containers".
  */
 function findOverflowContainer(): HTMLElement | null {
   const candidates: HTMLElement[] = [];
-  // Check body's direct children and their children (depth 2)
+  // Check body's descendants up to depth 3. Depth 3 covers the common case:
+  //   <body> → <root-layout-div> → <main> → <overflow-container>
+  // React context providers (SegmentProvider, NavigationProvider) don't add
+  // DOM elements, so depth 3 from body reaches nested layout scroll containers.
   for (const child of document.body.children) {
     candidates.push(child as HTMLElement);
     for (const grandchild of child.children) {
       candidates.push(grandchild as HTMLElement);
+      for (const greatGrandchild of grandchild.children) {
+        candidates.push(greatGrandchild as HTMLElement);
+      }
     }
   }
   for (const el of candidates) {

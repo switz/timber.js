@@ -59,6 +59,7 @@ import {
   escapeHtml,
   isRscPayloadRequest,
 } from './helpers.js';
+import { parseClientStateTree } from '#/server/state-tree-diff.js';
 import { buildRscPayloadResponse } from './rsc-payload.js';
 import { renderRscStream } from './rsc-stream.js';
 import { renderSsrResponse } from './ssr-renderer.js';
@@ -268,11 +269,18 @@ async function renderRoute(
     return handleApiRoute(_req, match, segments, responseHeaders);
   }
 
+  // Parse X-Timber-State-Tree for RSC payload requests (client navigation).
+  // The state tree lists sync segments the client has cached — the server
+  // skips re-rendering those layouts for a smaller, faster RSC payload.
+  // Only used for RSC requests — HTML requests always get a full render.
+  // See design/19-client-navigation.md §"X-Timber-State-Tree Header"
+  const clientStateTree = isRscPayloadRequest(_req) ? parseClientStateTree(_req) : null;
+
   // Build the React element tree — loads modules, runs access checks,
   // resolves metadata. DenySignal/RedirectSignal propagate for HTTP handling.
   let routeResult;
   try {
-    routeResult = await buildRouteElement(_req, match, interception);
+    routeResult = await buildRouteElement(_req, match, interception, clientStateTree);
   } catch (error) {
     // RouteSignalWithContext wraps DenySignal/RedirectSignal with layout context
     if (error instanceof RouteSignalWithContext) {

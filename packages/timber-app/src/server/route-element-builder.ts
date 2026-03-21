@@ -32,6 +32,7 @@ import { setParsedSearchParams } from './request-context.js';
 import type { SearchParamsDefinition } from '#/search-params/create.js';
 import { wrapSegmentWithErrorBoundaries } from './error-boundary-wrapper.js';
 import type { InterceptionContext } from './pipeline.js';
+import { shouldSkipSegment } from './state-tree-diff.js';
 
 // ─── Types ────────────────────────────────────────────────────────────────
 
@@ -91,7 +92,8 @@ export class RouteSignalWithContext extends Error {
 export async function buildRouteElement(
   req: Request,
   match: RouteMatch,
-  interception?: InterceptionContext
+  interception?: InterceptionContext,
+  clientStateTree?: Set<string> | null
 ): Promise<RouteElementResult> {
   const segments = match.segments as unknown as ManifestSegmentNode[];
 
@@ -308,8 +310,32 @@ export async function buildRouteElement(
   //   1. Error boundaries (status files + error.tsx)
   //   2. Layout component — wraps children + parallel slots
   //   3. SegmentProvider — records position for useSelectedLayoutSegment
+  //
+  // When clientStateTree is provided (from X-Timber-State-Tree header on
+  // client navigation), sync layouts the client already has are skipped.
+  // Access.ts already ran for ALL segments in the pre-render loop above.
+  // See design/19-client-navigation.md §"X-Timber-State-Tree Header"
   for (let i = segments.length - 1; i >= 0; i--) {
     const segment = segments[i];
+    const isLeaf = i === segments.length - 1;
+    const layoutComponent = layoutBySegment.get(segment);
+
+    // Check if this segment's layout can be skipped for partial rendering.
+    // Skipped segments: no layout wrapping, no error boundaries, no slots,
+    // no AccessGate in element tree (access already ran pre-render).
+    const skip = shouldSkipSegment(
+      segment.urlPath,
+      layoutComponent,
+      isLeaf,
+      clientStateTree ?? null
+    );
+
+    if (skip) {
+      // Skip this segment entirely — the client uses its cached version.
+      // Access.ts already ran in the pre-render loop (security guarantee).
+      // Metadata was already resolved above (head elements are correct).
+      continue;
+    }
 
     // Wrap with error boundaries from this segment (inside layout).
     element = await wrapSegmentWithErrorBoundaries(segment, element, h);
@@ -335,7 +361,6 @@ export async function buildRouteElement(
     }
 
     // Wrap with layout if this segment has one — traced with OTEL span
-    const layoutComponent = layoutBySegment.get(segment);
     if (layoutComponent) {
       // Resolve parallel slots for this layout
       const slotProps: Record<string, unknown> = {};

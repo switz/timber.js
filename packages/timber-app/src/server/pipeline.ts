@@ -388,6 +388,12 @@ export function createPipeline(config: PipelineConfig): (req: Request) => Promis
     const responseHeaders = new Headers();
     const requestHeaderOverlay = new Headers();
 
+    // Set Cache-Control for dynamic HTML responses. Without this header,
+    // CDNs (particularly Cloudflare) may attempt to buffer/process the
+    // response differently, causing intermittent multi-second delays.
+    // This matches Next.js's default behavior.
+    responseHeaders.set('Cache-Control', 'private, no-cache, no-store, max-age=0, must-revalidate');
+
     // Stage 2b: 103 Early Hints (before middleware, after match)
     // Fires before middleware so the browser can begin fetching critical
     // assets while middleware runs. Non-fatal — a failing emitter never

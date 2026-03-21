@@ -1,6 +1,6 @@
 {
   "name": "@timber-js/app",
-  "version": "0.1.33",
+  "version": "0.1.38",
   "description": "Vite-native React framework for Cloudflare Workers — correct HTTP semantics, real status codes, pages that work without JavaScript",
   "keywords": [
     "cloudflare-workers",
@@ -87,7 +87,8 @@
   "dependencies": {
     "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/context-async-hooks": "^2.6.0",
-    "@opentelemetry/sdk-trace-base": "^2.6.0"
+    "@opentelemetry/sdk-trace-base": "^2.6.0",
+    "nitro": "^3.0.0"
   },
   "peerDependencies": {
     "@content-collections/core": "^0.14.0",

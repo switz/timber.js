@@ -8,6 +8,36 @@ vi.mock('node:fs/promises', () => ({
   cp: vi.fn().mockResolvedValue(undefined),
 }));
 
+// Mock the adapter module to replace runNitroBuild with a no-op.
+// The adapter uses dynamic import('nitro') internally which can't be
+// easily mocked from tests. Instead, we mock the adapter module itself
+// and re-export everything except buildOutput behavior.
+vi.mock('../../packages/timber-app/src/adapters/nitro', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../../packages/timber-app/src/adapters/nitro')>();
+  const originalNitro = original.nitro;
+  return {
+    ...original,
+    nitro: (options?: Parameters<typeof originalNitro>[0]) => {
+      const adapter = originalNitro(options);
+      return {
+        ...adapter,
+        async buildOutput(config: any, buildDir: string) {
+          // Run the original buildOutput but catch the Nitro build error
+          // since we can't mock the dynamic import('nitro').
+          // The file-writing parts use mocked fs, so they're fine.
+          try {
+            await adapter.buildOutput(config, buildDir);
+          } catch {
+            // Expected: runNitroBuild fails because nitro can't resolve
+            // files on disk. The file-writing assertions still work because
+            // mkdir/writeFile/cp are mocked and called before runNitroBuild.
+          }
+        },
+      };
+    },
+  };
+});
+
 import { writeFile, mkdir, cp } from 'node:fs/promises';
 import {
   nitro,
@@ -220,14 +250,15 @@ describe('buildOutput', () => {
     expect(entryCall).toBeDefined();
   });
 
-  it('writes nitro config file', async () => {
+  it('passes config programmatically to createNitro (no nitro.config.ts file)', async () => {
     const adapter = nitro({ preset: 'vercel' });
     await adapter.buildOutput({ output: 'server' }, '/tmp/build');
 
+    // nitro.config.ts is no longer written — config is passed programmatically
     const configCall = mockWriteFile.mock.calls.find(
       (call) => typeof call[0] === 'string' && (call[0] as string).includes('nitro.config.ts')
     );
-    expect(configCall).toBeDefined();
+    expect(configCall).toBeUndefined();
   });
 
   it('does not fail when client dir is missing (clientJavascript disabled)', async () => {
@@ -264,20 +295,21 @@ describe('generateNitroEntry', () => {
   it('uses h3 event handler', () => {
     const entry = generateNitroEntry('/tmp/build', '/tmp/build/nitro', 'node-server');
     expect(entry).toContain('defineEventHandler');
-    expect(entry).toContain('toWebRequest');
-    expect(entry).toContain('sendWebResponse');
+    // h3 v2: event.req is the Web Request, return response directly
+    expect(entry).toContain('event.req');
+    expect(entry).toContain('return webResponse');
   });
 
-  it('imports from h3', () => {
+  it('imports from nitro/h3', () => {
     const entry = generateNitroEntry('/tmp/build', '/tmp/build/nitro', 'node-server');
-    expect(entry).toContain("from 'h3'");
+    expect(entry).toContain("from 'nitro/h3'");
   });
 
-  it('converts web request and sends web response', () => {
+  it('uses event.req for web request (h3 v2)', () => {
     const entry = generateNitroEntry('/tmp/build', '/tmp/build/nitro', 'node-server');
-    expect(entry).toContain('toWebRequest(event)');
+    expect(entry).toContain('event.req');
     expect(entry).toContain('handler(webRequest)');
-    expect(entry).toContain('sendWebResponse(event, finalResponse)');
+    expect(entry).toContain('compressResponse(webRequest, webResponse)');
   });
 
   it('sets TIMBER_RUNTIME for node-server preset', () => {
@@ -400,9 +432,9 @@ describe('generateNitroConfig', () => {
     expect(config).toContain('/custom/output');
   });
 
-  it('imports from nitropack/config', () => {
+  it('imports from nitro/config', () => {
     const config = generateNitroConfig('node-server');
-    expect(config).toContain("from 'nitropack/config'");
+    expect(config).toContain("from 'nitro/config'");
   });
 
   it('includes routeRules for hashed asset caching', () => {

@@ -74,42 +74,21 @@ describe('bundle singleton audit', () => {
     chunks = readClientChunks();
   });
 
-  it('navigation context lazy initializer appears in exactly one chunk', () => {
-    // The getOrCreateContext pattern: variable === undefined && createContext(null)
-    // In minified output this becomes something like: m===void 0&&...createContext(null)
-    // We look for the pattern of a lazy context creation with createContext(null)
-    // followed by the guard check (void 0 or undefined)
-    const lazyContextPattern = /void 0&&typeof \w+\.createContext/;
-    const matchingChunks = findChunksContaining(chunks, lazyContextPattern);
+  it('navigation contexts use Symbol.for keys for cross-chunk singleton safety', () => {
+    // The globalThis singleton pattern uses Symbol.for('__timber_nav_ctx') and
+    // Symbol.for('__timber_pending_nav_ctx') so that even if the module is
+    // duplicated across chunks, both copies share the same context instance.
+    //
+    // We verify that the Symbol.for keys appear in the build output.
+    const navCtxKeyPattern = /Symbol\.for\(["`']__timber_nav_ctx["`']\)/;
+    const pendingCtxKeyPattern = /Symbol\.for\(["`']__timber_pending_nav_ctx["`']\)/;
 
-    expect(matchingChunks.length).toBe(1);
-    // It should be in a shared chunk (shared-app or vendor-timber), not in the index chunk
-    const indexChunks = matchingChunks.filter((f) => f.startsWith('index-'));
-    expect(indexChunks).toEqual([]);
-  });
+    const navKeyChunks = findChunksContaining(chunks, navCtxKeyPattern);
+    const pendingKeyChunks = findChunksContaining(chunks, pendingCtxKeyPattern);
 
-  it('PendingNavigationContext is not duplicated across chunks', () => {
-    // Count how many chunks have their own createContext(null) calls.
-    // vendor-react has React's createContext definition (not a call).
-    // We're looking for actual createContext(null) invocations.
-    const contextCallPattern = /\.createContext\(null\)/g;
-
-    const chunksWithContextCalls: Array<{ file: string; count: number }> = [];
-    for (const [filename, content] of chunks) {
-      // Skip vendor-react which contains React's own createContext definition
-      if (filename.startsWith('vendor-react')) continue;
-      const matches = content.match(contextCallPattern);
-      if (matches) {
-        chunksWithContextCalls.push({ file: filename, count: matches.length });
-      }
-    }
-
-    // All createContext(null) calls should be in exactly one chunk
-    expect(chunksWithContextCalls.length).toBe(1);
-    // That chunk should contain exactly 2 calls:
-    // 1. getOrCreateContext (NavigationContext)
-    // 2. getOrCreatePendingContext (PendingNavigationContext)
-    expect(chunksWithContextCalls[0].count).toBe(2);
+    // At least one chunk must contain each Symbol.for key
+    expect(navKeyChunks.length).toBeGreaterThanOrEqual(1);
+    expect(pendingKeyChunks.length).toBeGreaterThanOrEqual(1);
   });
 
   it('timber runtime modules are assigned to vendor-timber or shared chunk', () => {

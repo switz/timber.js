@@ -13,9 +13,11 @@ import {
   nitro,
   generateNitroEntry,
   generateNitroConfig,
+  generatePreviewScript,
   getPresetConfig,
   type NitroPreset,
 } from '../../packages/timber-app/src/adapters/nitro';
+import { generateCompressModule } from '../../packages/timber-app/src/adapters/compress-module';
 
 const mockWriteFile = vi.mocked(writeFile);
 const mockMkdir = vi.mocked(mkdir);
@@ -275,7 +277,7 @@ describe('generateNitroEntry', () => {
     const entry = generateNitroEntry('/tmp/build', '/tmp/build/nitro', 'node-server');
     expect(entry).toContain('toWebRequest(event)');
     expect(entry).toContain('handler(webRequest)');
-    expect(entry).toContain('sendWebResponse(event, webResponse)');
+    expect(entry).toContain('sendWebResponse(event, finalResponse)');
   });
 
   it('sets TIMBER_RUNTIME for node-server preset', () => {
@@ -443,5 +445,52 @@ describe('options', () => {
       nitroConfig: { minify: true },
     });
     expect(adapter.name).toBe('nitro-vercel');
+  });
+});
+
+// ─── Compression integration ────────────────────────────────────────────
+
+describe('compression in generated code', () => {
+  it('nitro entry imports compressResponse from _compress.mjs', () => {
+    const entry = generateNitroEntry('/build', '/build/nitro', 'node-server');
+    expect(entry).toContain("import { compressResponse } from './_compress.mjs'");
+  });
+
+  it('nitro entry applies compressResponse to the web response', () => {
+    const entry = generateNitroEntry('/build', '/build/nitro', 'node-server');
+    expect(entry).toContain('compressResponse(webRequest, webResponse)');
+  });
+
+  it('preview script imports compressResponse from _compress.mjs', () => {
+    const script = generatePreviewScript('/build', 'node-server');
+    expect(script).toContain("import('./_compress.mjs')");
+  });
+
+  it('preview script applies compressResponse to responses', () => {
+    const script = generatePreviewScript('/build', 'node-server');
+    expect(script).toContain('compressResponse(webRequest, rawResponse)');
+  });
+
+  it('generateCompressModule produces valid ESM with compressResponse export', () => {
+    const mod = generateCompressModule();
+    expect(mod).toContain('export function compressResponse');
+    expect(mod).toContain("import { createBrotliCompress");
+    expect(mod).toContain("new CompressionStream('gzip')");
+  });
+
+  it('generateCompressModule includes brotli quality param for streaming', () => {
+    const mod = generateCompressModule();
+    expect(mod).toContain('BROTLI_PARAM_QUALITY');
+  });
+
+  it('buildOutput writes _compress.mjs to nitro output dir', async () => {
+    mockWriteFile.mockClear();
+    const adapter = nitro({ preset: 'node-server' });
+    await adapter.buildOutput({ output: 'server' }, '/build');
+    const compressCall = mockWriteFile.mock.calls.find(
+      (call) => typeof call[0] === 'string' && call[0].includes('_compress.mjs')
+    );
+    expect(compressCall).toBeTruthy();
+    expect(compressCall![0]).toBe('/build/nitro/_compress.mjs');
   });
 });

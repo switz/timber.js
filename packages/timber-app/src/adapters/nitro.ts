@@ -9,6 +9,7 @@ import { writeFile, mkdir, cp } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
 import { join, relative } from 'node:path';
 import type { TimberPlatformAdapter, TimberConfig } from './types';
+import { generateCompressModule } from './compress-module.js';
 // Inlined from server/asset-headers.ts — adapters are loaded by Node at
 // Vite startup time, before Vite's module resolver is available, so cross-
 // directory .ts imports don't resolve.
@@ -198,6 +199,11 @@ export function nitro(options: NitroAdapterOptions = {}): TimberPlatformAdapter 
         await writeFile(join(outDir, '_timber-manifest-init.js'), config.manifestInit);
       }
 
+      // Write the compression helper module for runtime use.
+      // See design/25-production-deployments.md — self-hosted deployments
+      // need application-level compression (Cloudflare handles it at the edge).
+      await writeFile(join(outDir, '_compress.mjs'), generateCompressModule());
+
       // Generate the Nitro entry point
       const hasManifestInit = !!config.manifestInit;
       const entry = generateNitroEntry(buildDir, outDir, preset, hasManifestInit);
@@ -278,6 +284,7 @@ export function generateNitroEntry(
 
 ${manifestImport}import { defineEventHandler, toWebRequest, sendWebResponse } from 'h3'
 import handler, { runWithEarlyHintsSender } from '${serverEntryRelative}'
+import { compressResponse } from './_compress.mjs'
 
 // Set TIMBER_RUNTIME for instrumentation.ts conditional SDK initialization.
 // See design/25-production-deployments.md §"TIMBER_RUNTIME".
@@ -286,7 +293,8 @@ process.env.TIMBER_RUNTIME = '${runtimeName}'
 export default defineEventHandler(async (event) => {
   const webRequest = toWebRequest(event)
 ${handlerCall}
-  return sendWebResponse(event, webResponse)
+  const finalResponse = compressResponse(webRequest, webResponse)
+  return sendWebResponse(event, finalResponse)
 })
 `;
 }
@@ -363,6 +371,9 @@ if (existsSync(manifestPath)) {
 
 // Import the RSC handler (default export is the fetch-like handler).
 const { default: handler, runWithEarlyHintsSender } = await import('${rscEntry}');
+
+// Import compression helper for self-hosted response compression.
+const { compressResponse } = await import('./_compress.mjs');
 
 const MIME_TYPES = {
   '.html': 'text/html',
@@ -456,9 +467,12 @@ const server = createServer(async (req, res) => {
       ? (links) => { try { res.writeEarlyHints({ link: links }); } catch {} }
       : undefined;
 
-    const webResponse = earlyHintsSender && runWithEarlyHintsSender
+    const rawResponse = earlyHintsSender && runWithEarlyHintsSender
       ? await runWithEarlyHintsSender(earlyHintsSender, () => handler(webRequest))
       : await handler(webRequest);
+
+    // Compress the response for self-hosted deployments.
+    const webResponse = compressResponse(webRequest, rawResponse);
 
     // Write the response back to the Node response.
     res.writeHead(webResponse.status, Object.fromEntries(webResponse.headers.entries()));

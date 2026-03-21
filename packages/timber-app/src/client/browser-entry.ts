@@ -52,6 +52,7 @@ import {
 import { setupServerLogReplay, setupClientErrorForwarding } from './browser-dev.js';
 import { handleLinkClick, handleLinkHover } from './browser-links.js';
 import { TransitionRoot, transitionRender, navigateTransition } from './transition-root.js';
+import { isStaleClientReference, triggerStaleReload, clearStaleReloadFlag } from './stale-reload.js';
 
 // ─── Server Action Dispatch ──────────────────────────────────────
 
@@ -94,7 +95,17 @@ setServerCallback(async (id: string, args: unknown[]) => {
     return res;
   });
 
-  const decoded = await createFromFetch(response);
+  let decoded: unknown;
+  try {
+    decoded = await createFromFetch(response);
+  } catch (error) {
+    if (isStaleClientReference(error)) {
+      triggerStaleReload();
+      // Return a never-resolving promise to prevent further processing
+      return new Promise(() => {});
+    }
+    throw error;
+  }
 
   // Handle redirect — server encoded the redirect location in the RSC stream
   // instead of returning HTTP 302. Perform a client-side SPA navigation.
@@ -433,8 +444,24 @@ function bootstrap(runtimeConfig: typeof config): void {
       // Decode RSC Flight stream using createFromFetch.
       // createFromFetch takes a Promise<Response> and progressively
       // parses the RSC stream as chunks arrive.
-      decodeRsc: (fetchPromise: Promise<Response>) => {
-        return createFromFetch(fetchPromise);
+      //
+      // Wrapped with stale client reference detection: if the server
+      // has been redeployed with new bundles, the RSC payload may
+      // reference module IDs that don't exist in the old client bundle.
+      // We catch "Could not find the module" errors and trigger a full
+      // page reload so the browser fetches the new bundle.
+      decodeRsc: async (fetchPromise: Promise<Response>) => {
+        try {
+          return await createFromFetch(fetchPromise);
+        } catch (error) {
+          if (isStaleClientReference(error)) {
+            triggerStaleReload();
+            // Return a never-resolving promise to prevent further processing
+            // while the page is reloading.
+            return new Promise(() => {});
+          }
+          throw error;
+        }
       },
 
       // Render decoded RSC tree via TransitionRoot's state-based mechanism.
@@ -621,6 +648,24 @@ function bootstrap(runtimeConfig: typeof config): void {
 }
 
 bootstrap(config);
+
+// Clear the stale reload flag on successful bootstrap. If the page
+// loaded and bootstrapped without hitting a stale reference error,
+// the loop guard should reset so the next stale error gets a fresh
+// reload attempt.
+clearStaleReloadFlag();
+
+// Global error handler for stale client reference errors during hydration.
+// The initial RSC payload is decoded lazily by React via createFromReadableStream.
+// If the payload references a module ID from a newer deployment, the error
+// surfaces as an unhandled rejection during React's render/hydration cycle.
+// This handler catches those errors and triggers a full page reload.
+window.addEventListener('unhandledrejection', (event) => {
+  if (isStaleClientReference(event.reason)) {
+    event.preventDefault();
+    triggerStaleReload();
+  }
+});
 
 // Signal that the client runtime has been initialized.
 // Used by E2E tests to wait for hydration before interacting.

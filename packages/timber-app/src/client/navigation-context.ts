@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * NavigationContext — React context for navigation state.
  *

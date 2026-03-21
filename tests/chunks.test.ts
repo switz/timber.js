@@ -115,6 +115,26 @@ describe('assignChunk', () => {
     );
   });
 
+  // Tier 2b: Consumer-project timber paths (npm/pnpm install, not monorepo)
+
+  it('assigns @timber-js/app consumer paths to vendor-timber', () => {
+    expect(assignChunk('/project/node_modules/@timber-js/app/dist/client/router.js')).toBe(
+      'vendor-timber'
+    );
+  });
+
+  it('assigns @timber-js/app navigation-context to vendor-timber', () => {
+    expect(
+      assignChunk('/project/node_modules/@timber-js/app/dist/client/navigation-context.js')
+    ).toBe('vendor-timber');
+  });
+
+  it('assigns @timber-js/app transition-root to vendor-timber', () => {
+    expect(
+      assignChunk('/project/node_modules/@timber-js/app/dist/client/transition-root.js')
+    ).toBe('vendor-timber');
+  });
+
   // Tier 3: User vendor libraries
 
   it('assigns user node_modules to vendor-app', () => {
@@ -229,6 +249,28 @@ describe('assignClientChunk', () => {
       assignClientChunk({
         id: '/project/packages/timber-app/src/client/nuqs-adapter.tsx',
         normalizedId: 'packages/timber-app/src/client/nuqs-adapter.tsx',
+        serverChunk: 'facade:app/layout.tsx',
+      })
+    ).toBe('vendor-timber');
+  });
+
+  // Consumer-project timber paths (npm/pnpm install)
+
+  it('groups @timber-js/app consumer paths into vendor-timber', () => {
+    expect(
+      assignClientChunk({
+        id: '/project/node_modules/@timber-js/app/dist/client/navigation-context.js',
+        normalizedId: 'node_modules/@timber-js/app/dist/client/navigation-context.js',
+        serverChunk: 'facade:app/layout.tsx',
+      })
+    ).toBe('vendor-timber');
+  });
+
+  it('groups @timber-js/app link-status-provider into vendor-timber', () => {
+    expect(
+      assignClientChunk({
+        id: '/project/node_modules/@timber-js/app/dist/client/link-status-provider.js',
+        normalizedId: 'node_modules/@timber-js/app/dist/client/link-status-provider.js',
         serverChunk: 'facade:app/layout.tsx',
       })
     ).toBe('vendor-timber');

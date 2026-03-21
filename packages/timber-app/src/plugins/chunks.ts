@@ -97,10 +97,15 @@ function isReactVendor(id: string): boolean {
 
 /**
  * Check if a module is part of the timber framework runtime (tier 2).
+ *
+ * Matches both monorepo paths (packages/timber-app/...) and consumer
+ * project paths (node_modules/@timber-js/app/...) so the chunk
+ * assignment is consistent regardless of how timber is installed.
  */
 function isTimberRuntime(id: string): boolean {
   return (
     id.includes('/timber-app/') ||
+    id.includes('/@timber-js/app/') ||
     id.includes('react-server-dom') ||
     id.includes('@vitejs/plugin-rsc')
   );
@@ -175,7 +180,8 @@ export function assignClientChunk(meta: {
   serverChunk: string;
 }): string | undefined {
   // Timber framework client modules → vendor-timber
-  if (meta.id.includes('/timber-app/')) return 'vendor-timber';
+  // Match both monorepo paths (/timber-app/) and consumer paths (/@timber-js/app/)
+  if (meta.id.includes('/timber-app/') || meta.id.includes('/@timber-js/app/')) return 'vendor-timber';
 
   // Small user client components → shared-client (prevents facade micro-chunks)
   if (!meta.id.includes('\0') && meta.id.startsWith('/')) {

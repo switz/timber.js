@@ -163,6 +163,15 @@ For apps importing large client-side libraries (e.g., chart.js, Monaco editor, t
 2. **Rollup `manualChunks` can conflict with the RSC plugin** — needs testing to ensure the RSC plugin's client reference tracking still works
 3. **Maintenance burden** — heuristics for categorizing modules can break when dependencies change internal paths
 
+### Singleton Safety
+
+Module-level singletons (lazy-created React contexts, shared state) must appear in exactly one client chunk. The RSC client build creates two separate module graphs: the browser entry (index chunk) and client references (shared-app/vendor-timber chunks). If a module with a singleton is imported by both graphs, the bundler could duplicate it — each chunk gets its own copy of the module-level variable, breaking React context identity.
+
+Safeguards:
+1. **`'use client'` on singleton modules.** `navigation-context.ts` carries the `'use client'` directive so the RSC plugin includes it in the client reference graph, ensuring it's treated as a shared module rather than inlined into the browser entry chunk.
+2. **Consumer-path matching.** `isTimberRuntime()` matches both monorepo paths (`/timber-app/`) and consumer project paths (`/@timber-js/app/`) so chunk assignment works regardless of installation method.
+3. **Build-time audit.** `tests/bundle-singleton-audit.test.ts` builds the fixture app and verifies that `createContext(null)` (the lazy context initialization pattern) appears in exactly one client chunk.
+
 ### Cloudflare Workers Constraints
 
 | Constraint                           | Impact                                          |

@@ -47,16 +47,35 @@ export interface NavigationState {
  * The context is created lazily to avoid calling createContext at module
  * level. In the RSC environment, React.createContext doesn't exist —
  * calling it at import time would crash the server.
+ *
+ * IMPORTANT: Context instances are stored on globalThis, NOT in module-
+ * level variables. The RSC client bundler duplicates this module across
+ * the browser-entry chunk (index) and client-reference chunk (shared-app)
+ * because both entry graphs import it. Module-level variables would create
+ * separate singleton instances per chunk — the provider in TransitionRoot
+ * (index chunk) would use context A while the consumer in LinkStatusProvider
+ * (shared-app chunk) reads from context B. globalThis guarantees a single
+ * instance regardless of how many times the module is duplicated.
+ *
+ * See design/19-client-navigation.md §"Singleton Context Guarantee"
  */
-let _context: React.Context<NavigationState | null> | undefined;
+
+// Symbol keys for globalThis storage — prevents collisions with user code
+const NAV_CTX_KEY = Symbol.for('__timber_nav_ctx');
+const PENDING_CTX_KEY = Symbol.for('__timber_pending_nav_ctx');
 
 function getOrCreateContext(): React.Context<NavigationState | null> | undefined {
-  if (_context !== undefined) return _context;
+  const existing = (globalThis as Record<symbol, unknown>)[NAV_CTX_KEY] as
+    | React.Context<NavigationState | null>
+    | undefined;
+  if (existing !== undefined) return existing;
   // createContext may not exist in the RSC environment
   if (typeof React.createContext === 'function') {
-    _context = React.createContext<NavigationState | null>(null);
+    const ctx = React.createContext<NavigationState | null>(null);
+    (globalThis as Record<symbol, unknown>)[NAV_CTX_KEY] = ctx;
+    return ctx;
   }
-  return _context;
+  return undefined;
 }
 
 /**
@@ -125,23 +144,25 @@ export function getNavigationState(): NavigationState {
 
 /**
  * Separate context for the in-flight navigation URL. Provided by
- * TransitionRoot (useOptimistic state), consumed by LinkStatusProvider
+ * TransitionRoot (urgent useState), consumed by LinkStatusProvider
  * and useNavigationPending.
  *
- * Lives in this module (not a separate file) to guarantee singleton
- * identity across chunks. The `'use client'` LinkStatusProvider and
- * the non-directive TransitionRoot both import from this module —
- * if they were in separate files, the bundler could duplicate the
- * module-level context variable across chunks.
+ * Uses globalThis via Symbol.for for the same reason as NavigationContext
+ * above — the bundler duplicates this module across chunks, and module-
+ * level variables would create separate context instances.
  */
-let _pendingContext: React.Context<string | null> | undefined;
 
 function getOrCreatePendingContext(): React.Context<string | null> | undefined {
-  if (_pendingContext !== undefined) return _pendingContext;
+  const existing = (globalThis as Record<symbol, unknown>)[PENDING_CTX_KEY] as
+    | React.Context<string | null>
+    | undefined;
+  if (existing !== undefined) return existing;
   if (typeof React.createContext === 'function') {
-    _pendingContext = React.createContext<string | null>(null);
+    const ctx = React.createContext<string | null>(null);
+    (globalThis as Record<symbol, unknown>)[PENDING_CTX_KEY] = ctx;
+    return ctx;
   }
-  return _pendingContext;
+  return undefined;
 }
 
 /**

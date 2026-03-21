@@ -571,7 +571,7 @@ async function runNitroBuild(
   userConfig?: Record<string, unknown>
 ): Promise<void> {
   const presetConfig = PRESET_CONFIGS[preset];
-  const { createNitro, build: nitroBuild, prepare, copyPublicAssets } = await import('nitro');
+  const { createNitro, build: nitroBuild, prepare, copyPublicAssets } = await import('nitro/builder');
 
   const nitro = await createNitro({
     rootDir: nitroDir,
@@ -579,7 +579,7 @@ async function runNitroBuild(
     // Use renderer.entry so Nitro wraps our handler with its server runtime
     // (HTTP server, static file serving, graceful shutdown, etc.).
     // Using `entry` directly would bypass the Nitro server runtime.
-    renderer: { entry: join(nitroDir, 'entry.ts') },
+    renderer: { handler: join(nitroDir, 'entry.ts') },
     output: { dir: join(nitroDir, presetConfig.outputDir) },
     routeRules: {
       '/assets/**': { headers: { 'Cache-Control': IMMUTABLE_CACHE } },

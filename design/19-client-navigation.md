@@ -157,11 +157,40 @@ Next.js uses `useOptimistic` per `<Link>` instance for pending state. We explore
 
 The urgent `useState` + transition clear pattern is simpler and works correctly: the urgent update shows immediately (React's standard batching guarantee), and the transition update clears it atomically with the new tree.
 
-### Singleton Context Guarantee
+### Singleton Guarantee via `globalThis`
 
-`PendingNavigationContext` lives in `navigation-context.ts` (the same module as `NavigationContext`) rather than a separate file. This is critical: `LinkStatusProvider` is a `'use client'` component that may be bundled into a different chunk than `TransitionRoot` (which is not `'use client'`). If the context were in a separate file, the bundler could duplicate the module-level `_context` variable across chunks — the provider and consumer would create different context instances, and the pending state would never propagate.
+`navigation-context.ts` contains three pieces of cross-chunk shared state:
 
-By colocating both contexts in one module that's already proven as a singleton in the client graph, we guarantee the same context identity across all consumers.
+1. **`NavigationContext`** — React context for params/pathname
+2. **`PendingNavigationContext`** — React context for the in-flight navigation URL
+3. **`_currentNavState`** — mutable state bridging the router (sets params) and renderRoot (reads params)
+
+All three are stored on `globalThis` via `Symbol.for` keys, NOT as module-level variables. This is critical because the RSC client bundler **duplicates** `navigation-context.ts` across two chunks:
+
+- **Index chunk** (browser entry graph) — `TransitionRoot` and `browser-entry.ts` import it directly
+- **Shared-app chunk** (client reference graph) — `LinkStatusProvider` and `useParams` import it as a `'use client'` module
+
+Each chunk gets its own copy of the module with separate `let` variables. If contexts or state were stored in module-level variables:
+- `TransitionRoot` (index) would provide `PendingNavigationContext` instance A
+- `LinkStatusProvider` (shared-app) would read from instance B
+- `useContext` returns the default `null` → pending is always false
+- The router (shared-app) would write params to shared-app's `_currentNavState`
+- `renderRoot` (index) would read from index's `_currentNavState` (forever stale)
+
+The `globalThis` + `Symbol.for` pattern is the same approach React uses internally (`Symbol.for('react.element')`) for cross-bundle singletons. Both copies of the duplicated module reference the same `globalThis` slot, guaranteeing identity regardless of how many times the bundler duplicates the module.
+
+```
+// Symbol keys for globalThis storage
+const NAV_CTX_KEY = Symbol.for('__timber_nav_ctx');
+const PENDING_CTX_KEY = Symbol.for('__timber_pending_nav_ctx');
+const NAV_STATE_KEY = Symbol.for('__timber_nav_state');
+```
+
+**Why not `manualChunks`?** The `timberChunks` plugin correctly assigns `navigation-context.ts` to `vendor-timber` via `manualChunks`. But rolldown inlines entry-adjacent modules into the entry chunk regardless of `manualChunks` — the `vendor-timber` chunk ends up as just re-exports (236 bytes) while the actual code is duplicated in index and shared-app.
+
+**Why not just colocate in one module?** The original approach (before `globalThis`) relied on colocation to guarantee singleton identity. This works in monorepo builds where Vite's module graph deduplicates, but fails in production consumer builds where the RSC bundler creates separate entry point graphs for the browser entry and client references.
+
+**Why doesn't this affect user code?** User `'use client'` components all live in the client reference graph — a single module graph where shared imports are deduplicated into a common chunk. The duplication only happens because timber's browser entry (`transition-root.tsx`, which is NOT `'use client'`) imports from the same module that client references import. Users never add imports to the browser entry.
 
 The key distinction from the previous `useSyncExternalStore` approach: external store notifications and `reactRoot.render()` were two separate update mechanisms that React didn't batch. The urgent/transition pattern uses React's own state management — urgent updates show immediately, and transition updates commit atomically with the deferred tree.
 

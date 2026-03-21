@@ -100,6 +100,10 @@ next/navigation (client)  → shims/navigation-client.ts (client hooks only)
 
 ### Module Singleton Strategy
 
+There are two distinct singleton problems in timber's client code, each with its own solution:
+
+#### Dev Mode: Barrel Import Convergence
+
 In Vite dev, a module can be instantiated multiple times if it is reached via different import paths (e.g., a relative import from src/ vs a bare import resolved to dist/ by the dep optimizer). This causes bugs when modules have shared mutable state — one instance writes, another reads, and they never see each other's values.
 
 timber prevents this for client-side shared state by requiring that **all imports of shared-state modules go through the public barrel (`@timber-js/app/client`)** rather than relative or `#/` subpath imports:
@@ -111,6 +115,19 @@ timber prevents this for client-side shared state by requiring that **all import
 All three converge through Vite's dep optimizer → single pre-bundled module → single module instance. Internal-only modules (no shared state with user code) may still use relative imports.
 
 For server environments, `@timber-js/app/server` is resolved to src/ by the `timber-shims` plugin so that framework internals and user code share the same ALS singleton.
+
+#### Production Build: `globalThis` for Cross-Chunk Singletons
+
+In production builds, the RSC client bundler creates two separate entry point graphs: the browser entry (index chunk) and client references (shared-app chunk). Modules imported by both graphs are **duplicated across chunks** — each chunk gets its own copy with separate module-level variables. This happens regardless of `manualChunks` configuration because rolldown inlines entry-adjacent modules.
+
+For modules that must share state across these two graphs, timber uses `globalThis` storage via `Symbol.for` keys (the same pattern React uses for `Symbol.for('react.element')`). This affects `navigation-context.ts`, which stores:
+
+- React context instances (`NavigationContext`, `PendingNavigationContext`) — provider in index chunk, consumer in shared-app chunk
+- Navigation state (`_currentNavState`) — router writes from shared-app chunk, renderRoot reads from index chunk
+
+**Rule: Any mutable state in `navigation-context.ts` must use `globalThis` via `Symbol.for`, never module-level `let` variables.** See design/19-client-navigation.md §"Singleton Guarantee via globalThis" for the full analysis.
+
+This problem does NOT affect user code — all user `'use client'` components live in a single module graph (the client reference graph) where shared imports are naturally deduplicated.
 
 ### Singleton State Registry
 

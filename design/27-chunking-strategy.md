@@ -163,14 +163,30 @@ For apps importing large client-side libraries (e.g., chart.js, Monaco editor, t
 2. **Rollup `manualChunks` can conflict with the RSC plugin** — needs testing to ensure the RSC plugin's client reference tracking still works
 3. **Maintenance burden** — heuristics for categorizing modules can break when dependencies change internal paths
 
-### Singleton Safety
+### Singleton Safety — `globalThis` for Cross-Chunk State
 
-Module-level singletons (lazy-created React contexts, shared state) must appear in exactly one client chunk. The RSC client build creates two separate module graphs: the browser entry (index chunk) and client references (shared-app/vendor-timber chunks). If a module with a singleton is imported by both graphs, the bundler could duplicate it — each chunk gets its own copy of the module-level variable, breaking React context identity.
+The RSC client build creates two separate module graphs: the browser entry (index chunk) and client references (shared-app chunk). Modules imported by both graphs are **duplicated** — each chunk gets its own copy with separate module-level variables. `manualChunks` cannot prevent this because rolldown inlines entry-adjacent modules regardless of chunk assignment.
 
-Safeguards:
-1. **`'use client'` on singleton modules.** `navigation-context.ts` carries the `'use client'` directive so the RSC plugin includes it in the client reference graph, ensuring it's treated as a shared module rather than inlined into the browser entry chunk.
-2. **Consumer-path matching.** `isTimberRuntime()` matches both monorepo paths (`/timber-app/`) and consumer project paths (`/@timber-js/app/`) so chunk assignment works regardless of installation method.
-3. **Build-time audit.** `tests/bundle-singleton-audit.test.ts` builds the fixture app and verifies that `createContext(null)` (the lazy context initialization pattern) appears in exactly one client chunk.
+**Affected module:** `navigation-context.ts` is imported by both:
+- The browser entry graph: `browser-entry.ts` → `transition-root.tsx` → `navigation-context.ts`
+- The client reference graph: `link-status-provider.tsx` → `navigation-context.ts`
+
+**Solution:** All shared mutable state in `navigation-context.ts` uses `globalThis` via `Symbol.for` keys instead of module-level `let` variables. Both copies of the duplicated module reference the same `globalThis` slot.
+
+| `Symbol.for` Key | What It Stores | Why It Must Be Shared |
+|---|---|---|
+| `__timber_nav_ctx` | `NavigationContext` (React context) | Provider (index) and consumer (shared-app) need same context identity |
+| `__timber_pending_nav_ctx` | `PendingNavigationContext` (React context) | TransitionRoot provides, LinkStatusProvider consumes |
+| `__timber_nav_state` | `{ params, pathname }` mutable state | Router (shared-app) writes, renderRoot (index) reads |
+
+This is the same pattern React uses internally (`Symbol.for('react.element')`). See design/19-client-navigation.md §"Singleton Guarantee via globalThis" for the full analysis.
+
+**Why user code is not affected:** User `'use client'` components all live in the client reference graph (one module graph, shared imports deduplicated). The duplication only occurs because timber's browser entry imports from the same module that client references import.
+
+Additional safeguards:
+1. **`'use client'` on singleton modules.** `navigation-context.ts` carries the `'use client'` directive so the RSC plugin includes it in the client reference graph.
+2. **Consumer-path matching.** `isTimberRuntime()` matches both monorepo paths (`/timber-app/`) and consumer project paths (`/@timber-js/app/`).
+3. **Build-time audit.** `tests/bundle-singleton-audit.test.ts` builds the fixture app and verifies `Symbol.for` keys appear in the output.
 
 ### Cloudflare Workers Constraints
 

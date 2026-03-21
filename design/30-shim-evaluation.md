@@ -1,4 +1,4 @@
-# Shim Evaluation: Should timber remove next/* shims?
+# Shim Evaluation: Should timber remove next/\* shims?
 
 **Status:** Evaluation complete — recommendation: **keep shims, but simplify**
 
@@ -24,16 +24,16 @@ Removing shims would break ecosystem compatibility (a core value per `design/14-
 
 ### Code size
 
-| Component | Lines | Complexity |
-|-----------|-------|------------|
-| `shims.ts` (plugin) | 155 | Medium — environment detection, virtual modules |
-| `navigation.ts` | 21 | Low — pure re-exports |
-| `navigation-client.ts` | 52 | Low — re-exports + stubs |
-| `link.ts` | 11 | Trivial — re-export |
-| `headers.ts` | 9 | Trivial — re-export |
-| `image.ts` | 48 | Low — pass-through component |
-| `font-google.ts` | 67 | Low — stub functions |
-| **Total** | **363** | |
+| Component              | Lines   | Complexity                                      |
+| ---------------------- | ------- | ----------------------------------------------- |
+| `shims.ts` (plugin)    | 155     | Medium — environment detection, virtual modules |
+| `navigation.ts`        | 21      | Low — pure re-exports                           |
+| `navigation-client.ts` | 52      | Low — re-exports + stubs                        |
+| `link.ts`              | 11      | Trivial — re-export                             |
+| `headers.ts`           | 9       | Trivial — re-export                             |
+| `image.ts`             | 48      | Low — pass-through component                    |
+| `font-google.ts`       | 67      | Low — stub functions                            |
+| **Total**              | **363** |                                                 |
 
 The shim code itself is simple. Most files are pure re-exports — thin wrappers that map `next/*` to existing `@timber-js/app/*` APIs.
 
@@ -41,7 +41,7 @@ The shim code itself is simple. Most files are pure re-exports — thin wrappers
 
 The bugs attributed to shims are actually in the **resolution machinery**, not the shims:
 
-1. **Module duplication (LOCAL-302):** `router-ref.ts` gets two instances because `#/` subpath imports resolve to different Vite module URLs than relative imports. This is a Vite module resolution bug — it would exist even without next/* shims if any two import paths resolve the same file via different URLs.
+1. **Module duplication (LOCAL-302):** `router-ref.ts` gets two instances because `#/` subpath imports resolve to different Vite module URLs than relative imports. This is a Vite module resolution bug — it would exist even without next/\* shims if any two import paths resolve the same file via different URLs.
 
 2. **`CLIENT_SHIM_OVERRIDES`:** The environment-aware split (`navigation.ts` vs `navigation-client.ts`) exists to prevent server code from leaking into the browser bundle. This is legitimate but adds complexity. The fix is to make `navigation.ts` itself environment-safe (conditional re-exports or two separate modules behind the same shim entry), not to remove shims.
 
@@ -50,6 +50,7 @@ The bugs attributed to shims are actually in the **resolution machinery**, not t
 ### Maintenance burden
 
 The shim surface is **stable**. Next.js's public API for these modules hasn't changed significantly in 2+ years:
+
 - `next/link` — unchanged since App Router launch
 - `next/navigation` — `useRouter`, `usePathname`, `useSearchParams`, `redirect`, `notFound` are all stable
 - `next/headers` — `headers()`, `cookies()` are stable
@@ -61,18 +62,19 @@ New additions (e.g., `useLinkStatus`, `forbidden()`) can be shimmed incrementall
 
 ## Audit: Ecosystem library dependencies
 
-### Libraries that import next/*
+### Libraries that import next/\*
 
-| Library | Imports | Compatible today? |
-|---------|---------|-------------------|
-| **nuqs** | `next/navigation.js` (`useRouter`, `useSearchParams`) | ✅ Yes |
-| **next-intl** | `next/navigation` (hooks + redirect), `next/link`, `next/headers` | ✅ Yes (except middleware) |
-| **next-themes** | None | ✅ Yes (no shims needed) |
-| **bright** (code highlighting) | `server-only` | ✅ Yes |
+| Library                        | Imports                                                           | Compatible today?          |
+| ------------------------------ | ----------------------------------------------------------------- | -------------------------- |
+| **nuqs**                       | `next/navigation.js` (`useRouter`, `useSearchParams`)             | ✅ Yes                     |
+| **next-intl**                  | `next/navigation` (hooks + redirect), `next/link`, `next/headers` | ✅ Yes (except middleware) |
+| **next-themes**                | None                                                              | ✅ Yes (no shims needed)   |
+| **bright** (code highlighting) | `server-only`                                                     | ✅ Yes                     |
 
-### Could these libraries use @timber-js/app/* instead?
+### Could these libraries use @timber-js/app/\* instead?
 
 **No.** These are published npm packages that import `next/*`. They can't import `@timber-js/app/*` because:
+
 1. They don't know about timber — they target the Next.js ecosystem
 2. Forking them defeats the purpose (ecosystem compatibility is a core value)
 3. "Thin adapter layers" would just re-create the shim system in userland
@@ -84,6 +86,7 @@ The only alternative to framework-level shims is asking users to fork ecosystem 
 ## Audit: Would removing shims fix LOCAL-302?
 
 **No.** LOCAL-302's root cause is Vite resolving `#/client/use-router.js` → `router-ref.ts` via a different module URL than `./router-ref.js` from `browser-entry.ts`. This happens because:
+
 - The shim chain goes: `next/navigation` → `shims/navigation-client.ts` → `#/client/use-router.js`
 - The browser entry goes: `virtual:timber-browser-entry` → `./router-ref.js`
 
@@ -109,6 +112,7 @@ Even without shims, if any user code imports `useRouter` from `@timber-js/app/cl
 ### What would removal look like?
 
 If we ever decide to remove shims:
+
 - `next-playground-migration` example would need full rewrite to `@timber-js/app/*` imports
 - nuqs, next-intl users would need to either fork those libraries or install a userland shim package
 - A codemod could handle user code (`next/link` → `@timber-js/app/client`), but can't fix third-party deps

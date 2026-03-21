@@ -8,65 +8,65 @@ This document captures benchmarking methodology, findings, and lessons from comp
 
 Both apps run on the same Kubernetes cluster behind the same Cloudflare proxy:
 
-| | timber.js | Next.js |
-|---|---|---|
-| **Pods** | 1 | 2 |
-| **Container port** | 3000 | 3000 |
-| **Ingress** | nginx ingress | nginx ingress |
-| **CDN** | Cloudflare (same zone) | Cloudflare (same zone) |
-| **Data source** | relisten API (same endpoints) | relisten API (same endpoints) |
-| **Caching** | `timber.cache` + `React.cache` | Next.js fetch cache + `React.cache` |
+|                    | timber.js                      | Next.js                             |
+| ------------------ | ------------------------------ | ----------------------------------- |
+| **Pods**           | 1                              | 2                                   |
+| **Container port** | 3000                           | 3000                                |
+| **Ingress**        | nginx ingress                  | nginx ingress                       |
+| **CDN**            | Cloudflare (same zone)         | Cloudflare (same zone)              |
+| **Data source**    | relisten API (same endpoints)  | relisten API (same endpoints)       |
+| **Caching**        | `timber.cache` + `React.cache` | Next.js fetch cache + `React.cache` |
 
 ## Key Findings
 
 ### Latency (warm cache, `hyperfine --warmup 3 --runs 20`)
 
-| Route | Timber | Next.js | Winner |
-|---|---|---|---|
-| `/` (homepage) | 1,147ms ± 966 | **771ms ± 503** | Next.js 1.49x |
-| `/grateful-dead` | **717ms ± 444** | 878ms ± 562 | Timber 1.18x |
-| `/grateful-dead/1977` | **320ms ± 19** | 340ms ± 56 | Timber 1.14x |
-| `/grateful-dead/1977/05/08` | **338ms ± 20** | 412ms ± 145 | Timber 1.09x |
+| Route                       | Timber          | Next.js         | Winner        |
+| --------------------------- | --------------- | --------------- | ------------- |
+| `/` (homepage)              | 1,147ms ± 966   | **771ms ± 503** | Next.js 1.49x |
+| `/grateful-dead`            | **717ms ± 444** | 878ms ± 562     | Timber 1.18x  |
+| `/grateful-dead/1977`       | **320ms ± 19**  | 340ms ± 56      | Timber 1.14x  |
+| `/grateful-dead/1977/05/08` | **338ms ± 20**  | 412ms ± 145     | Timber 1.09x  |
 
 Timber wins 3 of 4 routes. On sub-pages, timber is significantly more consistent (σ of 19-20ms vs 56-145ms). The homepage is slower with high variance — likely a cache warming issue since `/` loads the most data.
 
 ### Under Load (100 requests, 10 concurrent via `hey`)
 
-| | Timber | Next.js |
-|---|---|---|
-| **p50** | 1,116ms | 957ms |
-| **p90** | 1,402ms | 1,992ms |
+|                    | Timber           | Next.js         |
+| ------------------ | ---------------- | --------------- |
+| **p50**            | 1,116ms          | 957ms           |
+| **p90**            | 1,402ms          | 1,992ms         |
 | **Latency spread** | Tight (1.0-1.5s) | Wide (0.2-2.0s) |
-| **req/sec** | 8.5 | 8.8 |
+| **req/sec**        | 8.5              | 8.8             |
 
 Similar throughput but timber has much tighter latency distribution under concurrent load.
 
 ### RSC Payload Size (client navigation)
 
-| | Timber | Next.js |
-|---|---|---|
-| **Uncompressed** | 994 KB | 995 KB |
-| **Compressed (br)** | 117 KB | 117 KB |
-| **Flight rows** | 41 | 39 |
+|                     | Timber | Next.js |
+| ------------------- | ------ | ------- |
+| **Uncompressed**    | 994 KB | 995 KB  |
+| **Compressed (br)** | 117 KB | 117 KB  |
+| **Flight rows**     | 41     | 39      |
 
 Virtually identical — no overhead from timber's RSC format.
 
 ### JS Bundle Size
 
-| | Timber | Next.js |
-|---|---|---|
-| **Total JS (br)** | 256 KB | 398 KB |
-| **Unique JS files** | 10 | 24 |
+|                     | Timber | Next.js |
+| ------------------- | ------ | ------- |
+| **Total JS (br)**   | 256 KB | 398 KB  |
+| **Unique JS files** | 10     | 24      |
 
 Timber ships 36% less JavaScript with fewer network requests.
 
 ### Initial HTML Response
 
-| | Timber | Next.js |
-|---|---|---|
-| **Uncompressed** | 1,676 KB | 1,321 KB |
-| **Compressed (br)** | 82 KB | 127 KB |
-| **Inline RSC payload** | 951 KB | 662 KB |
+|                        | Timber   | Next.js  |
+| ---------------------- | -------- | -------- |
+| **Uncompressed**       | 1,676 KB | 1,321 KB |
+| **Compressed (br)**    | 82 KB    | 127 KB   |
+| **Inline RSC payload** | 951 KB   | 662 KB   |
 
 Timber's uncompressed HTML is larger (more inline RSC data) but compresses better — 35% smaller on the wire.
 
@@ -104,14 +104,14 @@ Never send HTTP informational responses (1xx) to upstream connections unless the
 
 ### Tools
 
-| Tool | Purpose |
-|---|---|
-| `hyperfine` | Statistical comparison of two commands (mean, σ, min/max). Use `--warmup 3 --runs 20` minimum. |
-| `hey` | HTTP load testing with concurrency. Use for throughput and latency distribution under load. |
-| `curl --trace-time` | Precise timing of each phase (DNS, TLS, TTFB, streaming). Use to diagnose where time is spent. |
-| `curl -w` format | Quick TTFB/total measurements. Use `%{time_starttransfer}` for TTFB, `%{time_total}` for total. |
-| `kubectl top pod` | CPU/memory usage during load tests. Sample before, during, and after. |
-| `Server-Timing` header | Origin-side timing visible in browser DevTools. Always deploy to production. |
+| Tool                   | Purpose                                                                                         |
+| ---------------------- | ----------------------------------------------------------------------------------------------- |
+| `hyperfine`            | Statistical comparison of two commands (mean, σ, min/max). Use `--warmup 3 --runs 20` minimum.  |
+| `hey`                  | HTTP load testing with concurrency. Use for throughput and latency distribution under load.     |
+| `curl --trace-time`    | Precise timing of each phase (DNS, TLS, TTFB, streaming). Use to diagnose where time is spent.  |
+| `curl -w` format       | Quick TTFB/total measurements. Use `%{time_starttransfer}` for TTFB, `%{time_total}` for total. |
+| `kubectl top pod`      | CPU/memory usage during load tests. Sample before, during, and after.                           |
+| `Server-Timing` header | Origin-side timing visible in browser DevTools. Always deploy to production.                    |
 
 ### What to Measure
 

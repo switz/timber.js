@@ -15,7 +15,10 @@ import type { HeadElement } from './metadata.js';
  * Handles og:title, og:description, og:image (with dimensions/alt),
  * og:video, og:audio, og:article:author, and other OG properties.
  */
-export function renderOpenGraph(og: NonNullable<Metadata['openGraph']>, elements: HeadElement[]): void {
+export function renderOpenGraph(
+  og: NonNullable<Metadata['openGraph']>,
+  elements: HeadElement[]
+): void {
   const simpleProps: Array<[string, string | undefined]> = [
     ['og:title', og.title],
     ['og:description', og.description],

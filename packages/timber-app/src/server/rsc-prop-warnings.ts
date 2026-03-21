@@ -42,8 +42,7 @@ const DETECTION_RULES: Array<{
     pattern: /RegExp/i,
     info: {
       type: 'RegExp',
-      suggestion:
-        'Use .toString() to serialize, and new RegExp() to reconstruct on the client.',
+      suggestion: 'Use .toString() to serialize, and new RegExp() to reconstruct on the client.',
     },
   },
   {
@@ -58,24 +57,21 @@ const DETECTION_RULES: Array<{
     pattern: /URLSearchParams/,
     info: {
       type: 'URLSearchParams',
-      suggestion:
-        'Pass .toString() to serialize, or spread entries: Object.fromEntries(params).',
+      suggestion: 'Pass .toString() to serialize, or spread entries: Object.fromEntries(params).',
     },
   },
   {
     pattern: /Headers/,
     info: {
       type: 'Headers',
-      suggestion:
-        'Convert to a plain object: Object.fromEntries(headers.entries()).',
+      suggestion: 'Convert to a plain object: Object.fromEntries(headers.entries()).',
     },
   },
   {
     pattern: /Symbol/i,
     info: {
       type: 'Symbol',
-      suggestion:
-        'Symbols cannot be serialized. Use a string identifier instead.',
+      suggestion: 'Symbols cannot be serialized. Use a string identifier instead.',
     },
   },
   {
@@ -91,8 +87,7 @@ const DETECTION_RULES: Array<{
     pattern: /Classes or null prototypes/i,
     info: {
       type: 'class instance',
-      suggestion:
-        'Spread to a plain object: { ...instance } or extract the needed properties.',
+      suggestion: 'Spread to a plain object: { ...instance } or extract the needed properties.',
     },
   },
   {
@@ -116,9 +111,7 @@ const DETECTION_RULES: Array<{
  * Returns type info with an actionable fix, or null if the error
  * is not related to RSC prop serialization.
  */
-export function detectNonSerializableType(
-  errorMessage: string
-): NonSerializableTypeInfo | null {
+export function detectNonSerializableType(errorMessage: string): NonSerializableTypeInfo | null {
   if (!errorMessage) return null;
 
   for (const rule of DETECTION_RULES) {
@@ -171,10 +164,7 @@ export function formatRscPropWarning(
  * @param requestPath - The request pathname for context
  * @returns true if a warning was emitted
  */
-export function checkAndWarnRscPropError(
-  error: unknown,
-  requestPath: string
-): boolean {
+export function checkAndWarnRscPropError(error: unknown, requestPath: string): boolean {
   if (process.env.NODE_ENV === 'production') return false;
   if (!(error instanceof Error)) return false;
 

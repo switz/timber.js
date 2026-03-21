@@ -67,7 +67,7 @@ export interface RouterDeps {
    */
   navigateTransition?: (
     pendingUrl: string,
-    perform: (wrapPayload: (payload: unknown) => unknown) => Promise<unknown>,
+    perform: (wrapPayload: (payload: unknown) => unknown) => Promise<unknown>
   ) => Promise<void>;
 }
 
@@ -359,9 +359,7 @@ export function createRouter(deps: RouterDeps): RouterInstance {
     // Module-level fallback for tests (no NavigationProvider) and SSR
     setCurrentParams(resolvedParams);
     // Navigation context — read by renderRoot to wrap the RSC element
-    const pathname = url.startsWith('http')
-      ? new URL(url).pathname
-      : url.split('?')[0] || '/';
+    const pathname = url.startsWith('http') ? new URL(url).pathname : url.split('?')[0] || '/';
     setNavigationState({ params: resolvedParams, pathname });
   }
 
@@ -373,7 +371,7 @@ export function createRouter(deps: RouterDeps): RouterInstance {
    */
   async function renderViaTransition(
     pendingUrl: string,
-    perform: () => Promise<FetchResult>,
+    perform: () => Promise<FetchResult>
   ): Promise<HeadElement[] | null> {
     if (deps.navigateTransition) {
       let headElements: HeadElement[] | null = null;
@@ -412,7 +410,7 @@ export function createRouter(deps: RouterDeps): RouterInstance {
    */
   async function performNavigationFetch(
     url: string,
-    options: { replace: boolean },
+    options: { replace: boolean }
   ): Promise<FetchResult> {
     // Check prefetch cache first. PrefetchResult has optional segmentInfo/params
     // fields — normalize to null for FetchResult compatibility.
@@ -476,7 +474,7 @@ export function createRouter(deps: RouterDeps): RouterInstance {
 
     try {
       const headElements = await renderViaTransition(url, () =>
-        performNavigationFetch(url, { replace }),
+        performNavigationFetch(url, { replace })
       );
 
       // Update document.title and <meta> tags with the new page's metadata

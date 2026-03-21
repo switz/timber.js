@@ -153,4 +153,3 @@ function compressWithGzip(body: ReadableStream<Uint8Array>): ReadableStream<Uint
   // than ReadableStream's Uint8Array, but Uint8Array is a valid BufferSource.
   return body.pipeThrough(compressionStream as unknown as TransformStream<Uint8Array, Uint8Array>);
 }
-

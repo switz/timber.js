@@ -273,7 +273,7 @@ export function generateNitroEntry(
   buildDir: string,
   outDir: string,
   preset: NitroPreset,
-  hasManifestInit = false,
+  hasManifestInit = false
 ): string {
   // The RSC entry is the main request handler — it exports the fetch handler as default.
   // rsc/ is copied into the nitro dir so the import is local.

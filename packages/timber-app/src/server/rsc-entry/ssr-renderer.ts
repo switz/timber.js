@@ -121,9 +121,7 @@ export async function renderSsrResponse(opts: SsrRenderOptions): Promise<Respons
   // promotion if the denial was already handled by a TimberErrorBoundary
   // (e.g., slot error boundary). The boundary sets navContext._denyHandledByBoundary
   // during SSR rendering. See LOCAL-298.
-  function checkCapturedSignals(
-    skipHandledDeny = false
-  ): Response | Promise<Response> | null {
+  function checkCapturedSignals(skipHandledDeny = false): Response | Promise<Response> | null {
     if (signals.redirectSignal) {
       return buildRedirectResponse(req, signals.redirectSignal, responseHeaders);
     }

@@ -106,7 +106,10 @@ export interface NavigationProviderProps {
  * Used in browser-entry.ts renderRoot to wrap the RSC payload element
  * so that navigation state updates atomically with the tree render.
  */
-export function NavigationProvider({ value, children }: NavigationProviderProps): React.ReactElement {
+export function NavigationProvider({
+  value,
+  children,
+}: NavigationProviderProps): React.ReactElement {
   const ctx = getOrCreateContext();
   if (!ctx) {
     // RSC environment — no context available. Return children as-is.

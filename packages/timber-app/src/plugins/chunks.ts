@@ -181,7 +181,8 @@ export function assignClientChunk(meta: {
 }): string | undefined {
   // Timber framework client modules → vendor-timber
   // Match both monorepo paths (/timber-app/) and consumer paths (/@timber-js/app/)
-  if (meta.id.includes('/timber-app/') || meta.id.includes('/@timber-js/app/')) return 'vendor-timber';
+  if (meta.id.includes('/timber-app/') || meta.id.includes('/@timber-js/app/'))
+    return 'vendor-timber';
 
   // Small user client components → shared-client (prevents facade micro-chunks)
   if (!meta.id.includes('\0') && meta.id.startsWith('/')) {

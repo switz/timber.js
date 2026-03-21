@@ -71,10 +71,7 @@ export function findNonSerializable(value: unknown, path = 'data'): string | nul
   }
 
   for (const key of Object.keys(value as Record<string, unknown>)) {
-    const result = findNonSerializable(
-      (value as Record<string, unknown>)[key],
-      `${path}.${key}`
-    );
+    const result = findNonSerializable((value as Record<string, unknown>)[key], `${path}.${key}`);
     if (result) return result;
   }
   return null;

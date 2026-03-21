@@ -106,7 +106,10 @@ export function useQueryStates<T extends Record<string, unknown>>(
   try {
     [values, setValues] = nuqsUseQueryStates(bridged, nuqsOptions);
   } catch (err) {
-    if (err instanceof Error && /Invalid hook call|cannot be called|Cannot read properties of null/i.test(err.message)) {
+    if (
+      err instanceof Error &&
+      /Invalid hook call|cannot be called|Cannot read properties of null/i.test(err.message)
+    ) {
       throw new Error(
         'useQueryStates is a client component hook and cannot be called outside a React component. ' +
           'Use definition.parse(searchParams) in server components instead.'

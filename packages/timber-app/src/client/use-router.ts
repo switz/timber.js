@@ -63,7 +63,9 @@ export function useRouter(): AppRouterInstance {
       const router = getRouterOrNull();
       if (!router) {
         if (process.env.NODE_ENV === 'development') {
-          console.error('[timber] useRouter().push() called but router is not initialized. This is a bug — please report it.');
+          console.error(
+            '[timber] useRouter().push() called but router is not initialized. This is a bug — please report it.'
+          );
         }
         return;
       }

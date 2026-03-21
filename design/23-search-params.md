@@ -374,28 +374,28 @@ Audit of the search params API comparing timber's surface against nuqs and ident
 
 **`@timber-js/app/search-params`:**
 
-| Export                      | Kind         | Purpose                                                      |
-| --------------------------- | ------------ | ------------------------------------------------------------ |
-| `createSearchParams`        | factory      | Build a `SearchParamsDefinition<T>` from codecs              |
-| `fromSchema`                | codec bridge | Standard Schema (Zod, Valibot, ArkType) → `SearchParamCodec` |
-| `fromArraySchema`           | codec bridge | Standard Schema for array-valued params                      |
-| `registerSearchParams`      | registry     | Route-scoped registration (internal)                         |
-| `getSearchParams`           | registry     | Route-scoped lookup (internal)                               |
-| `parseAsString`             | codec        | String codec, returns `string \| null`                       |
-| `parseAsInteger`            | codec        | Integer codec, returns `number \| null`                      |
-| `parseAsFloat`              | codec        | Float codec, returns `number \| null`                        |
-| `parseAsBoolean`            | codec        | Boolean codec (`true/1/false/0`), returns `boolean \| null`  |
-| `parseAsStringEnum`         | codec factory| String enum codec from allowed values list                   |
-| `parseAsStringLiteral`      | codec factory| String literal codec from `as const` tuple                   |
-| `withDefault`               | codec wrapper| Replaces null with a default value, makes output non-nullable|
-| `analyzeSearchParams`       | build-time   | Static analysis of `search-params.ts` files                  |
-| `SearchParamCodec<T>`       | type         | Codec protocol: `parse` + `serialize`                        |
-| `InferCodec<C>`             | type         | Extract `T` from a codec                                     |
-| `SearchParamsDefinition<T>` | type         | Full definition with parse/serialize/compose/hook            |
-| `SetParams<T>`              | type         | Setter function signature                                    |
-| `SetParamsOptions`          | type         | Options for setter (shallow, scroll, history)                |
-| `QueryStatesOptions`        | type         | Options for `useQueryStates` hook                            |
-| `SearchParamsOptions`       | type         | Options for `createSearchParams` (urlKeys)                   |
+| Export                      | Kind          | Purpose                                                       |
+| --------------------------- | ------------- | ------------------------------------------------------------- |
+| `createSearchParams`        | factory       | Build a `SearchParamsDefinition<T>` from codecs               |
+| `fromSchema`                | codec bridge  | Standard Schema (Zod, Valibot, ArkType) → `SearchParamCodec`  |
+| `fromArraySchema`           | codec bridge  | Standard Schema for array-valued params                       |
+| `registerSearchParams`      | registry      | Route-scoped registration (internal)                          |
+| `getSearchParams`           | registry      | Route-scoped lookup (internal)                                |
+| `parseAsString`             | codec         | String codec, returns `string \| null`                        |
+| `parseAsInteger`            | codec         | Integer codec, returns `number \| null`                       |
+| `parseAsFloat`              | codec         | Float codec, returns `number \| null`                         |
+| `parseAsBoolean`            | codec         | Boolean codec (`true/1/false/0`), returns `boolean \| null`   |
+| `parseAsStringEnum`         | codec factory | String enum codec from allowed values list                    |
+| `parseAsStringLiteral`      | codec factory | String literal codec from `as const` tuple                    |
+| `withDefault`               | codec wrapper | Replaces null with a default value, makes output non-nullable |
+| `analyzeSearchParams`       | build-time    | Static analysis of `search-params.ts` files                   |
+| `SearchParamCodec<T>`       | type          | Codec protocol: `parse` + `serialize`                         |
+| `InferCodec<C>`             | type          | Extract `T` from a codec                                      |
+| `SearchParamsDefinition<T>` | type          | Full definition with parse/serialize/compose/hook             |
+| `SetParams<T>`              | type          | Setter function signature                                     |
+| `SetParamsOptions`          | type          | Options for setter (shallow, scroll, history)                 |
+| `QueryStatesOptions`        | type          | Options for `useQueryStates` hook                             |
+| `SearchParamsOptions`       | type          | Options for `createSearchParams` (urlKeys)                    |
 
 **`@timber-js/app/client` (search-params related):**
 

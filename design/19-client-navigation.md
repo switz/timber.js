@@ -112,11 +112,11 @@ The router calls `setNavigationState({ params, pathname })` then `renderRoot(pay
 
 ### Hook Resolution Order
 
-| Environment | useParams() path | usePathname() path |
-|---|---|---|
+| Environment            | useParams() path                       | usePathname() path                       |
+| ---------------------- | -------------------------------------- | ---------------------------------------- |
 | Client (in React tree) | `useContext(NavigationContext).params` | `useContext(NavigationContext).pathname` |
-| SSR | `getSsrData().params` (ALS-backed) | `getSsrData().pathname` (ALS-backed) |
-| Outside React (tests) | Module-level `currentParams` fallback | `window.location.pathname` fallback |
+| SSR                    | `getSsrData().params` (ALS-backed)     | `getSsrData().pathname` (ALS-backed)     |
+| Outside React (tests)  | Module-level `currentParams` fallback  | `window.location.pathname` fallback      |
 
 ### What Stays on useSyncExternalStore
 
@@ -171,6 +171,7 @@ All three are stored on `globalThis` via `Symbol.for` keys, NOT as module-level 
 - **Shared-app chunk** (client reference graph) — `LinkStatusProvider` and `useParams` import it as a `'use client'` module
 
 Each chunk gets its own copy of the module with separate `let` variables. If contexts or state were stored in module-level variables:
+
 - `TransitionRoot` (index) would provide `PendingNavigationContext` instance A
 - `LinkStatusProvider` (shared-app) would read from instance B
 - `useContext` returns the default `null` → pending is always false

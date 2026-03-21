@@ -14,11 +14,7 @@
 import { canonicalize } from './canonicalize.js';
 import { runProxy, type ProxyExport } from './proxy.js';
 import { runMiddleware, type MiddlewareFn } from './middleware-runner.js';
-import {
-  runWithTimingCollector,
-  withTiming,
-  getServerTimingHeader,
-} from './server-timing.js';
+import { runWithTimingCollector, withTiming, getServerTimingHeader } from './server-timing.js';
 import {
   runWithRequestContext,
   applyRequestHeaderOverlay,
@@ -258,9 +254,7 @@ export function createPipeline(config: PipelineConfig): (req: Request) => Promis
           return response;
         };
 
-        return enableServerTiming
-          ? runWithTimingCollector(runRequest)
-          : runRequest();
+        return enableServerTiming ? runWithTimingCollector(runRequest) : runRequest();
       });
     });
   };
@@ -276,12 +270,9 @@ export function createPipeline(config: PipelineConfig): (req: Request) => Promis
       } else {
         proxyExport = config.proxy!;
       }
-      const proxyFn = () =>
-        runProxy(proxyExport, req, () => handleRequest(req, method, path));
+      const proxyFn = () => runProxy(proxyExport, req, () => handleRequest(req, method, path));
       return await withSpan('timber.proxy', {}, () =>
-        enableServerTiming
-          ? withTiming('proxy', 'proxy.ts', proxyFn)
-          : proxyFn()
+        enableServerTiming ? withTiming('proxy', 'proxy.ts', proxyFn) : proxyFn()
       );
     } catch (error) {
       // Uncaught proxy.ts error → bare HTTP 500
@@ -430,9 +421,7 @@ export function createPipeline(config: PipelineConfig): (req: Request) => Promis
         setMutableCookieContext(true);
         const middlewareFn = () => runMiddleware(match.middleware!, ctx);
         const middlewareResponse = await withSpan('timber.middleware', {}, () =>
-          enableServerTiming
-            ? withTiming('mw', 'middleware.ts', middlewareFn)
-            : middlewareFn()
+          enableServerTiming ? withTiming('mw', 'middleware.ts', middlewareFn) : middlewareFn()
         );
         setMutableCookieContext(false);
         if (middlewareResponse) {
@@ -487,9 +476,7 @@ export function createPipeline(config: PipelineConfig): (req: Request) => Promis
       const renderFn = () =>
         render(req, match, responseHeaders, requestHeaderOverlay, interception);
       const response = await withSpan('timber.render', { 'http.route': canonicalPathname }, () =>
-        enableServerTiming
-          ? withTiming('render', 'RSC + SSR render', renderFn)
-          : renderFn()
+        enableServerTiming ? withTiming('render', 'RSC + SSR render', renderFn) : renderFn()
       );
       markResponseFlushed();
       return response;
@@ -542,8 +529,6 @@ async function fireOnRequestError(
   );
 }
 
-
-
 // ─── Cookie Helpers ──────────────────────────────────────────────────────
 
 /**
@@ -585,5 +570,3 @@ function ensureMutableResponse(response: Response): Response {
     });
   }
 }
-
-

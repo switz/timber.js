@@ -19,10 +19,7 @@ import type {
   InterceptionMarker,
 } from './types.js';
 import { DEFAULT_PAGE_EXTENSIONS, INTERCEPTION_MARKERS } from './types.js';
-import {
-  classifyMetadataRoute,
-  isDynamicMetadataExtension,
-} from '#/server/metadata-routes.js';
+import { classifyMetadataRoute, isDynamicMetadataExtension } from '#/server/metadata-routes.js';
 
 /**
  * Pattern matching encoded path delimiters that must be rejected during route discovery.

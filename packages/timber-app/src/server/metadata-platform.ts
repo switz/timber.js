@@ -218,7 +218,10 @@ export function renderAppLinks(
 /**
  * Render Apple iTunes smart banner meta tag.
  */
-export function renderItunes(itunes: NonNullable<Metadata['itunes']>, elements: HeadElement[]): void {
+export function renderItunes(
+  itunes: NonNullable<Metadata['itunes']>,
+  elements: HeadElement[]
+): void {
   const parts = [`app-id=${itunes.appId}`];
   if (itunes.affiliateData) parts.push(`affiliate-data=${itunes.affiliateData}`);
   if (itunes.appArgument) parts.push(`app-argument=${itunes.appArgument}`);

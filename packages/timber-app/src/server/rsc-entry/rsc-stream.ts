@@ -46,10 +46,7 @@ export interface RscStreamResult {
  * fires onError during stream consumption. Signals are captured in the
  * returned `signals` object for the caller to handle.
  */
-export function renderRscStream(
-  element: React.ReactElement,
-  req: Request
-): RscStreamResult {
+export function renderRscStream(element: React.ReactElement, req: Request): RscStreamResult {
   const signals: RenderSignals = {
     denySignal: null,
     redirectSignal: null,

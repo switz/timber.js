@@ -135,30 +135,31 @@ All mutable module-level state that requires singleton semantics is centralized 
 
 **Client-side state: `client/state.ts`**
 
-| Variable | Purpose | Consumed By |
-| --- | --- | --- |
-| `globalRouter` | Router singleton set during bootstrap | `router-ref.ts`, `use-router.ts` |
-| `ssrDataProvider` | ALS-backed SSR data reader | `ssr-data.ts` |
-| `currentSsrData` | Fallback SSR data (tests) | `ssr-data.ts` |
-| `currentParams` | Route params snapshot | `use-params.ts` |
-| `paramsListeners` | useSyncExternalStore subscribers | `use-params.ts` |
-| `cachedSearch` / `cachedSearchParams` | Search params memoization | `use-search-params.ts` |
-| `unloading` | Page unload detection flag | `unload-guard.ts` |
+| Variable                              | Purpose                               | Consumed By                      |
+| ------------------------------------- | ------------------------------------- | -------------------------------- |
+| `globalRouter`                        | Router singleton set during bootstrap | `router-ref.ts`, `use-router.ts` |
+| `ssrDataProvider`                     | ALS-backed SSR data reader            | `ssr-data.ts`                    |
+| `currentSsrData`                      | Fallback SSR data (tests)             | `ssr-data.ts`                    |
+| `currentParams`                       | Route params snapshot                 | `use-params.ts`                  |
+| `paramsListeners`                     | useSyncExternalStore subscribers      | `use-params.ts`                  |
+| `cachedSearch` / `cachedSearchParams` | Search params memoization             | `use-search-params.ts`           |
+| `unloading`                           | Page unload detection flag            | `unload-guard.ts`                |
 
 Individual modules (`router-ref.ts`, `ssr-data.ts`, `use-params.ts`, `use-search-params.ts`, `unload-guard.ts`) import from `state.ts` and re-export thin wrapper functions. They do **not** declare their own `let` variables for shared state.
 
 **Server-side ALS: `server/als-registry.ts`**
 
-| ALS Instance | Store Type | Consumed By |
-| --- | --- | --- |
-| `requestContextAls` | `RequestContextStore` | `request-context.ts` — `headers()`, `cookies()` |
-| `traceAls` | `TraceStore` | `tracing.ts` — `traceId()`, `spanId()` |
-| `timingAls` | `TimingStore` | `server-timing.ts` — dev-mode Server-Timing |
-| `revalidationAls` | `RevalidationState` | `actions.ts` — `revalidatePath()`, `revalidateTag()` |
-| `formFlashAls` | `FormFlashData` | `form-flash.ts` — no-JS form error round-trip |
-| `earlyHintsSenderAls` | `EarlyHintsSenderFn` | `early-hints-sender.ts` — 103 Early Hints |
+| ALS Instance          | Store Type            | Consumed By                                          |
+| --------------------- | --------------------- | ---------------------------------------------------- |
+| `requestContextAls`   | `RequestContextStore` | `request-context.ts` — `headers()`, `cookies()`      |
+| `traceAls`            | `TraceStore`          | `tracing.ts` — `traceId()`, `spanId()`               |
+| `timingAls`           | `TimingStore`         | `server-timing.ts` — dev-mode Server-Timing          |
+| `revalidationAls`     | `RevalidationState`   | `actions.ts` — `revalidatePath()`, `revalidateTag()` |
+| `formFlashAls`        | `FormFlashData`       | `form-flash.ts` — no-JS form error round-trip        |
+| `earlyHintsSenderAls` | `EarlyHintsSenderFn`  | `early-hints-sender.ts` — 103 Early Hints            |
 
 Exceptions (ALS instances outside the registry):
+
 - `ssrDataAls` in `ssr-entry.ts` — lives in the SSR environment, a separate Vite module graph
 - `bindingsAls` in `adapters/cloudflare.ts` — platform-specific, loaded independently
 

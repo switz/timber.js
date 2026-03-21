@@ -36,12 +36,7 @@ import {
 // If we used relative imports (./router-ref.js), Vite would load separate src/
 // copies with separate module-level state — e.g., globalRouter set here but
 // read as null from the dist/ copy used by useRouter().
-import {
-  createRouter,
-  setGlobalRouter,
-  getRouter,
-  setCurrentParams,
-} from '@timber-js/app/client';
+import { createRouter, setGlobalRouter, getRouter, setCurrentParams } from '@timber-js/app/client';
 import type { RouterDeps, RouterInstance } from '@timber-js/app/client';
 
 // Internal-only modules (no shared mutable state with user code) use relative
@@ -49,7 +44,11 @@ import type { RouterDeps, RouterInstance } from '@timber-js/app/client';
 import { applyHeadElements } from './head.js';
 import { TimberNuqsAdapter } from './nuqs-adapter.js';
 import { isPageUnloading } from './unload-guard.js';
-import { NavigationProvider, getNavigationState, setNavigationState } from './navigation-context.js';
+import {
+  NavigationProvider,
+  getNavigationState,
+  setNavigationState,
+} from './navigation-context.js';
 import { setupServerLogReplay, setupClientErrorForwarding } from './browser-dev.js';
 import { handleLinkClick, handleLinkHover } from './browser-links.js';
 import { TransitionRoot, transitionRender, navigateTransition } from './transition-root.js';
@@ -308,7 +307,11 @@ function bootstrap(runtimeConfig: typeof config): void {
     // startTransition, so React keeps old UI visible while new Suspense
     // boundaries resolve during navigation. See design/05-streaming.md.
     const navState = getNavigationState();
-    const withNav = createElement(NavigationProvider, { value: navState }, element as React.ReactNode);
+    const withNav = createElement(
+      NavigationProvider,
+      { value: navState },
+      element as React.ReactNode
+    );
     const wrapped = createElement(TimberNuqsAdapter, null, withNav);
     const rootElement = createElement(TransitionRoot, { initial: wrapped });
     _reactRoot = hydrateRoot(document, rootElement, {
@@ -376,7 +379,11 @@ function bootstrap(runtimeConfig: typeof config): void {
       // in a React transition with useOptimistic for the pending URL.
       renderRoot: (element: unknown) => {
         const navState = getNavigationState();
-        const withNav = createElement(NavigationProvider, { value: navState }, element as React.ReactNode);
+        const withNav = createElement(
+          NavigationProvider,
+          { value: navState },
+          element as React.ReactNode
+        );
         const wrapped = createElement(TimberNuqsAdapter, null, withNav);
         transitionRender(wrapped);
       },
@@ -394,7 +401,11 @@ function bootstrap(runtimeConfig: typeof config): void {
         return navigateTransition(pendingUrl, async () => {
           const payload = await perform((rawPayload: unknown) => {
             const navState = getNavigationState();
-            const withNav = createElement(NavigationProvider, { value: navState }, rawPayload as React.ReactNode);
+            const withNav = createElement(
+              NavigationProvider,
+              { value: navState },
+              rawPayload as React.ReactNode
+            );
             return createElement(TimberNuqsAdapter, null, withNav);
           });
           return payload as React.ReactNode;
@@ -541,8 +552,6 @@ function bootstrap(runtimeConfig: typeof config): void {
     setupClientErrorForwarding(hot);
   }
 }
-
-
 
 bootstrap(config);
 

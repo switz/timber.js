@@ -22,12 +22,7 @@
  * See design/19-client-navigation.md §"NavigationContext"
  */
 
-import {
-  useState,
-  useTransition,
-  createElement,
-  type ReactNode,
-} from 'react';
+import { useState, useTransition, createElement, type ReactNode } from 'react';
 import { PendingNavigationProvider } from './navigation-context.js';
 
 // ─── Module-level functions ──────────────────────────────────────
@@ -43,10 +38,9 @@ let _transitionRender: ((element: ReactNode) => void) | null = null;
  * Wraps a full navigation (fetch + render) in a single startTransition
  * with useOptimistic for the pending URL.
  */
-let _navigateTransition: ((
-  pendingUrl: string,
-  perform: () => Promise<ReactNode>,
-) => Promise<void>) | null = null;
+let _navigateTransition:
+  | ((pendingUrl: string, perform: () => Promise<ReactNode>) => Promise<void>)
+  | null = null;
 
 // ─── Component ───────────────────────────────────────────────────
 
@@ -140,7 +134,7 @@ export function transitionRender(element: ReactNode): void {
  */
 export function navigateTransition(
   pendingUrl: string,
-  perform: () => Promise<ReactNode>,
+  perform: () => Promise<ReactNode>
 ): Promise<void> {
   if (_navigateTransition) {
     return _navigateTransition(pendingUrl, perform);

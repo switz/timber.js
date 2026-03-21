@@ -12,11 +12,7 @@
 
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import type { Routes } from '#/index.js';
-import {
-  requestContextAls,
-  type RequestContextStore,
-  type CookieEntry,
-} from './als-registry.js';
+import { requestContextAls, type RequestContextStore, type CookieEntry } from './als-registry.js';
 
 // Re-export the ALS for framework-internal consumers that need direct access.
 export { requestContextAls };

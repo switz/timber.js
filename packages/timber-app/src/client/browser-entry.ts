@@ -152,7 +152,56 @@ function getScrollY(): number {
   for (const el of document.querySelectorAll('[data-timber-scroll-restoration]')) {
     if ((el as HTMLElement).scrollTop > 0) return (el as HTMLElement).scrollTop;
   }
+  // Auto-detect: if window isn't scrolled, check for overflow containers.
+  // Common pattern: layouts use a scrollable div (overflow-y: auto/scroll)
+  // inside a fixed-height parent (h-screen). In this case window.scrollY is
+  // always 0 and the real scroll position lives on the overflow container.
+  const container = findOverflowContainer();
+  if (container && container.scrollTop > 0) return container.scrollTop;
   return 0;
+}
+
+/**
+ * Find the primary overflow scroll container in the document.
+ *
+ * Walks direct children of body and their immediate children looking for
+ * an element with overflow-y: auto|scroll that is actually scrollable
+ * (scrollHeight > clientHeight). Returns the first match, or null.
+ *
+ * This heuristic covers the common layout patterns:
+ *   <body> → <html-wrapper> → <div class="overflow-y-auto">
+ *   <body> → <main class="overflow-y-auto">
+ *
+ * We limit depth to avoid expensive full-tree traversals.
+ *
+ * DIVERGENCE FROM NEXT.JS: Next.js's ScrollAndFocusHandler scrolls only
+ * document.documentElement.scrollTop — it does NOT handle overflow containers.
+ * Layouts using h-screen + overflow-y-auto have the same scroll bug in Next.js.
+ * This heuristic is a deliberate improvement. The tradeoff is fragility: depth-2
+ * traversal may miss deeply nested containers or match the wrong element.
+ * See design/19-client-navigation.md §"Overflow Scroll Containers".
+ */
+function findOverflowContainer(): HTMLElement | null {
+  const candidates: HTMLElement[] = [];
+  // Check body's direct children and their children (depth 2)
+  for (const child of document.body.children) {
+    candidates.push(child as HTMLElement);
+    for (const grandchild of child.children) {
+      candidates.push(grandchild as HTMLElement);
+    }
+  }
+  for (const el of candidates) {
+    if (!(el instanceof HTMLElement)) continue;
+    const style = getComputedStyle(el);
+    const overflowY = style.overflowY;
+    if (
+      (overflowY === 'auto' || overflowY === 'scroll') &&
+      el.scrollHeight > el.clientHeight
+    ) {
+      return el;
+    }
+  }
+  return null;
 }
 
 function bootstrap(runtimeConfig: typeof config): void {
@@ -358,6 +407,16 @@ function bootstrap(runtimeConfig: typeof config): void {
         // Also scroll any element explicitly marked as a scroll container.
         for (const el of document.querySelectorAll('[data-timber-scroll-restoration]')) {
           (el as HTMLElement).scrollTop = y;
+        }
+        // Auto-detect overflow containers for layouts that scroll inside
+        // a fixed-height wrapper (e.g., h-screen + overflow-y-auto).
+        // In these layouts, window.scrollY is always 0 and the real scroll
+        // lives on the overflow container. Without this, forward navigation
+        // between pages that share a layout with parallel route slots won't
+        // scroll to top — the router's window.scrollTo(0,0) is a no-op.
+        const container = findOverflowContainer();
+        if (container) {
+          container.scrollTop = y;
         }
       },
       getCurrentUrl: () => window.location.pathname + window.location.search,

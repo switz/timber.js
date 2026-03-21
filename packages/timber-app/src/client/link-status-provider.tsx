@@ -22,7 +22,7 @@ const IS_PENDING: LinkStatus = { pending: true };
  * and provides a scoped LinkStatusContext to children. Renders no extra DOM —
  * just a context provider around children.
  */
-export function LinkStatusProvider({ href, children }: { href: string; children: ReactNode }) {
+export function LinkStatusProvider({ href, children }: { href: string; children?: ReactNode }) {
   const pendingUrl = usePendingNavigationUrl();
   const status = pendingUrl === href ? IS_PENDING : NOT_PENDING;
 

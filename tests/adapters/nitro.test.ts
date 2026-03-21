@@ -506,13 +506,10 @@ describe('compression in generated code', () => {
   it('generateCompressModule produces valid ESM with compressResponse export', () => {
     const mod = generateCompressModule();
     expect(mod).toContain('export function compressResponse');
-    expect(mod).toContain("import { createBrotliCompress");
     expect(mod).toContain("new CompressionStream('gzip')");
-  });
-
-  it('generateCompressModule includes brotli quality param for streaming', () => {
-    const mod = generateCompressModule();
-    expect(mod).toContain('BROTLI_PARAM_QUALITY');
+    // Brotli is intentionally not included — left to CDNs/reverse proxies
+    expect(mod).not.toContain('createBrotliCompress');
+    expect(mod).not.toContain('BROTLI_PARAM_QUALITY');
   });
 
   it('buildOutput writes _compress.mjs to nitro output dir', async () => {

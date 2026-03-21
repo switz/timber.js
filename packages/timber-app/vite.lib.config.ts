@@ -62,7 +62,7 @@ export default defineConfig({
         '@opentelemetry/api',
         '@opentelemetry/context-async-hooks',
         '@opentelemetry/sdk-trace-base',
-        'nitro',
+        /^nitro/,
         // Optional peer dependencies
         '@content-collections/core',
         '@content-collections/mdx',

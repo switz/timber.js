@@ -297,7 +297,7 @@ describe('generateNitroEntry', () => {
     expect(entry).toContain('defineEventHandler');
     // h3 v2: event.req is the Web Request, return response directly
     expect(entry).toContain('event.req');
-    expect(entry).toContain('return webResponse');
+    expect(entry).toContain('return compressResponse(webRequest, webResponse)');
   });
 
   it('imports from nitro/h3', () => {

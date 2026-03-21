@@ -632,3 +632,49 @@ describe('renderFallbackError', () => {
     expect(fallbackSpy).not.toHaveBeenCalled();
   });
 });
+
+// ─── Production Server-Timing ─────────────────────────────────────────────
+
+describe('production Server-Timing header', () => {
+  it('emits total duration when enableServerTiming is false', async () => {
+    const handler = createPipeline(
+      makeConfig({
+        enableServerTiming: false,
+      })
+    );
+
+    const res = await handler(makeRequest('/test'));
+    const timing = res.headers.get('Server-Timing');
+    expect(timing).toBeTruthy();
+    // Should be just "total;dur=N" — no phase breakdown
+    expect(timing).toMatch(/^total;dur=\d+$/);
+  });
+
+  it('emits detailed timing when enableServerTiming is true', async () => {
+    const handler = createPipeline(
+      makeConfig({
+        enableServerTiming: true,
+      })
+    );
+
+    const res = await handler(makeRequest('/test'));
+    const timing = res.headers.get('Server-Timing');
+    expect(timing).toBeTruthy();
+    // Dev mode includes named phases like "render"
+    expect(timing).toContain('render;dur=');
+  });
+
+  it('production total;dur is non-negative', async () => {
+    const handler = createPipeline(
+      makeConfig({
+        enableServerTiming: false,
+      })
+    );
+
+    const res = await handler(makeRequest('/test'));
+    const timing = res.headers.get('Server-Timing')!;
+    const match = timing.match(/total;dur=(\d+)/);
+    expect(match).toBeTruthy();
+    expect(Number(match![1])).toBeGreaterThanOrEqual(0);
+  });
+});

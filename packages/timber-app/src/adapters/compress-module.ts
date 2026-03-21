@@ -37,12 +37,25 @@ const NO_COMPRESS_STATUSES = new Set([204, 304]);
 
 function negotiateEncoding(acceptEncoding) {
   if (!acceptEncoding) return null;
-  const tokens = acceptEncoding.split(',').map(s => s.split(';')[0].trim().toLowerCase());
+  // Parse tokens with quality values. Per RFC 9110 §12.5.3, q=0 means
+  // "not acceptable" — the client explicitly rejects that encoding.
   // Brotli (br) is intentionally not handled at the application level.
-  // At streaming-friendly quality levels (0-4), brotli's ratio advantage over
-  // gzip is marginal, and node:zlib's brotli transform buffers output internally.
-  // CDNs/reverse proxies apply brotli at higher quality levels on cached responses.
-  if (tokens.includes('gzip')) return 'gzip';
+  const parts = acceptEncoding.split(',');
+  for (const part of parts) {
+    const [token, ...params] = part.split(';');
+    const name = token.trim().toLowerCase();
+    if (name !== 'gzip') continue;
+    let qValue = 1;
+    for (const param of params) {
+      const trimmed = param.trim().toLowerCase();
+      if (trimmed.startsWith('q=')) {
+        qValue = parseFloat(trimmed.slice(2));
+        if (Number.isNaN(qValue)) qValue = 1;
+        break;
+      }
+    }
+    if (qValue > 0) return 'gzip';
+  }
   return null;
 }
 

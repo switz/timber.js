@@ -55,11 +55,30 @@ const NO_COMPRESS_STATUSES = new Set([204, 304]);
 export function negotiateEncoding(acceptEncoding: string): 'gzip' | null {
   if (!acceptEncoding) return null;
 
-  // Parse tokens from the Accept-Encoding header (ignore quality values).
-  // e.g. "gzip;q=1.0, br;q=0.8, deflate" → ['gzip', 'br', 'deflate']
-  const tokens = acceptEncoding.split(',').map((s) => s.split(';')[0].trim().toLowerCase());
+  // Parse tokens with quality values from the Accept-Encoding header.
+  // Per RFC 9110 §12.5.3, q=0 means "not acceptable" — the client explicitly
+  // rejects that encoding. Tokens without a q-value default to q=1.
+  // e.g. "gzip;q=1.0, br;q=0" → gzip is acceptable, br is rejected.
+  const parts = acceptEncoding.split(',');
+  for (const part of parts) {
+    const [token, ...params] = part.split(';');
+    const name = token.trim().toLowerCase();
+    if (name !== 'gzip') continue;
 
-  if (tokens.includes('gzip')) return 'gzip';
+    // Check for q=0 (explicitly disabled)
+    let qValue = 1; // default quality is 1
+    for (const param of params) {
+      const trimmed = param.trim().toLowerCase();
+      if (trimmed.startsWith('q=')) {
+        qValue = parseFloat(trimmed.slice(2));
+        if (Number.isNaN(qValue)) qValue = 1;
+        break;
+      }
+    }
+
+    if (qValue > 0) return 'gzip';
+  }
+
   return null;
 }
 

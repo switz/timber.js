@@ -2,6 +2,7 @@ import { type ReactNode } from 'react';
 import type { Metadata } from '@timber-js/app/server';
 import { Link } from '@timber-js/app/client';
 import Counter from './Counter';
+import { LinkWithStatus, GlobalPendingIndicator } from './nav-shell';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -75,6 +76,12 @@ const navSections = [
     links: [{ href: '/forms-test', testid: 'link-forms', text: 'Validated Form' }],
   },
   {
+    label: 'Pending',
+    links: [
+      { href: '/pending-test', testid: 'link-pending-test', text: 'Slow Page (2s)' },
+    ],
+  },
+  {
     label: 'Other',
     links: [
       { href: '/search-params-test', testid: 'link-search-params', text: 'Search Params' },
@@ -95,6 +102,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <head />
       <body className="bg-stone-50 text-stone-800 antialiased">
         <div className="flex h-dvh">
+          <GlobalPendingIndicator />
           <aside
             data-testid="site-header"
             className="w-56 shrink-0 bg-stone-900 text-stone-300 overflow-y-auto"
@@ -116,17 +124,27 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                     {section.label}
                   </h3>
                   <ul className="space-y-0.5">
-                    {section.links.map((link) => (
-                      <li key={link.href}>
-                        <Link
-                          href={link.href}
-                          data-testid={link.testid}
-                          className="block text-sm py-1 px-2 rounded text-stone-400 hover:text-white hover:bg-stone-800 transition-colors"
-                        >
-                          {link.text}
-                        </Link>
-                      </li>
-                    ))}
+                    {section.links.map((link) =>
+                      section.label === 'Pending' ? (
+                        <li key={link.href}>
+                          <LinkWithStatus
+                            href={link.href}
+                            testid={link.testid}
+                            text={link.text}
+                          />
+                        </li>
+                      ) : (
+                        <li key={link.href}>
+                          <Link
+                            href={link.href}
+                            data-testid={link.testid}
+                            className="block text-sm py-1 px-2 rounded text-stone-400 hover:text-white hover:bg-stone-800 transition-colors"
+                          >
+                            {link.text}
+                          </Link>
+                        </li>
+                      )
+                    )}
                   </ul>
                 </div>
               ))}

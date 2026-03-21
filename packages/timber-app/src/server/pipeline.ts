@@ -173,11 +173,16 @@ export function createPipeline(config: PipelineConfig): (req: Request) => Promis
     onPipelineError,
   } = config;
 
+  // Concurrent request counter — tracks how many requests are in-flight.
+  // Logged with each request for diagnosing resource contention.
+  let activeRequests = 0;
+
   return async (req: Request): Promise<Response> => {
     const url = new URL(req.url);
     const method = req.method;
     const path = url.pathname;
     const startTime = performance.now();
+    activeRequests++;
 
     // Establish per-request trace ID scope (design/17-logging.md §"trace_id is Always Set").
     // This runs before runWithRequestContext so traceId() is available from the
@@ -215,9 +220,9 @@ export function createPipeline(config: PipelineConfig): (req: Request) => Promis
               // DevSpanProcessor reads this for tree/summary output.
               await setSpanAttribute('http.response.status_code', result.status);
 
-              // Append Server-Timing header in dev mode.
-              // At this point, pre-flush phases (proxy, middleware, render)
-              // have completed and their timing entries are collected.
+              // Append Server-Timing header.
+              // In dev mode: detailed per-phase breakdown (proxy, middleware, render).
+              // In production: single total duration — safe to expose, no phase names.
               // Response.redirect() creates immutable headers, so we must
               // ensure mutability before writing Server-Timing.
               if (enableServerTiming) {
@@ -226,6 +231,13 @@ export function createPipeline(config: PipelineConfig): (req: Request) => Promis
                   result = ensureMutableResponse(result);
                   result.headers.set('Server-Timing', serverTiming);
                 }
+              } else {
+                // Production: emit total request duration only.
+                // No phase breakdown — prevents information disclosure
+                // while giving browser DevTools useful timing data.
+                const totalMs = Math.round(performance.now() - startTime);
+                result = ensureMutableResponse(result);
+                result.headers.set('Server-Timing', `total;dur=${totalMs}`);
               }
 
               return result;
@@ -235,10 +247,12 @@ export function createPipeline(config: PipelineConfig): (req: Request) => Promis
           // Post-span: structured production logging
           const durationMs = Math.round(performance.now() - startTime);
           const status = response.status;
-          logRequestCompleted({ method, path, status, durationMs });
+          const concurrency = activeRequests;
+          activeRequests--;
+          logRequestCompleted({ method, path, status, durationMs, concurrency });
 
           if (slowRequestMs > 0 && durationMs > slowRequestMs) {
-            logSlowRequest({ method, path, durationMs, threshold: slowRequestMs });
+            logSlowRequest({ method, path, durationMs, threshold: slowRequestMs, concurrency });
           }
 
           return response;
@@ -474,6 +488,16 @@ export function createPipeline(config: PipelineConfig): (req: Request) => Promis
       markResponseFlushed();
       return response;
     } catch (error) {
+      // DenySignal leaked from render (e.g. notFound() in metadata()).
+      // Return the deny status code instead of 500.
+      if (error instanceof DenySignal) {
+        return new Response(null, { status: error.status });
+      }
+      // RedirectSignal leaked from render — honour the redirect.
+      if (error instanceof RedirectSignal) {
+        responseHeaders.set('Location', error.location);
+        return new Response(null, { status: error.status, headers: responseHeaders });
+      }
       logRenderError({ method, path, error });
       await fireOnRequestError(error, req, 'render');
       if (onPipelineError && error instanceof Error) onPipelineError(error, 'render');

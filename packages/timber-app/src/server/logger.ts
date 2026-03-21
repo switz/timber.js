@@ -67,6 +67,8 @@ export function logRequestCompleted(data: {
   path: string;
   status: number;
   durationMs: number;
+  /** Number of concurrent in-flight requests (including this one) at completion time. */
+  concurrency?: number;
 }): void {
   _logger?.info('request completed', withTraceContext(data));
 }
@@ -82,6 +84,8 @@ export function logSlowRequest(data: {
   path: string;
   durationMs: number;
   threshold: number;
+  /** Number of concurrent in-flight requests at the time the slow request completed. */
+  concurrency?: number;
 }): void {
   _logger?.warn('slow request exceeded threshold', withTraceContext(data));
 }

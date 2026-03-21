@@ -81,6 +81,27 @@ describe('negotiateEncoding', () => {
     expect(negotiateEncoding('gzip;q=1.0, br;q=0.8')).toBe('gzip');
   });
 
+  it('returns null when gzip is explicitly disabled with q=0', () => {
+    expect(negotiateEncoding('gzip;q=0')).toBeNull();
+  });
+
+  it('returns null when gzip q=0 even with other encodings present', () => {
+    expect(negotiateEncoding('br;q=1, gzip;q=0')).toBeNull();
+  });
+
+  it('returns null when gzip q=0 and deflate present', () => {
+    expect(negotiateEncoding('gzip;q=0, deflate')).toBeNull();
+  });
+
+  it('returns gzip when q > 0', () => {
+    expect(negotiateEncoding('gzip;q=0.5')).toBe('gzip');
+    expect(negotiateEncoding('gzip;q=0.001')).toBe('gzip');
+  });
+
+  it('returns gzip when q=1 explicitly', () => {
+    expect(negotiateEncoding('br;q=0, gzip;q=1')).toBe('gzip');
+  });
+
   it('returns null for identity-only', () => {
     expect(negotiateEncoding('identity')).toBeNull();
   });
@@ -194,6 +215,14 @@ describe('compressResponse', () => {
 
   it('returns original response when client does not accept compression', () => {
     const req = requestWith('identity');
+    const res = textResponse('hello');
+
+    const result = compressResponse(req, res);
+    expect(result).toBe(res);
+  });
+
+  it('returns original response when gzip is disabled with q=0', () => {
+    const req = requestWith('gzip;q=0, br;q=1');
     const res = textResponse('hello');
 
     const result = compressResponse(req, res);

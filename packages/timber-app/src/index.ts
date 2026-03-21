@@ -61,16 +61,6 @@ export interface TimberUserConfig {
    * Server-side JS still runs — this only affects what is sent to the browser.
    */
   clientJavascript?: boolean | ClientJavascriptConfig;
-  /**
-   * @deprecated Use `clientJavascript: false` or `clientJavascript: { disabled: true }` instead.
-   *
-   * Disable all client-side JavaScript output. When true, no client JS
-   * bundles are emitted or referenced in HTML. Pages work entirely via
-   * server-rendered HTML. Works in both 'server' and 'static' modes.
-   *
-   * Server-side JS still runs — this only affects what is sent to the browser.
-   */
-  noClientJavascript?: boolean;
   adapter?: unknown;
   cacheHandler?: unknown;
   allowedOrigins?: string[];
@@ -81,6 +71,13 @@ export interface TimberUserConfig {
     maxFields?: number;
   };
   pageExtensions?: string[];
+  /**
+   * Slow request threshold in milliseconds. Requests exceeding this emit
+   * a warning via the logger. Set to 0 to disable. Default: 3000.
+   *
+   * See design/17-logging.md §"slowRequestMs".
+   */
+  slowRequestMs?: number;
   /** Dev-mode options. These have no effect in production builds. */
   dev?: {
     /** Threshold in ms to highlight slow phases in dev logging output. Default: 200. */
@@ -116,11 +113,9 @@ export interface TimberUserConfig {
 }
 
 /**
- * Resolve `clientJavascript` (new) and `noClientJavascript` (deprecated) into
- * a fully resolved config. Emits a deprecation warning for the old option.
+ * Resolve `clientJavascript` into a fully resolved config.
  */
 export function resolveClientJavascript(config: TimberUserConfig): ResolvedClientJavascript {
-  // New option takes precedence over deprecated option
   if (config.clientJavascript !== undefined) {
     if (typeof config.clientJavascript === 'boolean') {
       // `clientJavascript: false` → disabled
@@ -134,18 +129,6 @@ export function resolveClientJavascript(config: TimberUserConfig): ResolvedClien
     return {
       disabled: config.clientJavascript.disabled,
       enableHMRInDev: config.clientJavascript.enableHMRInDev ?? config.clientJavascript.disabled,
-    };
-  }
-
-  // Fall back to deprecated noClientJavascript
-  if (config.noClientJavascript !== undefined) {
-    console.warn(
-      '[timber] `noClientJavascript` is deprecated. ' +
-        'Use `clientJavascript: false` or `clientJavascript: { disabled: true, enableHMRInDev: true }` instead.'
-    );
-    return {
-      disabled: config.noClientJavascript,
-      enableHMRInDev: config.noClientJavascript, // default true when disabled
     };
   }
 

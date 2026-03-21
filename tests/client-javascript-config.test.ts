@@ -4,14 +4,13 @@
  * Validates:
  * - Boolean shorthand (`clientJavascript: false`)
  * - Object form (`clientJavascript: { disabled: true, enableHMRInDev: true }`)
- * - Deprecated `noClientJavascript` fallback with warning
  * - `enableHMRInDev` defaults to `true` when `disabled` is true
  * - `buildClientScripts` respects `enableHMRInDev` in dev mode
  *
  * Task: TIM-299
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { resolveClientJavascript } from '../packages/timber-app/src/index';
 import { buildClientScripts } from '../packages/timber-app/src/server/html-injectors';
 
@@ -60,35 +59,7 @@ describe('resolveClientJavascript', () => {
     });
   });
 
-  describe('deprecated noClientJavascript', () => {
-    it('falls back to noClientJavascript when clientJavascript is not set', () => {
-      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-      const result = resolveClientJavascript({ noClientJavascript: true });
-      expect(result).toEqual({ disabled: true, enableHMRInDev: true });
-      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('deprecated'));
-      warnSpy.mockRestore();
-    });
 
-    it('noClientJavascript: false produces enabled config', () => {
-      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-      const result = resolveClientJavascript({ noClientJavascript: false });
-      expect(result).toEqual({ disabled: false, enableHMRInDev: false });
-      warnSpy.mockRestore();
-    });
-
-    it('clientJavascript takes precedence over noClientJavascript', () => {
-      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-      const result = resolveClientJavascript({
-        clientJavascript: false,
-        noClientJavascript: false,
-      });
-      // clientJavascript wins
-      expect(result.disabled).toBe(true);
-      // No deprecation warning because clientJavascript was specified
-      expect(warnSpy).not.toHaveBeenCalled();
-      warnSpy.mockRestore();
-    });
-  });
 });
 
 // ─── buildClientScripts with enableHMRInDev ─────────────────────────────────

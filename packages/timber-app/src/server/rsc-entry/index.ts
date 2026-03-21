@@ -183,6 +183,9 @@ async function createRequestHandler(manifest: typeof routeManifest, runtimeConfi
       return renderNoMatchPage(req, manifest.root, responseHeaders, clientBootstrap);
     },
     interceptionRewrites: manifest.interceptionRewrites,
+    // Slow request threshold from timber.config.ts. Default 3000ms, 0 to disable.
+    // See design/17-logging.md §"slowRequestMs"
+    slowRequestMs: (runtimeConfig as Record<string, unknown>).slowRequestMs as number | undefined,
     enableServerTiming: isDev,
     onPipelineError: isDev
       ? (error: Error, phase: string) => {
@@ -454,5 +457,9 @@ async function renderRoute(
 // Re-export for generated entry points (e.g., Nitro node-server/bun) to wrap
 // the handler with per-request 103 Early Hints sender via ALS.
 export { runWithEarlyHintsSender } from '#/server/early-hints-sender.js';
+
+// Re-export for generated entry points to wrap the handler with per-request
+// waitUntil support via ALS. See design/11-platform.md §"waitUntil()".
+export { runWithWaitUntil } from '#/server/waituntil-bridge.js';
 
 export default await createRequestHandler(routeManifest, config);

@@ -114,3 +114,13 @@ export type EarlyHintsSenderFn = (links: string[]) => void;
 
 /** @internal — import via early-hints-sender.ts public API */
 export const earlyHintsSenderAls = new AsyncLocalStorage<EarlyHintsSenderFn>();
+
+// ─── waitUntil Bridge ────────────────────────────────────────────────────
+// Used by: waituntil-bridge.ts (waitUntil())
+// Design doc: design/11-platform.md §"waitUntil()"
+
+/** Function that extends the request lifecycle with a background promise. */
+export type WaitUntilFn = (promise: Promise<unknown>) => void;
+
+/** @internal — import via waituntil-bridge.ts public API */
+export const waitUntilAls = new AsyncLocalStorage<WaitUntilFn>();

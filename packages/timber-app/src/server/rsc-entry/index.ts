@@ -21,6 +21,8 @@ import routeManifest from 'virtual:timber-route-manifest';
 import config from 'virtual:timber-config';
 // @ts-expect-error — virtual module provided by timber-build-manifest plugin
 import buildManifest from 'virtual:timber-build-manifest';
+// @ts-expect-error — virtual module provided by timber-entries plugin
+import loadUserInstrumentation from 'virtual:timber-instrumentation';
 
 import type { FormRerender } from '#/server/action-handler.js';
 import { handleActionRequest, isActionRequest } from '#/server/action-handler.js';
@@ -51,6 +53,7 @@ import { createMetadataRouteMatcher, createRouteMatcher } from '#/server/route-m
 import { initDevTracing } from '#/server/tracing.js';
 
 import { renderFallbackError as renderFallback } from '#/server/fallback-error.js';
+import { loadInstrumentation } from '#/server/instrumentation.js';
 import { handleApiRoute } from './api-handler.js';
 import { renderErrorPage, renderNoMatchPage } from './error-renderer.js';
 import {
@@ -86,6 +89,12 @@ export function setDevPipelineErrorHandler(handler: (error: Error, phase: string
  * 103 Early Hints → middleware.ts → render (RSC → SSR → HTML).
  */
 async function createRequestHandler(manifest: typeof routeManifest, runtimeConfig: typeof config) {
+  // Load the user's instrumentation.ts — register() is awaited before the
+  // server accepts any requests. The logger and onRequestError hooks are
+  // wired into the framework. This runs once at startup.
+  // See design/17-logging.md §"register() — Server Startup"
+  await loadInstrumentation(loadUserInstrumentation);
+
   // Initialize cookie signing secrets from config (design/29-cookies.md §"Signed Cookies")
   const cookieSecrets = (runtimeConfig as Record<string, unknown>).cookieSecrets as
     | string[]

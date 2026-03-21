@@ -400,7 +400,7 @@ async function createMockStaticBuildDir(baseDir: string): Promise<string> {
   // RSC and SSR bundles (copied by cloudflare adapter)
   const rscDir = join(buildDir, 'rsc');
   await mkdir(rscDir, { recursive: true });
-  await writeFile(join(rscDir, 'index.js'), 'export default async (req) => new Response("ok");\nexport function runWithEarlyHintsSender(sender, fn) { return fn(); }');
+  await writeFile(join(rscDir, 'index.js'), 'export default async (req) => new Response("ok");\nexport function runWithEarlyHintsSender(sender, fn) { return fn(); }\nexport function runWithWaitUntil(fn, handler) { return handler(); }');
 
   const ssrDir = join(buildDir, 'ssr');
   await mkdir(ssrDir, { recursive: true });

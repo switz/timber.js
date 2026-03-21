@@ -4,6 +4,7 @@
 // use to control request flow. See design/10-error-handling.md.
 
 import type { JsonSerializable } from './types.js';
+import { getWaitUntil as _getWaitUntil } from './waituntil-bridge.js';
 
 // ─── Dev-mode validation ────────────────────────────────────────────────────
 
@@ -335,14 +336,26 @@ let _waitUntilWarned = false;
  * Register a promise to be kept alive after the response is sent.
  * Maps to `ctx.waitUntil()` on Cloudflare Workers and similar platforms.
  *
- * If the adapter does not support `waitUntil`, a warning is logged once
- * and the promise is left to resolve (or reject) without being tracked.
+ * In production, the platform adapter installs a per-request waitUntil
+ * function via ALS (see waituntil-bridge.ts). This function checks the
+ * ALS bridge first, then falls back to the legacy adapter argument.
+ *
+ * If neither is available, a warning is logged once and the promise is
+ * left to resolve (or reject) without being tracked.
  *
  * @param promise - The background work to keep alive.
- * @param adapter - The platform adapter (injected by the framework at runtime).
+ * @param adapter - Optional legacy adapter (prefer ALS bridge in production).
  */
-export function waitUntil(promise: Promise<unknown>, adapter: WaitUntilAdapter): void {
-  if (typeof adapter.waitUntil === 'function') {
+export function waitUntil(promise: Promise<unknown>, adapter?: WaitUntilAdapter): void {
+  // Check ALS bridge first (installed by generated entry points)
+  const alsFn = _getWaitUntil();
+  if (alsFn) {
+    alsFn(promise);
+    return;
+  }
+
+  // Fall back to legacy adapter argument
+  if (adapter && typeof adapter.waitUntil === 'function') {
     adapter.waitUntil(promise);
     return;
   }

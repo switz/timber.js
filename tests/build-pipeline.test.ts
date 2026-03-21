@@ -389,8 +389,8 @@ describe('static export', () => {
     expect(files).toContain('public');
   });
 
-  it('static+noClientJavascript mode gracefully handles missing client dir', async () => {
-    // Create a build dir without client/ directory (noClientJavascript mode)
+  it('static + clientJavascript:false mode gracefully handles missing client dir', async () => {
+    // Create a build dir without client/ directory (clientJavascript: false mode)
     const buildDir = join(tempDir, '.timber', 'build');
     const serverDir = join(buildDir, 'server');
     await mkdir(serverDir, { recursive: true });

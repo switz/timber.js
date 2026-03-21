@@ -107,6 +107,7 @@ function generateConfigModule(ctx: PluginContext): string {
     clientJavascript: ctx.clientJavascript,
     dev: ctx.dev ?? false,
     slowPhaseMs: ctx.config.dev?.slowPhaseMs ?? 200,
+    slowRequestMs: ctx.config.slowRequestMs ?? 3000,
     cookieSecrets,
   };
 

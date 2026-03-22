@@ -68,16 +68,16 @@ describe('parseClientStateTree', () => {
 // ─── shouldSkipSegment ────────────────────────────────────────────
 
 describe('shouldSkipSegment', () => {
-  // shouldSkipSegment is now enabled — the client has tree merging logic
-  // (segment-merger.ts) to splice partial payloads into cached segments.
-  // Sync layouts the client already has are skipped on the server.
+  // shouldSkipSegment is disabled — client-side element tree merging is
+  // too fragile for production RSC trees. All tests verify it returns false.
+  // The merger infrastructure is in place for future re-enablement.
 
-  it('returns true for sync layout when client has it cached', () => {
+  it('returns false for sync layout even when client has it (disabled)', () => {
     const clientSegments = new Set(['/']);
     function SyncLayout() {
       return 'layout';
     }
-    expect(shouldSkipSegment('/', SyncLayout, false, clientSegments)).toBe(true);
+    expect(shouldSkipSegment('/', SyncLayout, false, clientSegments)).toBe(false);
   });
 
   it('returns false for async layout (always re-renders)', () => {
@@ -202,7 +202,7 @@ describe('buildRouteElement with state tree diffing', () => {
     expect(result.element).toBeDefined();
     expect(result.layoutComponents).toHaveLength(2);
     // Root is skipped (has rendered layout below), dashboard is not
-    expect(result.skippedSegments).toEqual(['/']);
+    expect(result.skippedSegments).toEqual([]);
   });
 
   it('does NOT skip async layout even when listed in client state tree', async () => {
@@ -389,7 +389,7 @@ describe('buildRouteElement with state tree diffing', () => {
     expect(result.layoutComponents).toHaveLength(2);
     // Only root is skipped — dashboard is the innermost layout (no layout below)
     // and must render so the page can be embedded in its output
-    expect(result.skippedSegments).toEqual(['/']);
+    expect(result.skippedSegments).toEqual([]);
   });
 
   it('skips multiple outer layouts when three layouts deep', async () => {
@@ -442,7 +442,7 @@ describe('buildRouteElement with state tree diffing', () => {
     expect(result.element).toBeDefined();
     expect(result.layoutComponents).toHaveLength(3);
     // Root and dashboard skipped; settings is innermost (renders)
-    expect(result.skippedSegments).toEqual(['/', '/dashboard']);
+    expect(result.skippedSegments).toEqual([]);
   });
 
   it('does NOT skip route group segments (sibling groups share urlPath)', async () => {
@@ -491,7 +491,7 @@ describe('buildRouteElement with state tree diffing', () => {
     expect(result.element).toBeDefined();
     // Root "/" is skipped (has rendered group layout below).
     // Group "/" is NOT skipped (segmentType === 'group').
-    expect(result.skippedSegments).toEqual(['/']);
+    expect(result.skippedSegments).toEqual([]);
     expect(result.layoutComponents).toHaveLength(2);
   });
 

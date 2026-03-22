@@ -216,7 +216,7 @@ describe('nitro node-server build', () => {
     expect(files).toContain('public');
   });
 
-  it('entry.ts imports nitro/h3 and sets TIMBER_RUNTIME', async () => {
+  it('entry.ts exports plain handler and sets TIMBER_RUNTIME', async () => {
     const buildDir = await createMockBuildDir(tempDir);
     const adapter = nitro({ preset: 'node-server' });
 
@@ -224,9 +224,10 @@ describe('nitro node-server build', () => {
 
     const entry = await readFile(join(buildDir, 'nitro', 'entry.ts'), 'utf-8');
     expect(entry).toContain("process.env.TIMBER_RUNTIME = 'node-server'");
-    expect(entry).toContain('defineEventHandler');
-    // h3 v2: uses event.req directly instead of toWebRequest/sendWebResponse
-    expect(entry).toContain("from 'nitro/h3'");
+    expect(entry).toContain('export default async function timberHandler');
+    // No nitro/h3 import — Nitro bundles h3 into _libs/ and doesn't make
+    // it available as a bare specifier in production output
+    expect(entry).not.toContain("from 'nitro/h3'");
     expect(entry).toContain('rsc/index.js');
   });
 
@@ -327,7 +328,7 @@ describe('nitro preset coverage', () => {
       const expectedRuntime = getPresetConfig(preset).runtimeName;
 
       expect(entry).toContain(`process.env.TIMBER_RUNTIME = '${expectedRuntime}'`);
-      expect(entry).toContain('defineEventHandler');
+      expect(entry).toContain('export default async function timberHandler');
       expect(entry).toContain('rsc/index.js');
     });
 

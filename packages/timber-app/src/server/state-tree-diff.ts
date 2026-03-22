@@ -55,23 +55,23 @@ export function parseClientStateTree(req: Request): Set<string> | null {
  * @param clientSegments - Set of paths from X-Timber-State-Tree, or null
  */
 export function shouldSkipSegment(
-  urlPath: string,
-  layoutComponent: ((...args: unknown[]) => unknown) | undefined,
-  isLeaf: boolean,
-  clientSegments: Set<string> | null
+  _urlPath: string,
+  _layoutComponent: ((...args: unknown[]) => unknown) | undefined,
+  _isLeaf: boolean,
+  _clientSegments: Set<string> | null
 ): boolean {
-  // No state tree → full render (initial load, refresh, etc.)
-  if (!clientSegments) return false;
-
-  // Leaf segments (pages) are never skipped
-  if (isLeaf) return false;
-
-  // No layout → nothing to skip
-  if (!layoutComponent) return false;
-
-  // Async layouts always re-render (they may depend on request context)
-  if (layoutComponent.constructor?.name === 'AsyncFunction') return false;
-
-  // Skip if the client already has this segment cached
-  return clientSegments.has(urlPath);
+  // DISABLED: Client-side segment merging via React element tree walking
+  // is too fragile for production. The merger's replaceInnerSegment relies
+  // on walking RSC-decoded element trees to find SegmentProvider boundaries,
+  // but production trees contain structures the walker can't handle:
+  // Suspense wrappers, error boundaries, AccessGate components, React lazy
+  // refs, and client component module references.
+  //
+  // The merger infrastructure (segment-merger.ts, element cache, state tree
+  // filtering) is in place and tested. Re-enable when the merger can handle
+  // real RSC element trees — likely requires a SegmentOutlet client component
+  // approach instead of post-hoc element tree walking.
+  //
+  // See design/19-client-navigation.md §"X-Timber-State-Tree Header"
+  return false;
 }

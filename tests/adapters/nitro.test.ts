@@ -292,17 +292,15 @@ describe('generateNitroEntry', () => {
     expect(entry).toContain('rsc/index.js');
   });
 
-  it('uses h3 event handler', () => {
+  it('exports plain async handler (no nitro/h3 import)', () => {
     const entry = generateNitroEntry('/tmp/build', '/tmp/build/nitro', 'node-server');
-    expect(entry).toContain('defineEventHandler');
+    // Uses a plain async function export — Nitro's defineLazyEventHandler
+    // wraps it in the event handler protocol. No 'nitro/h3' import needed.
+    expect(entry).toContain('export default async function timberHandler');
+    expect(entry).not.toContain("from 'nitro/h3'");
     // h3 v2: event.req is the Web Request, return response directly
     expect(entry).toContain('event.req');
     expect(entry).toContain('return compressResponse(webRequest, webResponse)');
-  });
-
-  it('imports from nitro/h3', () => {
-    const entry = generateNitroEntry('/tmp/build', '/tmp/build/nitro', 'node-server');
-    expect(entry).toContain("from 'nitro/h3'");
   });
 
   it('uses event.req for web request (h3 v2)', () => {
@@ -340,7 +338,7 @@ describe('generateNitroEntry', () => {
   it('manifest init import comes before handler import', () => {
     const entry = generateNitroEntry('/tmp/build', '/tmp/build/nitro', 'node-server', true);
     const manifestIdx = entry.indexOf("import './_timber-manifest-init.js'");
-    const handlerIdx = entry.indexOf('import { defineEventHandler');
+    const handlerIdx = entry.indexOf('import handler');
     expect(manifestIdx).toBeLessThan(handlerIdx);
   });
 

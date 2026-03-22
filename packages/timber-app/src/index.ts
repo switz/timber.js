@@ -110,6 +110,30 @@ export interface TimberUserConfig {
     recmaPlugins?: unknown[];
     remarkRehypeOptions?: Record<string, unknown>;
   };
+  /**
+   * Built-in top-loader progress bar for client navigations.
+   * Shows an animated bar at the top of the viewport during RSC navigations.
+   * Enabled by default — set `enabled: false` to opt out.
+   *
+   * Users who want a fully custom progress indicator should disable this
+   * and use `useNavigationPending()` directly.
+   *
+   * See LOCAL-336 for design decisions.
+   */
+  topLoader?: {
+    /** Whether the top-loader is enabled. Default: true. */
+    enabled?: boolean;
+    /** Bar color. Default: '#2299DD'. */
+    color?: string;
+    /** Bar height in pixels. Default: 3. */
+    height?: number;
+    /** Show subtle glow/shadow effect. Default: true. */
+    shadow?: boolean;
+    /** Delay in ms before showing the bar (avoids flash on fast navs). Default: 150. */
+    delay?: number;
+    /** CSS z-index. Default: 1600. */
+    zIndex?: number;
+  };
 }
 
 /**

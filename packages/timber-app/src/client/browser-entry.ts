@@ -381,7 +381,7 @@ function bootstrap(runtimeConfig: typeof config): void {
       element as React.ReactNode
     );
     const wrapped = createElement(TimberNuqsAdapter, null, withNav);
-    const rootElement = createElement(TransitionRoot, { initial: wrapped });
+    const rootElement = createElement(TransitionRoot, { initial: wrapped, topLoaderConfig: _config.topLoader });
     _reactRoot = hydrateRoot(document, rootElement, {
       // Suppress recoverable hydration errors from deny/error signals
       // inside Suspense boundaries. The server already handled these

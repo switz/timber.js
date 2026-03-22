@@ -50,6 +50,12 @@ export function RootShell({ children }: { children: React.ReactNode }) {
         <Link href="/page-redirect-test" data-testid="link-page-redirect">
           Page Redirect
         </Link>
+        <Link href="/group-page-a" data-testid="link-group-page-a">
+          Group Page A
+        </Link>
+        <Link href="/group-page-b" data-testid="link-group-page-b">
+          Group Page B
+        </Link>
 
         {/* Links with per-link pending status (useLinkStatus E2E test) */}
         <LinkWithStatus href="/slow-page" testId="link-status-slow">

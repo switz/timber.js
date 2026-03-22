@@ -222,16 +222,23 @@ export function createRouter(deps: RouterDeps): RouterInstance {
    * useOptimistic for the pending URL. In tests, the payload is rendered directly.
    */
   async function renderViaTransition(
-    pendingUrl: string,
+    url: string,
     perform: () => Promise<FetchResult>
   ): Promise<HeadElement[] | null> {
     if (deps.navigateTransition) {
       let headElements: HeadElement[] | null = null;
-      await deps.navigateTransition(pendingUrl, async (wrapPayload) => {
+      await deps.navigateTransition(url, async (wrapPayload) => {
         const result = await perform();
         headElements = result.headElements;
         // Merge partial payload with cached segments before wrapping
         const merged = mergeAndCachePayload(result.payload, result.skippedSegments);
+        // Store the MERGED payload in history — not the partial pre-merge tree.
+        // This ensures handlePopState replays the complete tree on back/forward.
+        historyStack.push(url, {
+          payload: merged,
+          headElements: result.headElements,
+          params: result.params,
+        });
         return wrapPayload(merged);
       });
       return headElements;
@@ -240,6 +247,12 @@ export function createRouter(deps: RouterDeps): RouterInstance {
     const result = await perform();
     // Merge partial payload with cached segments before rendering
     const merged = mergeAndCachePayload(result.payload, result.skippedSegments);
+    // Store merged payload in history
+    historyStack.push(url, {
+      payload: merged,
+      headElements: result.headElements,
+      params: result.params,
+    });
     renderPayload(merged);
     return result.headElements;
   }
@@ -299,12 +312,10 @@ export function createRouter(deps: RouterDeps): RouterInstance {
       deps.pushState({ timber: true, scrollY: 0 }, '', url);
     }
 
-    // Store the payload in the history stack
-    historyStack.push(url, {
-      payload: result.payload,
-      headElements: result.headElements,
-      params: result.params,
-    });
+    // NOTE: History push is deferred — the merged payload (after segment
+    // merging in renderViaTransition) is stored by the caller, not here.
+    // Storing result.payload here would record the partial (pre-merge)
+    // RSC tree, causing handlePopState to replay an incomplete tree.
 
     // Update the segment cache with the new route's segment tree.
     updateSegmentCache(result.segmentInfo);
@@ -375,11 +386,7 @@ export function createRouter(deps: RouterDeps): RouterInstance {
       const headElements = await renderViaTransition(currentUrl, async () => {
         // No state tree sent — server renders the complete RSC payload
         const result = await fetchRscPayload(currentUrl, deps);
-        historyStack.push(currentUrl, {
-          payload: result.payload,
-          headElements: result.headElements,
-          params: result.params,
-        });
+        // History push handled by renderViaTransition (stores merged payload)
         updateSegmentCache(result.segmentInfo);
         updateNavigationState(result.params, currentUrl);
         return result;
@@ -418,11 +425,7 @@ export function createRouter(deps: RouterDeps): RouterInstance {
           const result = await fetchRscPayload(url, deps, stateTree);
           updateSegmentCache(result.segmentInfo);
           updateNavigationState(result.params, url);
-          historyStack.push(url, {
-            payload: result.payload,
-            headElements: result.headElements,
-            params: result.params,
-          });
+          // History push handled by renderViaTransition (stores merged payload)
           return result;
         });
 

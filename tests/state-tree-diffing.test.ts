@@ -120,7 +120,7 @@ describe('shouldSkipSegment', () => {
 // ─── buildRouteElement with state tree diffing ────────────────────
 
 describe('buildRouteElement with state tree diffing', () => {
-  it('skips sync layout when client has it cached', async () => {
+  it('does NOT skip the innermost layout (no child layout below it)', async () => {
     const rootLayoutFn = vi.fn(({ children }: { children: unknown }) => children);
     const pageFn = vi.fn(() => 'Page content');
 
@@ -140,7 +140,10 @@ describe('buildRouteElement with state tree diffing', () => {
       },
     });
 
-    // Client has root layout cached — sync layout should be skipped
+    // Client has root layout cached — but root is the innermost layout
+    // (only a page below it), so it must NOT be skipped. The client
+    // merger can only replace inner SegmentProviders, not pages embedded
+    // in a layout's server-rendered output.
     const clientStateTree = new Set(['/']);
 
     const result = await buildRouteElement(
@@ -150,11 +153,55 @@ describe('buildRouteElement with state tree diffing', () => {
       clientStateTree
     );
 
-    // Element tree is built (just without the skipped layout wrapping)
     expect(result.element).toBeDefined();
-    // Layout component is still collected (for metadata, segment info)
     expect(result.layoutComponents).toHaveLength(1);
-    // Root segment was skipped
+    // NOT skipped — innermost layout always renders
+    expect(result.skippedSegments).toEqual([]);
+  });
+
+  it('skips outer layout when inner layout is rendered below', async () => {
+    const rootLayoutFn = vi.fn(({ children }: { children: unknown }) => children);
+    const dashLayoutFn = vi.fn(({ children }: { children: unknown }) => children);
+    const pageFn = vi.fn(() => 'Page content');
+
+    const rootSegment = makeSegment({
+      urlPath: '/',
+      layout: {
+        filePath: 'app/layout.tsx',
+        load: async () => ({ default: rootLayoutFn }),
+      },
+    });
+    const dashSegment = makeSegment({
+      urlPath: '/dashboard',
+      segmentName: 'dashboard',
+      layout: {
+        filePath: 'app/dashboard/layout.tsx',
+        load: async () => ({ default: dashLayoutFn }),
+      },
+    });
+    const pageSegment = makeSegment({
+      urlPath: '/dashboard/settings',
+      segmentName: 'settings',
+      page: {
+        filePath: 'app/dashboard/settings/page.tsx',
+        load: async () => ({ default: pageFn }),
+      },
+    });
+
+    // Client has root cached. Dashboard layout renders below it,
+    // so root CAN be skipped (merger can find the /dashboard SegmentProvider).
+    const clientStateTree = new Set(['/']);
+
+    const result = await buildRouteElement(
+      new Request('http://localhost/dashboard/settings'),
+      { segments: [rootSegment, dashSegment, pageSegment] as never, params: {} },
+      undefined,
+      clientStateTree
+    );
+
+    expect(result.element).toBeDefined();
+    expect(result.layoutComponents).toHaveLength(2);
+    // Root is skipped (has rendered layout below), dashboard is not
     expect(result.skippedSegments).toEqual(['/']);
   });
 
@@ -300,7 +347,7 @@ describe('buildRouteElement with state tree diffing', () => {
     expect(result.layoutComponents).toHaveLength(1);
   });
 
-  it('skips all sync layouts in deep route when client has them cached', async () => {
+  it('skips only outer layouts in deep route — innermost layout always renders', async () => {
     const rootLayoutFn = vi.fn(({ children }: { children: unknown }) => children);
     const dashLayoutFn = vi.fn(({ children }: { children: unknown }) => children);
     const pageFn = vi.fn(() => 'Page');
@@ -338,12 +385,114 @@ describe('buildRouteElement with state tree diffing', () => {
       clientStateTree
     );
 
-    // Element tree built with skipped layouts
     expect(result.element).toBeDefined();
-    // Layout components are still collected (for metadata, segment info)
     expect(result.layoutComponents).toHaveLength(2);
-    // Both sync segments were skipped (outermost first)
+    // Only root is skipped — dashboard is the innermost layout (no layout below)
+    // and must render so the page can be embedded in its output
+    expect(result.skippedSegments).toEqual(['/']);
+  });
+
+  it('skips multiple outer layouts when three layouts deep', async () => {
+    const rootLayoutFn = vi.fn(({ children }: { children: unknown }) => children);
+    const dashLayoutFn = vi.fn(({ children }: { children: unknown }) => children);
+    const settingsLayoutFn = vi.fn(({ children }: { children: unknown }) => children);
+    const pageFn = vi.fn(() => 'Page');
+
+    const rootSegment = makeSegment({
+      urlPath: '/',
+      layout: {
+        filePath: 'app/layout.tsx',
+        load: async () => ({ default: rootLayoutFn }),
+      },
+    });
+    const dashSegment = makeSegment({
+      urlPath: '/dashboard',
+      segmentName: 'dashboard',
+      layout: {
+        filePath: 'app/dashboard/layout.tsx',
+        load: async () => ({ default: dashLayoutFn }),
+      },
+    });
+    const settingsSegment = makeSegment({
+      urlPath: '/dashboard/settings',
+      segmentName: 'settings',
+      layout: {
+        filePath: 'app/dashboard/settings/layout.tsx',
+        load: async () => ({ default: settingsLayoutFn }),
+      },
+    });
+    const pageSegment = makeSegment({
+      urlPath: '/dashboard/settings/profile',
+      segmentName: 'profile',
+      page: {
+        filePath: 'app/dashboard/settings/profile/page.tsx',
+        load: async () => ({ default: pageFn }),
+      },
+    });
+
+    const clientStateTree = new Set(['/', '/dashboard', '/dashboard/settings']);
+
+    const result = await buildRouteElement(
+      new Request('http://localhost/dashboard/settings/profile'),
+      { segments: [rootSegment, dashSegment, settingsSegment, pageSegment] as never, params: {} },
+      undefined,
+      clientStateTree
+    );
+
+    expect(result.element).toBeDefined();
+    expect(result.layoutComponents).toHaveLength(3);
+    // Root and dashboard skipped; settings is innermost (renders)
     expect(result.skippedSegments).toEqual(['/', '/dashboard']);
+  });
+
+  it('does NOT skip route group segments (sibling groups share urlPath)', async () => {
+    const rootLayoutFn = vi.fn(({ children }: { children: unknown }) => children);
+    const groupLayoutFn = vi.fn(({ children }: { children: unknown }) => children);
+    const pageFn = vi.fn(() => 'Page');
+
+    const rootSegment = makeSegment({
+      urlPath: '/',
+      layout: {
+        filePath: 'app/layout.tsx',
+        load: async () => ({ default: rootLayoutFn }),
+      },
+    });
+    const groupSegment = makeSegment({
+      urlPath: '/',
+      segmentName: '(marketing)',
+      segmentType: 'group',
+      layout: {
+        filePath: 'app/(marketing)/layout.tsx',
+        load: async () => ({ default: groupLayoutFn }),
+      },
+    });
+    const pageSegment = makeSegment({
+      urlPath: '/about',
+      segmentName: 'about',
+      page: {
+        filePath: 'app/(marketing)/about/page.tsx',
+        load: async () => ({ default: pageFn }),
+      },
+    });
+
+    // Client state tree has "/" — the group also has urlPath "/".
+    // Root (non-group) can be skipped because the group layout renders below.
+    // But the group itself must NOT be skipped — sibling groups like /(app)
+    // share the same urlPath, so reusing a cached group layout is wrong.
+    const clientStateTree = new Set(['/']);
+
+    const result = await buildRouteElement(
+      new Request('http://localhost/about'),
+      { segments: [rootSegment, groupSegment, pageSegment] as never, params: {} },
+      undefined,
+      clientStateTree
+    );
+
+    expect(result.element).toBeDefined();
+    // Root "/" is skipped (has rendered group layout below).
+    // Group "/" is NOT skipped (segmentType === 'group').
+    expect(result.skippedSegments).toEqual(['/']);
+    expect(result.layoutComponents).toHaveLength(2);
   });
 
   it('returns empty skippedSegments when no state tree', async () => {

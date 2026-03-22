@@ -81,12 +81,16 @@ export function isSegmentProvider(element: unknown): element is ReactElement {
 
 /**
  * Extract the segment path from a SegmentProvider element.
- * The `segments` prop is an array like ["", "dashboard", "settings"].
- * The path is reconstructed as "/" + segments.filter(Boolean).join("/").
+ *
+ * Uses the `segmentId` prop if available (set by the server for route groups
+ * to distinguish siblings that share the same urlPath). Falls back to
+ * reconstructing from the `segments` array prop.
  */
 export function getSegmentPath(element: ReactElement): string {
-  const segments = (element.props as { segments: string[] }).segments;
-  const filtered = segments.filter(Boolean);
+  const props = element.props as { segments: string[]; segmentId?: string };
+  // segmentId is the authoritative key — includes group name for route groups
+  if (props.segmentId) return props.segmentId;
+  const filtered = props.segments.filter(Boolean);
   return filtered.length === 0 ? '/' : '/' + filtered.join('/');
 }
 
@@ -224,9 +228,16 @@ export function replaceInnerSegment(
   const path = findSegmentProviderPath(cachedElement, innerSegmentPath);
 
   if (!path || path.length === 0) {
-    // No inner SegmentProvider found — the cached element's children
-    // IS the leaf content. Replace children directly.
-    return cloneElement(cachedElement, {}, newInnerContent);
+    // No inner SegmentProvider found — this segment's cached element
+    // wraps a page directly (no child layout with a SegmentProvider).
+    // We CANNOT safely replace the page because it's embedded deep in
+    // the layout's server-rendered output tree and we don't know its
+    // position. Return the cached element unchanged as a safety fallback.
+    //
+    // The server should not skip segments without a child layout below
+    // them (enforced by hasRenderedLayoutBelow in buildRouteElement).
+    // If this codepath is reached, it indicates a server/client mismatch.
+    return cachedElement;
   }
 
   // Reconstruct bottom-up: replace the innermost element first, then

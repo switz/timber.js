@@ -37,6 +37,13 @@ export function useSegmentContext(): SegmentContextValue | null {
 
 interface SegmentProviderProps {
   segments: string[];
+  /**
+   * Unique identifier for this segment, used by the client-side segment
+   * merger for element caching. For route groups this includes the group
+   * name (e.g., "/(marketing)") since groups share their parent's urlPath.
+   * Falls back to the reconstructed path from `segments` if not provided.
+   */
+  segmentId?: string;
   parallelRouteKeys: string[];
   children: React.ReactNode;
 }
@@ -45,7 +52,7 @@ interface SegmentProviderProps {
  * Wraps each layout to provide segment position context.
  * Injected by rsc-entry.ts during element tree construction.
  */
-export function SegmentProvider({ segments, parallelRouteKeys, children }: SegmentProviderProps) {
+export function SegmentProvider({ segments, segmentId: _segmentId, parallelRouteKeys, children }: SegmentProviderProps) {
   const value = useMemo(
     () => ({ segments, parallelRouteKeys }),
     // segments and parallelRouteKeys are static per layout — they don't change

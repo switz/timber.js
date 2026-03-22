@@ -326,6 +326,16 @@ export async function buildRouteElement(
   // client navigation), sync layouts the client already has are skipped.
   // Access.ts already ran for ALL segments in the pre-render loop above.
   // See design/19-client-navigation.md §"X-Timber-State-Tree Header"
+  //
+  // hasRenderedLayoutBelow tracks whether a non-skipped layout has been
+  // seen below the current segment. A segment can ONLY be skipped if
+  // there is a rendered layout below it — the client merger can only
+  // replace inner SegmentProviders (client component boundaries), not
+  // page content embedded in a layout's server-rendered output.
+  // Without this guard, skipping the innermost layout causes the merger
+  // to drop the layout entirely and replace it with just the page.
+  let hasRenderedLayoutBelow = false;
+
   for (let i = segments.length - 1; i >= 0; i--) {
     const segment = segments[i];
     const isLeaf = i === segments.length - 1;
@@ -334,12 +344,22 @@ export async function buildRouteElement(
     // Check if this segment's layout can be skipped for partial rendering.
     // Skipped segments: no layout wrapping, no error boundaries, no slots,
     // no AccessGate in element tree (access already ran pre-render).
-    const skip = shouldSkipSegment(
-      segment.urlPath,
-      layoutComponent,
-      isLeaf,
-      clientStateTree ?? null
-    );
+    //
+    // Additional constraints beyond shouldSkipSegment:
+    // - Must have a rendered layout below (so the merger can find an
+    //   inner SegmentProvider to splice the new content into)
+    // - Route groups are never skipped because sibling groups share the
+    //   same urlPath (e.g., /(marketing) and /(app) both have "/"),
+    //   which would cause the wrong cached layout to be reused
+    const skip =
+      shouldSkipSegment(
+        segment.urlPath,
+        layoutComponent,
+        isLeaf,
+        clientStateTree ?? null
+      ) &&
+      hasRenderedLayoutBelow &&
+      segment.segmentType !== 'group';
 
     if (skip) {
       // Skip this segment entirely — the client uses its cached version.
@@ -348,6 +368,12 @@ export async function buildRouteElement(
       // Record for X-Timber-Skipped-Segments header (outermost first, so prepend).
       skippedSegments.unshift(segment.urlPath);
       continue;
+    }
+
+    // This segment is rendered — mark that future (outer) segments have
+    // a rendered layout below them and can safely be skipped.
+    if (layoutComponent) {
+      hasRenderedLayoutBelow = true;
     }
 
     // Wrap with error boundaries from this segment (inside layout).
@@ -407,8 +433,18 @@ export async function buildRouteElement(
         );
       };
 
+      // segmentId uniquely identifies this segment for client-side element
+      // caching. For route groups, urlPath is shared with the parent (both "/"),
+      // so we include the group name to distinguish them. Without this, the
+      // segment merger's element cache would conflate root and group elements.
+      const segmentId =
+        segment.segmentType === 'group'
+          ? `${segment.urlPath === '/' ? '' : segment.urlPath}/${segment.segmentName}`
+          : segment.urlPath;
+
       element = h(SegmentProvider, {
         segments: segmentPath,
+        segmentId,
         parallelRouteKeys,
         children: h(TracedLayout, {
           ...slotProps,

@@ -161,10 +161,14 @@ export function TopLoader({ config }: { config?: TopLoaderConfig }): React.React
           ].join(', '),
         }
       : {
-          // Finishing: snap to 100% and fade out over 200ms.
+          // Finishing: snap to 100% width (200ms), THEN fade out (200ms).
+          // The opacity transition is delayed so the user sees the bar
+          // reach 100% before it disappears. Without the delay, both
+          // transitions run simultaneously and the bar fades before the
+          // fill animation is visible.
           width: '100%',
           opacity: 0,
-          transition: 'width 200ms ease, opacity 200ms ease',
+          transition: 'width 200ms ease, opacity 200ms ease 200ms',
         }),
     ...(shadow
       ? {

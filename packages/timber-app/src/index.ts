@@ -18,7 +18,7 @@ import { timberServerActionExports } from './plugins/server-action-exports';
 import { timberBuildManifest } from './plugins/build-manifest';
 import { timberDevLogs } from './plugins/dev-logs';
 import { timberReactProd } from './plugins/react-prod';
-import { timberChunks, assignClientChunk } from './plugins/chunks';
+import { timberChunks } from './plugins/chunks';
 import { timberServerBundle } from './plugins/server-bundle';
 import { timberAdapterBuild } from './plugins/adapter-build';
 import { timberBuildReport } from './plugins/build-report';
@@ -400,7 +400,8 @@ export function timber(config?: TimberUserConfig): PluginOption[] {
           ssr: 'virtual:timber-ssr-entry',
           client: 'virtual:timber-browser-entry',
         },
-        clientChunks: assignClientChunk,
+        // No custom clientChunks — Rolldown handles natural code splitting.
+        // See design/27-chunking-strategy.md and LOCAL-337.
       });
     }
   );

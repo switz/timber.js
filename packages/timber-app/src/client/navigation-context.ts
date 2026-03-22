@@ -25,6 +25,11 @@
  * that depend on these APIs are safe to call from any environment —
  * they return null or no-op when the APIs aren't available.
  *
+ * Singleton guarantee: With the simplified chunking strategy (LOCAL-337),
+ * this module lives in exactly one client chunk. The previous globalThis +
+ * Symbol.for workaround for cross-chunk duplication is no longer needed.
+ * See design/27-chunking-strategy.md.
+ *
  * See design/19-client-navigation.md §"NavigationContext"
  */
 
@@ -47,33 +52,17 @@ export interface NavigationState {
  * The context is created lazily to avoid calling createContext at module
  * level. In the RSC environment, React.createContext doesn't exist —
  * calling it at import time would crash the server.
- *
- * IMPORTANT: Context instances are stored on globalThis, NOT in module-
- * level variables. The RSC client bundler duplicates this module across
- * the browser-entry chunk (index) and client-reference chunk (shared-app)
- * because both entry graphs import it. Module-level variables would create
- * separate singleton instances per chunk — the provider in TransitionRoot
- * (index chunk) would use context A while the consumer in LinkStatusProvider
- * (shared-app chunk) reads from context B. globalThis guarantees a single
- * instance regardless of how many times the module is duplicated.
- *
- * See design/19-client-navigation.md §"Singleton Context Guarantee"
  */
 
-// Symbol keys for globalThis storage — prevents collisions with user code
-const NAV_CTX_KEY = Symbol.for('__timber_nav_ctx');
-const PENDING_CTX_KEY = Symbol.for('__timber_pending_nav_ctx');
+let _navCtx: React.Context<NavigationState | null> | undefined;
+let _pendingNavCtx: React.Context<string | null> | undefined;
 
 function getOrCreateContext(): React.Context<NavigationState | null> | undefined {
-  const existing = (globalThis as Record<symbol, unknown>)[NAV_CTX_KEY] as
-    | React.Context<NavigationState | null>
-    | undefined;
-  if (existing !== undefined) return existing;
+  if (_navCtx !== undefined) return _navCtx;
   // createContext may not exist in the RSC environment
   if (typeof React.createContext === 'function') {
-    const ctx = React.createContext<NavigationState | null>(null);
-    (globalThis as Record<symbol, unknown>)[NAV_CTX_KEY] = ctx;
-    return ctx;
+    _navCtx = React.createContext<NavigationState | null>(null);
+    return _navCtx;
   }
   return undefined;
 }
@@ -130,27 +119,15 @@ export function NavigationProvider({
  * NavigationProvider with the correct params/pathname.
  *
  * This is NOT used by hooks directly — hooks read from React context.
- *
- * Stored on globalThis (like the context instances above) because the
- * router lives in the shared-app chunk while renderRoot lives in the
- * index chunk. Module-level variables would be separate per chunk.
  */
-const NAV_STATE_KEY = Symbol.for('__timber_nav_state');
-
-function _getNavStateStore(): { current: NavigationState } {
-  const g = globalThis as Record<symbol, unknown>;
-  if (!g[NAV_STATE_KEY]) {
-    g[NAV_STATE_KEY] = { current: { params: {}, pathname: '/' } };
-  }
-  return g[NAV_STATE_KEY] as { current: NavigationState };
-}
+let _navState: NavigationState = { params: {}, pathname: '/' };
 
 export function setNavigationState(state: NavigationState): void {
-  _getNavStateStore().current = state;
+  _navState = state;
 }
 
 export function getNavigationState(): NavigationState {
-  return _getNavStateStore().current;
+  return _navState;
 }
 
 // ---------------------------------------------------------------------------
@@ -161,21 +138,13 @@ export function getNavigationState(): NavigationState {
  * Separate context for the in-flight navigation URL. Provided by
  * TransitionRoot (urgent useState), consumed by LinkStatusProvider
  * and useNavigationPending.
- *
- * Uses globalThis via Symbol.for for the same reason as NavigationContext
- * above — the bundler duplicates this module across chunks, and module-
- * level variables would create separate context instances.
  */
 
 function getOrCreatePendingContext(): React.Context<string | null> | undefined {
-  const existing = (globalThis as Record<symbol, unknown>)[PENDING_CTX_KEY] as
-    | React.Context<string | null>
-    | undefined;
-  if (existing !== undefined) return existing;
+  if (_pendingNavCtx !== undefined) return _pendingNavCtx;
   if (typeof React.createContext === 'function') {
-    const ctx = React.createContext<string | null>(null);
-    (globalThis as Record<symbol, unknown>)[PENDING_CTX_KEY] = ctx;
-    return ctx;
+    _pendingNavCtx = React.createContext<string | null>(null);
+    return _pendingNavCtx;
   }
   return undefined;
 }

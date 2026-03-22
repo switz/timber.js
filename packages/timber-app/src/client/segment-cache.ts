@@ -72,25 +72,34 @@ export class SegmentCache {
    * Only includes sync segments — async segments are excluded because the
    * server must always re-render them (they may depend on request context).
    *
+   * When mergeableFilter is provided, only segments whose paths are in the
+   * set are included. This ensures the server only skips segments that the
+   * client can actually merge (i.e., segments whose cached element tree
+   * contains an inner SegmentProvider the merger can splice into).
+   *
    * This is a performance optimization only, NOT a security boundary.
    * The server always runs all access.ts files regardless of the state tree.
    */
-  serializeStateTree(): StateTree {
+  serializeStateTree(mergeableFilter?: Set<string>): StateTree {
     const segments: string[] = [];
     if (this.root) {
-      collectSyncSegments(this.root, segments);
+      collectSyncSegments(this.root, segments, mergeableFilter);
     }
     return { segments };
   }
 }
 
 /** Recursively collect sync segment paths from the tree */
-function collectSyncSegments(node: SegmentNode, out: string[]): void {
-  if (!node.isAsync) {
+function collectSyncSegments(
+  node: SegmentNode,
+  out: string[],
+  mergeableFilter?: Set<string>
+): void {
+  if (!node.isAsync && (!mergeableFilter || mergeableFilter.has(node.segment))) {
     out.push(node.segment);
   }
   for (const child of node.children.values()) {
-    collectSyncSegments(child, out);
+    collectSyncSegments(child, out, mergeableFilter);
   }
 }
 

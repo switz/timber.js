@@ -545,12 +545,12 @@ function bootstrap(runtimeConfig: typeof config): void {
     delete (self as unknown as Record<string, unknown>).__timber_segments;
   }
 
-  // Cache segment elements from the initial RSC payload for client-side
-  // tree merging. This ensures the first client navigation can use partial
-  // payloads — the merger needs cached elements for skipped segments.
-  if (initialElement) {
-    router.cacheElementTree(initialElement);
-  }
+  // NOTE: We do NOT cache segment elements from the initial RSC payload here.
+  // The decoded element from createFromReadableStream is a thenable/lazy
+  // element that React resolves during render — the segment walker can't
+  // traverse it. The element cache is populated lazily after the first SPA
+  // navigation (via mergeAndCachePayload in renderViaTransition), when
+  // the decoded payload is a fully resolved React element tree.
 
   // Note: __timber_params is read before hydrateRoot (see above) so that
   // NavigationProvider has correct values during hydration. If the hydration

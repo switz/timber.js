@@ -34,6 +34,13 @@ export interface CachedSegmentEntry {
   segmentPath: string;
   /** The SegmentProvider element for this segment */
   element: ReactElement;
+  /**
+   * Whether this segment's cached element contains a nested SegmentProvider.
+   * Only segments with inner SegmentProviders are safe to skip — the merger
+   * can only replace inner SegmentProviders, not pages embedded in layout output.
+   * Used by the state tree serialization to exclude non-mergeable segments.
+   */
+  hasMergeableChild: boolean;
 }
 
 // ─── Segment Element Cache ───────────────────────────────────────
@@ -63,6 +70,29 @@ export class SegmentElementCache {
 
   get size(): number {
     return this.entries.size;
+  }
+
+  /**
+   * Get the set of segment paths that are safe for the server to skip.
+   * Only segments with an inner SegmentProvider (hasMergeableChild) are
+   * included — the merger can only replace inner SegmentProviders, not
+   * pages embedded in layout output. Used to filter the state tree.
+   *
+   * Returns an empty set if the element cache is empty (no elements
+   * cached yet). This is the safe default — an empty set means no
+   * segments pass the filter, so the state tree is empty and the server
+   * does a full render. The element cache is populated lazily after the
+   * first SPA navigation (RSC-decoded elements from hydration are
+   * thenables that can't be walked until React resolves them).
+   */
+  getMergeablePaths(): Set<string> {
+    const paths = new Set<string>();
+    for (const [, entry] of this.entries) {
+      if (entry.hasMergeableChild) {
+        paths.add(entry.segmentPath);
+      }
+    }
+    return paths;
   }
 }
 
@@ -106,6 +136,12 @@ export function getSegmentPath(element: ReactElement): string {
 export function extractSegments(element: unknown): CachedSegmentEntry[] {
   const segments: CachedSegmentEntry[] = [];
   walkForSegments(element, segments);
+  // Compute hasMergeableChild: a segment is mergeable if there's another
+  // SegmentProvider nested below it. The segments list is ordered outermost
+  // to innermost, so each segment's child is the next entry.
+  for (let i = 0; i < segments.length; i++) {
+    segments[i].hasMergeableChild = i < segments.length - 1;
+  }
   return segments;
 }
 
@@ -121,6 +157,7 @@ function walkForSegments(node: unknown, out: CachedSegmentEntry[]): void {
     out.push({
       segmentPath: getSegmentPath(el),
       element: el,
+      hasMergeableChild: false, // computed after collection in extractSegments
     });
     // Continue walking into children to find nested segments
     walkChildren(props.children as ReactNode, out);

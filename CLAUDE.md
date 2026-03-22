@@ -2,6 +2,12 @@
 
 Instructions for AI agents working on this codebase.
 
+Some basic guidance:
+
+- You are allowd to say "I don't know" and either pause for questions or go inspect further.
+- Verify with citations: validate your theories based on real evidence. Document high quality tests that surface valuable information
+- We are building a complex system in a pre-release phase. That means we can move forward and deprecate old things without fear of breaking anything. It's better to move forward and get it right.
+
 ---
 
 ## Project Overview

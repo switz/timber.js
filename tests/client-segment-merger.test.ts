@@ -32,10 +32,12 @@ import {
  */
 function MockSegmentProvider({
   segments: _segments,
+  segmentId: _segmentId,
   parallelRouteKeys: _parallelRouteKeys,
   children,
 }: {
   segments: string[];
+  segmentId?: string;
   parallelRouteKeys?: string[];
   children?: React.ReactNode;
 }) {
@@ -44,10 +46,12 @@ function MockSegmentProvider({
 
 function makeSegmentProvider(
   segmentParts: string[],
-  children: React.ReactNode
+  children: React.ReactNode,
+  segmentId?: string
 ): ReactElement {
   return createElement(MockSegmentProvider, {
     segments: segmentParts,
+    segmentId,
     parallelRouteKeys: [],
   }, children);
 }
@@ -453,5 +457,137 @@ describe('mergeSegmentTree', () => {
     const merged = mergeSegmentTree(partialPayload, ['/'], cache);
     expect(isSegmentProvider(merged as ReactElement)).toBe(true);
     expect(getSegmentPath(merged as ReactElement)).toBe('/');
+  });
+});
+
+// ─── Route Group Handling ────────────────────────────────────────
+
+describe('route group segment handling', () => {
+  it('uses segmentId to distinguish route groups with same urlPath', () => {
+    // Root and group both have segments: [""] (urlPath "/")
+    // But group has segmentId: "/(marketing)"
+    const root = makeSegmentProvider([''], null, '/');
+    const group = makeSegmentProvider([''], null, '/(marketing)');
+
+    expect(getSegmentPath(root)).toBe('/');
+    expect(getSegmentPath(group)).toBe('/(marketing)');
+  });
+
+  it('caches root and group segments separately', () => {
+    const cache = new SegmentElementCache();
+
+    // Full tree: root(/) → group(/(marketing)) → page
+    const tree = makeSegmentProvider([''],
+      makeLayout('root',
+        makeSegmentProvider([''], makePage('About'), '/(marketing)')
+      ),
+      '/'
+    );
+
+    cacheSegmentElements(tree, cache);
+
+    expect(cache.has('/')).toBe(true);
+    expect(cache.has('/(marketing)')).toBe(true);
+    expect(cache.size).toBe(2);
+  });
+
+  it('extractSegments finds both root and group SegmentProviders', () => {
+    const tree = makeSegmentProvider([''],
+      makeLayout('root',
+        makeSegmentProvider([''], makePage('Page'), '/(marketing)')
+      ),
+      '/'
+    );
+
+    const segments = extractSegments(tree);
+    expect(segments).toHaveLength(2);
+    expect(segments[0].segmentPath).toBe('/');
+    expect(segments[1].segmentPath).toBe('/(marketing)');
+  });
+
+  it('merges correctly when root is skipped but group is rendered', () => {
+    const cache = new SegmentElementCache();
+
+    // Cache from previous navigation: root → group(marketing) → old page
+    const fullTree = makeSegmentProvider([''],
+      makeLayout('root',
+        makeSegmentProvider([''],
+          makeLayout('marketing', makePage('Old About')),
+          '/(marketing)'
+        )
+      ),
+      '/'
+    );
+    cacheSegmentElements(fullTree, cache);
+
+    // Server skips root ("/"), renders group + new page
+    const partialPayload = makeSegmentProvider([''],
+      makeLayout('marketing', makePage('New Contact')),
+      '/(marketing)'
+    );
+
+    const merged = mergeSegmentTree(partialPayload, ['/'], cache);
+
+    // Merged tree should start from root
+    expect(isSegmentProvider(merged as ReactElement)).toBe(true);
+    expect(getSegmentPath(merged as ReactElement)).toBe('/');
+  });
+
+  it('does not confuse sibling route groups', () => {
+    const cache = new SegmentElementCache();
+
+    // Cache from /(marketing) route
+    const marketingTree = makeSegmentProvider([''],
+      makeLayout('root',
+        makeSegmentProvider([''],
+          makeLayout('marketing', makePage('About')),
+          '/(marketing)'
+        )
+      ),
+      '/'
+    );
+    cacheSegmentElements(marketingTree, cache);
+
+    // Navigate to /(app) route — server renders everything fresh
+    // (group is never skipped), partial payload has root skipped
+    const appPayload = makeSegmentProvider([''],
+      makeLayout('app', makePage('Dashboard')),
+      '/(app)'
+    );
+
+    const merged = mergeSegmentTree(appPayload, ['/'], cache);
+
+    // Root should wrap the new app group content
+    expect(isSegmentProvider(merged as ReactElement)).toBe(true);
+    expect(getSegmentPath(merged as ReactElement)).toBe('/');
+  });
+
+  it('falls back to segments prop when segmentId is not set', () => {
+    // Legacy/non-group segments don't have segmentId
+    const el = makeSegmentProvider(['', 'dashboard'], null);
+    expect(getSegmentPath(el)).toBe('/dashboard');
+  });
+});
+
+// ─── replaceInnerSegment safety ──────────────────────────────────
+
+describe('replaceInnerSegment leaf safety', () => {
+  it('returns cached element unchanged when no inner SegmentProvider found', () => {
+    // Simulates the case where the innermost layout wraps a page directly.
+    // The merger cannot replace the page inside the layout output, so
+    // it should return the cached element unchanged as a safety fallback.
+    const leaf = makeSegmentProvider(['', 'dashboard'],
+      makeLayout('dashboard-layout', makePage('Old Page'))
+    );
+
+    const result = replaceInnerSegment(leaf, makePage('New Page'));
+
+    // Should return the CACHED element unchanged, NOT drop the layout
+    expect(result.type).toBe(leaf.type);
+    // The children should still be the layout, not the new page
+    const children = (result.props as { children: React.ReactNode }).children;
+    expect(children).toBeDefined();
+    // Verify it's the original cached element (not a clone with new children)
+    expect(result).toBe(leaf);
   });
 });

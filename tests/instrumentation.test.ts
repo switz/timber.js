@@ -255,7 +255,7 @@ describe('nitro runtime', () => {
     const entry = generateNitroEntry('/build', '/build/out', 'node-server');
     const runtimeLine = entry.indexOf("process.env.TIMBER_RUNTIME = 'node-server'");
     // Find the export default usage, not the import
-    const handlerLine = entry.indexOf('export default defineEventHandler');
+    const handlerLine = entry.indexOf('export default async function timberHandler');
     expect(runtimeLine).toBeLessThan(handlerLine);
   });
 });

@@ -13,6 +13,8 @@ export interface PrefetchResult {
   segmentInfo?: SegmentInfo[] | null;
   /** Route params from X-Timber-Params header for populating useParams(). */
   params?: Record<string, string | string[]> | null;
+  /** Segment paths skipped by the server (for client-side merging). */
+  skippedSegments?: string[] | null;
 }
 
 /**

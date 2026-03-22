@@ -41,7 +41,8 @@ export async function buildRscPayloadResponse(
   layoutComponents: LayoutComponentEntry[],
   headElements: HeadElement[],
   match: RouteMatch,
-  responseHeaders: Headers
+  responseHeaders: Headers,
+  skippedSegments?: string[]
 ): Promise<Response> {
   // Read the first chunk from the RSC stream before committing headers.
   const reader = rscStream.getReader();
@@ -112,6 +113,12 @@ export async function buildRscPayloadResponse(
   // See design/19-client-navigation.md §"X-Timber-State-Tree Header"
   const segmentInfo = buildSegmentInfo(segments, layoutComponents);
   responseHeaders.set('X-Timber-Segments', JSON.stringify(segmentInfo));
+
+  // Send skipped segments so the client can merge the partial RSC payload
+  // with its cached segment elements. See design/19-client-navigation.md.
+  if (skippedSegments && skippedSegments.length > 0) {
+    responseHeaders.set('X-Timber-Skipped-Segments', JSON.stringify(skippedSegments));
+  }
 
   // Send route params so the client can populate useParams() after
   // SPA navigation. Without this, useParams() returns {}.

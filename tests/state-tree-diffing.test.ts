@@ -68,20 +68,19 @@ describe('parseClientStateTree', () => {
 // ─── shouldSkipSegment ────────────────────────────────────────────
 
 describe('shouldSkipSegment', () => {
-  // shouldSkipSegment is currently disabled (always returns false) because
-  // the client doesn't have tree merging logic. When the server omits a
-  // layout, React sees a different tree shape and re-mounts everything,
-  // destroying DOM state. All tests verify it returns false.
+  // shouldSkipSegment is now enabled — the client has tree merging logic
+  // (segment-merger.ts) to splice partial payloads into cached segments.
+  // Sync layouts the client already has are skipped on the server.
 
-  it('returns false for sync layout even when client has it (disabled)', () => {
+  it('returns true for sync layout when client has it cached', () => {
     const clientSegments = new Set(['/']);
     function SyncLayout() {
       return 'layout';
     }
-    expect(shouldSkipSegment('/', SyncLayout, false, clientSegments)).toBe(false);
+    expect(shouldSkipSegment('/', SyncLayout, false, clientSegments)).toBe(true);
   });
 
-  it('returns false for async layout', () => {
+  it('returns false for async layout (always re-renders)', () => {
     const clientSegments = new Set(['/']);
     async function AsyncLayout() {
       return 'layout';
@@ -97,7 +96,7 @@ describe('shouldSkipSegment', () => {
     expect(shouldSkipSegment('/dashboard', SyncLayout, false, clientSegments)).toBe(false);
   });
 
-  it('returns false for leaf segment', () => {
+  it('returns false for leaf segment (pages never skipped)', () => {
     const clientSegments = new Set(['/', '/projects']);
     function SyncLayout() {
       return 'layout';
@@ -105,18 +104,23 @@ describe('shouldSkipSegment', () => {
     expect(shouldSkipSegment('/projects', SyncLayout, true, clientSegments)).toBe(false);
   });
 
-  it('returns false when clientSegments is null', () => {
+  it('returns false when clientSegments is null (full render)', () => {
     function SyncLayout() {
       return 'layout';
     }
     expect(shouldSkipSegment('/', SyncLayout, false, null)).toBe(false);
+  });
+
+  it('returns false when no layout component', () => {
+    const clientSegments = new Set(['/']);
+    expect(shouldSkipSegment('/', undefined, false, clientSegments)).toBe(false);
   });
 });
 
 // ─── buildRouteElement with state tree diffing ────────────────────
 
 describe('buildRouteElement with state tree diffing', () => {
-  it('renders sync layout even when listed in client state tree (skip disabled)', async () => {
+  it('skips sync layout when client has it cached', async () => {
     const rootLayoutFn = vi.fn(({ children }: { children: unknown }) => children);
     const pageFn = vi.fn(() => 'Page content');
 
@@ -136,7 +140,7 @@ describe('buildRouteElement with state tree diffing', () => {
       },
     });
 
-    // Client has root layout cached — but skip is disabled
+    // Client has root layout cached — sync layout should be skipped
     const clientStateTree = new Set(['/']);
 
     const result = await buildRouteElement(
@@ -146,9 +150,12 @@ describe('buildRouteElement with state tree diffing', () => {
       clientStateTree
     );
 
-    // Layout should still render (skip is disabled)
+    // Element tree is built (just without the skipped layout wrapping)
     expect(result.element).toBeDefined();
+    // Layout component is still collected (for metadata, segment info)
     expect(result.layoutComponents).toHaveLength(1);
+    // Root segment was skipped
+    expect(result.skippedSegments).toEqual(['/']);
   });
 
   it('does NOT skip async layout even when listed in client state tree', async () => {
@@ -293,7 +300,7 @@ describe('buildRouteElement with state tree diffing', () => {
     expect(result.layoutComponents).toHaveLength(1);
   });
 
-  it('renders all layouts in a deep route even with state tree (skip disabled)', async () => {
+  it('skips all sync layouts in deep route when client has them cached', async () => {
     const rootLayoutFn = vi.fn(({ children }: { children: unknown }) => children);
     const dashLayoutFn = vi.fn(({ children }: { children: unknown }) => children);
     const pageFn = vi.fn(() => 'Page');
@@ -331,8 +338,39 @@ describe('buildRouteElement with state tree diffing', () => {
       clientStateTree
     );
 
-    // Both layouts should render (skip is disabled)
+    // Element tree built with skipped layouts
     expect(result.element).toBeDefined();
+    // Layout components are still collected (for metadata, segment info)
     expect(result.layoutComponents).toHaveLength(2);
+    // Both sync segments were skipped (outermost first)
+    expect(result.skippedSegments).toEqual(['/', '/dashboard']);
+  });
+
+  it('returns empty skippedSegments when no state tree', async () => {
+    const rootLayoutFn = vi.fn(({ children }: { children: unknown }) => children);
+    const pageFn = vi.fn(() => 'Page');
+
+    const rootSegment = makeSegment({
+      urlPath: '/',
+      layout: {
+        filePath: 'app/layout.tsx',
+        load: async () => ({ default: rootLayoutFn }),
+      },
+    });
+    const pageSegment = makeSegment({
+      urlPath: '/projects',
+      segmentName: 'projects',
+      page: {
+        filePath: 'app/projects/page.tsx',
+        load: async () => ({ default: pageFn }),
+      },
+    });
+
+    const result = await buildRouteElement(
+      new Request('http://localhost/projects'),
+      { segments: [rootSegment, pageSegment] as never, params: {} },
+    );
+
+    expect(result.skippedSegments).toEqual([]);
   });
 });

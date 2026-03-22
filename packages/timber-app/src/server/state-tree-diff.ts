@@ -55,24 +55,23 @@ export function parseClientStateTree(req: Request): Set<string> | null {
  * @param clientSegments - Set of paths from X-Timber-State-Tree, or null
  */
 export function shouldSkipSegment(
-  _urlPath: string,
-  _layoutComponent: ((...args: unknown[]) => unknown) | undefined,
-  _isLeaf: boolean,
-  _clientSegments: Set<string> | null
+  urlPath: string,
+  layoutComponent: ((...args: unknown[]) => unknown) | undefined,
+  isLeaf: boolean,
+  clientSegments: Set<string> | null
 ): boolean {
-  // DISABLED: Server-side segment skipping is not safe without client-side
-  // tree merging. When the server omits a layout from the RSC payload, the
-  // client receives a tree with a different structure (no SegmentProvider,
-  // no layout wrapper). React sees a different component tree shape and
-  // re-mounts everything — destroying DOM state (input values, focus,
-  // scroll position) in layouts that should have been preserved.
-  //
-  // The correct fix requires client-side tree merging: the router must
-  // splice the partial RSC response into the existing cached tree, only
-  // replacing changed segments. Until that's implemented, always render
-  // the full tree. RSC naturally handles this efficiently — client
-  // components are sent as references, not re-serialized.
-  //
-  // See design/19-client-navigation.md §"X-Timber-State-Tree Header"
-  return false;
+  // No state tree → full render (initial load, refresh, etc.)
+  if (!clientSegments) return false;
+
+  // Leaf segments (pages) are never skipped
+  if (isLeaf) return false;
+
+  // No layout → nothing to skip
+  if (!layoutComponent) return false;
+
+  // Async layouts always re-render (they may depend on request context)
+  if (layoutComponent.constructor?.name === 'AsyncFunction') return false;
+
+  // Skip if the client already has this segment cached
+  return clientSegments.has(urlPath);
 }

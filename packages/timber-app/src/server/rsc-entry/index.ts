@@ -330,7 +330,7 @@ async function renderRoute(
     throw error;
   }
 
-  const { element, headElements, layoutComponents, deferSuspenseFor } = routeResult;
+  const { element, headElements, layoutComponents, deferSuspenseFor, skippedSegments } = routeResult;
 
   // Build head HTML for injection into the SSR output.
   // Collects CSS, fonts, and modulepreload from the build manifest for matched segments.
@@ -434,7 +434,8 @@ async function renderRoute(
       layoutComponents,
       headElements,
       match,
-      responseHeaders
+      responseHeaders,
+      skippedSegments
     );
   }
 

@@ -1535,3 +1535,85 @@ describe('useParams populated via X-Timber-Params header', () => {
     expect(useParams()).toEqual({ id: '99' });
   });
 });
+
+// ─── Segment merging via X-Timber-Skipped-Segments header ────────
+
+describe('Router segment merging', () => {
+  let router: RouterInstance;
+  let mockFetch: ReturnType<typeof vi.fn<(url: string, init: RequestInit) => Promise<Response>>>;
+  let renderCount: number;
+  let lastRendered: unknown;
+
+  const mockPushState = vi.fn();
+  const mockReplaceState = vi.fn();
+  const mockScrollTo = vi.fn();
+
+  beforeEach(() => {
+    mockFetch = vi.fn();
+    mockPushState.mockClear();
+    mockReplaceState.mockClear();
+    mockScrollTo.mockClear();
+    renderCount = 0;
+    lastRendered = null;
+
+    router = createRouter({
+      fetch: mockFetch,
+      pushState: mockPushState,
+      replaceState: mockReplaceState,
+      scrollTo: mockScrollTo,
+      getCurrentUrl: () => '/dashboard',
+      getScrollY: () => 0,
+      renderRoot: (element: unknown) => {
+        renderCount++;
+        lastRendered = element;
+      },
+      afterPaint: (cb) => cb(),
+    });
+  });
+
+  it('extracts X-Timber-Skipped-Segments header from response', async () => {
+    const skippedSegments = ['/', '/dashboard'];
+    mockFetch.mockResolvedValueOnce(
+      new Response('payload', {
+        headers: {
+          'content-type': 'text/x-component',
+          'X-Timber-Skipped-Segments': JSON.stringify(skippedSegments),
+        },
+      })
+    );
+
+    await router.navigate('/dashboard/settings');
+
+    // Navigation should complete successfully with skipped segments
+    expect(renderCount).toBe(1);
+  });
+
+  it('renders without merging when no skipped segments', async () => {
+    mockFetch.mockResolvedValueOnce(
+      new Response('full-payload', {
+        headers: { 'content-type': 'text/x-component' },
+      })
+    );
+
+    await router.navigate('/projects');
+
+    expect(renderCount).toBe(1);
+    // With no decodeRsc, payload is raw text — merging is a no-op for non-elements
+    expect(lastRendered).toBe('full-payload');
+  });
+
+  it('handles malformed X-Timber-Skipped-Segments header gracefully', async () => {
+    mockFetch.mockResolvedValueOnce(
+      new Response('payload', {
+        headers: {
+          'content-type': 'text/x-component',
+          'X-Timber-Skipped-Segments': 'not-valid-json',
+        },
+      })
+    );
+
+    // Should not throw — malformed header is treated as no skipped segments
+    await router.navigate('/projects');
+    expect(renderCount).toBe(1);
+  });
+});

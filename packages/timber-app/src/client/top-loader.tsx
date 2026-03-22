@@ -13,8 +13,13 @@
  * width over ~30s using ease-out timing. When navigation completes, the bar
  * snaps to 100% and fades out over 200ms. No JS animation loops (RAF, setInterval).
  *
- * The bar respects a configurable delay (default 150ms) — if navigation
- * resolves faster than the delay, the bar never appears.
+ * Phase transitions are derived synchronously during render (React's
+ * getDerivedStateFromProps pattern) — no useEffect needed for state tracking.
+ * The finishing → hidden cleanup uses onTransitionEnd from the CSS transition.
+ *
+ * When delay > 0, CSS animation-delay + a visibility keyframe ensure the bar
+ * stays invisible during the delay period. If navigation finishes before the
+ * delay, the bar was never visible so the finish transition is also invisible.
  *
  * See design/19-client-navigation.md §"useNavigationPending()"
  * See LOCAL-336 for design decisions.
@@ -22,7 +27,7 @@
 
 'use client';
 
-import { useState, useEffect, useRef, createElement } from 'react';
+import { useState, createElement } from 'react';
 import { usePendingNavigationUrl } from './navigation-context.js';
 
 // ─── Types ───────────────────────────────────────────────────────
@@ -36,7 +41,7 @@ export interface TopLoaderConfig {
   height?: number;
   /** Show subtle glow/shadow effect. Default: true. */
   shadow?: boolean;
-  /** Delay in ms before showing the bar. Default: 150. */
+  /** Delay in ms before showing the bar. Default: 0. */
   delay?: number;
   /** CSS z-index. Default: 1600. */
   zIndex?: number;
@@ -47,20 +52,22 @@ export interface TopLoaderConfig {
 const DEFAULT_COLOR = '#2299DD';
 const DEFAULT_HEIGHT = 3;
 const DEFAULT_SHADOW = true;
-const DEFAULT_DELAY = 150;
+const DEFAULT_DELAY = 0;
 const DEFAULT_Z_INDEX = 1600;
 
-// ─── Keyframes ID ────────────────────────────────────────────────
+// ─── Keyframes ───────────────────────────────────────────────────
 
 // Unique keyframes name to avoid collisions with user styles.
-const KEYFRAMES_NAME = '__timber_top_loader_crawl';
+const CRAWL_KEYFRAMES = '__timber_top_loader_crawl';
+const APPEAR_KEYFRAMES = '__timber_top_loader_appear';
 
-// Track whether the @keyframes rule has been injected into the document.
+// Track whether the @keyframes rules have been injected into the document.
 let keyframesInjected = false;
 
 /**
- * Inject the @keyframes rule into the document head once.
- * Uses a <style> tag so the animation is available for inline-styled elements.
+ * Inject the @keyframes rules into the document head once.
+ * Called during render (idempotent). Uses a <style> tag so the
+ * animations are available for inline-styled elements.
  */
 function ensureKeyframes(): void {
   if (keyframesInjected) return;
@@ -68,9 +75,13 @@ function ensureKeyframes(): void {
 
   const style = document.createElement('style');
   style.textContent = `
-@keyframes ${KEYFRAMES_NAME} {
+@keyframes ${CRAWL_KEYFRAMES} {
   0% { width: 0%; }
   100% { width: 90%; }
+}
+@keyframes ${APPEAR_KEYFRAMES} {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 `;
   document.head.appendChild(style);
@@ -83,8 +94,15 @@ function ensureKeyframes(): void {
  * Internal top-loader component. Injected by TransitionRoot.
  *
  * Reads pending navigation state from PendingNavigationContext.
- * Shows nothing when no navigation is pending or when the navigation
- * resolves before the delay threshold.
+ * Phase transitions are derived synchronously during render:
+ *
+ *   hidden → crawling:   when isPending becomes true
+ *   crawling → finishing: when isPending becomes false
+ *   finishing → hidden:   when CSS transition ends (onTransitionEnd)
+ *   finishing → crawling: when isPending becomes true again
+ *
+ * No useEffect — all state changes are either derived during render
+ * (getDerivedStateFromProps pattern) or triggered by DOM events.
  */
 export function TopLoader({ config }: { config?: TopLoaderConfig }): React.ReactElement | null {
   const pendingUrl = usePendingNavigationUrl();
@@ -96,75 +114,23 @@ export function TopLoader({ config }: { config?: TopLoaderConfig }): React.React
   const delay = config?.delay ?? DEFAULT_DELAY;
   const zIndex = config?.zIndex ?? DEFAULT_Z_INDEX;
 
-  // Track visibility states:
-  // - 'hidden': no bar shown
-  // - 'crawling': bar is animating from 0% to 90%
-  // - 'finishing': bar is snapping to 100% and fading out
   const [phase, setPhase] = useState<'hidden' | 'crawling' | 'finishing'>('hidden');
-  const delayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const finishTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Inject keyframes on mount
-  useEffect(() => {
+  // ─── Synchronous phase derivation (getDerivedStateFromProps) ──
+  // React allows setState during render if the value changes — it
+  // immediately re-renders with the updated state before committing.
+
+  if (isPending && (phase === 'hidden' || phase === 'finishing')) {
+    setPhase('crawling');
+  }
+  if (!isPending && phase === 'crawling') {
+    setPhase('finishing');
+  }
+
+  // Inject keyframes on first visible render (idempotent)
+  if (phase !== 'hidden') {
     ensureKeyframes();
-  }, []);
-
-  // Handle pending state changes
-  useEffect(() => {
-    if (isPending) {
-      // Navigation started — wait for delay before showing the bar
-      // Clear any finish timer from a previous navigation
-      if (finishTimerRef.current !== null) {
-        clearTimeout(finishTimerRef.current);
-        finishTimerRef.current = null;
-      }
-
-      if (delay > 0) {
-        delayTimerRef.current = setTimeout(() => {
-          delayTimerRef.current = null;
-          setPhase('crawling');
-        }, delay);
-      } else {
-        setPhase('crawling');
-      }
-    } else {
-      // Navigation ended (or was never pending)
-      // Clear the delay timer — if it hasn't fired, the bar never shows
-      if (delayTimerRef.current !== null) {
-        clearTimeout(delayTimerRef.current);
-        delayTimerRef.current = null;
-        // Bar was never shown — stay hidden
-        if (phase === 'hidden') return;
-      }
-
-      if (phase === 'crawling') {
-        // Bar was visible — snap to 100% and fade out
-        setPhase('finishing');
-        finishTimerRef.current = setTimeout(() => {
-          finishTimerRef.current = null;
-          setPhase('hidden');
-        }, 200);
-      }
-      // If already 'finishing' or 'hidden', do nothing
-    }
-
-    return () => {
-      if (delayTimerRef.current !== null) {
-        clearTimeout(delayTimerRef.current);
-        delayTimerRef.current = null;
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- phase is read but intentionally not a dependency
-  }, [isPending, delay]);
-
-  // Cleanup finish timer on unmount
-  useEffect(() => {
-    return () => {
-      if (finishTimerRef.current !== null) {
-        clearTimeout(finishTimerRef.current);
-      }
-    };
-  }, []);
+  }
 
   if (phase === 'hidden') return null;
 
@@ -185,11 +151,17 @@ export function TopLoader({ config }: { config?: TopLoaderConfig }): React.React
     backgroundColor: color,
     ...(phase === 'crawling'
       ? {
-          // Crawling: animate from 0% to 90% over 30s
-          animation: `${KEYFRAMES_NAME} 30s ease-out forwards`,
+          // Crawl from 0% to 90% over 30s. When delay > 0, both the crawl
+          // and a visibility animation are delayed — the bar stays at width 0%
+          // and opacity 0 during the delay, then appears and starts crawling.
+          // With delay 0, the appear animation is instant (0s duration, no delay).
+          animation: [
+            `${CRAWL_KEYFRAMES} 30s ease-out ${delay}ms forwards`,
+            `${APPEAR_KEYFRAMES} 0s ${delay}ms both`,
+          ].join(', '),
         }
       : {
-          // Finishing: snap to 100% and fade out
+          // Finishing: snap to 100% and fade out over 200ms.
           width: '100%',
           opacity: 0,
           transition: 'width 200ms ease, opacity 200ms ease',
@@ -201,6 +173,17 @@ export function TopLoader({ config }: { config?: TopLoaderConfig }): React.React
       : {}),
   };
 
+  // Clean up the finishing phase when the CSS transition completes.
+  // onTransitionEnd fires once per transitioned property — we act on
+  // the first one (opacity) and ignore subsequent (width).
+  const handleTransitionEnd = phase === 'finishing'
+    ? (e: React.TransitionEvent) => {
+        if (e.propertyName === 'opacity') {
+          setPhase('hidden');
+        }
+      }
+    : undefined;
+
   return createElement(
     'div',
     {
@@ -208,6 +191,6 @@ export function TopLoader({ config }: { config?: TopLoaderConfig }): React.React
       'aria-hidden': 'true',
       'data-timber-top-loader': '',
     },
-    createElement('div', { style: barStyle })
+    createElement('div', { style: barStyle, onTransitionEnd: handleTransitionEnd })
   );
 }

@@ -129,7 +129,7 @@ export interface TimberUserConfig {
     height?: number;
     /** Show subtle glow/shadow effect. Default: true. */
     shadow?: boolean;
-    /** Delay in ms before showing the bar (avoids flash on fast navs). Default: 150. */
+    /** Delay in ms before showing the bar (avoids flash on fast navs). Default: 0. */
     delay?: number;
     /** CSS z-index. Default: 1600. */
     zIndex?: number;

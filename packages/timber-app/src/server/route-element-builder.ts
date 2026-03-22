@@ -61,6 +61,13 @@ export interface RouteElementResult {
   segments: ManifestSegmentNode[];
   /** Max deferSuspenseFor hold window across all segments. */
   deferSuspenseFor: number;
+  /**
+   * Segment paths that were skipped because the client already has them cached.
+   * Ordered outermost to innermost. Empty when no segments were skipped.
+   * The client uses this to merge the partial payload with cached segments.
+   * See design/19-client-navigation.md §"X-Timber-State-Tree Header"
+   */
+  skippedSegments: string[];
 }
 
 /**
@@ -305,6 +312,10 @@ export async function buildRouteElement(
     layoutComponents.map(({ component, segment }) => [segment, component])
   );
 
+  // Track which segments were skipped for the X-Timber-Skipped-Segments header.
+  // The client uses this to merge the partial payload with its cached segments.
+  const skippedSegments: string[] = [];
+
   // Wrap from innermost (leaf) to outermost (root), processing every
   // segment in the chain. Each segment may contribute:
   //   1. Error boundaries (status files + error.tsx)
@@ -334,6 +345,8 @@ export async function buildRouteElement(
       // Skip this segment entirely — the client uses its cached version.
       // Access.ts already ran in the pre-render loop (security guarantee).
       // Metadata was already resolved above (head elements are correct).
+      // Record for X-Timber-Skipped-Segments header (outermost first, so prepend).
+      skippedSegments.unshift(segment.urlPath);
       continue;
     }
 
@@ -413,5 +426,6 @@ export async function buildRouteElement(
     layoutComponents,
     segments,
     deferSuspenseFor,
+    skippedSegments,
   };
 }

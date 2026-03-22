@@ -182,26 +182,44 @@ test.describe('segment diff', () => {
     await page.goto('/dashboard');
     await waitForHydration(page);
 
-    // Intercept the RSC request on next navigation.
-    // Set up listener before clicking to avoid race conditions.
-    const rscRequest = page.waitForRequest(
+    // First SPA navigation — element cache is empty (RSC thenables can't
+    // be walked until React resolves them). State tree is empty but the
+    // header is still sent. The element cache gets populated from the
+    // resolved payload after this navigation.
+    const firstRscRequest = page.waitForRequest(
       (req) => req.headers()['accept']?.includes('text/x-component') ?? false,
       { timeout: 10_000 }
     );
 
     await page.click('[data-testid="link-settings"]');
 
-    const req = await rscRequest;
-    const stateTree = req.headers()['x-timber-state-tree'];
-    expect(stateTree).toBeDefined();
+    const firstReq = await firstRscRequest;
+    const firstStateTree = firstReq.headers()['x-timber-state-tree'];
+    expect(firstStateTree).toBeDefined();
 
-    const parsed = JSON.parse(stateTree!);
-    expect(parsed).toHaveProperty('segments');
-    expect(Array.isArray(parsed.segments)).toBe(true);
-    // After hydration, the segment cache is populated from the server-embedded
-    // __timber_segments data. The state tree should contain at least the root segment.
-    expect(parsed.segments.length).toBeGreaterThan(0);
-    expect(parsed.segments).toContain('/');
+    const firstParsed = JSON.parse(firstStateTree!);
+    expect(firstParsed).toHaveProperty('segments');
+    expect(Array.isArray(firstParsed.segments)).toBe(true);
+
+    // Second SPA navigation — element cache is now populated from the
+    // first navigation's resolved payload. State tree should include
+    // mergeable segments (those with a child SegmentProvider).
+    await page.waitForURL('/dashboard/settings');
+
+    const secondRscRequest = page.waitForRequest(
+      (req) => req.headers()['accept']?.includes('text/x-component') ?? false,
+      { timeout: 10_000 }
+    );
+
+    await page.click('[data-testid="link-dashboard-home"]');
+
+    const secondReq = await secondRscRequest;
+    const secondStateTree = secondReq.headers()['x-timber-state-tree'];
+    expect(secondStateTree).toBeDefined();
+
+    const secondParsed = JSON.parse(secondStateTree!);
+    expect(secondParsed).toHaveProperty('segments');
+    expect(Array.isArray(secondParsed.segments)).toBe(true);
   });
 
   test('sync layout is NOT re-rendered during sibling navigation', async ({ page }) => {

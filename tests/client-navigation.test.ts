@@ -1335,7 +1335,7 @@ describe('excludes async segments from state tree', () => {
 });
 
 describe('includes X-Timber-State-Tree header for segment diff skip sync', () => {
-  it('sends non-empty state tree after cache is populated', async () => {
+  it('sends empty state tree on first navigation (element cache not yet populated)', async () => {
     const mockFetch = vi.fn();
     const router = createRouter({
       fetch: mockFetch,
@@ -1346,14 +1346,16 @@ describe('includes X-Timber-State-Tree header for segment diff skip sync', () =>
       getScrollY: () => 0,
     });
 
-    // Populate segment cache (simulating hydration)
+    // Populate metadata segment cache (simulating hydration)
     router.initSegmentCache([
       { path: '/', isAsync: false },
       { path: '/dashboard', isAsync: false },
       { path: '/dashboard/page', isAsync: false },
     ]);
 
-    // Navigate — the state tree header should now contain segments
+    // First navigation — element cache is empty (initial RSC payload is a
+    // thenable that can't be walked). State tree should be empty so the
+    // server does a full render.
     mockFetch.mockResolvedValueOnce(
       new Response('payload', {
         headers: {
@@ -1371,9 +1373,8 @@ describe('includes X-Timber-State-Tree header for segment diff skip sync', () =>
     const [, init] = mockFetch.mock.calls[0] as [string, RequestInit];
     const headers = init.headers as Record<string, string>;
     const stateTree = JSON.parse(headers['X-Timber-State-Tree']);
-    expect(stateTree.segments).toContain('/');
-    expect(stateTree.segments).toContain('/dashboard');
-    expect(stateTree.segments.length).toBeGreaterThan(0);
+    // Empty — no mergeable element cache entries yet
+    expect(stateTree.segments).toEqual([]);
   });
 });
 

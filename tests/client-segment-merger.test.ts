@@ -195,6 +195,7 @@ describe('SegmentElementCache', () => {
     const entry = {
       segmentPath: '/',
       element: makeSegmentProvider([''], makePage('Home')),
+      hasMergeableChild: false,
     };
     cache.set('/', entry);
     expect(cache.get('/')).toBe(entry);
@@ -206,12 +207,12 @@ describe('SegmentElementCache', () => {
 
   it('reports size', () => {
     expect(cache.size).toBe(0);
-    cache.set('/', { segmentPath: '/', element: makeSegmentProvider([''], null) });
+    cache.set('/', { segmentPath: '/', hasMergeableChild: false, element: makeSegmentProvider([''], null) });
     expect(cache.size).toBe(1);
   });
 
   it('clears all entries', () => {
-    cache.set('/', { segmentPath: '/', element: makeSegmentProvider([''], null) });
+    cache.set('/', { segmentPath: '/', hasMergeableChild: false, element: makeSegmentProvider([''], null) });
     cache.clear();
     expect(cache.size).toBe(0);
   });

@@ -297,7 +297,7 @@ export function createRouter(deps: RouterDeps): RouterInstance {
     if (result === undefined) {
       // Fetch RSC payload with state tree for partial rendering.
       // Send current URL for intercepting route resolution (modal pattern).
-      const stateTree = segmentCache.serializeStateTree();
+      const stateTree = segmentCache.serializeStateTree(segmentElementCache.getMergeablePaths());
       const rawCurrentUrl = deps.getCurrentUrl();
       const currentUrl = rawCurrentUrl.startsWith('http')
         ? new URL(rawCurrentUrl).pathname
@@ -421,7 +421,7 @@ export function createRouter(deps: RouterDeps): RouterInstance {
       setPending(true, url);
       try {
         const headElements = await renderViaTransition(url, async () => {
-          const stateTree = segmentCache.serializeStateTree();
+          const stateTree = segmentCache.serializeStateTree(segmentElementCache.getMergeablePaths());
           const result = await fetchRscPayload(url, deps, stateTree);
           updateSegmentCache(result.segmentInfo);
           updateNavigationState(result.params, url);
@@ -450,7 +450,7 @@ export function createRouter(deps: RouterDeps): RouterInstance {
     if (historyStack.has(url)) return;
 
     // Fire-and-forget fetch
-    const stateTree = segmentCache.serializeStateTree();
+    const stateTree = segmentCache.serializeStateTree(segmentElementCache.getMergeablePaths());
     void fetchRscPayload(url, deps, stateTree).then(
       (result) => {
         prefetchCache.set(url, result);

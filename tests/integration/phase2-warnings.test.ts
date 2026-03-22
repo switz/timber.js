@@ -185,9 +185,12 @@ describe('cross-feature interactions', () => {
     const headers = options.headers as Record<string, string>;
     const stateTree = JSON.parse(headers['X-Timber-State-Tree']);
 
-    expect(stateTree.segments).toContain('/');
-    expect(stateTree.segments).toContain('/dashboard');
-    expect(stateTree.segments).not.toContain('/settings');
+    // State tree is empty on first navigation — the element cache is not
+    // yet populated (RSC-decoded thenables can't be walked until React
+    // resolves them). The server does a full render.
+    // The metadata segment cache has entries, but the element cache filter
+    // excludes everything because no segments have been proven mergeable.
+    expect(stateTree.segments).toEqual([]);
   });
 
   it('history stack + pending state: rapid navigations settle correctly', async () => {

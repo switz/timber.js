@@ -1,23 +1,20 @@
 /**
  * Bundle singleton audit — verifies that module-level singletons in the
- * timber client runtime are not duplicated across client chunks in
- * production builds.
+ * timber client runtime are correctly deduplicated in production builds.
  *
- * The RSC client build creates two separate module graphs:
- * 1. Browser entry (index chunk) — includes transition-root.tsx
- * 2. Client references (shared-app/vendor-timber chunks) — includes
- *    'use client' modules like link-status-provider.tsx
+ * With the simplified chunking strategy (LOCAL-337), manual chunk splitting
+ * was removed. Rolldown's natural code splitting places shared modules in
+ * exactly one chunk, eliminating the duplication that previously required
+ * globalThis + Symbol.for workarounds.
  *
- * Both graphs may import navigation-context.ts, which contains lazy-created
- * React contexts (module-level singletons). If the bundler duplicates the
- * module across chunks, each chunk gets its own singleton instance, breaking
- * React context identity (provider and consumer use different objects).
+ * This test builds the phase2-app fixture and verifies:
+ * 1. The globalThis + Symbol.for workaround is NOT present (confirming
+ *    module deduplication makes it unnecessary)
+ * 2. The build produces a small number of chunks (main + per-route + shared)
+ * 3. Old manual chunk tiers are absent
  *
- * This test builds the phase2-app fixture and verifies that context creation
- * patterns appear in exactly one chunk.
- *
- * See design/19-client-navigation.md §"Singleton Context Guarantee"
- * Task: LOCAL-325
+ * See design/27-chunking-strategy.md
+ * Task: LOCAL-337 (simplified from LOCAL-325)
  */
 
 import { describe, it, expect, beforeAll } from 'vitest';
@@ -25,7 +22,7 @@ import { execSync } from 'node:child_process';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { assignChunk } from '../packages/timber-app/src/plugins/chunks';
+import { isTimberRuntime } from '../packages/timber-app/src/plugins/chunks';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const FIXTURE_DIR = resolve(__dirname, 'fixtures/phase2-app');
@@ -74,38 +71,56 @@ describe('bundle singleton audit', () => {
     chunks = readClientChunks();
   });
 
-  it('navigation contexts use Symbol.for keys for cross-chunk singleton safety', () => {
-    // The globalThis singleton pattern uses Symbol.for('__timber_nav_ctx') and
-    // Symbol.for('__timber_pending_nav_ctx') so that even if the module is
-    // duplicated across chunks, both copies share the same context instance.
-    //
-    // We verify that the Symbol.for keys appear in the build output.
-    const navCtxKeyPattern = /Symbol\.for\(["`']__timber_nav_ctx["`']\)/;
-    const pendingCtxKeyPattern = /Symbol\.for\(["`']__timber_pending_nav_ctx["`']\)/;
+  it('globalThis + Symbol.for singleton workaround is NOT present', () => {
+    // The previous chunking strategy duplicated navigation-context.ts across
+    // chunks, requiring globalThis + Symbol.for('__timber_nav_ctx') etc.
+    // With natural code splitting, the module is not duplicated, so these
+    // workarounds should be absent from the build output.
+    const symbolForNavPattern = /Symbol\.for\(["`']__timber_nav_ctx["`']\)/;
+    const symbolForPendingPattern = /Symbol\.for\(["`']__timber_pending_nav_ctx["`']\)/;
+    const symbolForStatePattern = /Symbol\.for\(["`']__timber_nav_state["`']\)/;
 
-    const navKeyChunks = findChunksContaining(chunks, navCtxKeyPattern);
-    const pendingKeyChunks = findChunksContaining(chunks, pendingCtxKeyPattern);
-
-    // At least one chunk must contain each Symbol.for key
-    expect(navKeyChunks.length).toBeGreaterThanOrEqual(1);
-    expect(pendingKeyChunks.length).toBeGreaterThanOrEqual(1);
+    expect(findChunksContaining(chunks, symbolForNavPattern)).toEqual([]);
+    expect(findChunksContaining(chunks, symbolForPendingPattern)).toEqual([]);
+    expect(findChunksContaining(chunks, symbolForStatePattern)).toEqual([]);
   });
 
-  it('timber runtime modules are assigned to vendor-timber or shared chunk', () => {
-    // The vendor-timber chunk should exist (even if just re-exports)
-    const vendorTimberChunks = [...chunks.keys()].filter((f) => f.startsWith('vendor-timber'));
-    expect(vendorTimberChunks.length).toBe(1);
+  it('build produces expected chunk structure (no old manual chunk tiers)', () => {
+    const chunkNames = [...chunks.keys()].sort();
+
+    // Should have one main index chunk
+    const indexChunks = chunkNames.filter((f) => f.startsWith('index'));
+    expect(indexChunks.length).toBe(1);
+
+    // Should NOT have vendor-react, vendor-timber, vendor-app, shared-app, shared-client
+    // (these were the old manual chunk tiers)
+    const oldTierChunks = chunkNames.filter(
+      (f) =>
+        f.startsWith('vendor-react') ||
+        f.startsWith('vendor-timber') ||
+        f.startsWith('vendor-app') ||
+        f.startsWith('shared-app') ||
+        f.startsWith('shared-client')
+    );
+    expect(oldTierChunks).toEqual([]);
   });
 
   it('isTimberRuntime matches @timber-js/app consumer paths', () => {
     // Consumer project path (npm/pnpm install)
-    expect(assignChunk('/project/node_modules/@timber-js/app/dist/client/navigation-context.js'))
-      .toBe('vendor-timber');
-    expect(assignChunk('/project/node_modules/@timber-js/app/dist/client/transition-root.js'))
-      .toBe('vendor-timber');
+    expect(
+      isTimberRuntime('/project/node_modules/@timber-js/app/dist/client/navigation-context.js')
+    ).toBe(true);
+    expect(
+      isTimberRuntime('/project/node_modules/@timber-js/app/dist/client/transition-root.js')
+    ).toBe(true);
 
     // Monorepo path (pnpm workspace)
-    expect(assignChunk('/project/packages/timber-app/src/client/navigation-context.ts'))
-      .toBe('vendor-timber');
+    expect(
+      isTimberRuntime('/project/packages/timber-app/src/client/navigation-context.ts')
+    ).toBe(true);
+
+    // Non-timber paths
+    expect(isTimberRuntime('/project/node_modules/react/index.js')).toBe(false);
+    expect(isTimberRuntime('/project/app/page.tsx')).toBe(false);
   });
 });

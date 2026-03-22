@@ -135,3 +135,5 @@ Features tagged as **[novel]** (not in Next.js or Vinext), **[enhanced]** (impro
 - **[parity]** next-intl compatibility ([07-routing.md](design/07-routing.md))
 - **[parity]** next/font/\* shims redirected to timber-fonts virtual modules ([24-fonts.md](design/24-fonts.md))
 - **[parity]** `server-only` / `client-only` poison pill packages — build-time error when imported in the wrong environment ([14-ecosystem.md](design/14-ecosystem.md))
+
+- **[enhanced]** Route-group navigation coverage — E2E fixture verifies shared layout client state is preserved within a route group and remounts across different groups ([19-client-navigation.md](design/19-client-navigation.md))

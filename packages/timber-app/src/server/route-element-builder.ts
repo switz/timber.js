@@ -77,6 +77,16 @@ export class RouteSignalWithContext extends Error {
   }
 }
 
+interface TracedLayoutProps {
+  component: (props: Record<string, unknown>) => unknown;
+  segmentLabel: string;
+  layoutProps: Record<string, unknown>;
+}
+
+async function TracedLayout({ component, segmentLabel, layoutProps }: TracedLayoutProps) {
+  return withSpan('timber.layout', { 'timber.segment': segmentLabel }, () => component(layoutProps));
+}
+
 // ─── Builder ──────────────────────────────────────────────────────────────
 
 /**
@@ -378,30 +388,31 @@ export async function buildRouteElement(
       const segmentPath = segment.urlPath.split('/');
       const parallelRouteKeys = Object.keys(segment.slots ?? {});
 
-      // Wrap the layout component in an OTEL span.
+      // Wrap the layout component in a stable OTEL-traced server component.
+      // Keeping the wrapper at module scope preserves the server component
+      // type identity across hydration and navigation payloads, which gives
+      // React a stable tree to reconcile for preserved layouts.
+      //
       // For route groups, urlPath is "/" (groups don't add URL segments), so
-      // include the directory name to distinguish e.g. "layout /(pre-release)"
+      // include the directory name to distinguish e.g. "layout /(content)"
       // from the root "layout /".
-      const segmentForSpan = segment;
-      const layoutComponentForSpan = layoutComponent;
       const segmentLabel =
-        segmentForSpan.segmentType === 'group'
-          ? `${segmentForSpan.urlPath === '/' ? '' : segmentForSpan.urlPath}/${segmentForSpan.segmentName}`
-          : segmentForSpan.urlPath;
-      const TracedLayout = async (props: Record<string, unknown>) => {
-        return withSpan('timber.layout', { 'timber.segment': segmentLabel }, () =>
-          (layoutComponentForSpan as (props: Record<string, unknown>) => unknown)(props)
-        );
-      };
+        segment.segmentType === 'group'
+          ? `${segment.urlPath === '/' ? '' : segment.urlPath}/${segment.segmentName}`
+          : segment.urlPath;
 
       element = h(SegmentProvider, {
         segments: segmentPath,
         parallelRouteKeys,
         children: h(TracedLayout, {
-          ...slotProps,
-          params: paramsPromise,
-          searchParams: {},
-          children: element,
+          component: layoutComponent as (props: Record<string, unknown>) => unknown,
+          segmentLabel,
+          layoutProps: {
+            ...slotProps,
+            params: paramsPromise,
+            searchParams: {},
+            children: element,
+          },
         }),
       });
     }

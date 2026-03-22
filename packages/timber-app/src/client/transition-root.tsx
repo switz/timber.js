@@ -22,8 +22,9 @@
  * See design/19-client-navigation.md §"NavigationContext"
  */
 
-import { useState, useTransition, createElement, type ReactNode } from 'react';
+import { useState, useTransition, createElement, Fragment, type ReactNode } from 'react';
 import { PendingNavigationProvider } from './navigation-context.js';
+import { TopLoader, type TopLoaderConfig } from './top-loader.js';
 
 // ─── Module-level functions ──────────────────────────────────────
 
@@ -61,7 +62,7 @@ let _navigateTransition:
  * Non-navigation renders:
  *   transitionRender(newWrappedElement);
  */
-export function TransitionRoot({ initial }: { initial: ReactNode }): ReactNode {
+export function TransitionRoot({ initial, topLoaderConfig }: { initial: ReactNode; topLoaderConfig?: TopLoaderConfig }): ReactNode {
   const [element, setElement] = useState<ReactNode>(initial);
   const [pendingUrl, setPendingUrl] = useState<string | null>(null);
   const [, startTransition] = useTransition();
@@ -101,7 +102,14 @@ export function TransitionRoot({ initial }: { initial: ReactNode }): ReactNode {
     });
   };
 
-  return createElement(PendingNavigationProvider, { value: pendingUrl }, element);
+  // Inject TopLoader alongside the element tree inside PendingNavigationProvider.
+  // The TopLoader reads pendingUrl from context to show/hide the progress bar.
+  // It is rendered only when not explicitly disabled via config.
+  const showTopLoader = topLoaderConfig?.enabled !== false;
+  const children = showTopLoader
+    ? createElement(Fragment, null, createElement(TopLoader, { config: topLoaderConfig }), element)
+    : element;
+  return createElement(PendingNavigationProvider, { value: pendingUrl }, children);
 }
 
 // ─── Public API ──────────────────────────────────────────────────
